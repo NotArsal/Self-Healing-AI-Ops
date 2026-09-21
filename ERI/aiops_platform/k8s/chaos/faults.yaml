@@ -1,0 +1,29 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: kill-mock-llm
+  namespace: target-system
+spec:
+  action: pod-kill
+  mode: one
+  selector:
+    labelSelectors:
+      app: mock-llm
+  duration: '5m'
+---
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: delay-rag-api
+  namespace: target-system
+spec:
+  action: delay
+  mode: all
+  selector:
+    labelSelectors:
+      app: rag-api
+  delay:
+    latency: '500ms'
+    correlation: '100'
+    jitter: '0ms'
+  duration: '5m'

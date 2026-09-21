@@ -1,0 +1,79 @@
+# RBAC: ServiceAccount + Role for the Healing Executor
+# Grants least-privilege access to restart/scale only in target-system namespace
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: healing-executor-sa
+  namespace: aiops
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: healing-executor-role
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments", "deployments/scale"]
+  verbs: ["get", "list", "patch", "update"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "delete"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: healing-executor-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: healing-executor-role
+subjects:
+- kind: ServiceAccount
+  name: healing-executor-sa
+  namespace: aiops
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: healing-executor
+  namespace: aiops
+  labels:
+    app: healing-executor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: healing-executor
+  template:
+    metadata:
+      labels:
+        app: healing-executor
+    spec:
+      serviceAccountName: healing-executor-sa
+      containers:
+      - name: executor
+        image: healing-executor:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9000
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: healing-executor
+  namespace: aiops
+spec:
+  selector:
+    app: healing-executor
+  ports:
+  - port: 9000
+    targetPort: 9000

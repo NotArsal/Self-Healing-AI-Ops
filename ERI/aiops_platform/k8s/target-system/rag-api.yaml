@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rag-api
+  namespace: target-system
+  labels:
+    app: rag-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rag-api
+  template:
+    metadata:
+      labels:
+        app: rag-api
+    spec:
+      containers:
+      - name: app
+        image: rag-api:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+        env:
+        - name: LLM_GATEWAY_URL
+          value: "http://mock-llm-gateway.target-system.svc.cluster.local:8000"
+        - name: DB_HOST
+          value: "vector-db.target-system.svc.cluster.local"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rag-api
+  namespace: target-system
+spec:
+  selector:
+    app: rag-api
+  ports:
+  - port: 8080
+    targetPort: 8080

@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-llm-gateway
+  namespace: target-system
+  labels:
+    app: mock-llm-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mock-llm-gateway
+  template:
+    metadata:
+      labels:
+        app: mock-llm-gateway
+    spec:
+      containers:
+      - name: app
+        image: mock-llm-gateway:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-llm-gateway
+  namespace: target-system
+spec:
+  selector:
+    app: mock-llm-gateway
+  ports:
+  - port: 8000
+    targetPort: 8000

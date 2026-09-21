@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aiops-backend
+  namespace: aiops
+  labels:
+    app: aiops-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aiops-backend
+  template:
+    metadata:
+      labels:
+        app: aiops-backend
+    spec:
+      containers:
+      - name: app
+        image: aiops-backend:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+        env:
+        - name: PROMETHEUS_URL
+          value: "http://prometheus-server.observability.svc.cluster.local:80"
+        - name: LOKI_URL
+          value: "http://loki.observability.svc.cluster.local:3100"
+        - name: MEMORY_DB_HOST
+          value: "memory-db.memory.svc.cluster.local"
+        - name: MEMORY_DB_USER
+          value: "aiops"
+        - name: MEMORY_DB_PASSWORD
+          value: "aiopspassword"
+        - name: MEMORY_DB_NAME
+          value: "incident_memory"
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gemini-secret
+              key: api_key
+        - name: HEALING_EXECUTOR_URL
+          value: "http://healing-executor.aiops.svc.cluster.local:9000"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aiops-backend
+  namespace: aiops
+spec:
+  type: NodePort
+  selector:
+    app: aiops-backend
+  ports:
+  - port: 8000
+    targetPort: 8000
+    nodePort: 30000
