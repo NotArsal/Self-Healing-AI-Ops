@@ -1,0 +1,59 @@
+# OpenTelemetry Collector — the fan-out point (ARCHITECTURE.md §4.1).
+#
+# Phase 0 scope: receive OTLP and expose it to Prometheus. The otlphttp export
+# to Kavach's own /v1/traces receiver is commented out because that receiver is
+# P2 work (telemetry ingestion), and an exporter pointing at a 404 would retry
+# forever and fill the logs.
+
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+  memory_limiter:
+    check_interval: 5s
+    limit_percentage: 75
+    spike_limit_percentage: 20
+
+exporters:
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    # Keep the resource attributes that identify which service a metric came
+    # from; detection needs to tell the target's backend from Kavach itself.
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  debug:
+    verbosity: basic
+
+  # --- Enabled in P2, when ingestion/otlp.py exists (ROADMAP P3).
+  # otlphttp/kavach:
+  #   endpoint: http://api:8000/v1
+  #   tls:
+  #     insecure: true
+
+service:
+  telemetry:
+    logs:
+      level: info
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]
+      # P2: exporters: [debug, otlphttp/kavach]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]

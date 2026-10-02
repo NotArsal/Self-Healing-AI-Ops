@@ -1,0 +1,133 @@
+# Kavach control plane.
+#
+# Deliberately absent, and not an oversight:
+#   - No Ollama.     One Ollama only (ARCHITECTURE.md §2.4). Kavach uses the
+#                    host/target instance via host.docker.internal:11434.
+#   - No TimescaleDB. Removed in v1 (ARCHITECTURE.md §2.2).
+#   - No second Prometheus. This IS the one Prometheus.
+#
+# The target application (Simple_RAG-Pipeline) is a SEPARATE compose project in
+# its own repository and is started with `make target-up`. Nothing here depends
+# on it being up, so Phase 0 stands alone.
+
+name: kavach
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: kavach-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kavach}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kavach}
+      POSTGRES_DB: ${POSTGRES_DB:-kavach}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - kavach-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kavach} -d ${POSTGRES_DB:-kavach}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [kavach]
+
+  redis:
+    # Required by the spec for idempotency keys, circuit-breaker counters,
+    # blast-radius windows and console pub/sub (ARCHITECTURE.md §5). No Kavach
+    # code touches it until P3 — it is here as a Phase 0 infra deliverable only.
+    image: redis:7-alpine
+    container_name: kavach-redis
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [kavach]
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.119.0
+    container_name: kavach-otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "${OTLP_HTTP_PORT:-4318}:4318"   # OTLP/HTTP — the target exports here
+      - "${OTLP_GRPC_PORT:-4317}:4317"   # OTLP/gRPC
+      - "8889:8889"                      # Prometheus exporter (scraped below)
+    healthcheck:
+      test: ["CMD", "/otelcol-contrib", "components"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [kavach]
+
+  prometheus:
+    # THE one Prometheus. Control-plane-owned so it keeps observing the target
+    # while Kavach restarts the target's containers (ARCHITECTURE.md §2.4).
+    image: prom/prometheus:v3.1.0
+    container_name: kavach-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - kavach-promdata:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9091}:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [kavach]
+
+  api:
+    build:
+      context: ../apps/control-plane
+      dockerfile: Dockerfile
+    container_name: kavach-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      KAVACH_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-kavach}:${POSTGRES_PASSWORD:-kavach}@postgres:5432/${POSTGRES_DB:-kavach}
+      KAVACH_REDIS_URL: redis://redis:6379/0
+      KAVACH_PROMETHEUS_URL: http://prometheus:9090
+      KAVACH_OTLP_ENDPOINT: http://otel-collector:4318
+      KAVACH_LLM_BASE_URL: ${KAVACH_LLM_BASE_URL:-http://host.docker.internal:11434}
+      KAVACH_LLM_MODEL: ${KAVACH_LLM_MODEL:-llama3.2}
+      KAVACH_LOG_LEVEL: ${KAVACH_LOG_LEVEL:-INFO}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      # THE most dangerous privilege in this system (AGENTS.md security rule 14).
+      # Only executor/adapters/docker.py may ever import the docker SDK, and
+      # every mutation is gated on project ownership (ARCHITECTURE.md §6.3).
+      # Nothing in Phase 0 mutates anything; tests/test_docker_socket.py proves
+      # access against a throwaway container it creates and removes itself.
+      - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/healthz', timeout=3).status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks: [kavach]
+
+volumes:
+  kavach-pgdata:
+  kavach-promdata:
+
+networks:
+  kavach:
+    name: kavach

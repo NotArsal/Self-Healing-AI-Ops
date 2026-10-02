@@ -1,0 +1,80 @@
+# A POINTER to the system under management — not a copy of it.
+#
+# The target application lives in its own git repository with its own remotes
+# and is developed independently (PRD.md §5.1). Kavach never vendors it.
+#
+# This file records what Kavach needs to FIND the target. The onboarding
+# CONTRACT (SLOs, allow-list, verification set, mode) is `kavach.yaml`, which
+# lives in the target's repo and is created in P1 (ARCHITECTURE.md §7).
+
+apiVersion: kavach/v1
+kind: TargetPointer
+
+target:
+  name: simple-rag
+  repository: https://github.com/NotArsal/Simple_RAG-Pipeline.git
+  path: D:/Vit/Academics Sem-5/EDI/Target_RAG-App
+  compose_file: docker-compose.yml
+
+  # Verified with `docker compose config --format json` on 2026-10-02.
+  # This is the Docker ownership key (ARCHITECTURE.md §6.3) — every container
+  # Kavach mutates must carry com.docker.compose.project equal to this value.
+  # It is derived from the directory name, so RENAMING THE TARGET DIRECTORY
+  # CHANGES IT and preflight will correctly refuse to act until it is updated.
+  compose_project: target_rag-app
+
+  git:
+    base_branch: modernize-stack   # where the working code is — NOT main
+    ops_branch: kavach/ops
+    push: false                    # a property, not a toggle (ARCHITECTURE.md §13)
+    protected_branches:
+      - main
+      - modernize-stack
+
+  manifest: kavach.yaml            # created in P1, in the target's repo
+
+# Declared so preflight can check them. `health` endpoints and Toxiproxy arrive
+# with P1 (PRD.md §5.2 items 2 and 8); until then preflight is expected to fail
+# on exactly these, which is the point of running it early.
+services:
+  backend:
+    role: application
+    container_name: rag_backend
+    host_port: 8000
+  db:
+    role: vector_store
+    container_name: rag_db
+    host_port: 5432
+  frontend:
+    role: ui
+    container_name: rag_frontend
+    host_port: 3000
+  ollama:
+    role: model_server
+    container_name: ollama
+    host_port: 11434
+    # Shared with the control plane (ARCHITECTURE.md §2.4). Kavach's RCA calls
+    # reach this directly; the target's calls will go via Toxiproxy from P1.
+    shared_with_control_plane: true
+  prometheus:
+    role: metrics
+    container_name: prometheus
+    host_port: 9090
+    # Superseded by the control-plane Prometheus. Moved behind a compose
+    # profile in P1 so `docker compose up` stops starting it.
+    superseded_by: kavach-prometheus
+
+# Recorded here because they are facts about the target that constrain Kavach,
+# and discovering them twice is a waste.
+notes:
+  deny_always:
+    # Changing EMBED_MODEL makes backend/db.py DROP TABLE document_chunks
+    # CASCADE on next boot (FR-30). Two independent barriers forbid it.
+    - embed_model
+  deferred:
+    # restart: always on `backend` means Docker heals a crash before Kavach
+    # can, and weakening that to manufacture a fault is forbidden (PRD.md §6.4).
+    - F03
+  retired:
+    # No cache of any kind exists in the target (PRD.md §6.1).
+    - F04

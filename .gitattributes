@@ -1,0 +1,22 @@
+# Normalise to LF in the repository. Files below are consumed inside Linux
+# containers (compose, collector config, the Makefile), and CRLF breaks them.
+* text=auto eol=lf
+
+Makefile        text eol=lf
+*.sh            text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+*.py            text eol=lf
+*.ts            text eol=lf
+*.tsx           text eol=lf
+*.json          text eol=lf
+*.md            text eol=lf
+*.toml          text eol=lf
+
+# PowerShell is only ever run on Windows; keep CRLF so older hosts don't choke.
+*.ps1           text eol=crlf
+
+*.png           binary
+*.jpg           binary
+*.pdf           binary
+*.ico           binary

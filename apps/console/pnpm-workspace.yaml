@@ -1,0 +1,15 @@
+# pnpm 10+ reads settings from here, not from a "pnpm" key in package.json.
+# pnpm 12 names this setting `allowBuilds` (a map), not `onlyBuiltDependencies`.
+#
+# pnpm blocks dependency build scripts unless they are named explicitly. These
+# two are allowed because both are expected native-binary installs from
+# dependencies we chose, and neither is a transitive surprise:
+#   esbuild        - vitest's bundler
+#   unrs-resolver  - eslint-config-next's import resolver
+#
+# Adding an entry is a supply-chain decision: a postinstall script runs
+# arbitrary code at install time. Do not add one without knowing which direct
+# dependency pulled it in.
+allowBuilds:
+  esbuild: true
+  unrs-resolver: true

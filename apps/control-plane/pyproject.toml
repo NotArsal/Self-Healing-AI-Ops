@@ -1,0 +1,70 @@
+[project]
+name = "kavach"
+version = "0.1.0"
+description = "Kavach — autonomous self-healing operations platform for AI applications"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.118",
+    "uvicorn[standard]>=0.34",
+    "pydantic>=2.11",
+    "pydantic-settings>=2.8",
+    "structlog>=25.1",
+]
+
+# Phase 0 deliberately does NOT depend on: sqlalchemy, alembic, asyncpg, redis,
+# langgraph, opentelemetry-*, prometheus-client, docker.
+# Each arrives with the phase that first uses it (ROADMAP.md). The docker SDK is
+# a test-only dependency until P3, because the Phase 0 socket probe is a test.
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.9",
+    "mypy>=1.15",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.25",
+    "httpx>=0.28",
+    "docker>=7.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["kavach"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+# The source root, so `kavach` is classified first-party and import sorting
+# keeps it in its own block below third-party.
+src = ["."]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM", "ARG", "PTH", "RUF"]
+# ARG is kept on deliberately: an unused argument in a graph node or adapter is
+# usually a sign the signature drifted from the protocol.
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ARG"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+warn_unused_ignores = true
+disallow_any_explicit = false
+files = ["kavach", "tests"]
+
+[[tool.mypy.overrides]]
+# The docker SDK ships no type stubs. Scoped to this one import so it can never
+# silently widen (AGENTS.md security rule 15).
+module = ["docker.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "docker: requires a reachable Docker socket; skipped when absent",
+]

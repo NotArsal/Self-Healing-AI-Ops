@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+/* Phase 0 defines only the ground and primary text, so the skeleton is not a
+   default white page. The full token system — risk tiers, incident states, the
+   one gradient, the type scale — is P5 (DESIGN_SYSTEM.md §2). Do not grow this
+   file ad hoc; when P5 lands it replaces it wholesale. */
+:root {
+  --k-bg: #0a0e16;
+  --k-text: #e8eff9;
+  --k-text-muted: #8fa3bf;
+}
+
+body {
+  background: var(--k-bg);
+  color: var(--k-text);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
