@@ -60,7 +60,7 @@ P0 scaffold
 - `git init` the Kavach repository. It is not one today, and `docs/decisions/` is meaningless without it
 - Repo at the structure in `ARCHITECTURE.md` §3 (directories with `.gitkeep`, **no stub code**)
 - `Makefile` with every target in `AGENTS.md`, failing loudly where unimplemented
-- `infra/docker-compose.yml`: postgres+pgvector, redis, prometheus, otel-collector. **No Ollama, no second Prometheus** (`ARCHITECTURE.md` §2.4)
+- `infra/docker-compose.yml`: postgres+pgvector, prometheus, otel-collector, api. **No Ollama, no second Prometheus** (`ARCHITECTURE.md` §2.4), and **no Redis** — nothing in Phase 0 uses it, so it arrives in P3 with the checks that need it
 - FastAPI app with `/healthz` only; Next.js app with one page
 - `pyproject.toml` (uv, ruff, mypy strict, pytest), `package.json` (pnpm, eslint, prettier, vitest)
 - Pre-commit hooks, `.env.example` with placeholders only
@@ -193,6 +193,7 @@ No LLM. No RCA engine. A hardcoded mapping from one signal to one action. The po
 - **A minimal git adapter** — checkout `kavach/ops`, commit, revert by blob SHA. *Scheduled earlier than the suggested P8 slot because `rollback_config` writes a versioned project file, so `FR-05` applies from the first file-touching action. P8 completes the model (incident branches, full deny-case suite)*
 - `verification/` — all three fast probes (`FR-07`)
 - `audit/` — append-only log with the hash chain
+- **Redis added to `infra/docker-compose.yml`** (host port 6380) plus `KAVACH_REDIS_URL` in config. Deferred out of Phase 0 because nothing used it; it is required here by `FR-18` (idempotency keys), and by `FR-16`/`FR-17` and console pub/sub as those land
 
 **Acceptance**
 - [ ] `make inject FAULT=F06` → detected within 30s, no human involved

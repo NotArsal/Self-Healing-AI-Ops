@@ -16,9 +16,13 @@ Mode = Literal["SIMULATION", "APPROVAL", "AUTONOMOUS"]
 class Settings(BaseSettings):
     """Control-plane configuration, read from the environment.
 
-    Phase 0 declares only what Phase 0 uses. Database, Redis and Prometheus URLs
-    are present because compose already supplies them and a mismatch between
-    compose and config is the kind of drift that costs an hour in P3.
+    Phase 0 declares only what Phase 0 uses, plus the infrastructure URLs that
+    compose already supplies — a mismatch between compose and config is the kind
+    of drift that costs an hour in P3.
+
+    No `redis_url`: Redis is not started in Phase 0 because nothing uses it. It
+    returns in P3 (FR-16/17/18 and console pub/sub), and the setting comes back
+    with it rather than sitting here unread.
     """
 
     model_config = SettingsConfigDict(
@@ -32,7 +36,6 @@ class Settings(BaseSettings):
 
     # Infrastructure. Unused in Phase 0 — wired in P2/P3.
     database_url: str = "postgresql+asyncpg://kavach:kavach@localhost:5433/kavach"
-    redis_url: str = "redis://localhost:6380/0"
     prometheus_url: str = "http://localhost:9091"
     otlp_endpoint: str = "http://localhost:4318"
 

@@ -44,7 +44,7 @@ Requires Docker Desktop, [uv](https://docs.astral.sh/uv/), Node 20+, pnpm, and a
 cp .env.example .env
 
 make setup        # uv sync + pnpm install
-make up           # control plane: postgres+pgvector, redis, prometheus, otel-collector, api
+make up           # control plane: postgres+pgvector, prometheus, otel-collector, api
 make check        # lint + mypy --strict + pytest + tsc. The gate.
 make socket-test  # prove Docker socket access (see below)
 
@@ -61,9 +61,10 @@ Control-plane host ports are offset so Kavach and the target can run side by sid
 |---|---|
 | Kavach API | 8000 |
 | Postgres + pgvector | **5433** |
-| Redis | **6380** |
 | Prometheus | **9091** |
 | OTLP (HTTP / gRPC) | 4318 / 4317 |
+
+Redis is **not** started in Phase 0 — nothing uses it yet. It returns in P3, where `FR-16`/`FR-17`/`FR-18` and console pub/sub require it, on host port **6380**.
 
 ### One Ollama, one Prometheus
 

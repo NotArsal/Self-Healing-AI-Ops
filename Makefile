@@ -1,11 +1,14 @@
-# Kavach. Canonical task definitions — AGENTS.md § Commands.
+# Kavach. Canonical task definitions - AGENTS.md section "Commands".
 #
 # Targets not yet implemented fail LOUDLY rather than silently succeeding, so a
 # green `make check` never means "the target did nothing".
 #
-# Windows note: GNU make is not installed by default. `make.ps1` mirrors these
-# targets so Phase 0 runs without it. Install GNU make (winget install
-# ezwinports.make) and delete make.ps1 to remove the duplication.
+# PORTABILITY: recipes must work under BOTH sh (Linux/macOS/CI) and cmd.exe,
+# which is what GNU make uses on Windows when sh is not on PATH. That means:
+#   - no grep/awk/sed in a recipe
+#   - no `$$VAR` shell expansion
+#   - no quotes around echo text (cmd prints them literally)
+# `make.ps1` mirrors these targets for anyone without GNU make installed.
 
 CP      := apps/control-plane
 CONSOLE := apps/console
@@ -13,96 +16,127 @@ COMPOSE := docker compose -f infra/docker-compose.yml
 UV      := uv --directory $(CP)
 
 .DEFAULT_GOAL := help
-.PHONY: help setup up down logs dev-api dev-console lint format types test \
-        test-integration check migrate migration gen-client target-up target-down \
-        onboard inject scenario bench socket-test
+.PHONY: help setup up down ps logs dev-api dev-console lint format types test \
+        socket-test test-integration check migrate migration gen-client \
+        target-up target-down onboard inject scenario bench
 
 help:
-	@echo "Kavach — see AGENTS.md for the full list"
-	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-18s\033[0m %s\n",$$1,$$2}'
+	@echo Kavach - control plane. See AGENTS.md for the full list.
+	@echo.
+	@echo   setup             uv sync + pnpm install
+	@echo   up                start the control plane
+	@echo   down              stop the control plane
+	@echo   ps                container status
+	@echo   logs SERVICE=api  tail one service
+	@echo.
+	@echo   dev-api           FastAPI with reload
+	@echo   dev-console       Next.js dev server
+	@echo.
+	@echo   lint              ruff check + eslint
+	@echo   format            ruff format + fix
+	@echo   types             mypy --strict + tsc --noEmit
+	@echo   test              pytest
+	@echo   socket-test       prove Docker socket access
+	@echo   check             lint + types + test. THE GATE.
+	@echo.
+	@echo   target-up         start the system under management (P1)
 
 # --- Setup -------------------------------------------------------------------
 
-setup: ## uv sync + pnpm install
+setup:
 	$(UV) sync --extra dev
 	cd $(CONSOLE) && pnpm install
 
 # --- Stacks ------------------------------------------------------------------
 
-up: ## start the control plane
-	$(COMPOSE) up -d --build
+up:
+	$(COMPOSE) up -d --build --remove-orphans
 
-down: ## stop the control plane
+down:
 	$(COMPOSE) down
 
-logs: ## tail a service: make logs SERVICE=api
+ps:
+	$(COMPOSE) ps
+
+logs:
 	$(COMPOSE) logs -f $(SERVICE)
 
-target-up: ## start the system under management (separate repo)
-	@echo "Not implemented until P1. The target is a separate compose project:"
-	@echo "  cd \"$$KAVACH_TARGET_PATH\" && docker compose up -d"
+target-up:
+	@echo Not implemented until P1.
+	@echo The target is a SEPARATE compose project in its own repository:
+	@echo   cd D:\Vit\Academics Sem-5\EDI\Target_RAG-App
+	@echo   docker compose up -d
 	@exit 1
 
 target-down:
-	@echo "Not implemented until P1." && exit 1
+	@echo Not implemented until P1.
+	@exit 1
 
 # --- Development -------------------------------------------------------------
 
-dev-api: ## FastAPI with reload
+dev-api:
 	$(UV) run uvicorn kavach.main:app --reload --port 8000
 
-dev-console: ## Next.js dev server
+dev-console:
 	cd $(CONSOLE) && pnpm dev
 
 # --- Quality -----------------------------------------------------------------
 
-lint: ## ruff check + eslint
+lint:
 	$(UV) run ruff check .
 	cd $(CONSOLE) && pnpm lint
 
-format: ## ruff format + prettier
+format:
 	$(UV) run ruff format .
 	$(UV) run ruff check --fix .
 
-types: ## mypy --strict + tsc --noEmit
+types:
 	$(UV) run mypy
 	cd $(CONSOLE) && pnpm types
 
-test: ## pytest + vitest
+test:
 	$(UV) run pytest -q
 
-socket-test: ## prove Docker socket access (PL-03)
+socket-test:
 	$(UV) run pytest -q -m docker -v
 
-test-integration: ## the seven fault-loop tests
-	@echo "Not implemented until P3." && exit 1
+test-integration:
+	@echo Not implemented until P3.
+	@exit 1
 
-check: lint types test ## THE GATE
-	@echo "check: OK"
+check: lint types test
+	@echo check: OK
 
 # --- Database ----------------------------------------------------------------
 
 migrate:
-	@echo "Not implemented until P3 (no schema yet)." && exit 1
+	@echo Not implemented until P3 - no schema yet.
+	@exit 1
 
 migration:
-	@echo "Not implemented until P3 (no schema yet)." && exit 1
+	@echo Not implemented until P3 - no schema yet.
+	@exit 1
 
 # --- Codegen -----------------------------------------------------------------
 
 gen-client:
-	@echo "Not implemented until P5." && exit 1
+	@echo Not implemented until P5.
+	@exit 1
 
 # --- Demo and measurement ----------------------------------------------------
 
 onboard:
-	@echo "Not implemented until P1." && exit 1
+	@echo Not implemented until P1.
+	@exit 1
 
 inject:
-	@echo "Not implemented until P2." && exit 1
+	@echo Not implemented until P2.
+	@exit 1
 
 scenario:
-	@echo "Not implemented until P9." && exit 1
+	@echo Not implemented until P9.
+	@exit 1
 
 bench:
-	@echo "Not implemented until P8." && exit 1
+	@echo Not implemented until P8.
+	@exit 1

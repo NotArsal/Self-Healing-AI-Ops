@@ -478,6 +478,8 @@ incident_memory(id, incident_id, summary, embedding vector(768),
 **Redis keyspaces:**
 `kavach:idem:{key}` (idempotency, 24h TTL) · `kavach:cb:{project}:{service}:{fault}` (circuit breaker counters) · `kavach:blast:{project}` (rate windows) · `kavach:events` (pub/sub)
 
+Redis is **started from P3**, not from Phase 0. Every one of those four keyspaces belongs to a check that does not exist until then (`FR-16`, `FR-17`, `FR-18`, §4.3), and a container nothing connects to is a container whose health tells you nothing.
+
 ---
 
 ## 6. The safety engine
@@ -781,9 +783,10 @@ Two compose projects, two networks, bridged where telemetry, the docker socket, 
 
 ```bash
 make target-up   # the SUM: Simple_RAG-Pipeline, from its own repo
-make up          # control plane: api, console, postgres+pgvector, redis,
+make up          # control plane: api, console, postgres+pgvector,
                  #                prometheus, otel-collector
-                 # NOTE: no Ollama here, and no second Prometheus (§2.4)
+                 # NOTE: no Ollama here, and no second Prometheus (§2.4).
+                 # Redis joins this list in P3 — see §5.
 make onboard     # preflight + baseline capture against the target
 make demo        # scripted injection sequence
 ```
