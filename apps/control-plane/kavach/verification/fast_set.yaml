@@ -1,0 +1,119 @@
+# Fast-verification set for the live recovery loop (FR-07).
+#
+# This file lives in KAVACH, not in the target (PRD.md §13): the probe must be
+# deterministic, local, and independent of the target's RAGAS harness.
+#
+# Three cases, run SERIALLY, inside 120s. All checks are string operations -
+# no LLM judge, no embedding similarity, no RAGAS, no cloud API (FR-07b).
+#
+# ---------------------------------------------------------------------------
+# WHY THESE CASES AND NOT THE 40-CASE DATASET
+# ---------------------------------------------------------------------------
+# The target ships evaluation/datasets/evaluation_dataset.csv, 40 generic
+# ML-textbook questions. It CANNOT be used for live verification, because the
+# corpus actually loaded in the target database is two unpublished VIT student
+# papers on unrelated subjects. All 40 cases were screened against the live
+# clean system on 2026-10-03:
+#
+#   * 35 of 40 returned "I don't know based on the provided documents."
+#   * best stability of any case was 2 of 3 runs
+#   * the cases that did pass were NOT grounded - the model answered from its
+#     own parameters, so they would report healthy with retrieval destroyed
+#
+# That last point is the disqualifying one (FR-07d). The 40-case dataset
+# remains the OFFLINE RESEARCH EVALUATOR (FR-07a) and is untouched.
+#
+# These three cases instead target specific numeric facts from the corpus that
+# is really loaded. Because both papers are unpublished student work, no model
+# can produce these figures without retrieval - verified by control run below.
+#
+# ---------------------------------------------------------------------------
+# MEASURED BASELINE - 2026-10-03, clean system, RERANK_THRESHOLD=0.35
+# ---------------------------------------------------------------------------
+# Candidate screening: 6 candidates x 5 reps, all 6 passed 5/5 and grounded 5/5.
+# Final set confirmation: 3 cases x 5 serial set-runs = 15 executions, 15/15.
+#
+#   case     pass   latency min/mean/max   source
+#   fv-01    5/5    5.8 / 6.2 / 6.6 s      1662.pdf
+#   fv-02    5/5    5.7 / 5.8 / 5.9 s      919.pdf
+#   fv-03    5/5    5.7 / 6.1 / 6.4 s      919.pdf
+#   SET      5/5    17.2 / 18.1 / 18.8 s   (budget 120 s)
+#
+# Retrieval-dependence control (FR-07d) - same questions put directly to
+# llama3.2 with NO context. Every keyword was ABSENT and the model said so:
+#   fv-01 -> "I don't have any information about an LSTM model or its ROC-AUC"
+#   fv-02 -> "I cannot verify how many clips were used in the PhysioCheck..."
+#   fv-03 -> "I cannot verify the reported Stage-2 accuracy for Arm Raise."
+#
+# ---------------------------------------------------------------------------
+# MAINTENANCE
+# ---------------------------------------------------------------------------
+# These cases are bound to the corpus currently in the target database. If the
+# corpus changes, this set is INVALID and must be re-selected empirically
+# (FR-07c) - re-run the screening before trusting any verification result.
+# Do not edit a keyword to make a failing probe pass; that is how a false
+# "healthy" verdict gets manufactured.
+
+apiVersion: kavach/v1
+kind: FastVerificationSet
+
+project: simple-rag
+
+budget:
+  max_duration_s: 120
+  execution: serial          # never concurrent
+  corpus_fingerprint:        # guards against silent corpus drift
+    chunks: 30
+    files: ["919.pdf", "1662.pdf"]
+
+# Every case asserts all three. A case passes only if all three hold.
+checks:
+  - expected_keyword         # substring, case-insensitive
+  - non_refusal              # answer is not one of the target's refusal strings
+  - sources_block            # rag.py appends "**Sources:**" iff chunks retrieved
+
+refusal_markers:             # mirrors rag.py's own is_fallback logic
+  - "don't know"
+  - "do not know"
+  - "no mention"
+  - "don't have any documents"
+
+sources_marker: "**Sources:**"
+
+cases:
+  - id: fv-01
+    question: "What ROC-AUC did the LSTM model achieve?"
+    expected_keyword: "0.91"
+    source_document: 1662.pdf
+    grounded_fact: "LSTM achieving the highest ROC-AUC (0.91) and F1-score (0.80)"
+    baseline_latency_s: 6.2
+
+  - id: fv-02
+    question: "How many clips were used in the PhysioCheck feasibility evaluation?"
+    expected_keyword: "339"
+    source_document: 919.pdf
+    grounded_fact: "a feasibility evaluation of 339 clips across Arm Raise, Knee Extension, and Sit-to-Stand"
+    baseline_latency_s: 5.8
+
+  - id: fv-03
+    question: "What was the reported Stage-2 accuracy for Arm Raise?"
+    expected_keyword: "91.2"
+    source_document: 919.pdf
+    grounded_fact: "Final reported Stage-2 accuracies are 91.2%, 92.3%, and 90.5%"
+    baseline_latency_s: 6.1
+
+# Screened, stable (5/5, grounded 5/5), but NOT selected. Kept so a future
+# substitution does not have to repeat the screening.
+rejected_alternates:
+  - question: "How many times lower was the execution time of the Rust implementation compared to the JavaScript reference?"
+    expected_keyword: "8.3"
+    source_document: 919.pdf
+    reason: "viable; fv-03 preferred for a longer, more distinctive keyword"
+  - question: "How many body landmarks does MediaPipe Pose extract?"
+    expected_keyword: "33"
+    source_document: 919.pdf
+    reason: "two-digit keyword - real risk of coincidental substring match"
+  - question: "What reduction in spurious alerts did the simulation-based dashboard evaluation achieve?"
+    expected_keyword: "31"
+    source_document: 1662.pdf
+    reason: "two-digit keyword - real risk of coincidental substring match"

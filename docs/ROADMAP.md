@@ -122,7 +122,11 @@ All work lands on `kavach/ops`, branched from `modernize-stack`. **Never `main`.
 - `onboarding/` — manifest parsing, the preflight check registry, baseline capture
 - `verification/fast_set.yaml` — **exactly 3** deterministic cases, run serially inside 120s, scored locally with **no cloud API key** (`PL-02`). Cases are chosen by measurement against the live clean baseline (`FR-07c`) and must be retrieval-dependent (`FR-07d`)
 
-> **Blocked as of 2026-10-03.** The 3 cases cannot yet be selected. The target's 40-case `evaluation_dataset.csv` asks generic ML-textbook questions, but the corpus in the database is two unrelated VIT student papers (clinical deterioration risk; posture tracking). All 40 cases were screened against the live clean system: best stability was **2 of 3 runs**, and the cases that did pass passed *without* retrieved context, so they cannot detect `F06`. See the Phase 1 report; a corpus decision is required before this deliverable can proceed.
+> **Resolved 2026-10-03** — `apps/control-plane/kavach/verification/fast_set.yaml`.
+>
+> The target's 40-case `evaluation_dataset.csv` could **not** be used: it asks generic ML-textbook questions while the loaded corpus is two unpublished VIT student papers on unrelated subjects. Screened all 40 against the live clean system — 35 refused outright, best stability was **2 of 3 runs**, and the cases that did pass were **not grounded**, so they would report healthy with retrieval destroyed (`FR-07d`).
+>
+> The 3 cases were instead built from the corpus that is actually loaded, targeting specific numeric facts. Result: **15/15** executions across 5 serial set-runs, set total **18.1s** mean against a 120s budget. Retrieval-dependence was confirmed by a control run putting the same questions to `llama3.2` with no context — every keyword absent. The 40-case dataset stays as the offline research evaluator (`FR-07a`), untouched.
 
 **Acceptance**
 - [ ] `make target-up` → the app answers a question correctly from the corpus

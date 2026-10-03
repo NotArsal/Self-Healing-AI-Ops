@@ -662,10 +662,13 @@ slo:
 
 verification:
   fast:                                # FR-07 — the live recovery probe
-    cases: ./kavach/fast_set.yaml       # EXACTLY 3, run serially
+    # The case set lives in KAVACH, not here (PRD §13): it must be
+    # deterministic, local, and independent of the target's RAGAS harness.
+    # This key names it; it is not a path inside the target repo.
+    set: kavach/verification/fast_set.yaml   # EXACTLY 3, run serially
     max_duration_s: 120                # serial, never concurrent
   full:                                # FR-07a — research only, never in the loop
-    runner: evaluation/evaluate.py
+    runner: evaluation/evaluate.py     # the target's 40-case RAGAS harness
     schedule_s: 0                      # 0 = on demand only
 
 versioned_paths:
@@ -816,6 +819,15 @@ The control plane is instrumented with the same OTel SDK it consumes from, and e
 ---
 
 ## 13. Git isolation model
+
+**Both repositories use a `kavach/ops` branch, for different reasons.**
+
+| Repo | `main` | `kavach/ops` |
+|---|---|---|
+| **Target** (`Simple_RAG-Pipeline`) | Never modified. `FR-05` | Every Kavach-authored change to the target. Branched from `modernize-stack` |
+| **Kavach** (this repo) | Holds accepted, reviewed work only | Active development lands here first |
+
+The rest of this section is about the target, where the rule is a *safety* property. In Kavach's own repo it is a *review* convention: work is committed to `kavach/ops` and `main` moves only when the work is accepted. An earlier session committed Kavach work straight to `main` because this section described `kavach/ops` as a target-only concept; that is why it is stated explicitly here.
 
 `FR-05` in one diagram. The target is a repository with two remotes, one of which belongs to a teammate, so "never push" is a safety property and not a style preference.
 
