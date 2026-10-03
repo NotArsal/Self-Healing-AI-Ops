@@ -196,7 +196,7 @@ kavach/
 │   │   │   ├── verification/
 │   │   │   │   ├── probes.py           # health, slo_window, fast_quality
 │   │   │   │   ├── verifier.py         # all-three-must-pass
-│   │   │   │   └── fast_set.py         # the 3–5 deterministic check cases
+│   │   │   │   └── fast_set.py         # the 3 deterministic check cases, serial
 │   │   │   ├── evaluation/             # research evaluator (P8, FR-07a)
 │   │   │   │   ├── runner.py
 │   │   │   │   └── scorers/            # latency, cost, quality, groundedness
@@ -393,7 +393,7 @@ Detection tick (every 15s)
   verify             FAST verification (FR-07):
                      probe 1: health endpoints
                      probe 2: SLO expressions satisfied over a 120s window
-                     probe 3: 3–5 deterministic quality checks
+                     probe 3: 3 deterministic quality checks (serial)
      │
      ├─ all pass ──▶ learn ──▶ resolved, new baseline captured, lock released
      └─ any fail ──▶ unwind undo stack in reverse ──▶ verify unwind against
@@ -662,8 +662,8 @@ slo:
 
 verification:
   fast:                                # FR-07 — the live recovery probe
-    cases: ./kavach/fast_set.yaml       # 3–5 deterministic cases
-    max_duration_s: 45
+    cases: ./kavach/fast_set.yaml       # EXACTLY 3, run serially
+    max_duration_s: 120                # serial, never concurrent
   full:                                # FR-07a — research only, never in the loop
     runner: evaluation/evaluate.py
     schedule_s: 0                      # 0 = on demand only

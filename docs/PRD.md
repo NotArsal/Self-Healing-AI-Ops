@@ -318,7 +318,7 @@ Two orthogonal axes, deliberately separated because conflating them caused the L
 | `F-ONB` | Project onboarding + preflight validation against a `kavach.yaml` manifest | P0 | P1 |
 | `F-SLO` | SLO contract declaration as PromQL expressions — the machine-checkable definition of "healthy" | P0 | P1 |
 | `F-TEL` | Telemetry ingestion: OTLP traces/metrics/logs + Prometheus query | P0 | P2 |
-| `F-VER-FAST` | **Fast verification**: health probe + short SLO window + 3–5 deterministic quality checks | P0 | P3 |
+| `F-VER-FAST` | **Fast verification**: health probe + short SLO window + 3 deterministic quality checks | P0 | P3 |
 | `F-DET` | Detection layer: SLO breach + statistical anomaly detection | P0 | P3 |
 | `F-SAFE` | Safety / decision engine: risk tiering, allow-list, blast radius, circuit breaker | P0 | P3 → P7 |
 | `F-HEAL` | Executor with an undo stack and a recorded inverse for every repair | P0 | P3 |
@@ -409,7 +409,7 @@ Project is in `AUTONOMOUS`. Fault `F01` is injected. The console shows, in seque
 4. **Planned** — `switch_llm_endpoint(primary → backup)`, inverse `switch_llm_endpoint(backup → primary)`.
 5. **Risk: LOW** — allow-listed, project ownership verified, blast radius OK, circuit breaker OK → auto-execute.
 6. **Executing** — live action log, under the writer lock.
-7. **Verifying** — fast verification: health probe, 120s SLO window, 3–5 deterministic quality checks. All three green.
+7. **Verifying** — fast verification: health probe, 120s SLO window, 3 deterministic quality checks. All three green.
 8. **Resolved** — MTTD 14s, MTTR 96s. Audit entry written, new baseline captured.
 
 ### 8.3 Medium-risk approval heal
@@ -475,7 +475,9 @@ Steps 4 and 5 exist to produce evidence and a decision corpus, not to unlock exe
 - `FR-07` The system shall run a **fast verification** check set on demand, completing well inside the `PF-04` loop budget. It consists of exactly three probes:
   1. **Health** — `GET /healthz` on every declared service returns healthy.
   2. **SLO / latency** — every declared SLO expression is satisfied over a short window.
-  3. **Deterministic answer quality** — a subset of 3–5 cases, each asserting **expected-keyword presence** in the answer **and** that the answer is **not a refusal** (the target returns the literal strings "I don't know based on the provided document(s)" and "I don't have any documents to search through yet" when retrieval yields nothing).
+  3. **Deterministic answer quality** — **exactly 3 cases, run serially (never concurrently)**, within a **120-second** budget, each asserting **expected-keyword presence** in the answer **and** that the answer is **not a refusal** (the target returns the literal strings "I don't know based on the provided document(s)" and "I don't have any documents to search through yet" when retrieval yields nothing).
+- `FR-07c` **The 3 cases are selected empirically against the live clean baseline, never assumed.** A case qualifies only if it passes on repeated runs against a healthy system. A case that is intermittent on a healthy system generates false rollbacks, which is a worse failure than no probe at all. The same 3 cases are used before injection, during injected degradation, and after recovery, so the three measurements are comparable.
+- `FR-07d` **A quality probe must fail when retrieval fails.** A case whose answer the model can produce from its own parameters, without any retrieved context, cannot detect `F06` and must not be selected — it would report healthy while retrieval is destroyed. Grounding is checkable deterministically: the target appends a `**Sources:**` block to an answer if and only if chunks were retrieved and the answer is not a refusal.
 - `FR-07b` **Fast verification shall contain no model-scored metric.** Keyword presence and refusal detection are string operations. No LLM judge, no embedding similarity, no RAGAS metric, and therefore no cloud API key (`PL-02`) and no nondeterminism in the recovery path. A probe that cannot return the same verdict twice on the same answer is not a verification probe.
 - `FR-07a` The system shall run a **full evaluation** on a schedule and on demand for research measurement. The full evaluation is **never** a mandatory probe in the live recovery loop.
 - `FR-08` The system shall maintain rolling baselines per metric for anomaly detection.

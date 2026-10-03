@@ -307,7 +307,7 @@ Reject requires a reason; the reason feeds the knowledge base.
 
 Three probes in a row: health · SLO window · fast quality. Each is a pill with an icon — pending (hollow circle), passed (check), failed (cross). All three must be visibly present even before they run, so a missing probe is obvious.
 
-The third probe is labelled **fast quality**, not "eval". The live loop runs fast verification — 3–5 deterministic cases (`FR-07`) — and never the full research evaluator (`FR-07a`), which cannot fit the `PF-04` budget. Labelling it "eval" would imply the console is showing a 40-case run that it is not.
+The third probe is labelled **fast quality**, not "eval". The live loop runs fast verification — 3 deterministic cases (`FR-07`) — and never the full research evaluator (`FR-07a`), which cannot fit the `PF-04` budget. Labelling it "eval" would imply the console is showing a 40-case run that it is not.
 
 ### 7.9 Mode switch
 

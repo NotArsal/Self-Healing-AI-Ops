@@ -120,7 +120,9 @@ All work lands on `kavach/ops`, branched from `modernize-stack`. **Never `main`.
 
 *Control plane*
 - `onboarding/` — manifest parsing, the preflight check registry, baseline capture
-- `verification/fast_set.yaml` — 3–5 deterministic cases drawn from the target's 40-case dataset, scored locally with **no cloud API key** (`PL-02`)
+- `verification/fast_set.yaml` — **exactly 3** deterministic cases, run serially inside 120s, scored locally with **no cloud API key** (`PL-02`). Cases are chosen by measurement against the live clean baseline (`FR-07c`) and must be retrieval-dependent (`FR-07d`)
+
+> **Blocked as of 2026-10-03.** The 3 cases cannot yet be selected. The target's 40-case `evaluation_dataset.csv` asks generic ML-textbook questions, but the corpus in the database is two unrelated VIT student papers (clinical deterioration risk; posture tracking). All 40 cases were screened against the live clean system: best stability was **2 of 3 runs**, and the cases that did pass passed *without* retrieved context, so they cannot detect `F06`. See the Phase 1 report; a corpus decision is required before this deliverable can proceed.
 
 **Acceptance**
 - [ ] `make target-up` → the app answers a question correctly from the corpus
@@ -135,7 +137,7 @@ All work lands on `kavach/ops`, branched from `modernize-stack`. **Never `main`.
 - [ ] Both Toxiproxy listeners proxy to Ollama; a toxic on A leaves B working
 - [ ] `make onboard` → preflight passes; baseline captured (metrics, fast-eval scores, config hash, prompt SHA, `rerank_threshold`)
 - [ ] Every SLO expression in `kavach.yaml` parses and evaluates against the live Prometheus
-- [ ] Fast verification completes in **under 45s** with zero network egress, and its quality probe is keyword-presence + non-refusal only — **no model-scored metric** (`FR-07b`)
+- [ ] Fast verification completes in **under 120s** with zero network egress, and its quality probe is keyword-presence + non-refusal only — **no model-scored metric** (`FR-07b`)
 - [ ] **Connection-leak fix proven:** force 15 consecutive `/v1/chat` failures, then confirm the pool still serves requests and `ragapp_db_pool_in_use` returns to its idle value
 - [ ] `git log kavach/ops` shows the work; `main` and `modernize-stack` are untouched; nothing was pushed
 
