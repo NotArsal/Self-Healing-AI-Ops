@@ -35,8 +35,20 @@ from kavach.executor.config_rollback import (
     ConfigRollback,
     build_rollback_for_retrieval_collapse,
 )
+from kavach.rca.engine import RcaResult
 from kavach.target import TargetClient
 from kavach.verification import fast
+
+# The RCA stage the loop may be given: a callable taking the fast-verification
+# result, the deterministic detection and the known-good baseline, and
+# returning a diagnosis that has already been through validation.
+#
+# A plain Callable rather than a Protocol: the loop only ever calls it
+# positionally, and a Protocol here would match on parameter NAMES, which makes
+# every caller and test fixture restate them for no benefit.
+RcaStage = Callable[
+    [fast.FastVerificationResult, rc.Detection, float | None], RcaResult
+]
 
 
 class IncidentStatus(StrEnum):
@@ -65,6 +77,8 @@ class Incident:
     fault_name: str | None = None
     service: str | None = None
     detection: dict[str, Any] = field(default_factory=dict)
+    diagnosed_by: str = ""            # "deterministic" | "llm_rca"
+    rca: dict[str, Any] = field(default_factory=dict)
     planned_action: str | None = None
     action: dict[str, Any] = field(default_factory=dict)
     verification: dict[str, Any] = field(default_factory=dict)
@@ -91,6 +105,16 @@ class Incident:
         if self.fault_class:
             lines.append(f"  fault      {self.fault_class} {self.fault_name} "
                          f"on {self.service}")
+        if self.diagnosed_by:
+            lines.append(f"  diagnosed  {self.diagnosed_by}")
+        if self.rca:
+            d = self.rca.get("diagnosis") or {}
+            lines.append(
+                f"  rca        {d.get('fault_class')} conf={d.get('confidence')} "
+                f"cited={d.get('evidence_ids')} "
+                f"({self.rca.get('latency_s')}s, {self.rca.get('model')})"
+            )
+            lines.append(f"  validation {(self.rca.get('validation') or {}).get('outcome')}")
         if self.planned_action:
             lines.append(f"  action     {self.planned_action} "
                          f"(risk {self.action.get('risk_tier', '?')})")
@@ -125,10 +149,21 @@ def run_once(
     baseline_rerank_threshold: float | None,
     project: str = "simple-rag",
     incident_id: str | None = None,
+    rca: RcaStage | None = None,
 ) -> Incident:
     """One pass of detect -> heal -> verify.
 
     `promql` is injected so the loop can be exercised without Prometheus.
+
+    `rca` is OPTIONAL. Omitted, this is the P2 deterministic loop unchanged -
+    the reference baseline, and the fallback if RCA is unavailable. Supplied, an
+    LLM diagnosis is produced and must additionally survive deterministic
+    validation before the same repair runs.
+
+    Note what RCA does NOT do: it never widens what can execute. Deterministic
+    detection still has to find the fault, the plan still comes from the same
+    literal dict, and the repair is still the same single action. RCA adds a
+    gate and an explanation; it cannot authorise anything on its own.
     """
     inc = Incident(
         incident_id=incident_id or f"INC-{uuid.uuid4().hex[:8].upper()}",
@@ -167,13 +202,49 @@ def run_once(
     inc.fault_name = detection.fault_name
     inc.service = detection.service
 
-    # --- PLAN: dict lookup, no reasoning
-    planned = KNOWN_FAULTS.get(detection.fault_class or "")
-    if planned is None:
+    # --- DIAGNOSE (optional): LLM RCA, gated by deterministic validation.
+    # The LLM proposes; validate.py decides. A rejected diagnosis escalates
+    # rather than falling back to the deterministic plan, because silently
+    # ignoring a refused diagnosis would make the gate decorative.
+    if rca is not None:
+        rca_result = rca(pre_fast, detection, baseline_rerank_threshold)
+        inc.rca = rca_result.to_dict()
+        inc.diagnosed_by = "llm_rca"
+        if not rca_result.approved:
+            inc.status = IncidentStatus.ESCALATED
+            reasons = rca_result.rejection_reasons
+            inc.escalation_reason = (
+                "LLM diagnosis rejected by deterministic validation: "
+                + ("; ".join(reasons) if reasons else rca_result.error)
+            )
+            inc.outcome = "escalated without acting; target left as found"
+            # Complete the record even on the early return; an empty
+            # corpus_after reads like a mutation when nothing happened.
+            inc.corpus_after = inc.corpus_before
+            return inc
+        # Use the validator's approved action, never the model's raw proposal.
+        inc.planned_action = rca_result.approved_action
+        if rca_result.diagnosis is not None:
+            inc.fault_class = rca_result.diagnosis.fault_class
+            inc.fault_name = rca_result.diagnosis.fault_name
+            inc.service = rca_result.diagnosis.service
+    else:
+        # --- PLAN: dict lookup, no reasoning
+        inc.diagnosed_by = "deterministic"
+        planned = KNOWN_FAULTS.get(detection.fault_class or "")
+        if planned is None:
+            inc.status = IncidentStatus.ESCALATED
+            inc.escalation_reason = f"no known repair for {detection.fault_class}"
+            return inc
+        inc.planned_action = planned
+
+    # Whichever path chose it, the action must be one this slice implements.
+    if inc.planned_action != KNOWN_FAULTS.get(rc.FAULT_CLASS):
         inc.status = IncidentStatus.ESCALATED
-        inc.escalation_reason = f"no known repair for {detection.fault_class}"
+        inc.escalation_reason = (
+            f"planned action {inc.planned_action!r} is not implemented"
+        )
         return inc
-    inc.planned_action = planned
 
     # --- EXECUTE
     inc.status = IncidentStatus.HEALING

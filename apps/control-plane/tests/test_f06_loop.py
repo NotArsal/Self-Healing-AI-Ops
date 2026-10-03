@@ -14,14 +14,17 @@ from typing import Any
 
 import pytest
 
+from kavach.detection import retrieval_collapse as rc
 from kavach.executor.config_rollback import (
     ActionError,
     ConfigRollback,
     build_rollback_for_retrieval_collapse,
     idempotency_key,
 )
-from kavach.loop import KNOWN_FAULTS, IncidentStatus, run_once
+from kavach.loop import KNOWN_FAULTS, IncidentStatus, RcaStage, run_once
+from kavach.rca.engine import RcaResult
 from kavach.target import TargetClient, TargetEndpoints, TargetError
+from kavach.verification.fast import FastVerificationResult
 
 BASELINE_THRESHOLD = 0.35
 BAD_THRESHOLD = 0.999
@@ -319,3 +322,162 @@ def test_denied_key_cannot_be_rolled_back() -> None:
 def test_known_fault_map_covers_only_f06() -> None:
     """Scope control: this slice implements one fault."""
     assert KNOWN_FAULTS == {"F06": "rollback_config"}
+
+
+# ===========================================================================
+# P3: the loop with LLM RCA inserted. The deterministic path above is the
+# baseline and must keep working unchanged; these cover the gated path.
+# ===========================================================================
+
+
+def _rca_stage(
+    payload: dict[str, Any] | str, *, services: set[str] | None = None
+) -> RcaStage:
+    """An RCA stage backed by a recorded response, for loop-level tests."""
+    import json as _json
+
+    from kavach.llm.client import LlmResponse
+    from kavach.rca.engine import diagnose as _diagnose
+    from kavach.rca.evidence import EvidenceFrame
+
+    raw = payload if isinstance(payload, str) else _json.dumps(payload)
+
+    def call(_s: str, _u: str, _sc: dict[str, Any]) -> LlmResponse:
+        return LlmResponse(raw=raw, model="llama3.2(recorded)", latency_s=2.5)
+
+    def stage(
+        fast_result: FastVerificationResult,
+        detection: rc.Detection,
+        baseline: float | None,
+    ) -> RcaResult:
+        frame = EvidenceFrame(collected_at="t")
+        frame.add(eid="EV-M01", kind="metric", name="retrieval_top_similarity_p50",
+                  value=0.658)
+        frame.add(eid="EV-M02", kind="metric", name="retrieval_kept_chunks_mean",
+                  value=0.0)
+        frame.add(eid="EV-M04", kind="metric", name="corpus_chunks", value=30.0)
+        frame.add(eid="EV-C01", kind="config", name="rerank_threshold", value=0.999)
+        frame.add(eid="EV-B01", kind="baseline", name="baseline_rerank_threshold",
+                  value=baseline)
+        result: RcaResult = _diagnose(
+            frame, detection, 0.75, llm_call=call,
+            declared_services=services or {"backend", "db", "frontend"},
+        )
+        return result
+
+    return stage
+
+
+_RCA_OK: dict[str, Any] = {
+    "fault_class": "F06", "fault_name": "retrieval_collapse", "service": "backend",
+    "confidence": 0.9, "evidence_ids": ["EV-M01", "EV-M02", "EV-C01"],
+    "reasoning": "similarity healthy at 0.658 but zero chunks kept; threshold 0.999",
+    "candidate_repair": "rollback_config",
+    "rejected_alternatives": [{"fault_class": "F08", "reason": "no other config moved"}],
+}
+
+
+def test_rca_path_heals_and_resolves(fast_set: Path) -> None:
+    t = FakeTarget(BAD_THRESHOLD)
+    inc = run_once(t, "http://prom", fast_set, promql_for(t), BASELINE_THRESHOLD,
+                   rca=_rca_stage(_RCA_OK))
+    assert inc.status is IncidentStatus.RESOLVED
+    assert inc.diagnosed_by == "llm_rca"
+    assert inc.planned_action == "rollback_config"
+    assert inc.rca["approved"] is True
+    assert inc.rca["diagnosis"]["confidence"] == 0.9
+    assert t.settings()["rerank_threshold"] == BASELINE_THRESHOLD
+    assert inc.corpus_before == inc.corpus_after
+
+
+def test_rca_path_still_uses_the_same_action_and_inverse(fast_set: Path) -> None:
+    """RCA changes who diagnoses, not what executes."""
+    t = FakeTarget(BAD_THRESHOLD)
+    inc = run_once(t, "http://prom", fast_set, promql_for(t), BASELINE_THRESHOLD,
+                   rca=_rca_stage(_RCA_OK))
+    assert inc.action["risk_tier"] == "MEDIUM"
+    assert inc.action["inverse_settings"] == {"rerank_threshold": BAD_THRESHOLD}
+    assert inc.action["requested_settings"] == {"rerank_threshold": BASELINE_THRESHOLD}
+    assert inc.action["idempotency_key"]
+
+
+def test_deterministic_path_is_unchanged_without_rca(fast_set: Path) -> None:
+    """The P2 baseline must still work exactly as before."""
+    t = FakeTarget(BAD_THRESHOLD)
+    inc = run_once(t, "http://prom", fast_set, promql_for(t), BASELINE_THRESHOLD)
+    assert inc.status is IncidentStatus.RESOLVED
+    assert inc.diagnosed_by == "deterministic"
+    assert inc.rca == {}
+
+
+def test_rejected_rca_escalates_and_writes_nothing(fast_set: Path) -> None:
+    """A refused diagnosis must NOT silently fall back to the deterministic
+    plan - that would make the gate decorative."""
+    t = FakeTarget(BAD_THRESHOLD)
+    low = {**_RCA_OK, "confidence": 0.2}
+    inc = run_once(t, "http://prom", fast_set, promql_for(t), BASELINE_THRESHOLD,
+                   rca=_rca_stage(low))
+    assert inc.status is IncidentStatus.ESCALATED
+    assert not inc.resolved
+    assert t.writes == [], "nothing may be written when the diagnosis is refused"
+    assert "rejected by deterministic validation" in inc.escalation_reason
+    assert t.settings()["rerank_threshold"] == BAD_THRESHOLD, "target left as found"
+
+
+def test_malformed_rca_escalates_and_writes_nothing(fast_set: Path) -> None:
+    t = FakeTarget(BAD_THRESHOLD)
+    inc = run_once(t, "http://prom", fast_set, promql_for(t), BASELINE_THRESHOLD,
+                   rca=_rca_stage("the retrieval thing looks broken"))
+    assert inc.status is IncidentStatus.ESCALATED
+    assert t.writes == []
+
+
+def test_rca_wrong_fault_class_escalates_and_writes_nothing(fast_set: Path) -> None:
+    t = FakeTarget(BAD_THRESHOLD)
+    wrong = {**_RCA_OK, "fault_class": "F01",
+             "fault_name": "primary_llm_endpoint_outage", "candidate_repair": "none"}
+    inc = run_once(t, "http://prom", fast_set, promql_for(t), BASELINE_THRESHOLD,
+                   rca=_rca_stage(wrong))
+    assert inc.status is IncidentStatus.ESCALATED
+    assert t.writes == []
+
+
+def test_rca_not_consulted_on_a_healthy_system(fast_set: Path) -> None:
+    """Deterministic detection gates RCA, so a healthy system costs no tokens."""
+    t = FakeTarget(BASELINE_THRESHOLD)
+    called = {"n": 0}
+
+    def counting_stage(
+        fast_result: FastVerificationResult,
+        detection: rc.Detection,
+        baseline: float | None,
+    ) -> RcaResult:
+        called["n"] += 1
+        stage: RcaStage = _rca_stage(_RCA_OK)
+        out: RcaResult = stage(fast_result, detection, baseline)
+        return out
+
+    inc = run_once(t, "http://prom", fast_set, promql_for(t), BASELINE_THRESHOLD,
+                   rca=counting_stage)
+    assert inc.status is IncidentStatus.NO_FAULT
+    assert called["n"] == 0, "RCA must not run when nothing is wrong"
+    assert t.writes == []
+
+
+def test_rca_failed_verification_does_not_resolve(fast_set: Path) -> None:
+    t = FakeTarget(BAD_THRESHOLD)
+    original_ask = t.ask
+    calls = {"n": 0}
+
+    def ask(q: str, timeout: float = 240.0) -> str:
+        calls["n"] += 1
+        if calls["n"] <= 3:
+            return original_ask(q)
+        return "I don't know based on the provided documents."
+
+    t.ask = ask  # type: ignore[assignment]
+    inc = run_once(t, "http://prom", fast_set, promql_for(t), BASELINE_THRESHOLD,
+                   rca=_rca_stage(_RCA_OK))
+    assert inc.status is IncidentStatus.ESCALATED
+    assert not inc.resolved
+    assert "fast verification did not pass" in inc.escalation_reason
