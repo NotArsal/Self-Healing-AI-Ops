@@ -72,7 +72,7 @@ P0 scaffold
 - [ ] `make setup` works on a clean machine
 - [ ] `make up` brings every control-plane container healthy
 - [ ] `make check` passes (lint + mypy strict + tsc + tests)
-- [ ] `curl localhost:8000/healthz` returns 200
+- [ ] `curl localhost:8080/healthz` returns 200
 - [ ] **The docker socket mount works on the Windows demo machine, and a container can be listed, inspected and restarted from inside the control-plane container.** This is `PL-03` and it is the one thing that stops the entire project if it fails. Do not defer it to P3
 - [ ] Kavach can reach the target's `ollama` by service name across the joined network
 

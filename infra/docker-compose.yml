@@ -93,7 +93,7 @@ services:
       KAVACH_LLM_MODEL: ${KAVACH_LLM_MODEL:-llama3.2}
       KAVACH_LOG_LEVEL: ${KAVACH_LOG_LEVEL:-INFO}
     ports:
-      - "${API_PORT:-8000}:8000"
+      - "${API_PORT:-8080}:8000"
     volumes:
       # THE most dangerous privilege in this system (AGENTS.md security rule 14).
       # Only executor/adapters/docker.py may ever import the docker SDK, and

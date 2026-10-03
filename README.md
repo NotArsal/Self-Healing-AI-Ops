@@ -48,21 +48,25 @@ make up           # control plane: postgres+pgvector, prometheus, otel-collector
 make check        # lint + mypy --strict + pytest + tsc. The gate.
 make socket-test  # prove Docker socket access (see below)
 
-curl localhost:8000/healthz
+curl localhost:8080/healthz
 ```
 
 **On Windows**, GNU `make` is not installed by default. Use `.\make.ps1 <target>` instead — same target names. To remove the shim: `winget install ezwinports.make`, then delete `make.ps1`.
 
 ### Ports
 
-Control-plane host ports are offset so Kavach and the target can run side by side — the target already publishes 5432, 9090, 8000 and 3000.
+Every control-plane host port is offset so Kavach and the target can run side by side, which P1 onward requires. The target's ports are **not** ours to move — its frontend has `http://localhost:8000` hardcoded.
 
-| Service | Host port |
-|---|---|
-| Kavach API | 8000 |
-| Postgres + pgvector | **5433** |
-| Prometheus | **9091** |
-| OTLP (HTTP / gRPC) | 4318 / 4317 |
+| Service | Kavach host port | Target uses |
+|---|---|---|
+| API / backend | **8080** | 8000 |
+| Console / frontend | **3001** | 3000 |
+| Postgres | **5433** | 5432 |
+| Prometheus | **9091** | 9090 |
+| Ollama | — (shared) | 11434 |
+| OTLP (HTTP / gRPC) | 4318 / 4317 | — |
+
+Inside the containers nothing moved: the Kavach API still listens on 8000, so only the published port differs.
 
 Redis is **not** started in Phase 0 — nothing uses it yet. It returns in P3, where `FR-16`/`FR-17`/`FR-18` and console pub/sub require it, on host port **6380**.
 

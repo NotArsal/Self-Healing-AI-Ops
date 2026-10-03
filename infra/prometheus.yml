@@ -26,14 +26,18 @@ scrape_configs:
   #   static_configs:
   #     - targets: ["api:8000"]
 
-  # --- Enabled in P1, once the target is instrumented (PRD.md §5.2 item 1).
-  # The target is a separate compose project; reach it via the host-published
-  # port rather than by service name, so this Prometheus does not require the
-  # target's network to exist.
-  # - job_name: simple-rag-backend
-  #   metrics_path: /metrics
-  #   static_configs:
-  #     - targets: ["host.docker.internal:8000"]
-  #       labels:
-  #         project: simple-rag
-  #         service: backend
+  # The target application. Scraped over its HOST-PUBLISHED port, deliberately
+  # not by compose service name: this Prometheus must not require the target's
+  # network to exist, and must keep working while Kavach restarts the target's
+  # containers (ARCHITECTURE.md §2.4).
+  #
+  # This target reads DOWN until P1 instruments the backend. That is accurate,
+  # not a misconfiguration — the backend already exposes /metrics, but it is not
+  # running yet.
+  - job_name: simple-rag-backend
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:8000"]
+        labels:
+          project: simple-rag
+          service: backend

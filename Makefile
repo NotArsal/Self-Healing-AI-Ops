@@ -75,7 +75,7 @@ target-down:
 # --- Development -------------------------------------------------------------
 
 dev-api:
-	$(UV) run uvicorn kavach.main:app --reload --port 8000
+	$(UV) run uvicorn kavach.main:app --reload --port 8080
 
 dev-console:
 	cd $(CONSOLE) && pnpm dev

@@ -57,7 +57,7 @@ switch ($Target) {
     "logs"        { docker @compose logs -f @Rest }
     "ps"          { docker @compose ps }
 
-    "dev-api"     { uv --directory $cp run uvicorn kavach.main:app --reload --port 8000 }
+    "dev-api"     { uv --directory $cp run uvicorn kavach.main:app --reload --port 8080 }
     "dev-console" { Push-Location $console; try { pnpm dev } finally { Pop-Location } }
 
     "lint" {
