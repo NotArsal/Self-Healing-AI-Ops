@@ -66,7 +66,7 @@ class Fault(ABC):
     def _stamp_reverted(self) -> None:
         self.record.reverted_at = datetime.now(UTC).isoformat(timespec="seconds")
 
-    def __enter__(self):
+    def __enter__(self) -> Fault:
         self.inject()
         return self
 

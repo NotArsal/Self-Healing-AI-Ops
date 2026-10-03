@@ -62,6 +62,7 @@ switch ($Target) {
 
     "lint" {
         Invoke-Step "ruff check" { uv --directory $cp run ruff check . }
+        Invoke-Step "ruff check harness" { uv --directory $cp run ruff check ../../harness }
         Invoke-InConsole "eslint" @("lint")
     }
     "format" {
@@ -70,6 +71,7 @@ switch ($Target) {
     }
     "types" {
         Invoke-Step "mypy --strict" { uv --directory $cp run mypy }
+        Invoke-Step "mypy harness" { uv --directory $cp run mypy --strict ../../harness }
         Invoke-InConsole "tsc --noEmit" @("types")
     }
     "test"        { Invoke-Step "pytest" { uv --directory $cp run pytest -q } }

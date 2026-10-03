@@ -84,6 +84,7 @@ dev-console:
 
 lint:
 	$(UV) run ruff check .
+	$(UV) run ruff check ../../harness
 	cd $(CONSOLE) && pnpm lint
 
 format:
@@ -92,6 +93,7 @@ format:
 
 types:
 	$(UV) run mypy
+	$(UV) run mypy --strict ../../harness
 	cd $(CONSOLE) && pnpm types
 
 test:
