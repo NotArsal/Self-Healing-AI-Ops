@@ -34,3 +34,6 @@ apps/console/lib/api/generated/
 
 # Benchmark and report output
 harness/reports/
+
+# Baseline captures are measurements of a particular moment, not source.
+harness/baselines/
