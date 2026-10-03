@@ -9,12 +9,15 @@ dependencies = [
     "pydantic>=2.11",
     "pydantic-settings>=2.8",
     "structlog>=25.1",
+    "pyyaml>=6.0",
+    "docker>=7.1",
 ]
 
-# Phase 0 deliberately does NOT depend on: sqlalchemy, alembic, asyncpg, redis,
-# langgraph, opentelemetry-*, prometheus-client, docker.
-# Each arrives with the phase that first uses it (ROADMAP.md). The docker SDK is
-# a test-only dependency until P3, because the Phase 0 socket probe is a test.
+# Still deliberately absent: sqlalchemy, alembic, asyncpg, redis, langgraph,
+# opentelemetry-*. Each arrives with the phase that first uses it (ROADMAP.md).
+#
+# docker moved from a dev extra to a runtime dependency in P1: the preflight
+# ownership check needs the SDK, and preflight is shipped code, not a test.
 
 [project.optional-dependencies]
 dev = [
@@ -23,7 +26,7 @@ dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.25",
     "httpx>=0.28",
-    "docker>=7.1",
+    "types-PyYAML>=6.0",
 ]
 
 [build-system]

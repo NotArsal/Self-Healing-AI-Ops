@@ -323,14 +323,17 @@ kavach/
 
 ```
 target backend
+  ├─ prometheus_client ──▶ /metrics ◀── scraped directly by Prometheus
+  │                                      (metrics path: ONE hop)
   └─ OTel SDK emits spans (Kavach internal attribute schema, §2.3)
      └─ OTLP/HTTP ──▶ OTel Collector
-                        ├─ prometheusremotewrite ──▶ Prometheus
-                        └─ otlphttp ──▶ Kavach /v1/traces
+                        └─ otlphttp ──▶ Kavach /v1/traces   (P2)
                                           └─ normalise ──▶ telemetry_spans
 ```
 
-The collector is the fan-out point. Adding Langfuse later means adding one exporter block, no code change.
+**Metrics do not go through the collector. Traces do.** An earlier draft routed both over OTLP, and that is wrong for metrics specifically: detection reads these metrics, so putting a collector in the path adds a failure mode where the collector dying leaves detection silently blind — monitoring that fails quietly is the worst way for it to fail. Scraping `/metrics` directly has one hop and one failure mode, and that path was already proven working before any application metric existed.
+
+Traces are diagnostic rather than detection-critical. Losing a batch of spans degrades an RCA explanation; it does not cause a missed incident. The extra hop is acceptable there, and the collector remains the fan-out point for traces — adding Langfuse later means one exporter block and no code change.
 
 **Metrics the target must expose** for the catalogue to be detectable. Those marked *existing* are already there; the rest arrive with §5.2 addition 1.
 
