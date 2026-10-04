@@ -1,0 +1,89 @@
+id: scenario-f01-demo
+fault_class: F01
+services:
+  api:
+    role: application
+    depends_on: [model_primary, vector_store]
+  vector_store:
+    role: vector_store
+  cache:
+    role: cache
+  model_primary:
+    role: model_primary
+  model_backup:
+    role: model_backup
+health:
+  api: healthy
+  model_primary: unhealthy
+  model_backup: healthy
+  vector_store: healthy
+  cache: healthy
+quality:
+  golden_set: ./golden_set.yaml
+  min_cases: 20
+  scorers: [groundedness, answer_match, latency, cost]
+objectives:
+  availability:
+    value: 0.45
+    threshold: 0.99
+    weight: 1.0
+  quality:
+    value: 0.84
+    threshold: 0.85
+    weight: 1.0
+  latency:
+    value: 3.8
+    threshold: 2.0
+    weight: 0.6
+tolerance:
+  quality_drop_pct: 15.0
+  latency_increase_pct: 50.0
+  cost_increase_pct: 100.0
+reversible_state:
+  model_selection:
+    value: model_primary
+  prompts:
+    version: prompt-a91c
+  config:
+    hash: cfg-1837
+  index:
+    snapshot_ref: snapshot-042
+permissions:
+  allowed_actions:
+    - switch_model
+    - restart_service
+    - flush_cache
+    - rollback_prompt
+    - rollback_config
+    - rebuild_index
+  max_risk_tier: MEDIUM
+signals:
+  gen_ai_error_ratio: 0.35
+  provider_latency_ms: 4200.0
+evidence:
+  - id: ev-001
+    kind: metric
+    source: gen_ai_error_ratio
+    value: 0.35
+  - id: ev-002
+    kind: log
+    source: model_primary
+    payload:
+      status: 503
+      message: "provider unavailable"
+  - id: ev-003
+    kind: state
+    source: model_primary
+    payload:
+      health: unhealthy
+state:
+  model_primary: unavailable
+  model_backup: healthy
+  cache: healthy
+debt:
+  f01_provider_outage:
+    repayment_action: switch_model
+    trigger:
+      condition: primary_healthy_for_s
+      value: 600.0
+    max_age_s: 86400

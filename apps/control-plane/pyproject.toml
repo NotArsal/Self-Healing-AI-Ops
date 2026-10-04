@@ -1,0 +1,41 @@
+[project]
+name = "kavach"
+version = "0.1.0"
+description = "Autonomous Self-Healing AI Operations Platform"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "langchain-ollama>=1.1.0",
+    "langgraph>=1.2.12",
+    "pydantic>=2.9.2",
+    "pydantic-settings>=2.15.0",
+    "pyyaml>=6.0.3",
+    "sse-starlette>=3.5.0",
+    "uvicorn>=0.31.0",
+]
+
+[tool.uv.workspace]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "mypy>=2.4.0",
+    "pytest>=9.1.1",
+    "ruff>=0.16.10",
+    "types-pyyaml>=6.0.12.20260906",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["kavach"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.mypy]
+strict = true
