@@ -1,0 +1,22 @@
+actions:
+  - name: rollback_config
+    inverse:
+      name: rollforward_config
+      params_mapping:
+        version: $target_version
+    mutations:
+      config_version: $target_version
+      config_health: healthy
+      
+  - name: rollforward_config
+    inverse:
+      name: noop
+      params_mapping: {}
+    mutations:
+      config_version: $version
+      config_health: regressed
+
+faults:
+  - fault_class: F08
+    recommended_actions:
+      - rollback_config

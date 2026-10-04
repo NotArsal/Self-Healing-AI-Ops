@@ -1,0 +1,43 @@
+id: scenario-f09-token
+fault_class: F09
+services:
+  api:
+    role: application
+health:
+  api: healthy
+quality:
+  golden_set: ./golden_set.yaml
+  min_cases: 20
+  scorers: [cost]
+objectives:
+  cost:
+    value: 1500.0
+    threshold: 500.0
+    weight: 1.0
+tolerance:
+  quality_drop_pct: 15.0
+  latency_increase_pct: 50.0
+  cost_increase_pct: 100.0
+reversible_state:
+  token_limiter:
+    value: disabled
+permissions:
+  allowed_actions:
+    - enable_token_limiter
+  max_risk_tier: LOW
+signals:
+  token_usage: 1500.0
+evidence:
+  - id: ev-001
+    kind: metric
+    source: token_usage
+    value: 1500.0
+  - id: ev-002
+    kind: log
+    source: api
+    payload:
+      message: "429 Too Many Requests from OpenAI"
+state:
+  token_health: blowout
+  token_limiter: disabled
+debt: {}

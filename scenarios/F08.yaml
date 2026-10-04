@@ -1,0 +1,39 @@
+id: scenario-f08-config
+fault_class: F08
+services:
+  api:
+    role: application
+health:
+  api: degraded
+quality:
+  golden_set: ./golden_set.yaml
+  min_cases: 20
+  scorers: [availability]
+objectives:
+  availability:
+    value: 0.5
+    threshold: 0.99
+    weight: 1.0
+tolerance:
+  quality_drop_pct: 15.0
+  latency_increase_pct: 50.0
+  cost_increase_pct: 100.0
+reversible_state:
+  config_version:
+    value: v3.1
+permissions:
+  allowed_actions:
+    - rollback_config
+  max_risk_tier: MEDIUM
+signals:
+  config_errors: 100
+evidence:
+  - id: ev-001
+    kind: log
+    source: api
+    payload:
+      message: "KeyError: missing feature toggle flag"
+state:
+  config_health: regressed
+  config_version: v3.1
+debt: {}

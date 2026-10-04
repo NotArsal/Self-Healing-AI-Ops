@@ -1,0 +1,42 @@
+id: scenario-f07-prompt
+fault_class: F07
+services:
+  api:
+    role: application
+health:
+  api: healthy
+quality:
+  golden_set: ./golden_set.yaml
+  min_cases: 20
+  scorers: [quality]
+objectives:
+  quality:
+    value: 0.65
+    threshold: 0.90
+    weight: 1.0
+tolerance:
+  quality_drop_pct: 15.0
+  latency_increase_pct: 50.0
+  cost_increase_pct: 100.0
+reversible_state:
+  prompt_version:
+    value: v2.0
+permissions:
+  allowed_actions:
+    - rollback_prompt
+  max_risk_tier: LOW
+signals:
+  quality_score: 0.65
+evidence:
+  - id: ev-001
+    kind: metric
+    source: quality_score
+    value: 0.65
+  - id: ev-002
+    kind: metric
+    source: hallucination_rate
+    value: 0.2
+state:
+  prompt_health: regressed
+  prompt_version: v2.0
+debt: {}

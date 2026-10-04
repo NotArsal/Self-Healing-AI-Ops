@@ -116,24 +116,60 @@ export function Dashboard() {
     <div className="flex flex-col min-h-screen bg-k-canvas text-k-ink">
       <header className="h-16 px-6 flex items-center border-b border-k-hairline bg-k-surface">
         <h1 className="text-xl font-semibold tracking-tight text-k-primary">Kavach</h1>
-        <div className="ml-auto flex items-center gap-4">
+        <div className="ml-auto flex items-center gap-2">
           <button 
             onClick={() => launchScenario("F01")}
-            className="px-4 py-2 bg-k-ink text-white rounded hover:bg-opacity-90 text-sm font-medium transition-colors"
+            className="px-3 py-1 bg-k-ink text-white rounded hover:bg-opacity-90 text-xs font-medium transition-colors"
           >
             Launch F01
           </button>
           <button 
+            onClick={() => launchScenario("F02")}
+            className="px-3 py-1 bg-k-warning text-white rounded hover:bg-opacity-90 text-xs font-medium transition-colors"
+          >
+            Launch F02
+          </button>
+          <button 
             onClick={() => launchScenario("F03")}
-            className="px-4 py-2 bg-k-danger text-white rounded hover:bg-opacity-90 text-sm font-medium transition-colors"
+            className="px-3 py-1 bg-k-danger text-white rounded hover:bg-opacity-90 text-xs font-medium transition-colors"
           >
             Launch F03
           </button>
           <button 
-            onClick={() => launchScenario("F02")}
-            className="px-4 py-2 bg-k-warning text-white rounded hover:bg-opacity-90 text-sm font-medium transition-colors"
+            onClick={() => launchScenario("F04")}
+            className="px-3 py-1 bg-k-ink text-white rounded hover:bg-opacity-90 text-xs font-medium transition-colors"
           >
-            Launch F02
+            Launch F04
+          </button>
+          <button 
+            onClick={() => launchScenario("F05")}
+            className="px-3 py-1 bg-k-ink text-white rounded hover:bg-opacity-90 text-xs font-medium transition-colors"
+          >
+            Launch F05
+          </button>
+          <button 
+            onClick={() => launchScenario("F06")}
+            className="px-3 py-1 bg-k-ink text-white rounded hover:bg-opacity-90 text-xs font-medium transition-colors"
+          >
+            Launch F06
+          </button>
+          <button 
+            onClick={() => launchScenario("F07")}
+            className="px-3 py-1 bg-k-ink text-white rounded hover:bg-opacity-90 text-xs font-medium transition-colors"
+          >
+            Launch F07
+          </button>
+          <button 
+            onClick={() => launchScenario("F08")}
+            className="px-3 py-1 bg-k-ink text-white rounded hover:bg-opacity-90 text-xs font-medium transition-colors"
+          >
+            Launch F08
+          </button>
+          <button 
+            onClick={() => launchScenario("F09")}
+            className="px-3 py-1 bg-k-ink text-white rounded hover:bg-opacity-90 text-xs font-medium transition-colors"
+          >
+            Launch F09
           </button>
           <span className="text-xs px-2 py-1 bg-k-surface-strong rounded text-k-ink uppercase tracking-wider font-semibold">
             SIMULATION

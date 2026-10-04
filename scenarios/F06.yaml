@@ -1,0 +1,39 @@
+id: scenario-f06-retrieval
+fault_class: F06
+services:
+  api:
+    role: application
+health:
+  api: healthy
+quality:
+  golden_set: ./golden_set.yaml
+  min_cases: 20
+  scorers: [quality]
+objectives:
+  quality:
+    value: 0.5
+    threshold: 0.8
+    weight: 1.0
+tolerance:
+  quality_drop_pct: 15.0
+  latency_increase_pct: 50.0
+  cost_increase_pct: 100.0
+reversible_state:
+  retriever_count:
+    value: "2"
+permissions:
+  allowed_actions:
+    - scale_retrievers
+  max_risk_tier: LOW
+signals:
+  missing_contexts: 40
+evidence:
+  - id: ev-001
+    kind: log
+    source: api
+    payload:
+      message: "search timeout, returning empty context"
+state:
+  retriever_health: collapsed
+  retriever_count: "2"
+debt: {}

@@ -19,7 +19,8 @@ def diagnose_node(state: IncidentState) -> IncidentState:
 from kavach.catalogue.loader import load_catalogue
 
 def plan_node(state: IncidentState) -> IncidentState:
-    fault = state.get("fault_class")
+    fault_raw = state.get("fault_class", "")
+    fault = fault_raw.split(":")[0].strip() if fault_raw else ""
     plan = []
     
     catalogue = load_catalogue()
@@ -40,6 +41,34 @@ def plan_node(state: IncidentState) -> IncidentState:
                     Action(
                         name="rollback_deployment",
                         params={"target_version": "v1.2.0"},
+                    )
+                )
+            elif act_name == "scale_connection_pool":
+                plan.append(
+                    Action(
+                        name="scale_connection_pool",
+                        params={"target_size": "50", "original_size": "10"},
+                    )
+                )
+            elif act_name == "rollback_prompt":
+                plan.append(
+                    Action(
+                        name="rollback_prompt",
+                        params={"target_version": "v1.0"},
+                    )
+                )
+            elif act_name == "scale_retrievers":
+                plan.append(
+                    Action(
+                        name="scale_retrievers",
+                        params={"target_count": "5", "original_count": "2"},
+                    )
+                )
+            elif act_name == "rollback_config":
+                plan.append(
+                    Action(
+                        name="rollback_config",
+                        params={"target_version": "v3.0"},
                     )
                 )
             else:

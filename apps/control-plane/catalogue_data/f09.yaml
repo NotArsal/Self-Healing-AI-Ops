@@ -1,0 +1,21 @@
+actions:
+  - name: enable_token_limiter
+    inverse:
+      name: disable_token_limiter
+      params_mapping: {}
+    mutations:
+      token_limiter: enabled
+      token_health: healthy
+      
+  - name: disable_token_limiter
+    inverse:
+      name: noop
+      params_mapping: {}
+    mutations:
+      token_limiter: disabled
+      token_health: blowout
+
+faults:
+  - fault_class: F09
+    recommended_actions:
+      - enable_token_limiter

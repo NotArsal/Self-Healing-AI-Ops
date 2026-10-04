@@ -1,0 +1,46 @@
+id: scenario-f05-pool
+fault_class: F05
+services:
+  api:
+    role: application
+  database:
+    role: database
+health:
+  api: healthy
+  database: exhausted
+quality:
+  golden_set: ./golden_set.yaml
+  min_cases: 20
+  scorers: [availability]
+objectives:
+  availability:
+    value: 0.8
+    threshold: 0.99
+    weight: 1.0
+tolerance:
+  quality_drop_pct: 15.0
+  latency_increase_pct: 50.0
+  cost_increase_pct: 100.0
+reversible_state:
+  db_pool_size:
+    value: "10"
+permissions:
+  allowed_actions:
+    - scale_connection_pool
+  max_risk_tier: MEDIUM
+signals:
+  db_connection_timeouts: 50
+evidence:
+  - id: ev-001
+    kind: metric
+    source: db_connection_timeouts
+    value: 50
+  - id: ev-002
+    kind: log
+    source: api
+    payload:
+      message: "Timeout waiting for connection from pool"
+state:
+  db_health: exhausted
+  db_pool_size: "10"
+debt: {}

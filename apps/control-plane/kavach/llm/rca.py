@@ -28,7 +28,15 @@ def analyze_root_cause(
     Review the following incident scenario evidence and classify the fault.
     
     Fault Classes Catalogue:
-    - F01: Provider Outage (Indicators: high error ratio, specific logs like 503, provider latency)
+    - F01: Provider Outage (Indicators: high error ratio, 503 errors, gen_ai_error_ratio)
+    - F02: Provider Latency (Indicators: high provider_latency_ms, upstream request timeout, 504 errors)
+    - F03: Crash-Loop (Indicators: high pod_restart_count, crash-loop status, panic nil pointer)
+    - F04: Cache Poisoning (Indicators: serving stale malformed prompt from cache, high cache_hit_ratio but bad quality)
+    - F05: Pool Exhaustion (Indicators: Timeout waiting for connection from pool, db_connection_timeouts)
+    - F06: Retrieval Collapse (Indicators: search timeout, missing_contexts)
+    - F07: Prompt Regression (Indicators: quality_score drops, hallucination_rate increases, prompt_health regressed)
+    - F08: Config Regression (Indicators: KeyError: missing feature toggle flag, config_errors)
+    - F09: Token Blowout (Indicators: 429 Too Many Requests, token_usage spikes)
     - INSUFFICIENT_EVIDENCE: Cannot confidently classify.
     
     Scenario ID: {scenario.id}

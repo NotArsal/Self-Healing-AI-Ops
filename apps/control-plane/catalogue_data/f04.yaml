@@ -1,0 +1,12 @@
+actions:
+  - name: flush_cache
+    inverse:
+      name: noop
+      params_mapping: {}
+    mutations:
+      cache_state: clean
+      
+faults:
+  - fault_class: F04
+    recommended_actions:
+      - flush_cache
