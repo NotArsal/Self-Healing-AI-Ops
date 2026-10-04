@@ -57,4 +57,4 @@ class Scenario(BaseModel):
     signals: dict[str, float] | None = None
     evidence: list[EvidenceItem] | None = None
     state: dict[str, str] | None = None
-    debt: dict[str, DebtDef] | None = None
+    debt: dict[str, Any] | None = None

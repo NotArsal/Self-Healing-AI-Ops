@@ -181,6 +181,13 @@ def outcome_node(state: IncidentState) -> IncidentState:
     passed = state.get("verification_passed", False)
     if passed:
         # F01 usually results in MITIGATED because primary is still down, just backup is active.
+        scenario = state["scenario"]
+        if scenario.debt is None:
+            scenario.debt = {}
+        for record in state.get("undo_stack", []):
+            if record.applied:
+                # Store the entire record dict or object
+                scenario.debt[record.original_action.name] = record
         return {"outcome": "MITIGATED"}
     else:
         return {"outcome": "ESCALATED"}

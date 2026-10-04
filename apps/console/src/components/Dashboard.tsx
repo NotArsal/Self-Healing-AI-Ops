@@ -90,6 +90,17 @@ export function Dashboard() {
     }
   };
 
+  const repayDebt = async (id: string) => {
+    try {
+      await fetch(`http://localhost:8000/incidents/${id}/repay-debt`, {
+        method: "POST"
+      });
+      // SSE will update it automatically
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // Helper to get stage colors
   const getStageColor = (stage: string) => {
     const map: Record<string, string> = {
@@ -311,6 +322,20 @@ export function Dashboard() {
                 </pre>
               </div>
 
+              {activeIncident.outcome === "MITIGATED" && activeIncident.debt && Object.keys(activeIncident.debt).length > 0 && (
+                <div className="bg-orange-50 rounded border border-orange-200 p-4 flex flex-col gap-3">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-sm text-orange-900">Active Debt</span>
+                    <span className="text-xs text-orange-700">The system is mitigated but running in a degraded state.</span>
+                  </div>
+                  <button 
+                    onClick={() => repayDebt(activeIncident.id)}
+                    className="w-full px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 text-xs font-medium transition-colors"
+                  >
+                    Resolve Underlying Fault & Repay Debt
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </aside>

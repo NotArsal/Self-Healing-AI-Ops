@@ -91,6 +91,39 @@ async def get_incident_detail(incident_id: str) -> dict[str, Any]:
     if "scenario" in ui_state:
         ui_state["scenario_id"] = ui_state["scenario"].id
         ui_state["evidence"] = [e.model_dump() for e in ui_state["scenario"].evidence] if ui_state["scenario"].evidence else []
+        ui_state["debt"] = ui_state["scenario"].debt.copy() if ui_state["scenario"].debt else {}
         del ui_state["scenario"]
         
     return ui_state
+
+@router.post("/{incident_id}/repay-debt")
+async def repay_debt_endpoint(incident_id: str) -> dict[str, Any]:
+    from kavach.debt.repayment import repay_debt
+    state = get_incident(incident_id)
+    if not state:
+        raise HTTPException(status_code=404, detail="Incident not found")
+        
+    scenario = state.get("scenario")
+    sim_state = state.get("simulation_state", {})
+    
+    if not scenario or not scenario.debt:
+        raise HTTPException(status_code=400, detail="No active debt for this incident")
+        
+    # We simulate fixing the original fault by reverting the `healthy` status in sim_state to what it should be
+    # For example, if it's F01, we set model_primary to healthy.
+    # To be generic, let's just make the whole state "healthy".
+    for k in list(sim_state.keys()):
+        if "health" in k or k == "model_primary":
+            sim_state[k] = "healthy"
+            
+    success = repay_debt(scenario, sim_state)
+    if success:
+        update_incident(incident_id, {"simulation_state": sim_state, "outcome": "RESOLVED"})
+        await broadcast_event({
+            "type": "debt_repaid",
+            "incident_id": incident_id,
+            "state": get_incident(incident_id)
+        })
+        return {"status": "repaid"}
+    else:
+        raise HTTPException(status_code=400, detail="Debt repayment failed verification")
