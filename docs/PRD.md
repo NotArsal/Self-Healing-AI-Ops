@@ -313,34 +313,39 @@ Two orthogonal axes, deliberately separated because conflating them caused the L
 - **Priority** — `P0` required for the demo · `P1` required for the report · `P2` stretch.
 - **Phase** — *when* it is built (`ROADMAP.md`). A `P1` feature may legitimately be scheduled late.
 
+> **Phase numbers are the ones in `ROADMAP.md`, canonical as of 2026-10-04.**
+> The `F06` work that an earlier draft split across "P2 injector" and "P3 dumb
+> loop" is one phase, P2; LLM RCA is P3; everything after shifted down by one.
+> A ✅ marks what is delivered, and a note marks what is only partly delivered.
+
 | ID | Feature | Priority | Phase |
 |---|---|---|---|
-| `F-ONB` | Project onboarding + preflight validation against a `kavach.yaml` manifest | P0 | P1 |
-| `F-SLO` | SLO contract declaration as PromQL expressions — the machine-checkable definition of "healthy" | P0 | P1 |
-| `F-TEL` | Telemetry ingestion: OTLP traces/metrics/logs + Prometheus query | P0 | P2 |
-| `F-VER-FAST` | **Fast verification**: health probe + short SLO window + 3 deterministic quality checks | P0 | P3 |
-| `F-DET` | Detection layer: SLO breach + statistical anomaly detection | P0 | P3 |
-| `F-SAFE` | Safety / decision engine: risk tiering, allow-list, blast radius, circuit breaker | P0 | P3 → P7 |
-| `F-HEAL` | Executor with an undo stack and a recorded inverse for every repair | P0 | P3 |
-| `F-VER` | Three-probe verification + automatic rollback on failure | P0 | P3 |
-| `F-AUD` | Immutable, hash-chained audit trail of every autonomous action | P0 | P3 |
-| `F-INJ` | Fault injection harness for the eight catalogue entries | P0 | P2 → P6 |
-| `F-RCA` | Evidence-grounded RCA with cited evidence and calibrated confidence | P0 | P4 |
-| `F-UI` | Live operations console | P0 | P5 |
-| `F-MODE` | Three operating modes: `SIMULATION` / `APPROVAL` / `AUTONOMOUS` (§5.4) | P0 | P3 → P7 |
-| `F-GIT` | Git isolation: `kavach/ops` branch off `modernize-stack`, commits for every config/prompt change | P0 | P6 → P8 |
-| `F-UNK` | Unknown-failure flow — evidence → hypotheses → risk → escalate (never auto-execute) | P1 | P7 |
-| `F-EVAL-FULL` | Full offline evaluation runner for research measurement | P1 | P8 |
-| `F-MEM` | Incident knowledge base with similarity retrieval over past incidents | P1 | P8 |
-| `F-DEC` | **Pluggable decision model — rule engine is authority, Laya adapter in shadow** (§7.1) | **P1** | **P8** |
-| `F-SBX` | Sandbox: clone the stack, apply the repair there first | P1 | P7 |
+| `F-ONB` | Project onboarding + preflight validation against a `kavach.yaml` manifest | P0 | P1 ✅ |
+| `F-SLO` | SLO contract declaration as PromQL expressions — the machine-checkable definition of "healthy" | P0 | P1 ✅ |
+| `F-TEL` | Telemetry ingestion: OTLP traces/metrics/logs + Prometheus query | P0 | P1 → P4. *Prometheus query is live; the OTLP receiver inside Kavach is not built* |
+| `F-VER-FAST` | **Fast verification**: health probe + short SLO window + 3 deterministic quality checks | P0 | P2 → P6. *Health and the 3 quality checks are live; the SLO-window probe is not* |
+| `F-DET` | Detection layer: SLO breach + statistical anomaly detection | P0 | P2 → P5. *`F06` detection is live; anomaly detection and the other fault classes are not* |
+| `F-SAFE` | Safety / decision engine: risk tiering, allow-list, blast radius, circuit breaker | P0 | P6. *Not started — see the head note on `ARCHITECTURE.md` §6* |
+| `F-HEAL` | Executor with an undo stack and a recorded inverse for every repair | P0 | P2 → P6. *One action with a recorded, verified inverse is live; the undo **stack** and the writer lock are not* |
+| `F-VER` | Three-probe verification + automatic rollback on failure | P0 | P2 → P6. *Two of three probes; escalation on verification failure is live, the severity early abort is not* |
+| `F-AUD` | Immutable, hash-chained audit trail of every autonomous action | P0 | P6. *Not started; runs are JSON artifacts under `harness/reports/`* |
+| `F-INJ` | Fault injection harness for the eight catalogue entries | P0 | P2 → P5. *`F06` live and 20/20 stable; seven remain* |
+| `F-RCA` | Evidence-grounded RCA with cited evidence and calibrated confidence | P0 | P3 ✅ for `F06`. **Confidence is *not* calibrated** — it is raw model output; calibration is P7 (`ARCHITECTURE.md` §6.4) |
+| `F-UI` | Live operations console | P0 | P4 |
+| `F-MODE` | Three operating modes: `SIMULATION` / `APPROVAL` / `AUTONOMOUS` (§5.4) | P0 | P6. *Not started — see the corrected note below* |
+| `F-GIT` | Git isolation: `kavach/ops` branch off `modernize-stack`, commits for every config/prompt change | P0 | P7. *The branch discipline is honoured by hand today; the adapter is not built, and no action has written a versioned file yet* |
+| `F-UNK` | Unknown-failure flow — evidence → hypotheses → risk → escalate (never auto-execute) | P1 | P6. *The `UNKNOWN` **gate** is already live in the RCA validator; the hypothesis flow is not* |
+| `F-EVAL-FULL` | Full offline evaluation runner for research measurement | P1 | P7 |
+| `F-MEM` | Incident knowledge base with similarity retrieval over past incidents | P1 | P7 |
+| `F-DEC` | **Pluggable decision model — rule engine is authority, Laya adapter in shadow** (§7.1) | **P1** | **P7** |
+| `F-SBX` | Sandbox: clone the stack, apply the repair there first | P1 | P6 |
 | `F-BENCH` | AIOpsLab / RCAEval harness adapter | P2 | — |
 
-**`F-MODE` note.** `SIMULATION` is the default from the first line of code written in P3 — the safety engine's mode check is not a late addition. What P7 adds is `APPROVAL`'s interrupt/resume flow and the full `AUTONOMOUS` tier routing.
+**`F-MODE` note, corrected 2026-10-04.** The earlier draft said `SIMULATION` is the default from the first line of code written. **It is not, because there is no mode plumbing yet** — the P2/P3 loop has no mode parameter to default. What makes that tolerable for now is narrower and should be stated as such: the loop is invoked explicitly by a harness, never on a timer, so it cannot act unattended. **The mode check must land with the safety engine in P6, before anything invokes the loop automatically.** P6 then adds `APPROVAL`'s interrupt/resume flow and the full `AUTONOMOUS` tier routing.
 
 ### 7.1 On the decision model — read the model card before building this
 
-**Resolution of the P1/P2 contradiction: `F-DEC` is `P1` in priority and scheduled in `P8`. Laya is shadow-only in v1 and never gates an action.** Priority and phase are separate concepts; the previous draft conflated them and stated both P1 and P2 in four different places.
+**Resolution of the P1/P2 contradiction: `F-DEC` is `P1` in priority and scheduled in `P7`. Laya is shadow-only in v1 and never gates an action.** Priority and phase are separate concepts; the previous draft conflated them and stated both P1 and P2 in four different places.
 
 Laya is real and a much better fit than the synopsis assumed, but it has three documented defects that will silently break a naive integration. All figures below are from the official model card (`huggingface.co/convaiinnovations/laya`), not from secondary coverage.
 
@@ -368,10 +373,10 @@ Also: `score` is the weakest primitive (SST-5 0.372), so **risk tier must be a `
 
 - **The deterministic rule engine is the decision authority, permanently, in v1.** It is auditable, explainable to a panel, and correct by construction over an eight-entry catalogue.
 - **Laya runs in shadow.** It receives the same decision inputs, produces its decision independently, and its agreement/disagreement with the rule engine is logged. It **never** gates execution, **never** overrides the safety engine, and is **never** the source of truth for a risk decision in v1.
-- Decisions are logged in Laya's typed-decision format from P3 onward regardless of whether Laya itself is running, building the fine-tuning corpus at zero cost.
+- Decisions are logged in Laya's typed-decision format from the safety engine (P6) onward regardless of whether Laya itself is running, building the fine-tuning corpus at zero cost.
 - The fine-tuning loop runs on **Kaggle's free 2×T4 GPUs** via the project's published notebook, so no GPU budget is required. The fine-tuned model in the live path is out of scope (§11).
 - Integration is cheap: `laya[serve]` exposes `laya-serve` as an HTTP sidecar. A sidecar container is the lowest-coupling option and keeps Laya's dependencies out of the control-plane image entirely.
-- The ~768-token state budget on `laya-typed-decisions` means the graph must compress an incident into a **decision frame**, not pass raw evidence. That compression is real work and is scheduled in P8.
+- The ~768-token state budget on `laya-typed-decisions` means the graph must compress an incident into a **decision frame**, not pass raw evidence. That compression is real work and is scheduled in P7.
 
 One operational note: `transformers` probes for TensorFlow at import and its abseil runtime can deadlock model construction, so `laya.load()` hangs if TF is installed. Running Laya as a sidecar makes this a property of one container rather than a constraint on the whole stack.
 
@@ -416,7 +421,7 @@ Project is in `AUTONOMOUS`. Fault `F01` is injected. The console shows, in seque
 
 Same until step 5. Risk is MEDIUM, so:
 
-5. Kavach clones the stack into an isolated sandbox project, applies the repair there, runs fast verification against the sandbox. *(If `F-SBX` is cut, this step is skipped and the proposal carries no sandbox result — see `ROADMAP.md` P7 cut line.)*
+5. Kavach clones the stack into an isolated sandbox project, applies the repair there, runs fast verification against the sandbox. *(If `F-SBX` is cut, this step is skipped and the proposal carries no sandbox result — see `ROADMAP.md` P6 cut line.)*
 6. Console shows a **proposal**: diagnosis, proposed diff, sandbox verification result, risk rationale, inverse action.
 7. Human approves or rejects. Rejection is recorded with a reason and feeds the knowledge base.
 8. On approval, execute → verify → resolve, identical to the low-risk path.
@@ -584,7 +589,7 @@ The target has four actionable services (`backend`, `db`, `ollama`, `frontend`),
 
 **Ablation baseline:** run the catalogue with the undo stack disabled. STRATUS's equivalent ablation is the single most quotable result in its paper, and reproducing the shape of it on your own system — even at small scale — is a stronger research contribution than any absolute number you can report.
 
-**Non-LLM baseline:** P3's hardcoded signal→action mapping, measured before the LLM RCA engine exists. This number cannot be recovered later.
+**Non-LLM baseline:** P2's hardcoded signal→action mapping, measured before the LLM RCA engine existed. This number cannot be recovered later. **Recorded for `F06`:** the deterministic loop and the RCA loop both resolve it correctly, the RCA stage costing ~2.5s — so on this one fault class the LLM does not beat the dict, which is the honest result (`ROADMAP.md` P3).
 
 **Decision-engine comparison:** rule engine vs. shadowed Laya on identical incidents — agreement rate, disagreement cases, and which was right.
 
@@ -641,7 +646,7 @@ These were open questions in the previous draft. They are now decided; recorded 
 |---|---|
 | Does the golden eval set live in the target repo or in Kavach? | **The fast-verification set lives in Kavach**, declared in `kavach.yaml`, because it must be deterministic, local, and independent of the target's RAGAS harness. The target's 40-case `evaluation_dataset.csv` is the source material for it and remains the basis of the research evaluator |
 | Is prompt versioning Kavach's responsibility or the target's? | **The target versions prompts in files; Kavach reads their git history.** This is §5.2 addition 6 — the two prompts move to `prompts/*.txt`, loaded at request time, and the prompt version is the git SHA of that directory |
-| How is the human notified outside the console? | **Console-only for v1.** A webhook is P2 |
+| How is the human notified outside the console? | **Console-only for v1.** A webhook is priority P2 |
 | Is TimescaleDB required? | **No.** Plain Postgres + pgvector in v1; the schema is written so Timescale can be added later if telemetry volume justifies it (`ARCHITECTURE.md` §5) |
 | One Prometheus or two? | **One**, in the control plane, scraping both the target and Kavach. The target's bundled Prometheus is moved behind a compose profile (`ARCHITECTURE.md` §2.4) |
 | One Ollama or two? | **One**, the target's. Kavach's RCA calls route to it directly, bypassing Toxiproxy (§6.3) |

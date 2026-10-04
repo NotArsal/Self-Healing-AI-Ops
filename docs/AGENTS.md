@@ -97,7 +97,9 @@ If a task conflicts with any of those documents, **stop and say so**. Do not res
 
 ### Laya integration
 
-**Laya is priority P1 and scheduled in P8. It is shadow-only in v1 and never gates an action.** Priority and phase are separate; if you find a document saying P2, it is stale — `PRD.md` §7.1 is authoritative.
+**Laya is priority P1 and scheduled in P7. It is shadow-only in v1 and never gates an action.** Priority and phase are separate; if you find a document saying P2, it is stale — `PRD.md` §7.1 is authoritative.
+
+**Phase numbers moved on 2026-10-04.** `ROADMAP.md` is canonical: P2 is the `F06` deterministic closed loop, P3 is `F06` LLM RCA, and the phases after that shifted down by one (old P5–P9 → new P4–P8). Commit messages, decision records and code comments written before that date use the old numbers and are **not** rewritten; `ROADMAP.md`'s **Phase map** carries the mapping. If a document and a commit message disagree about a number, the document is right about the plan and the commit is right about history.
 
 The decision model has three documented defects. Each one is a trap you will walk into if you follow the obvious API. Read `PRD.md` §7.1 before touching `decision/laya.py`.
 

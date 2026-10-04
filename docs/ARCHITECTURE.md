@@ -95,7 +95,7 @@ The separation that matters: **the graph decides, the safety engine permits, the
 | Cache / queue | **Redis 7** | Idempotency keys, rate windows, circuit-breaker counters, pub/sub for console updates. *(Control plane only. The target has no cache — `PRD.md` §6.1)* |
 | Metrics | **Prometheus** | One instance, in the control plane, scraping both the target and Kavach. The detection layer evaluates PromQL expressions against it (§2.4) |
 | Telemetry transport | **OpenTelemetry Collector** | The target exports OTLP to the collector; the collector fans out to Prometheus and to Kavach's OTLP receiver. See §2.3 |
-| Decision model (shadow) | **Laya** `laya-typed-decisions`, via `laya-serve` sidecar | Apache-2.0, local, ~33ms, already fine-tuned on agent-trace observability and security-incident workflows. **Shadow-only, never gating.** Priority P1, scheduled P8. See `PRD.md` §7.1 for the three defects it must be used around |
+| Decision model (shadow) | **Laya** `laya-typed-decisions`, via `laya-serve` sidecar | Apache-2.0, local, ~33ms, already fine-tuned on agent-trace observability and security-incident workflows. **Shadow-only, never gating.** Priority P1, scheduled P7 (`ROADMAP.md` numbering, canonical as of 2026-10-04). See `PRD.md` §7.1 for the three defects it must be used around |
 | Frontend | **Next.js 15 (App Router)**, TypeScript, Tailwind v4, shadcn/ui | `apps/console/` only. See `DESIGN_SYSTEM.md` §0 for jurisdiction |
 | Charts | **Recharts** | Composable, fits the token system, no canvas |
 | Migrations | **Alembic** | |
@@ -167,6 +167,8 @@ As of 2026, **every `gen_ai.*` attribute, span, metric and event carries the sta
 
 ## 3. Project structure
 
+**This is the target structure.** The repository is a subset of it today; §3.1 reconciles the two and records where the implementation deliberately deviates.
+
 ```
 kavach/
 ├── apps/
@@ -197,7 +199,7 @@ kavach/
 │   │   │   │   ├── probes.py           # health, slo_window, fast_quality
 │   │   │   │   ├── verifier.py         # all-three-must-pass
 │   │   │   │   └── fast_set.py         # the 3 deterministic check cases, serial
-│   │   │   ├── evaluation/             # research evaluator (P8, FR-07a)
+│   │   │   ├── evaluation/             # research evaluator (P7, FR-07a)
 │   │   │   │   ├── runner.py
 │   │   │   │   └── scorers/            # latency, cost, quality, groundedness
 │   │   │   ├── detection/
@@ -231,7 +233,7 @@ kavach/
 │   │   │   ├── decision/
 │   │   │   │   ├── base.py             # DecisionEngine protocol
 │   │   │   │   ├── rule_engine.py      # v1 authority
-│   │   │   │   └── laya.py             # P1 priority, P8 phase, shadow-only
+│   │   │   │   └── laya.py             # P1 priority, P7 phase, shadow-only
 │   │   │   ├── executor/
 │   │   │   │   ├── registry.py         # action name → adapter
 │   │   │   │   ├── base.py             # Action, InverseAction protocols
@@ -317,6 +319,98 @@ kavach/
 
 ---
 
+### 3.1 What exists today (P0–P3), and where it deviates from the tree above
+
+**The tree above is the target structure, not the current one.** As of
+2026-10-04 the implemented slice is `F06` only — detect, diagnose, repair,
+verify — and it is smaller than the tree in several places and differently
+shaped in a few. This subsection is the reconciliation, so the specification and
+the repository agree instead of quietly disagreeing.
+
+```
+apps/control-plane/kavach/
+├── main.py                        # FastAPI app, /healthz only
+├── config.py                      # pydantic-settings
+├── target.py                      # ◀ DEVIATION — the only HTTP client to the target
+├── loop.py                        # ◀ DEVIATION — hand-rolled orchestrator, not graph/
+├── onboarding/
+│   ├── manifest.py                # kavach.yaml parsing + validation
+│   ├── preflight.py               # the check registry (read-only checks)
+│   └── baseline.py                # last-known-good capture
+├── detection/
+│   └── retrieval_collapse.py      # ◀ F06 only; no slo.py, anomaly.py, classifier.py
+├── verification/
+│   ├── fast.py                    # ◀ health + the 3 quality cases; no SLO-window probe
+│   └── fast_set.yaml              # the 3 cases as data, not fast_set.py
+├── rca/                           # ◀ DEVIATION — P3's RCA layer, not graph/nodes/
+│   ├── evidence.py                # evidence collection and normalisation
+│   ├── schema.py                  # the Diagnosis contract (Pydantic)
+│   ├── validate.py                # the deterministic validation gate
+│   └── engine.py                  # orchestration; never raises
+├── llm/
+│   ├── client.py                  # Ollama, schema-constrained, direct (not proxied)
+│   └── prompts/diagnose.txt       # versioned prompt file
+└── executor/
+    └── config_rollback.py         # ◀ one concrete action; no registry/, no adapters/
+
+harness/
+├── faults/{base,f06_retrieval_collapse}.py
+├── stability_f06.py               # the 20-cycle deterministic harness
+└── rca_f06_live.py                # live RCA + the P2-vs-P3 comparison
+```
+
+**Not present at all:** `api/`, `ingestion/`, `graph/`, `safety/`, `decision/`,
+`knowledge/`, `audit/`, `db/`, `telemetry/`, `evaluation/`,
+`executor/adapters/`, `harness/inject.py`, `harness/scenarios/`,
+`harness/report.py`. Each is scheduled — see `ROADMAP.md` P4–P7.
+
+#### The four deviations, and why
+
+**1. `loop.py` instead of `graph/`.** The closed loop is a hand-rolled
+`run_once()`, not a LangGraph graph. `graph/` stays reserved for the LangGraph
+implementation; putting a hand-rolled orchestrator inside it would misrepresent
+what it is. A graph buys persistence, approval interrupts and resumable state —
+all of which arrive together in P6, and none of which the F06 slice has yet.
+`loop.py` is deleted or reduced to a thin caller when `graph/` lands; it is not
+a parallel implementation to maintain.
+
+**2. `target.py` at the package root.** Every HTTP call to the target goes
+through this one module, which is why it is not under `executor/adapters/http.py`
+— it is read by detection, verification, baseline capture, evidence collection
+and the executor alike, so filing it under the executor would invert the
+dependency. It deliberately exposes **no generic `request()` method, no
+caller-supplied path and no command string** (`FR-27`); the write path is a
+single `apply_settings()` call that the target itself validates and refuses
+wholesale if any key is denied, unknown or out of range.
+
+**3. `rca/` instead of `graph/nodes/collect_evidence.py` + `diagnose.py`.**
+Same reason as (1): there are no graph nodes to be a node of. The split inside
+`rca/` is evidence → schema → validation → engine, which maps onto the two
+planned nodes plus the validation gate the tree never named as a file.
+
+**4. `executor/config_rollback.py` instead of `registry.py` + `adapters/`.**
+One action, one concrete class. A registry mapping one name to one adapter, and
+an `Action` protocol with one implementation, would be an interface with one
+implementation. The *guarantee* the registry was there to enforce — no action
+without an inverse — is enforced directly instead: `prepare()` refuses to build
+a rollback when no known-good baseline was captured, so an action with nothing
+to invert to cannot be constructed. The registry arrives with the second action,
+in P5/P6.
+
+**Also deviating, more mildly:** `verification/fast.py` replaces the planned
+`probes.py` + `verifier.py` + `fast_set.py` trio, and implements **two** of the
+three `FR-07` probes — health and the 3 deterministic quality cases. The 120s
+SLO-window probe is **not implemented**, so "all three must pass" is currently
+"both implemented probes must pass". That is a known gap, scheduled in P6, and
+it is the one place where the current verification is weaker than `FR-07`
+describes.
+
+**Not a deviation:** `detection/retrieval_collapse.py` is narrow because only
+one fault class is implemented, not because the design changed. `slo.py`,
+`anomaly.py` and `classifier.py` are still the intended shape.
+
+---
+
 ## 4. Data flow
 
 ### 4.1 Observation path
@@ -327,7 +421,7 @@ target backend
   │                                      (metrics path: ONE hop)
   └─ OTel SDK emits spans (Kavach internal attribute schema, §2.3)
      └─ OTLP/HTTP ──▶ OTel Collector
-                        └─ otlphttp ──▶ Kavach /v1/traces   (P2)
+                        └─ otlphttp ──▶ Kavach /v1/traces   (P4, not built)
                                           └─ normalise ──▶ telemetry_spans
 ```
 
@@ -405,6 +499,23 @@ Detection tick (every 15s)
 
 The severity early-abort edge is drawn explicitly because it is the mechanism `FR-15c` and the whole TNR claim rest on, and it was absent from the previous draft's diagram.
 
+**What runs today (P2/P3, `F06` only).** The path above is the design. The implemented loop is:
+
+```
+harness invokes run_once()
+  ─▶ deterministic detection (similarity healthy + grounding lost +
+                              fast set failing NOW)
+  ─▶ RCA: evidence ─▶ LLM ─▶ the ten-rule gate (§6.4)   [optional stage]
+  ─▶ prepare: capture pre-state, derive the inverse
+  ─▶ execute rollback_config
+  ─▶ verify: health + the 3 quality cases
+  ─▶ RESOLVED, or ESCALATED
+```
+
+There is no 15s detection tick, no `permit()`, no risk gate, no mode routing, no sandbox, no approval interrupt and no `learn` step. **The severity early-abort edge is not implemented either** — the F06 slice reaches verification and escalates on failure, which is the correct outcome but not the fast one `FR-15c` requires. Scheduled in P6. Without the mode plumbing, the loop cannot act unattended: it only runs when a harness calls it.
+
+`RESOLVED` requires **all** of: verification passed, the repair proved applied, nothing outside the repair's scope changed, and the corpus fingerprint unchanged across the whole incident. Anything else escalates. A loop that reports success on a failed verification is a false-healing machine, which is the worst outcome in the design.
+
 ### 4.3 Live console path
 
 The graph writes every state transition to Redis pub/sub. The WebSocket hub fans out to connected clients. The console never polls for incident state.
@@ -481,11 +592,19 @@ incident_memory(id, incident_id, summary, embedding vector(768),
 **Redis keyspaces:**
 `kavach:idem:{key}` (idempotency, 24h TTL) · `kavach:cb:{project}:{service}:{fault}` (circuit breaker counters) · `kavach:blast:{project}` (rate windows) · `kavach:events` (pub/sub)
 
-Redis is **started from P3**, not from Phase 0. Every one of those four keyspaces belongs to a check that does not exist until then (`FR-16`, `FR-17`, `FR-18`, §4.3), and a container nothing connects to is a container whose health tells you nothing.
+Redis is **not started yet**, and was not in Phase 0. Every one of those four keyspaces belongs to a check that does not exist yet — console pub/sub arrives in P4, persisted idempotency keys in P6 (`FR-16`, `FR-17`, `FR-18`, §4.3), and a container nothing connects to is a container whose health tells you nothing.
 
 ---
 
 ## 6. The safety engine
+
+> **Implementation status, 2026-10-04: §6.1–§6.3 are not built.** There is no
+> `safety/` package. The `F06` slice (P2/P3) ships one action that is
+> project-scoped and deny-list-safe by construction, which is not the same
+> thing as a gate. §6.4 is the part that *is* implemented, and it is a
+> narrower thing: it validates a diagnosis, not an action. `permit()` is
+> scheduled in `ROADMAP.md` P6 and must land before any second repair action
+> or any unattended invocation of the loop.
 
 The single most important component. Its guarantee is **Transactional No-Regression (TNR)**, taken from STRATUS (NeurIPS'25, arXiv:2506.02009). Kavach implements the same three properties against Docker rather than Kubernetes.
 
@@ -498,6 +617,15 @@ The single most important component. Its guarantee is **Transactional No-Regress
 | **No regression** | A scalar severity metric derived from the SLO contract, sampled before and after each action. If severity increases, the stack unwinds immediately rather than waiting for the full verification window (§4.2) |
 
 The ablation in the STRATUS paper is the reason this is non-negotiable: on AIOpsLab's 13 mitigation problems, naive retry without undo scores 23.1% against 69.2% with TNR. The undo mechanism is worth roughly 3× on mitigation success — more than any model choice in this stack.
+
+**Implemented today:** the faithful-undo property, per action rather than per
+incident. `executor/config_rollback.py` captures the pre-state witness in
+`prepare()` and refuses to construct a rollback when no known-good baseline
+was captured, so an action with nothing to invert to cannot exist. **Not
+implemented:** the A-Lock (no `safety/writer_lock.py`, and nothing yet runs
+two incidents concurrently), the undo stack as a structure, and the
+no-regression early abort. All three are P6, and the stack matters from the
+second action onward.
 
 Two design notes that follow directly:
 
@@ -514,20 +642,21 @@ def permit(action: Action, project: Project, incident: Incident) -> Verdict
 
 `Verdict` is `ALLOW_AUTO | REQUIRE_SANDBOX | REQUIRE_APPROVAL | DENY`, always with a list of reasons.
 
-Evaluation order — **every check must pass; the first failure short-circuits to DENY or escalation:**
+Evaluation order — **every check must pass; the first failure short-circuits to DENY or escalation.** None of these ten steps is implemented yet; see the note at the head of §6.
+
 
 1. **Project ownership.** Does the action's target resolve to a container belonging to this project's compose project and to a declared service? No → `DENY`. See §6.3. This check runs first because it is the one that prevents Kavach touching something it was never onboarded against.
 2. **Deny-list.** Is this a forbidden mutation — data deletion, database drop, scale-to-zero, migration, or an `EMBED_MODEL` change (`FR-30`)? Yes → `DENY`, unconditionally, in every mode.
 3. **Allow-list.** Is `action.name` in `allowed_actions` for this project? Not listed → `DENY`. The default allow-list is empty and code must not add defaults.
 4. **Inverse exists.** Does the action declare a working inverse? No → `REQUIRE_APPROVAL` at best, never auto.
 5. **Unknown-failure gate.** Is the driving diagnosis `UNKNOWN`? Yes → never auto, never sandbox-and-execute; route to the unknown flow (`FR-29`, `PRD.md` §8.4).
-6. **Confidence.** Is the driving diagnosis above the project threshold? No → `REQUIRE_APPROVAL`.
+6. **Confidence.** Is the driving diagnosis above the project threshold? No → `REQUIRE_APPROVAL`. *Implemented today in the RCA gate instead (§6.4, rule 4), because `permit()` does not exist; it moves here when it does. Note the current semantics are stricter than this step: a below-threshold diagnosis is rejected outright rather than routed to approval, since there is no approval path yet.*
 7. **Risk tier.** From the deterministic rule table (§6.2), keyed on `(action_name, target_kind, reversibility, data_touching)`.
 8. **Blast radius.** ≤ 3 actions this incident, ≤ 5 incidents this hour → else `DENY` and halt automation.
 9. **Circuit breaker.** `(service, fault_class)` healed ≤ 3 times in 30 min → else `DENY` and halt automation for that pair.
 10. **Mode policy.** `SIMULATION` → never execute, always produce a plan and a dry-run diff. `APPROVAL` → everything to a human. `AUTONOMOUS` → LOW auto, MEDIUM to sandbox-then-approval, HIGH to human (`PRD.md` §5.4).
 
-Every call writes a `risk_decisions` row including a `typed_decision_frame` — the compressed, Laya-shaped version of the decision (`which repair`, `what risk`, `execute automatically?`). When the Laya shadow engine is running (P8), its independent answer and the agreement flag land in the same row. **The shadow answer is never read by this function.**
+Every call writes a `risk_decisions` row including a `typed_decision_frame` — the compressed, Laya-shaped version of the decision (`which repair`, `what risk`, `execute automatically?`). When the Laya shadow engine is running (P7), its independent answer and the agreement flag land in the same row. **The shadow answer is never read by this function.**
 
 ### 6.2 Risk tier table (v1, deterministic)
 
@@ -572,6 +701,156 @@ Two supporting rules:
 
 - **`executor/adapters/docker.py` is the only module in the repository that imports the docker SDK.** Enforced by a lint rule, not by convention.
 - **No arbitrary execution, ever** (`FR-27`). There is no `exec` adapter, no shell adapter, no "run this command" parameter on any action. Every action is a named, registered adapter with a typed Pydantic parameter model. If a repair cannot be expressed as one, it is not in the catalogue.
+
+---
+
+### 6.4 The RCA validation gate — implemented in P3, `F06` only
+
+`permit()` above is the full safety engine and does not exist yet (`ROADMAP.md`
+P6). What **does** exist is the gate between the LLM and the executor, in
+`kavach/rca/`. It is a separate, narrower thing and the distinction matters: the
+RCA gate decides whether a *diagnosis* may drive the one implemented repair.
+`permit()` decides whether an *action* may run at all. When `permit()` lands,
+the RCA gate stays — a diagnosis still has to be validated before it becomes a
+proposal — and the confidence check migrates into `permit()`'s step ordering
+(`FR-12`), where the specification always put it.
+
+#### The pipeline
+
+```
+evidence normalisation ─▶ LLM (schema-constrained) ─▶ Pydantic validation
+  ─▶ deterministic validation gate ─▶ the existing rollback_config action
+  ─▶ the existing fast verification
+```
+
+#### The LLM executes nothing
+
+The model may name a fault class, a service, a confidence, cited evidence IDs
+and **one candidate repair from a closed vocabulary**. It has no path to the
+executor, no free-text field that anything downstream reads as an instruction,
+and no way to name an action with no implementation or no inverse. `reasoning`
+exists for a human to audit; nothing branches on it.
+
+RCA never widens what can run. Deterministic detection must still find the
+fault, the repair is still the same single action with the same recorded
+inverse, and verification is unchanged. RCA adds a gate and an explanation.
+
+**A rejected diagnosis escalates.** It does not fall back to the deterministic
+plan — a gate whose refusal can be ignored is decorative.
+
+#### Schema-constrained output, not text parsing
+
+`kavach/llm/client.py` sends Ollama's `format` field a **JSON Schema generated
+from the Pydantic model** (`rca/schema.py`), so the constraint the decoder
+enforces and the constraint validation enforces cannot drift apart. Output is
+validated again on receipt, because a constrained decoder is a strong guarantee
+and not a proof. Temperature 0 and a fixed seed: a diagnosis that changes
+between identical inputs is not a diagnosis.
+
+The schema offers the **full** catalogue — the eight classes plus `UNKNOWN` and
+`INSUFFICIENT_EVIDENCE`, and no `F04` — even though only `F06` is implemented. A
+model given one option always picks it, which would make both the diagnosis and
+the gate meaningless.
+
+`evidence_ids` is **required with a minimum of two**. It was optional at first,
+and a real `llama3.2` run cited IDs inside the prose `reasoning` field while
+leaving the array empty, twice, with every other field correct. A constrained
+decoder is free to skip an optional field and prompting does not reliably fix
+that; the requirement belongs in the grammar.
+
+The client also **asserts it is not pointed at Toxiproxy** (`PRD.md` §6.3).
+Kavach's own model path must survive a fault injected into the target's.
+
+#### Evidence normalisation
+
+`kavach/rca/evidence.py` builds a frame of ~33 items, each with a stable citable
+ID, an observed value and **the healthy expectation** — never a verdict, so the
+model is not asked to ratify a conclusion Kavach already reached.
+
+| IDs | Kind |
+|---|---|
+| `EV-M01`–`EV-M09` | Metrics: retrieval similarity, kept chunks, empty-context ratio, corpus size, LLM error ratio and latency, DB pool, chat errors |
+| `EV-S01` / `EV-S02` | Service identity, and the declared service set |
+| `EV-C01`–`EV-C08` | Live config values, config hash, prompt file hashes |
+| `EV-B01` | The captured known-good `rerank_threshold` |
+| `EV-V00`–`EV-V03` | Fast-set overall result, plus one item per case |
+| `EV-H01` | Health |
+| `EV-L01`… | Recent backend log lines |
+
+Two deliberate exclusions. **User content is filtered out of the log lines**
+(`FR-28`): token counts are telemetry, question text is not. And Kavach's own
+interpretation is excluded, for the reason above.
+
+A missing signal is rendered as `None` and the prompt states that **no data is
+not zero and not healthy**. Silently treating an absent series as `0` is how a
+blind detector reports health.
+
+#### The ten rules, all fail-closed
+
+Evaluated in `kavach/rca/validate.py`, a pure function — nothing in it calls a
+model, so the same diagnosis against the same evidence always produces the same
+verdict.
+
+| # | Rule | Rejects when |
+|---|---|---|
+| 1 | `schema_valid` | output missing, unparseable, or failing Pydantic |
+| 2 | `actionable_claim` | `UNKNOWN` / `INSUFFICIENT_EVIDENCE` — honest non-answers, never executed (`FR-11`, `FR-29`) |
+| 3 | `fault_class_supported` | the class has no implementation in this slice |
+| 4 | `confidence_threshold` | below the manifest's `confidence_threshold` (`FR-12`) |
+| 5 | `citations_resolve` | a cited ID resolves to nothing, or fewer than two cited (`FR-10`) |
+| 6 | `service_declared` | the service is not one the manifest declares |
+| 7 | `repair_permitted` | the proposed repair is not the permitted one for that class |
+| 8 | `deterministic_agreement` | **the deterministic detector disagrees** on class or service, or did not detect at all |
+| 9 | `baseline_available` | no captured known-good value to roll back *to* |
+| 10 | `corpus_intact` | corpus size unknown or zero — then a config rollback is the wrong repair |
+
+**Any rule that cannot be evaluated rejects.** There is no path where
+uncertainty permits action. The engine never raises either: a transport failure
+or a timeout is a rejection, not an exception thrown inside the healing path.
+
+#### Rule 8 is the one that matters
+
+**The deterministic detector remains authoritative on whether the conditions
+for a fault actually hold.** The LLM's contribution is a cited, explained
+diagnosis — not permission to act. If the model claims `F06` while independent
+deterministic evidence says otherwise, the claim is rejected.
+
+That is the whole defence against the failure mode this project is about:
+SREGym found mitigation succeeds **22–62% of the time even when the diagnosis is
+wrong**, because agents pattern-match a symptom to a fix that happens to work. A
+confident wrong diagnosis passed straight to a repair is exactly how that
+happens. Requiring agreement with independent evidence means a
+plausible-but-wrong diagnosis cannot drive a write.
+
+A corollary worth stating: because detection gates RCA, **a healthy system
+never reaches the model**. There is no token cost, and no opportunity for a
+model to invent an incident.
+
+#### Confidence is not calibrated
+
+**`confidence` is a raw model output, not a calibrated probability.** No
+reliability diagram has been produced, no ECE has been measured, and nothing has
+been fitted against observed correctness. Observed behaviour is a flat `0.90`
+across repetitions, and `1.0` on an earlier run.
+
+So `0.90` must **not** be described, in the console or the report, as "90%
+likely to be correct". The manifest's `confidence_threshold` is therefore a
+**floor that blocks obviously unconfident output**, not a probabilistic decision
+boundary — and the gate's actual strength comes from rule 8, which does not read
+the confidence number at all.
+
+Calibration is future work. The Laya temperature refit (`ROADMAP.md` P7, §2.1)
+is where ECE gets measured before and after, and that is the first point at
+which a confidence number may be reported as a probability.
+
+#### Current scope
+
+`SUPPORTED_FAULT_CLASSES` is `{F06}` and `PERMITTED_REPAIR` is
+`{F06: rollback_config}`. Every other catalogue class is a legitimate thing for
+the model to **say** and an illegitimate thing to act on, so a correct
+non-`F06` diagnosis is accepted as output and rejected as authority. Both
+constants widen one fault class at a time, in P5, each with its own rejection
+tests.
 
 ---
 
@@ -762,7 +1041,7 @@ make bench                         # 7 × 5 reps = 35, emits the metrics table
 
 Each injector exposes `inject()`, `revert()` and `is_active()`, and `revert()` runs in the test teardown regardless of outcome so a failed run never leaves the stack broken.
 
-**`F06` is the first vertical slice** (`ROADMAP.md` P2–P3) because it works against the target as it stands, with no new infrastructure, and it produces the silent HTTP-200-with-no-useful-answer failure that `PRD.md` §2 is built on. Its repair is a config rollback, not an index rebuild; the target has no vector index, and inventing one would be building a feature in order to have something to fix. Index snapshot and rebuild are recorded as future scope (`PRD.md` §6.2).
+**`F06` is the first vertical slice** (`ROADMAP.md` P2, with the LLM RCA layer in P3) because it works against the target as it stands, with no new infrastructure, and it produces the silent HTTP-200-with-no-useful-answer failure that `PRD.md` §2 is built on. Its repair is a config rollback, not an index rebuild; the target has no vector index, and inventing one would be building a feature in order to have something to fix. Index snapshot and rebuild are recorded as future scope (`PRD.md` §6.2).
 
 **`F03` is deferred, and the reason is a design constraint, not laziness.** The target's compose sets `restart: always` on `backend`, so Docker restarts a killed container within seconds and wins the race against a 15s detection tick. Removing `restart: always` would make `F03` injectable by *weakening the target's existing resilience to manufacture a failure* — which is forbidden. The honest version is a memory limit low enough that the process OOMs again on every boot, producing a genuine crash-loop Docker cannot resolve; that is empirical work and is not scheduled. See `PRD.md` §6.4. **Do not write a placeholder `F03` injector.**
 
@@ -792,7 +1071,7 @@ make target-up   # the SUM: Simple_RAG-Pipeline, from its own repo
 make up          # control plane: api, console, postgres+pgvector,
                  #                prometheus, otel-collector
                  # NOTE: no Ollama here, and no second Prometheus (§2.4).
-                 # Redis joins this list in P3 — see §5.
+                 # Redis joins this list in P4 — see §5.
 make onboard     # preflight + baseline capture against the target
 make demo        # scripted injection sequence
 ```

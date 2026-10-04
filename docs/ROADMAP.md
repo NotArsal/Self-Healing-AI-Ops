@@ -18,49 +18,68 @@
 
 **1. Vertical, not horizontal.** Never build a layer across all fault classes. Build one fault class through every layer, then the next. A horizontal build means nothing works until the final week.
 
-**2. Build what breaks before what fixes.** The fault injector is Phase 2, not Phase 7. You cannot test detection without deterministic failure, measure MTTD without a known injection timestamp, or write a single integration test without an injector.
+*Honest note on P2/P3:* the `F06` slice runs detect → diagnose → repair → verify, but **not** through the safety engine, the audit log or a persisted graph, because none of those exist yet. It is a working loop, not a complete vertical. P6 closes that gap, and it has to close it before a second repair action lands.
+
+**2. Build what breaks before what fixes.** The fault injector shipped with the first fault, in P2, not in a late phase. You cannot test detection without deterministic failure, measure MTTD without a known injection timestamp, or write a single integration test without an injector.
 
 ---
 
 ## Phase map
 
+**Numbering, canonical as of 2026-10-04.** An earlier draft of this file split
+the `F06` work into "P2 injector" and "P3 dumb loop", and called the LLM RCA
+engine "P4". It was built as one phase, so those two are now one: **P2 is the
+`F06` deterministic closed loop, P3 is the `F06` LLM RCA layer**, and
+everything after shifts down by one. Phases P0–P3 are complete.
+
+Commit messages and decision records written before this date use the old
+numbers (they call LLM RCA "P4"). **History is not rewritten** — the mapping is
+old P2+P3 → new P2, old P4 → new P3, old P5–P9 → new P4–P8.
+
 ```
-P0 scaffold
- └─ P1 onboard + instrument Simple_RAG-Pipeline ─┐
-     └─ P2 F06 injector + telemetry ─────────────┤
-         └─ P3 DUMB LOOP (F06) ◀━━━━━━━━━━━━━━━━┷━ first demoable milestone (~week 6)
-             ├─ P4 LLM RCA ────┐
-             ├─ P5 console     │
-             │                 ├─ P6 remaining 7 faults ─┐
-             └─ P7 safety ─────┘                         ├─ P8 git · memory · Laya
+P0 scaffold  ✅
+ └─ P1 onboard + instrument Simple_RAG-Pipeline  ✅
+     └─ P2 F06 DETERMINISTIC CLOSED LOOP  ✅ ━━▶ first demoable milestone, reached
+         └─ P3 F06 LLM RCA  ✅ ━━▶ the research comparison, recorded
+             ├─ P4 console ────┐
+             │                 ├─ P5 remaining 7 faults ─┐
+             └─ P6 safety ─────┘                         ├─ P7 git · memory · Laya
                                                           │
-                                                          └─ P9 measure, report, demo
+                                                          └─ P8 measure, report, demo
 ```
 
 | Phase | Goal | Weeks | Gate |
 |---|---|---|---|
-| P0 | Kavach scaffold | 1 | `make check` green; docker socket proven on the demo machine |
-| P1 | Onboard + instrument the target | 2–3 | Preflight passes against `Simple_RAG-Pipeline` |
-| P2 | `F06` injector + telemetry proven | 3 | Break/unbreak 20× deterministically, visible in Prometheus |
-| P3 | **Dumb closed loop, no LLM** | 4–6 | **`F06` auto-heals end to end, with a working rollback** |
-| P4 | LLM RCA engine | 6–8 | Beats the P3 baseline on the same injections |
-| P5 | Console | 6–9 | Loop watchable live |
-| P6 | The remaining seven faults | 8–11 | Each a complete vertical slice |
-| P7 | Full safety engine | 9–11 | Three modes, ownership, breaker, blast radius |
-| P8 | Git isolation, knowledge base, Laya shadow | 11–13 | `make bench` emits the metrics table |
-| P9 | Measure, report, rehearse | 12–14 | Demo runs clean 3× in a row |
+| P0 | Kavach scaffold | 1 | ✅ `make check` green; docker socket proven on the demo machine |
+| P1 | Onboard + instrument the target | 2–3 | ✅ Preflight passes against `Simple_RAG-Pipeline` |
+| P2 | **`F06` deterministic closed loop** | 3–6 | ✅ **`F06` auto-heals end to end with a working rollback; 20/20 inject→heal→verify cycles** |
+| P3 | **`F06` LLM RCA** | 6–8 | ✅ **Schema-validated diagnosis behind a deterministic gate; measured against the P2 baseline** |
+| P4 | Console | 6–9 | Loop watchable live |
+| P5 | The remaining seven faults | 8–11 | Each a complete vertical slice |
+| P6 | Full safety engine | 9–11 | Three modes, ownership, breaker, blast radius |
+| P7 | Git isolation, knowledge base, Laya shadow | 11–13 | `make bench` emits the metrics table |
+| P8 | Measure, report, rehearse | 12–14 | Demo runs clean 3× in a row |
+
+**P2 and P3 did not deliver everything their earlier drafts listed.** The parts
+that were deliberately not built — LangGraph, the `permit()` safety engine, the
+hash-chained audit log, incident persistence, Redis, the git adapter, the three
+operating modes — are listed as deferred in each phase below and are now
+scheduled in P4–P6. Nothing was quietly dropped; the F06 slice is a *working*
+loop, not a *complete* platform.
 
 ---
 
-## P0 — Kavach scaffold
+## P0 — Kavach scaffold ✅ COMPLETE
 
 **Week 1 · Owner: control-plane track**
+
+> **Accepted 2026-10-01.**
 
 **Deliverables**
 - `git init` the Kavach repository. It is not one today, and `docs/decisions/` is meaningless without it
 - Repo at the structure in `ARCHITECTURE.md` §3 (directories with `.gitkeep`, **no stub code**)
 - `Makefile` with every target in `AGENTS.md`, failing loudly where unimplemented
-- `infra/docker-compose.yml`: postgres+pgvector, prometheus, otel-collector, api. **No Ollama, no second Prometheus** (`ARCHITECTURE.md` §2.4), and **no Redis** — nothing in Phase 0 uses it, so it arrives in P3 with the checks that need it
+- `infra/docker-compose.yml`: postgres+pgvector, prometheus, otel-collector, api. **No Ollama, no second Prometheus** (`ARCHITECTURE.md` §2.4), and **no Redis** — nothing in Phase 0 uses it, so it arrives with the phase whose checks need it — console pub/sub in P4, persisted idempotency keys in P6
 - FastAPI app with `/healthz` only; Next.js app with one page
 - `pyproject.toml` (uv, ruff, mypy strict, pytest), `package.json` (pnpm, eslint, prettier, vitest)
 - Pre-commit hooks, `.env.example` with placeholders only
@@ -69,21 +88,23 @@ P0 scaffold
 - `docs/synopsis-original.md` — the archived synopsis with a header marking it superseded
 
 **Acceptance**
-- [ ] `make setup` works on a clean machine
-- [ ] `make up` brings every control-plane container healthy
-- [ ] `make check` passes (lint + mypy strict + tsc + tests)
-- [ ] `curl localhost:8080/healthz` returns 200
-- [ ] **The docker socket mount works on the Windows demo machine, and a container can be listed, inspected and restarted from inside the control-plane container.** This is `PL-03` and it is the one thing that stops the entire project if it fails. Do not defer it to P3
-- [ ] Kavach can reach the target's `ollama` by service name across the joined network
+- [x] `make setup` works on a clean machine
+- [x] `make up` brings every control-plane container healthy
+- [x] `make check` passes (lint + mypy strict + tsc + tests)
+- [x] `curl localhost:8080/healthz` returns 200
+- [x] **The docker socket mount works on the Windows demo machine, and a container can be listed, inspected and restarted from inside the control-plane container.** This is `PL-03` and it is the one thing that stops the entire project if it fails. Do not defer it to a later phase
+- [x] Kavach can reach the target's `ollama` by service name across the joined network
 
 **Kickoff prompt**
 > Read PRD.md, ARCHITECTURE.md and AGENTS.md. Build Phase 0 only: repo scaffold, compose files, tooling, Makefile, a FastAPI healthz route and an empty Next.js app. No business logic, no stub classes for future phases. Prove the docker socket works on this machine. Plan first, then stop for approval.
 
 ---
 
-## P1 — Onboard and instrument `Simple_RAG-Pipeline`
+## P1 — Onboard and instrument `Simple_RAG-Pipeline` ✅ COMPLETE
 
 **Weeks 2–3 · Owner: target track**
+
+> **Accepted 2026-10-03.** Preflight passes against the live target; the baseline captures and re-captures with no drift. Target commits are on `kavach/ops` only — `main` and `modernize-stack` untouched, nothing pushed.
 
 This replaces the deleted "build `demo-rag`" phase. The application exists; what does not exist is any way to observe or control it. **The complete, closed list of permitted additions is `PRD.md` §5.2 — ten items. Do not add an eleventh without a decision record.**
 
@@ -129,140 +150,287 @@ All work lands on `kavach/ops`, branched from `modernize-stack`. **Never `main`.
 > The 3 cases were instead built from the corpus that is actually loaded, targeting specific numeric facts. Result: **15/15** executions across 5 serial set-runs, set total **18.1s** mean against a 120s budget. Retrieval-dependence was confirmed by a control run putting the same questions to `llama3.2` with no context — every keyword absent. The 40-case dataset stays as the offline research evaluator (`FR-07a`), untouched.
 
 **Acceptance**
-- [ ] `make target-up` → the app answers a question correctly from the corpus
-- [ ] Spans reach the collector carrying model, **token counts** and duration
-- [ ] Every one of the six new metrics is scrapeable and non-zero under load
-- [ ] `GET /healthz` returns 503 when Postgres is stopped, and 503 when Ollama is unreachable
-- [ ] `PUT /v1/admin/config` changes `rerank_threshold` and the next query reflects it, with **no container restart**
-- [ ] `PUT /v1/admin/config` with `embed_model` is rejected, and the `document_chunks` table is intact
-- [ ] Rewriting `prompts/answer.txt` changes the next answer with no rebuild
-- [ ] `CHAOS_ENABLED=false` → p95 latency variance measurably drops
-- [ ] `POST /v1/webhook/alert` returns 404
-- [ ] Both Toxiproxy listeners proxy to Ollama; a toxic on A leaves B working
-- [ ] `make onboard` → preflight passes; baseline captured (metrics, fast-eval scores, config hash, prompt SHA, `rerank_threshold`)
-- [ ] Every SLO expression in `kavach.yaml` parses and evaluates against the live Prometheus
-- [ ] Fast verification completes in **under 120s** with zero network egress, and its quality probe is keyword-presence + non-refusal only — **no model-scored metric** (`FR-07b`)
-- [ ] **Connection-leak fix proven:** force 15 consecutive `/v1/chat` failures, then confirm the pool still serves requests and `ragapp_db_pool_in_use` returns to its idle value
-- [ ] `git log kavach/ops` shows the work; `main` and `modernize-stack` are untouched; nothing was pushed
+- [x] `make target-up` → the app answers a question correctly from the corpus
+- [x] Spans reach the collector carrying model, **token counts** and duration
+- [x] Every one of the six new metrics is scrapeable and non-zero under load
+- [x] `GET /healthz` returns 503 when Postgres is stopped, and 503 when Ollama is unreachable
+- [x] `PUT /v1/admin/config` changes `rerank_threshold` and the next query reflects it, with **no container restart**
+- [x] `PUT /v1/admin/config` with `embed_model` is rejected, and the `document_chunks` table is intact
+- [x] Rewriting `prompts/answer.txt` changes the next answer with no rebuild
+- [x] `CHAOS_ENABLED=false` → p95 latency variance measurably drops
+- [x] `POST /v1/webhook/alert` returns 404
+- [x] Both Toxiproxy listeners proxy to Ollama; a toxic on A leaves B working
+- [x] `make onboard` → preflight passes; baseline captured (metrics, fast-eval scores, config hash, prompt SHA, `rerank_threshold`)
+- [x] Every SLO expression in `kavach.yaml` parses and evaluates against the live Prometheus
+- [x] Fast verification completes in **under 120s** with zero network egress, and its quality probe is keyword-presence + non-refusal only — **no model-scored metric** (`FR-07b`)
+- [x] **Connection-leak fix proven:** force 15 consecutive `/v1/chat` failures, then confirm the pool still serves requests and `ragapp_db_pool_in_use` returns to its idle value
+- [x] `git log kavach/ops` shows the work; `main` and `modernize-stack` are untouched; nothing was pushed
 
-**Cut line:** the fast-verification set is 3–5 cases. That is the ceiling, not a target. The 40-case RAGAS evaluator is P8 research work and is **never** in the live loop.
+**Cut line:** the fast-verification set is 3–5 cases. That is the ceiling, not a target. The 40-case RAGAS evaluator is P7 research work and is **never** in the live loop.
 
 ---
 
-## P2 — The `F06` injector and the harness
+## P2 — `F06`: the deterministic closed loop ⭐ ✅ COMPLETE
 
-**Week 3 · Owner: target track**
+**Weeks 3–6 · Owner: target track + control-plane track**
 
-**`F06` retrieval collapse is the first fault**, reversing the previous draft's `F01`-first order. Three reasons:
+> **Completed 2026-10-03.** Previously two phases ("P2 injector", "P3 dumb
+> loop"); built as one and recorded as one. Commits for this phase are
+> `231f22f`, `11f24b0`, `97034f8`.
+
+**`F06` retrieval collapse is the first fault**, reversing the earliest draft's
+`F01`-first order. Three reasons:
 
 1. It works against the target **as it already is** — `rerank_threshold` is live config. No new provider, no second model, no new infrastructure.
-2. It produces the **silent HTTP 200 with "I don't know based on the provided documents"** failure. Detection cannot come from HTTP error rate; it must come from retrieval similarity or fast-eval pass rate. That forces the quality-driven detection path to be real in P3 instead of deferred, and that path is the project's actual contribution (`PRD.md` §2.1).
+2. It produces the **silent HTTP 200 with "I don't know based on the provided documents"** failure. Detection cannot come from HTTP error rate; it must come from retrieval similarity and fast-verification pass rate. That forces the quality-driven detection path to be real now instead of deferred, and that path is the project's actual contribution (`PRD.md` §2.1).
 3. It is a **novelty fault** (`PRD.md` §2.2). The cheapest faults to build, `F03` and `F05`, are the infrastructure-level ones that prior art already covers.
 
-`F01` is *not* first because its repair needs the two-listener Toxiproxy design and a configurable endpoint, both of which are P1 deliverables that want a week to settle. `F03` is not first — or scheduled at all — because the target sets `restart: always` on `backend`, so **Docker heals it before Kavach can**, and the only way to change that would be to weaken the target's own resilience. Its injector is deferred (`PRD.md` §6.4).
+`F01` is *not* first because its repair needs the two-listener Toxiproxy design
+and a configurable endpoint, both of which settled in P1. `F03` is not first —
+or scheduled at all — because the target sets `restart: always` on `backend`,
+so **Docker heals it before Kavach can**, and the only way to change that would
+be to weaken the target's own resilience. Its injector is deferred
+(`PRD.md` §6.4).
 
-**Deliverables**
-- `harness/inject.py` CLI: `make inject FAULT=F06`
-- `harness/faults/base.py` — `inject()` / `revert()` / `is_active()` protocol
-- `harness/faults/f06_retrieval_collapse.py` — raises `rerank_threshold` via the config interface, records the prior value
-- Pytest fixture that always reverts in teardown, including on test failure
-- Injection timestamp recorded, so MTTD is measurable
+### The loop, exactly as built
 
-**Acceptance**
-- [ ] `make inject FAULT=F06` → retrieval similarity drops and empty-context rate rises within 5s
-- [ ] The app returns HTTP **200** with a non-answer — confirm the failure is silent, because that is the point
-- [ ] `revert()` → retrieval recovers within 5s
-- [ ] 20 consecutive inject/revert cycles leave the stack identical to the start state
-- [ ] A test that raises mid-fault still reverts
-- [ ] `ragapp_retrieval_top_similarity` and `kavach_fast_eval_pass_rate` both visibly move in Prometheus
-- [ ] Injection timestamp is recorded
+```
+detect ─▶ known-fault lookup ─▶ prepare (capture pre-state + inverse)
+       ─▶ execute ─▶ verify ─▶ RESOLVED, or ESCALATED
+```
 
-**Why this is week 3:** every integration test in `AGENTS.md` depends on it, and MTTD has no meaning without a known t₀.
+No LLM, no LangGraph, no decision model, no allow-list engine, no sandbox. The
+plan step is a literal dict, `{F06: rollback_config}`. That is deliberate: it
+closes the loop cheaply, and it is the **non-LLM baseline** P3 has to beat.
 
+**Delivered**
+
+- `harness/faults/base.py` — the `inject()` / `revert()` / `is_active()` protocol, and a context manager that reverts in `__exit__` so a test raising mid-fault still restores the target
+- `harness/faults/f06_retrieval_collapse.py` — raises `rerank_threshold` to `0.999` through the target's config interface and records the prior value as the inverse
+- `harness/stability_f06.py` — the 20-cycle stability harness, per-line flushed so a long run is observable while it runs
+- `kavach/target.py` — the **only** module that speaks HTTP to the target. No generic `request()`, no caller-supplied path, no command string (`FR-27`)
+- `kavach/verification/fast.py` + `kavach/verification/fast_set.yaml` — health probe plus the 3 deterministic quality cases, serial, scored on keyword presence + non-refusal + a `**Sources:**` block. **Shared by baseline capture and the loop**, so a baseline and a verification can never drift apart
+- `kavach/detection/retrieval_collapse.py` — deterministic detection. Fires only when raw similarity is **healthy** AND grounding is lost AND the fast set is failing **now**. The similarity condition is what separates a bad rerank filter from broken embeddings or a damaged corpus; the "failing now" condition exists because a stale grounding window once outvoted a just-passed fast set and the loop "healed" a working system
+- `kavach/executor/config_rollback.py` — `prepare()` / `execute()` / `invert()` / `verify_applied()` / `verify_restored()` / `unchanged_elsewhere()`, with an idempotency key. Refuses to run with no captured baseline: a rollback to a guessed value is not a rollback
+- `kavach/loop.py` — the orchestrator. `RESOLVED` requires fast verification passing **and** the repair proved applied **and** scope respected **and** the corpus fingerprint unchanged. Anything else escalates
+
+**The one rule this phase exists to enforce:** an incident is `RESOLVED` only if
+verification passed *and* the corpus fingerprint is unchanged. A loop that
+reports success on a failed verification is a false-healing machine, which is
+the single worst outcome in the whole design.
+
+**Acceptance — met**
+
+- [x] `F06` injection → raw retrieval similarity holds, kept chunks go to zero, empty-context rate rises
+- [x] The app returns HTTP **200** with a non-answer — the failure is silent, which is the point
+- [x] `revert()` restores retrieval
+- [x] **20 consecutive inject → verify-failure → rollback → verify-recovery cycles, 20/20**, leaving the stack identical to the start state
+- [x] A test that raises mid-fault still reverts
+- [x] `ragapp_retrieval_top_similarity` and the fast-set pass rate both visibly move
+- [x] Injection timestamp recorded, so MTTD is measurable
+- [x] Detected and healed end to end with no human involved
+- [x] `rollback_config` executes, fast verification passes, the incident resolves
+- [x] Forced-failure behaviour: with verification failing the incident escalates rather than reporting success
+- [x] The corpus is unchanged across the whole incident, fingerprinted before detection and after verification
+- [x] An action with no recorded inverse cannot run — `prepare()` refuses without a baseline
+- [x] `main` untouched, nothing pushed
+
+**SLO rebase.** The manifest's SLO expressions were re-derived against the live
+system in this phase. The error-ratio SLOs were unevaluable as written:
+`sum(rate(counter))` returns an **empty series** when the counter has never
+incremented, so they could not be evaluated precisely when the system was
+healthy — fixed with `or vector(0)`. A separate trap: the target's default
+histogram buckets topped out at 1s against 6.5s requests, so
+`histogram_quantile` returned `1` regardless of reality. Buckets are now
+0.25s–120s.
+
+**Deliberately not built here — now scheduled in P4–P7**
+
+| Not built | Why | Now in |
+|---|---|---|
+| `graph/` — LangGraph with `PostgresSaver` | A hand-rolled `run_once()` proved the mechanism; a graph with no persistence and no approval interrupt buys nothing yet | P6 |
+| `safety/` — the `permit()` gate, risk tiers, blast radius, breaker, writer lock as its own module | The one implemented action is project-scoped and deny-list-safe by construction. A gate with one caller and one action is an interface with one implementation | P6 |
+| The three operating modes, `SIMULATION` as default | There is no mode plumbing to default: the loop is invoked explicitly by a harness, never on a timer, so it cannot act unattended | P6 |
+| `audit/` — the append-only hash-chained log | Nothing persists yet | P6 |
+| Incident persistence, MTTD/MTTR in the database | `Incident` is an in-memory dataclass; runs are recorded as JSON artifacts under `harness/reports/` | P4 |
+| `ingestion/` — an OTLP receiver inside Kavach | Metrics go **direct** to `/metrics` and are scraped by Prometheus (`ARCHITECTURE.md` §4.1); only traces use OTLP, and nothing in the loop reads a trace yet | P4 |
+| `detection/slo.py` on a 15s tick | PromQL instant queries exist and are used; there is no scheduler, because the harness drives every run | P4 |
+| Redis | Still nothing connects to it. It arrives with console pub/sub (P4) and persisted idempotency keys (P6) | P4 / P6 |
+| The git adapter | `rollback_config` writes through the target's HTTP config interface, not a file, so `FR-05` has not been triggered yet | P7 |
+| `harness/inject.py` CLI and `make inject FAULT=F06` | The injector is used as a Python context manager by the harnesses; a CLI wrapper had no second caller | P5, with the second fault |
+| The 120s SLO-window verification probe | Fast verification is the health probe plus the 3 quality cases. The SLO-window probe is the second of the three `FR-07` probes and is **still missing** | P6 |
+
+**This is the project's de-risking milestone and it is banked.** One fault, zero
+intelligence — but it detects a silent failure, repairs it, proves the repair,
+and refuses to claim success otherwise.
+
+**P2 is also the non-LLM baseline.** Its numbers are in the P3 comparison below
+and cannot be recovered later.
 ---
 
-## P3 — The dumb closed loop ⭐
-
-**Weeks 4–6 · Owner: control-plane track · The milestone that de-risks the project**
-
-No LLM. No RCA engine. A hardcoded mapping from one signal to one action. The point is to close the loop early and cheaply.
-
-**Deliverables**
-- `ingestion/` — OTLP receiver, attribute normalisation into the internal schema, PromQL expression evaluation
-- `detection/slo.py` — PromQL expression evaluation on a 15s tick (`FR-09a`)
-- `graph/` — LangGraph graph with `PostgresSaver`, but only: detect → plan → gate → execute → verify → resolve/rollback
-- `plan` node is **a literal dict**: `{retrieval_similarity_breach: rollback_config}`. No intelligence. This is deliberate
-- `safety/` — `permit()` with **project ownership, the deny-list, and the allow-list** implemented; the rest stubbed returning ALLOW with a TODO
-- **`SIMULATION` is the default mode from this phase's first commit**, not a P7 addition (`PRD.md` §5.4)
-- `executor/` — registry, the `Action` protocol with a mandatory `inverse()` enforced at registration, http (config interface) + docker adapters
-- **The undo stack and the writer lock** (`ARCHITECTURE.md` §6.0) — these are in from day one, not retrofitted
-- **A minimal git adapter** — checkout `kavach/ops`, commit, revert by blob SHA. *Scheduled earlier than the suggested P8 slot because `rollback_config` writes a versioned project file, so `FR-05` applies from the first file-touching action. P8 completes the model (incident branches, full deny-case suite)*
-- `verification/` — all three fast probes (`FR-07`)
-- `audit/` — append-only log with the hash chain
-- **Redis added to `infra/docker-compose.yml`** (host port 6380) plus `KAVACH_REDIS_URL` in config. Deferred out of Phase 0 because nothing used it; it is required here by `FR-18` (idempotency keys), and by `FR-16`/`FR-17` and console pub/sub as those land
-
-**Acceptance**
-- [ ] `make inject FAULT=F06` → detected within 30s, no human involved
-- [ ] `rollback_config` executes, three fast probes pass, incident resolves
-- [ ] MTTD and MTTR recorded and visible in the database
-- [ ] **`SIMULATION` is the default**, and in it the loop produces a full plan and a dry-run diff while writing nothing
-- [ ] **Ownership deny case:** an action naming a container outside the onboarded compose project is denied (`FR-26`)
-- [ ] **Deny-list case:** an `embed_model` change is denied in every mode, and `document_chunks` survives (`FR-30`)
-- [ ] **Forced-failure test:** make verification fail artificially → the undo stack unwinds, prior state is restored from the witness, incident escalates
-- [ ] **Severity-regression test:** make the severity metric worsen after the action → the stack unwinds *immediately*, without waiting for the verification window (`FR-15c`)
-- [ ] An action registered without an `inverse()` raises at import time
-- [ ] Every step produced an audit row; the hash chain verifies
-- [ ] 10 consecutive injections all auto-heal
-- [ ] `main` untouched, nothing pushed
-
-**At the end of P3 you have a working self-healing platform.** Ugly, one fault, zero intelligence — but demoable. If everything after this slips, you still have something to show.
-
-**Also: P3 is your non-LLM baseline.** Record its auto-resolution rate and MTTR before touching Phase 4. **You cannot recover this number later.**
-
-**Kickoff prompt**
-> Read PRD.md, ARCHITECTURE.md (especially §6.0 TNR and §6.3 docker ownership) and AGENTS.md. Build Phase 3: the closed loop for F06 only, with NO LLM anywhere. The plan node is a hardcoded dict mapping one detection signal to one action. The undo stack, writer lock, project-ownership check, deny-list and append-only audit log are in scope and must be correct. SIMULATION is the default mode. Other safety checks are stubs returning ALLOW with a TODO. Plan first, then stop.
-
----
-
-## P4 — Swap in the LLM RCA engine
+## P3 — `F06` LLM RCA ✅ COMPLETE
 
 **Weeks 6–8 · Owner: control-plane track**
 
-**Deliverables**
-- `graph/nodes/collect_evidence.py` — parallel collection: spans, logs, container state, recent git diffs, config snapshot, verification history
-- `graph/nodes/diagnose.py` — structured Pydantic output: `fault_class`, `confidence`, `evidence_ids[]`, `rejected_alternatives[]`. The class enum is the **eight** catalogue IDs plus `UNKNOWN` and `INSUFFICIENT_EVIDENCE` — note there is no `F04`
-- `INSUFFICIENT_EVIDENCE` as a first-class return value
-- Confidence threshold gating in `permit()`
-- **The `UNKNOWN` gate** — a diagnosis of `UNKNOWN` can never reach execution, in any mode (`FR-29`)
-- `llm/prompts/` — versioned prompt files
-- Kavach's LLM client pointing **directly at Ollama**, bypassing Toxiproxy (`PRD.md` §6.3)
-- Recorded LLM fixtures so CI never calls a model
+> **Completed 2026-10-04.** Commit `3e12689`. This phase was called "P4" in the
+> earlier draft of this file and in that commit message; see the numbering note
+> under **Phase map**.
 
-**Acceptance**
-- [ ] Diagnosis names `F06` with confidence and at least two cited evidence IDs
-- [ ] Every cited `evidence_id` resolves to a real stored row
-- [ ] Fabricate an ambiguous incident → returns `INSUFFICIENT_EVIDENCE`, no action proposed
-- [ ] Below-threshold confidence → escalates instead of executing
-- [ ] An `UNKNOWN` diagnosis escalates and executes nothing, even in `AUTONOMOUS` with a LOW-risk allow-listed candidate
-- [ ] **With `F01` injected (Toxiproxy down on listener A), RCA still completes** — the control plane's own LLM path is unaffected
-- [ ] **Comparison recorded:** P3 hardcoded mapping vs. P4 LLM RCA on the same 10 injections
-- [ ] RCA completes under 45s p95 on the local model
-- [ ] Unit tests run with zero network calls
+An evidence-grounded LLM diagnosis stage in front of the **existing** P2 repair.
+The P2 loop is untouched and remains both the reference baseline and the
+fallback.
 
-**This phase produces a research result**, not just a feature: a measured comparison between symptom-matching and evidence-grounded diagnosis on identical faults.
+```
+evidence normalisation ─▶ LLM (schema-constrained) ─▶ Pydantic validation
+  ─▶ deterministic validation gate ─▶ existing rollback_config
+  ─▶ existing fast verification
+```
 
+**The LLM executes nothing.** It may name a fault class, a service, a
+confidence, cited evidence IDs and one candidate repair from a closed
+vocabulary. It cannot reach the executor. RCA never widens what can run:
+deterministic detection must still find the fault, the repair is still the same
+single action with the same recorded inverse, and verification is unchanged.
+RCA adds a gate and an explanation.
+
+**A rejected diagnosis escalates.** It does not silently fall back to the
+deterministic plan — that would make the gate decorative.
+
+**Delivered**
+
+- `kavach/llm/client.py` — the Ollama client. Structured output via Ollama's `format` field, taking a JSON Schema **generated from the Pydantic model** so the decoder constraint and the validation constraint cannot drift apart. Temperature 0, fixed seed: a diagnosis that changes between identical inputs is not a diagnosis. It asserts it is **not** pointed at Toxiproxy (`PRD.md` §6.3) — Kavach's own model path must survive a fault injected into the target's
+- `kavach/llm/prompts/diagnose.txt` — the versioned prompt: the catalogue, the similarity discriminator, the rules, and a required-output-shape example
+- `kavach/rca/schema.py` — the diagnosis contract. `extra="forbid"`, the **eight** catalogue classes plus `UNKNOWN` and `INSUFFICIENT_EVIDENCE` (no `F04`), and `evidence_ids` **required with a minimum of two**
+- `kavach/rca/evidence.py` — evidence normalisation into ~33 citable items
+- `kavach/rca/validate.py` — the deterministic gate, ten fail-closed rules
+- `kavach/rca/engine.py` — orchestration. Returns a result carrying `approved` / `approved_action` / `rejection_reasons`, and **never raises**: a transport failure or a timeout is a rejection, not a crash in the healing path
+- `kavach/loop.py` — an **optional** `rca` stage. Absent, the loop is exactly the P2 loop
+- `harness/rca_f06_live.py` — the live run and the P2-vs-P3 comparison
+
+**Evidence supplied to the model.** Each item carries a stable ID, an observed
+value and the healthy expectation — never a verdict, so the model is not asked
+to agree with a conclusion Kavach already reached.
+
+| IDs | What |
+|---|---|
+| `EV-M01`–`EV-M09` | Retrieval similarity, kept chunks, empty-context ratio, corpus size, LLM error ratio and latency, pool, chat errors |
+| `EV-S01` / `EV-S02` | **Service identity** and the declared service set |
+| `EV-C01`–`EV-C08` | Live config, config hash, prompt file hashes |
+| `EV-B01` | The captured known-good `rerank_threshold` |
+| `EV-V00`–`EV-V03` | Fast-set overall plus per-case results |
+| `EV-H01` | Health |
+| `EV-L01`… | Recent backend log lines |
+
+**Two deliberate exclusions:** user content is filtered out of the log lines
+(`FR-28` — token counts are telemetry, question text is not), and so is Kavach's
+own interpretation.
+
+**The ten validation rules, all fail-closed.** Schema valid → honest
+non-answers respected and never executed → fault class implemented →
+confidence at or above the manifest's threshold → every cited ID resolves to a
+real collected item, at least two → service is manifest-declared → repair is
+the permitted one for the class → **the deterministic detector agrees on class
+and service** → a known-good baseline exists → the corpus is intact. Any rule
+that cannot be evaluated rejects.
+
+**The agreement rule is the important one.** SREGym found mitigation succeeds
+22–62% of the time *even when the diagnosis is wrong*, because agents
+pattern-match a symptom to a fix that happens to work. Requiring the model to
+agree with independent deterministic evidence means a plausible-but-wrong
+diagnosis cannot drive a write.
+
+**Scope:** `SUPPORTED_FAULT_CLASSES` is `{F06}`. Every other catalogue class is
+a legitimate thing for the model to *say* and an illegitimate thing to act on,
+so a correct non-`F06` diagnosis is accepted as output and rejected as
+authority. The full catalogue is offered in the schema on purpose: a model
+given one option always picks it, which would make the diagnosis meaningless
+and the gate untestable.
+
+**Acceptance — met**
+
+- [x] Diagnosis names `F06` with a confidence and at least two cited evidence IDs
+- [x] Every cited `evidence_id` resolves to a real collected item — fabricated and duplicate citations are both rejection-tested
+- [x] `INSUFFICIENT_EVIDENCE` is a first-class return value and proposes nothing
+- [x] Below-threshold confidence escalates instead of executing
+- [x] An `UNKNOWN` diagnosis escalates and executes nothing (`FR-29`)
+- [x] Confidence-threshold gating reads `confidence_threshold` from `kavach.yaml` — it was declared and ignored before this phase
+- [x] Kavach's LLM client points **directly** at Ollama, bypassing Toxiproxy, and asserts it
+- [x] **Comparison recorded:** P2 deterministic mapping vs P3 LLM RCA on the same injection
+- [x] RCA completes well under the 45s `PF-02` budget — 1.7 / 1.9 / 2.2s over three reps
+- [x] Unit tests run with **zero network calls**; recorded responses only
+- [ ] **With `F01` injected, RCA still completes** — not testable until `F01` has an injector (P5). The client-side assertion that Kavach bypasses Toxiproxy is in place; the end-to-end proof is not
+
+**Live result** — real `llama3.2` on the host Ollama, real `F06` injection:
+
+| | |
+|---|---|
+| Healthy system | `NO_FAULT`, and **RCA not consulted at all** — deterministic detection gates it, so a healthy system costs no tokens |
+| Injected `F06` | 3/3 reps approved; `F06` / `retrieval_collapse` / `backend` every time |
+| Validation | all ten checks pass |
+| Corpus | 30 chunks / 2 files, unchanged |
+| Final fast set | PASS, 100% |
+
+**P2 vs P3 on the same fault, full closed loop:**
+
+| Mode | Status | Diagnosis correct | RCA | Loop |
+|---|---|---|---|---|
+| P2 deterministic | `RESOLVED` | yes | 0.0s | 55.3s |
+| P3 LLM RCA | `RESOLVED` | yes | 2.5s | 56.8s |
+
+**The honest finding: on this one fault class the deterministic detector is not
+beaten.** Both reach the same correct repair; RCA costs ~2.5s and adds cited,
+auditable reasoning. That is why P2 stays the baseline and the fallback. The
+comparison only becomes interesting across several fault classes, where a dict
+lookup cannot discriminate — which is P5's job, and the real test of this
+phase's claim.
+
+### Known limitation — confidence is not calibrated
+
+**`confidence` is a raw model output, not a calibrated probability.** The model
+returns `0.90` flatly across repetitions, and an earlier run returned `1.0`. No
+reliability diagram has been produced, no ECE has been measured, and nothing
+has been fitted against observed correctness.
+
+So **do not describe `0.90` as "90% likely to be correct"** in the report, in
+slides, or in the console. It is the number the model emitted.
+
+The threshold in `kavach.yaml` is therefore a **floor that blocks obviously
+unconfident output**, not a probabilistic decision boundary. The gate's actual
+strength comes from the deterministic agreement rule, which does not depend on
+the confidence number at all.
+
+Calibration is future work: the Laya temperature refit in P7 is where ECE gets
+measured before and after, and that is the first point at which a confidence
+number may be reported as a probability.
+
+**Two real bugs the live run found, both in Kavach's own code**
+
+1. **The evidence frame never named the services**, so `llama3.2` invented `service="RAG"`. Validation caught it, but the gap was in the frame. Fixed by adding `EV-S01` / `EV-S02`.
+2. **`evidence_ids` was optional.** The model cited IDs inside the prose `reasoning` field while leaving the array empty — every other field correct, twice running. A constrained decoder is free to skip an optional field and prompting did not fix it. Made required with a minimum of two, moving the requirement into the grammar; the validator keeps the same rule as a second barrier.
+
+**This phase produces a research result**, not just a feature: a measured
+comparison between symptom-matching and evidence-grounded diagnosis on an
+identical fault.
 ---
 
-## P5 — The console
+## P4 — The console
 
-**Weeks 6–9 · Owner: console track · Parallel with P4**
+**Weeks 6–9 · Owner: console track · THE NEXT PHASE**
 
-Can start as soon as P3's routes exist. Generate the client from OpenAPI; never hand-write a fetch. **`DESIGN_SYSTEM.md` governs `apps/console/` and nothing else** — the target's Next.js 14 frontend is out of its jurisdiction (`DESIGN_SYSTEM.md` §0).
+> **Prerequisite, and it is not built.** The P2/P3 loop is an in-process
+> `run_once()` driven by a harness. There are no incident routes, no
+> persistence and no pub/sub, so there is nothing for a console to read yet.
+> This phase therefore starts with the loop's durable spine — incident
+> persistence, the API routes, Redis for pub/sub — and only then the UI.
+> Budget for that before the first component.
+
+Generate the client from OpenAPI; never hand-write a fetch. **`DESIGN_SYSTEM.md` governs `apps/console/` and nothing else** — the target's Next.js 14 frontend is out of its jurisdiction (`DESIGN_SYSTEM.md` §0).
 
 **Deliverables**
+- Incident persistence and the `incidents` / `audit` / `projects` read routes the console needs, plus Redis in `infra/docker-compose.yml` (host port 6380) for pub/sub
 - Design tokens as CSS variables and TS constants, both themes
 - Three-zone layout (`DESIGN_SYSTEM.md` §6)
-- Loop Ring, incident row, evidence item, diagnosis card, action plan, verification strip, risk badge, mode switch, audit table
+- Loop Ring, incident row, evidence item, diagnosis card, action plan, verification strip, risk badge, mode switch, audit table. **The risk badge and mode switch have nothing to display until P6** — build them last, or stub them visibly rather than inventing a tier
 - WebSocket hub + live incident updates via Redis pub/sub
 - Onboarding preflight checklist screen
 - `make gen-client` wired into `make check`
@@ -270,7 +438,7 @@ Can start as soon as P3's routes exist. Generate the client from OpenAPI; never 
 **Acceptance**
 - [ ] Inject `F06` and watch the whole loop live without refreshing
 - [ ] Every diagnosis citation is clickable and opens the evidence
-- [ ] Mode indicator visible on every screen without scrolling, and it reads `SIMULATION` by default
+- [ ] Mode indicator visible on every screen without scrolling, and it reads `SIMULATION` by default — **needs the modes, which are P6.** Until then the indicator reads the single mode that exists, and must not imply a mode switch that does nothing
 - [ ] Legible at 1280×720 (projector test — do this on the actual projector)
 - [ ] Keyboard-only navigation works; focus is always visible
 - [ ] No colour-only state indicators anywhere
@@ -279,11 +447,13 @@ Can start as soon as P3's routes exist. Generate the client from OpenAPI; never 
 
 ---
 
-## P6 — The remaining seven fault classes
+## P5 — The remaining seven fault classes
 
 **Weeks 8–11 · Owner: target track leads, control-plane supports**
 
-`F06` shipped in P3. Seven remain. One complete vertical slice each: injector → detection signal → RCA path → repair action + inverse → verification probe → integration test. **Never start the next until the previous passes.**
+`F06` shipped in P2. Seven remain. One complete vertical slice each: injector → detection signal → RCA path → repair action + inverse → verification probe → integration test. **Never start the next until the previous passes.**
+
+**Each new fault also needs the `harness/inject.py` CLI that P2 skipped** — a second caller finally justifies it.
 
 | Order | Fault | Note |
 |---|---|---|
@@ -309,17 +479,33 @@ Can start as soon as P3's routes exist. Generate the client from OpenAPI; never 
 - [ ] Forced-verification-failure test green
 - [ ] Ownership and deny-list checks still pass for this fault's action
 
-**Cut line — this is the one that matters.** `F06`–`F09` carry your novelty claim (`PRD.md` §2.2), and `F06` is already banked from P3. If time runs out, **cut `F02` and `F05` — never `F07` or `F09`.** Five faults including all four novel ones beats eight faults where the novel ones are half-finished.
+**Cut line — this is the one that matters.** `F06`–`F09` carry your novelty claim (`PRD.md` §2.2), and `F06` is already banked from P2. If time runs out, **cut `F02` and `F05` — never `F07` or `F09`.** Five faults including all four novel ones beats eight faults where the novel ones are half-finished.
 
 ---
 
-## P7 — The full safety engine
+## P6 — The full safety engine
 
-**Weeks 9–11 · Owner: control-plane track · Parallel with P6**
+**Weeks 9–11 · Owner: control-plane track · Parallel with P5**
 
-Replaces the P3 stubs. Ownership, deny-list and allow-list are already real from P3; this phase adds the rest.
+> **Correction to the earlier draft**, which assumed ownership, the deny-list
+> and the allow-list were already real from the first loop. They are not.
+> **No `safety/` package exists.** P2 shipped one action that is project-scoped
+> and deny-list-safe by construction, which is not the same as a gate. This
+> phase builds `permit()` from nothing, and it must land before any second
+> repair action or any unattended invocation.
+
+This phase also picks up what P2 deferred: LangGraph with `PostgresSaver`, the
+undo stack as its own module, the hash-chained audit log, the three operating
+modes with `SIMULATION` as the default, and the 120s SLO-window verification
+probe — the one `FR-07` probe still missing.
 
 **Deliverables**
+- `safety/` — the package itself, and the full ten-step `permit()` entry point
+- `graph/` — LangGraph with `PostgresSaver`, replacing `loop.py`'s hand-rolled orchestration (`ARCHITECTURE.md` §3.1)
+- `executor/undo_stack.py` and `safety/writer_lock.py` as modules, replacing the per-action `invert()` the F06 slice carries
+- `audit/log.py` — the append-only hash-chained writer
+- The three operating modes, with `SIMULATION` as the default
+- The second `FR-07` verification probe: SLO expressions satisfied over a 120s window
 - Deterministic risk-tier table (`ARCHITECTURE.md` §6.2) — five actions, everything else HIGH
 - Blast radius: ≤3 actions/incident, ≤5 incidents/hour
 - Circuit breaker: ≤3 heals per `(service, fault_class)` per 30 min
@@ -347,7 +533,7 @@ Replaces the P3 stubs. Ownership, deny-list and allow-list are already real from
 
 ---
 
-## P8 — Git isolation, knowledge base, Laya shadow
+## P7 — Git isolation, knowledge base, Laya shadow
 
 **Weeks 11–13 · Owner: evaluation track**
 
@@ -360,11 +546,11 @@ Replaces the P3 stubs. Ownership, deny-list and allow-list are already real from
 *Knowledge base*
 - `knowledge/` — incident embedding, pgvector similarity retrieval, wired into evidence collection
 
-*Laya shadow (`F-DEC`, priority P1, phase P8)*
+*Laya shadow (`F-DEC`, priority P1, phase P7)*
 - `laya-serve` sidecar in the control-plane compose
 - `decision/laya.py` implementing `DecisionEngine`, **shadow-only, never gating**
 - Decision-frame compressor fitting the ~768-token state budget
-- Temperature refit on collected decisions
+- Temperature refit on collected decisions. **This is also where RCA confidence stops being an uncalibrated model output** — ECE measured before and after, and the first point at which a confidence number may be reported as a probability (see the P3 limitation)
 - `shadow_engine` / `shadow_verdict` / `shadow_agreed` populated on every `risk_decisions` row
 
 *Research evaluator (`F-EVAL-FULL`, `FR-07a`)*
@@ -385,7 +571,7 @@ Replaces the P3 stubs. Ownership, deny-list and allow-list are already real from
 
 ---
 
-## P9 — Measure, write, rehearse
+## P8 — Measure, write, rehearse
 
 **Weeks 12–14 · Owner: everyone**
 
@@ -403,7 +589,7 @@ The phase most teams skip and most reviewers notice.
 - [ ] Human baseline MTTR recorded per fault class
 - [ ] Undo ablation numbers recorded
 - [ ] P(heal | correct diagnosis) and P(heal | wrong diagnosis) both reported
-- [ ] P3 vs. P4 and rule-engine vs. Laya comparisons written up
+- [ ] P2 vs. P3 and rule-engine vs. Laya comparisons written up — the P2-vs-P3 numbers for `F06` are already recorded; extend them across every fault class
 - [ ] The eight-fault catalogue and `F04`'s retirement are stated in the report, with the reason
 - [ ] The target's Kubernetes files are explained as *not* a Kavach capability (`PRD.md` §5.3)
 - [ ] **Demo script runs clean three times consecutively on the demo machine**
@@ -416,10 +602,10 @@ The phase most teams skip and most reviewers notice.
 
 | Track | Phases | Owns |
 |---|---|---|
-| **Control plane** | P0, P3, P4, P7 | `graph/`, **`safety/`, `executor/`, `verification/`** |
-| **Target + faults** | P1, P2, P6 | The target's instrumentation, `harness/faults/` |
-| **Console** | P5 | `apps/console/` |
-| **Evaluation** | P8, P9 | `evaluation/`, `harness/report.py`, all baselines |
+| **Control plane** | P0, P2, P3, P6 | `graph/`, **`safety/`, `executor/`, `verification/`** |
+| **Target + faults** | P1, P2, P5 | The target's instrumentation, `harness/faults/` |
+| **Console** | P4 | `apps/console/` |
+| **Evaluation** | P7, P8 | `evaluation/`, `harness/report.py`, all baselines |
 
 **`safety/` and `executor/` have one author.** Those two directories carry the recoverability guarantee; split ownership is how an inverse quietly stops being recorded.
 
@@ -444,11 +630,11 @@ Three failure modes to watch for: building adjacent phases because they appear i
 
 | When | Question | If no |
 |---|---|---|
-| End of week 1 | Does the docker socket work from inside a container on the demo machine? | **Stop.** The executor has no other route to the target |
-| End of week 3 | Does `F06` inject and revert deterministically, 20×, with the metrics moving? | Stop. Nothing downstream works without this |
-| End of week 6 | Does one fault auto-heal end to end with a working rollback? | Cut P8 entirely, move everyone onto the loop |
-| End of week 8 | Are `F07` and `F09` started? | Drop `F02` and `F05` now, not later |
-| End of week 11 | Does `make bench` run unattended? | Cut the Laya shadow, protect P9 |
+| End of week 1 | Does the docker socket work from inside a container on the demo machine? | ✅ **Passed** |
+| End of week 3 | Does `F06` inject and revert deterministically, 20×, with the metrics moving? | ✅ **Passed** — 20/20 |
+| End of week 6 | Does one fault auto-heal end to end with a working rollback? | ✅ **Passed** — `F06`, with the LLM RCA layer on top |
+| End of week 8 | Are `F07` and `F09` started? | Drop `F02` and `F05` now, not later. **Note:** the safety engine (P6) must land before the second repair action, so it competes for these weeks |
+| End of week 11 | Does `make bench` run unattended? | Cut the Laya shadow, protect P8 |
 | End of week 12 | Has the human baseline been run? | Do it this week. It is 2 hours and it is load-bearing |
 
 ---
