@@ -153,6 +153,163 @@ seam is what gets fixed.
 
 ---
 
+### 1.5 The north star — the full lifecycle, and how much of it exists
+
+This section records the system Kavach is aimed at. It is **not** a description
+of what runs today and **not** a delivery commitment. Every stage carries its
+real status, so the picture can be put in front of a reviewer without
+overclaiming. §1.4 and `ROADMAP.md` remain the documents for what exists.
+
+```
+                 ┌──────────────────────┐
+                 │      AI SYSTEM       │   any containerised AI workload;
+                 └──────────┬───────────┘   one onboarded today
+                       Failure
+                            ▼
+                 ┌──────────────────────┐
+                 │  Detect + Diagnose   │   ✅ BUILT for F06
+                 └──────────┬───────────┘
+                            ▼
+                 ┌──────────────────────┐
+                 │ Generate hypotheses  │   ◐ PARTIAL — one candidate repair,
+                 │ & possible fixes     │     not a ranked set
+                 └──────────┬───────────┘
+                            ▼
+                 ┌──────────────────────┐
+                 │   Virtual Sandbox    │   ○ SPECCED, ON THE CUT LINE
+                 │   Test fixes safely  │     (F-SBX, ROADMAP P6)
+                 └──────────┬───────────┘
+                       Best fix
+                            ▼
+                 ┌──────────────────────┐
+                 │ Canary / Production  │   ✗ UNDECIDED — no substrate,
+                 └──────────┬───────────┘     not in committed scope
+                            ▼
+                 ┌──────────────────────┐
+                 │     Verification     │   ✅ BUILT — 2 of 3 probes
+                 └──────────┬───────────┘
+                 ┌──────────┴───────────┐
+              SUCCESS                FAILURE
+                 ▼                      ▼
+        ┌─────────────────┐      ┌──────────────┐
+        │ Store experience│      │ Learn failure│   ✗ NOT BUILT
+        └────────┬────────┘      └──────┬───────┘     (`learn` node)
+                 └──────────┬───────────┘
+                            ▼
+                 ┌──────────────────────┐
+                 │  Knowledge / Memory  │   ✗ NOT BUILT
+                 │       System         │     (F-MEM, ROADMAP P7)
+                 └──────────┬───────────┘
+                            ▼
+                 Better future decisions
+```
+
+The same system seen as an agent, rather than as a pipeline:
+
+```
+                 ┌───────────────────────┐
+                 │   AI Operations Agent  │
+                 └───────────┬───────────┘
+              ┌──────────────┼──────────────┐
+              ▼              ▼              ▼
+          Tool Layer     Memory Layer    Reasoning
+              │              │              │
+       Logs/Metrics ✅   Incidents ◐     LLM ✅
+       Docker ✅         Runbooks ✗      Agents ◐
+       Kubernetes ✗      Solutions ✗     Hypotheses ◐
+              └──────────────┼──────────────┘
+                             ▼
+                     Decision Engine  ✗  (permit(), ROADMAP P5)
+                             ▼
+                      Risk Assessment ✗
+                ┌────────────┴────────────┐
+                ▼                         ▼
+          Virtual Sandbox ○           Human Approval ✗
+                ▼
+          Candidate Repair ✅ (one action)
+                ▼
+             Canary ✗
+                ▼
+           Verification ✅
+          ┌─────┴─────┐
+       SUCCESS      FAILURE
+          ▼           ▼
+       Learn ✗     Analyze failure ✗
+          └─────┬─────┘
+                ▼
+        Knowledge Base ✗ ──────► Future incidents
+```
+
+| Stage | Status | Where |
+|---|---|---|
+| Monitoring — Prometheus, OTel | **Built** | Target instrumented in P1 |
+| Failure detection | **Built**, `F06` only | `detection/retrieval_collapse.py` |
+| Anomaly detection — z-score, EWMA, Page-Hinkley | **Not built** | `detection/anomaly.py`, §3 |
+| Known / unknown branch | **Gate built, flow not** | The `UNKNOWN` gate is live in the RCA validator; `F-UNK` is P5 |
+| AI RCA agent | **Built**, `F06` only | `rca/` |
+| Decision engine · risk assessment | **Not built** | `permit()`, `ROADMAP.md` P5 |
+| Virtual sandbox | **Specced, on the cut line** | `F-SBX`, `ROADMAP.md` P6 |
+| Candidate repair + rollback | **Built** — one action, inverse recorded | `executor/config_rollback.py` |
+| Canary | **Undecided, not committed** | `PRD.md` §12 |
+| Verification | **Built**, two of three probes | `verification/fast.py` |
+| Learn · analyse failure | **Not built** | `graph/nodes/learn.py` |
+| Knowledge base · runbooks | **Not built** | `F-MEM` is P7; runbooks are not specced at all |
+
+#### Five places these diagrams exceed the current design
+
+Stated precisely, because each is a design decision rather than unwritten code.
+
+**1. "Possible fixes", plural, then "best fix".** The implemented and specced
+flow produces **one** candidate repair from a closed vocabulary, and the
+sandbox is a yes/no gate on that single repair. Ranked multi-candidate
+generation and selection is a different, more expensive mechanism. The schema
+anticipates it — `hypotheses(id, incident_id, rank, description, confidence,
+tested, outcome)` in §5 carries `rank`, `tested` and `outcome` — but today
+those columns are exercised only by the `F-UNK` flow (`PRD.md` §8.4), which
+**always ends at human escalation, never execution**.
+
+**2. The sandbox sits on the main path here; in the design it does not.**
+`permit()` routes MEDIUM-risk actions to sandbox-then-approval (§6.1 step 10);
+LOW-risk autonomous actions skip it. Making the sandbox universal is a policy
+change, not a wiring change.
+
+**3. Canary has no substrate.** The reference workload runs **one** backend
+container with no traffic splitting. A real canary needs a second instance and
+routing control — neither exists, and neither is inside the ten permitted
+target additions (`PRD.md` §5.2). Recorded as undecided, not planned.
+
+**4. Kubernetes is a locked non-goal, and it appears in the Tool Layer above.**
+`PRD.md` §5 fixes the runtime at Docker Compose, with `RuntimeAdapter` as the
+seam. This is the exact drift `PRD.md` §12 warns about twice — the archived
+synopsis assumes Kubernetes, and the target's own `ADR-002` declares it
+mandatory for self-healing. **Kavach's position is the opposite.** Kubernetes
+in a north-star diagram is fine; Kubernetes in a capability claim is the thing
+to refuse.
+
+**5. RCA on the unknown path only.** One diagram routes the AI RCA agent behind
+a "known failure?" branch, reaching it only when the answer is no. Kavach runs
+LLM RCA on **known** faults too — `F06` is known, and RCA still runs, gated by
+deterministic validation (§6.4). That is deliberate: the research claim is a
+measured comparison between symptom-matching and evidence-grounded diagnosis on
+*identical* faults, which needs RCA on the known path to exist at all.
+
+#### The console mockup
+
+A fleet dashboard — service health, active/auto-healed/unknown counts, MTTR and
+repair-success rate — is the right destination and is partly specced already
+(`DESIGN_SYSTEM.md` §7.11 metric readout). None of those aggregate numbers can
+be produced today: incidents live in memory and vanish on restart, so there is
+no series to compute MTTR or a success rate from. Persistence lands in P5 with
+the graph's `PostgresSaver`, and the aggregates become possible then.
+
+**The illustrative figures in that mockup — "MTTR 2.4 min", "Repair Success
+91%", "Auto-Healed 17" — are placeholders, not measurements.** Kavach has
+measured no such numbers. The only real figures are in `ROADMAP.md` P2/P3:
+20/20 `F06` inject-heal cycles, 3/3 RCA approvals, and a P2-vs-P3 comparison on
+one fault class. A mockup number that reaches a slide becomes a fabricated
+result, which is the single worst thing this project could put in a report.
+---
+
 ## 2. Tech stack
 
 ### 2.1 Chosen
