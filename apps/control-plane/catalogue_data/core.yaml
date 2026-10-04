@@ -1,0 +1,26 @@
+actions:
+  - name: switch_model
+    inverse:
+      name: restore_model
+      params_mapping:
+        target: $target
+    mutations:
+      active_model: $fallback
+      
+  - name: restore_model
+    inverse:
+      name: noop
+      params_mapping: {}
+    mutations:
+      active_model: $target
+
+  - name: noop
+    inverse:
+      name: noop
+      params_mapping: {}
+    mutations: {}
+
+faults:
+  - fault_class: F01
+    recommended_actions:
+      - switch_model

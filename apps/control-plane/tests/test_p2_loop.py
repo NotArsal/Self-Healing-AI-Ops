@@ -87,6 +87,6 @@ def test_action_without_inverse_rejected() -> None:
 
     result = app.invoke(initial_state)
 
-    assert len(result["approved_actions"]) == 0
-    assert result["verification_passed"] is False
+    assert len(result.get("approved_actions", [])) == 0
+    assert result["gate_verdict"] == "DENY"
     assert result["outcome"] == "ESCALATED"

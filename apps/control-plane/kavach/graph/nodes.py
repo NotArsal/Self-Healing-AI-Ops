@@ -16,16 +16,31 @@ def diagnose_node(state: IncidentState) -> IncidentState:
     return {"diagnosis": diagnosis, "fault_class": diagnosis.fault_class}
 
 
+from kavach.catalogue.loader import load_catalogue
+
 def plan_node(state: IncidentState) -> IncidentState:
     fault = state.get("fault_class")
     plan = []
-    if fault and fault.startswith("F01"):
-        plan.append(
-            Action(
-                name="switch_model",
-                params={"target": "model_primary", "fallback": "model_backup"},
-            )
-        )
+    
+    catalogue = load_catalogue()
+    
+    if fault and fault in catalogue.faults:
+        # Generate plan based on recommended actions
+        f_def = catalogue.faults[fault]
+        for act_name in f_def.recommended_actions:
+            if act_name == "switch_model":
+                # For now, hardcode parameter injection logic for specific actions 
+                # (A full templating engine is out of scope for MVP, but the pipeline logic is declarative)
+                plan.append(
+                    Action(
+                        name="switch_model",
+                        params={"target": "model_primary", "fallback": "model_backup"},
+                    )
+                )
+            else:
+                # Generic action with no params
+                plan.append(Action(name=act_name, params={}))
+
     return {"plan": plan}
 
 
@@ -118,6 +133,12 @@ def outcome_node(state: IncidentState) -> IncidentState:
     diag = state.get("diagnosis")
     if diag and (diag.confidence < 0.8 or diag.fault_class == "INSUFFICIENT_EVIDENCE"):
         return {"outcome": "ESCALATED"}
+        
+    force_undo_fail = (
+        state.get("simulation_state", {}).get("_force_undo_failure") == "true"
+    )
+    if force_undo_fail:
+        return {"outcome": "UNRECOVERABLE"}
 
     # Check if gate blocked execution
     if state.get("gate_verdict") == "DENY":
@@ -128,10 +149,4 @@ def outcome_node(state: IncidentState) -> IncidentState:
         # F01 usually results in MITIGATED because primary is still down, just backup is active.
         return {"outcome": "MITIGATED"}
     else:
-        # If verification failed and we unwound, check if unwind worked.
-        force_undo_fail = (
-            state.get("simulation_state", {}).get("_force_undo_failure") == "true"
-        )
-        if force_undo_fail:
-            return {"outcome": "UNRECOVERABLE"}
         return {"outcome": "ESCALATED"}
