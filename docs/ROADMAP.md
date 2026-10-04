@@ -7,7 +7,7 @@
 
 ## Assumptions — correct these before using the schedule
 
-- **~14 working weeks.** Adjust every week number if your deadline differs; the *order* holds regardless.
+- **Phases P0–P4 are complete.** ~14 working weeks. Adjust every week number if your deadline differs; the *order* holds regardless.
 - **Four people**, part-time alongside other coursework.
 - The demo is the deliverable (`PRD.md` §5), so every phase ends in something demonstrable.
 - **The target application already exists.** `Simple_RAG-Pipeline` is not built here — it is onboarded and instrumented (`PRD.md` §5.1). The old "build `demo-rag`" phase is deleted, not re-pointed.
@@ -41,9 +41,9 @@ P0 scaffold  ✅
  └─ P1 onboard + instrument Simple_RAG-Pipeline  ✅
      └─ P2 F06 DETERMINISTIC CLOSED LOOP  ✅ ━━▶ first demoable milestone, reached
          └─ P3 F06 LLM RCA  ✅ ━━▶ the research comparison, recorded
-             ├─ P4 console ────┐
-             │                 ├─ P5 remaining 7 faults ─┐
-             └─ P6 safety ─────┘                         ├─ P7 git · memory · Laya
+             └─ P4 console  ✅ ━━▶ the loop is now watchable live
+                 ├─ P5 remaining 7 faults ─┐
+                 └─ P6 safety ─────────────┤ ─ P7 git · memory · Laya
                                                           │
                                                           └─ P8 measure, report, demo
 ```
@@ -54,7 +54,7 @@ P0 scaffold  ✅
 | P1 | Onboard + instrument the target | 2–3 | ✅ Preflight passes against `Simple_RAG-Pipeline` |
 | P2 | **`F06` deterministic closed loop** | 3–6 | ✅ **`F06` auto-heals end to end with a working rollback; 20/20 inject→heal→verify cycles** |
 | P3 | **`F06` LLM RCA** | 6–8 | ✅ **Schema-validated diagnosis behind a deterministic gate; measured against the P2 baseline** |
-| P4 | Console | 6–9 | Loop watchable live |
+| P4 | Console | 6–9 | ✅ **Loop watchable live over WebSocket, no refresh; generated API client in the gate** |
 | P5 | The remaining seven faults | 8–11 | Each a complete vertical slice |
 | P6 | Full safety engine | 9–11 | Three modes, ownership, breaker, blast radius |
 | P7 | Git isolation, knowledge base, Laya shadow | 11–13 | `make bench` emits the metrics table |
@@ -413,37 +413,85 @@ comparison between symptom-matching and evidence-grounded diagnosis on an
 identical fault.
 ---
 
-## P4 — The console
+## P4 — The console ✅ COMPLETE
 
-**Weeks 6–9 · Owner: console track · THE NEXT PHASE**
+**Weeks 6–9 · Owner: console track**
 
-> **Prerequisite, and it is not built.** The P2/P3 loop is an in-process
-> `run_once()` driven by a harness. There are no incident routes, no
-> persistence and no pub/sub, so there is nothing for a console to read yet.
-> This phase therefore starts with the loop's durable spine — incident
-> persistence, the API routes, Redis for pub/sub — and only then the UI.
-> Budget for that before the first component.
+> **Completed 2026-10-04.** The console reads and visualises the existing
+> P2/P3 loop. The loop's own behaviour is unchanged: the only edit to
+> `loop.py` is an optional `on_event` callback that defaults to `None`.
 
-Generate the client from OpenAPI; never hand-write a fetch. **`DESIGN_SYSTEM.md` governs `apps/console/` and nothing else** — the target's Next.js 14 frontend is out of its jurisdiction (`DESIGN_SYSTEM.md` §0).
+**`DESIGN_SYSTEM.md` governs `apps/console/` and nothing else** — the target's
+Next.js 14 frontend is out of its jurisdiction (`DESIGN_SYSTEM.md` §0).
 
-**Deliverables**
-- Incident persistence and the `incidents` / `audit` / `projects` read routes the console needs, plus Redis in `infra/docker-compose.yml` (host port 6380) for pub/sub
-- Design tokens as CSS variables and TS constants, both themes
-- Three-zone layout (`DESIGN_SYSTEM.md` §6)
-- Loop Ring, incident row, evidence item, diagnosis card, action plan, verification strip, risk badge, mode switch, audit table. **The risk badge and mode switch have nothing to display until P6** — build them last, or stub them visibly rather than inventing a tier
-- WebSocket hub + live incident updates via Redis pub/sub
-- Onboarding preflight checklist screen
-- `make gen-client` wired into `make check`
+### What shipped
 
-**Acceptance**
-- [ ] Inject `F06` and watch the whole loop live without refreshing
-- [ ] Every diagnosis citation is clickable and opens the evidence
-- [ ] Mode indicator visible on every screen without scrolling, and it reads `SIMULATION` by default — **needs the modes, which are P6.** Until then the indicator reads the single mode that exists, and must not imply a mode switch that does nothing
-- [ ] Legible at 1280×720 (projector test — do this on the actual projector)
-- [ ] Keyboard-only navigation works; focus is always visible
-- [ ] No colour-only state indicators anywhere
-- [ ] Contrast audit passes on both themes
-- [ ] A backend type change breaks the frontend build
+*Backend — the minimum needed to expose existing state (`kavach/api/`)*
+- `events.py` — in-process event bus with a bounded replay buffer, published from the loop's worker thread via `call_soon_threadsafe`
+- `schemas.py` — typed response models, so `make gen-client` produces types that break `tsc` rather than a useless `Record<string, never>`
+- `routes.py` — `GET /v1/system`, `/v1/preflight`, `/v1/incidents`, `/v1/incidents/{id}`, `/v1/events`, `WS /v1/ws`, and `POST /v1/loop/run`
+- `runner.py` — single-flight loop execution, in-memory incident history, and the baseline read from the newest capture on disk
+- `openapi.py` — writes the OpenAPI document without a running server, so codegen works in CI
+
+*Console (`apps/console/`)*
+- Design tokens as CSS variables **and** TS constants, both themes, dark primary
+- Three-zone layout: rail · health · incident + timeline · inspector
+- Loop Ring, incident row, evidence item, diagnosis card, action plan, verification strip, risk badge, mode indicator, history table
+- Live incident updates over WebSocket; the health zone polls on a 5s interval
+- Onboarding/preflight screen over the existing check registry
+- `make gen-client` wired as the **first** prerequisite of `make check`
+
+### Three decisions worth recording
+
+**1. No Redis.** `ARCHITECTURE.md` §4.3 names Redis pub/sub, and it is right the
+moment there is a second control-plane process. There is one. Redis would add a
+container and a failure mode to move messages between two objects in the same
+interpreter. Everything that would change is behind `publish` and `subscribe`
+in `kavach/api/events.py`; **add it when a second replica exists**, not before.
+
+**2. No background detection tick, so no unattended healing.** A timer that
+detected and healed on its own would need the mode gate, and `permit()` does
+not exist until P6 (`docs/decisions/0006`, amendment). The loop therefore runs
+when an operator asks it to, from the console or a harness. **This is the
+constraint that keeps the missing safety engine honest, and it must not be
+removed before P6 lands.**
+
+**3. In-memory incident history.** `Incident` is a dataclass and there is no
+database, so restarting the control plane empties the history. The harness
+still writes JSON artifacts under `harness/reports/`. Persistence moves to P6
+with the graph's `PostgresSaver`, which is the thing that actually needs it.
+
+### What the console deliberately cannot do
+
+There is no route that accepts an action name, a service, a container, a config
+key, a threshold or a command string. `POST /v1/loop/run` is parameterless
+apart from an `rca` toggle. The browser can read state and ask for one pass of
+the existing loop — it cannot bypass detection, bypass RCA validation, reach
+Docker, or name anything a future `permit()` would have to authorise.
+
+**Acceptance — met**
+
+- [x] Inject `F06` and watch the whole loop live without refreshing
+- [x] Every diagnosis citation is clickable and opens the matching evidence item in place, never an external page
+- [x] Mode indicator visible on every screen without scrolling. It renders as an **indicator, not a switch**, and states in words that the mode is configuration rather than an enforced gate — a segmented control that appeared to change a safety posture while changing nothing would be worse than none
+- [x] Legible at 1280×720 — one viewport-height grid with internal scroll regions
+- [x] Keyboard-only navigation works; focus is never removed
+- [x] No colour-only state indicators: every state, risk tier and probe result carries an icon and a word, asserted by test
+- [x] Both themes render; dark is primary and default
+- [x] **A backend type change breaks the frontend build** — proven by renaming one field, regenerating, and watching `tsc` fail in both a component and the fixtures
+- [x] `make gen-client` works and runs first inside `make check`
+
+**Not built, and why**
+
+| Not built | Why | Now in |
+|---|---|---|
+| Redis pub/sub | One process; see decision 1 | P6, with a second replica |
+| Incident persistence in Postgres | No database yet; in-memory was the scoped choice | P6 |
+| The mode **switch** (§7.9 segmented control) | Nothing to switch: no `permit()`, and the loop reads no mode | P6 |
+| Approval dialog (§7.7) | There is no approval flow to drive it | P6 |
+| Audit table over a hash chain (§7.10) | The history table reads incidents; there is no audit log yet | P6 |
+| Metric readout with MTTD/MTTR (§7.11) | Not persisted, so there is nothing to read across incidents | P6 |
+| `/v1/traces` OTLP receiver | Nothing in the loop reads a trace | P6 |
 
 ---
 

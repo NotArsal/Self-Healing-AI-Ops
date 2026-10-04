@@ -1,17 +1,327 @@
 @import "tailwindcss";
 
-/* Phase 0 defines only the ground and primary text, so the skeleton is not a
-   default white page. The full token system — risk tiers, incident states, the
-   one gradient, the type scale — is P5 (DESIGN_SYSTEM.md §2). Do not grow this
-   file ad hoc; when P5 lands it replaces it wholesale. */
-:root {
+/* Kavach console design tokens — DESIGN_SYSTEM.md §2–§5, §9.
+   Dark is the primary theme and is correct first; light is the same token
+   names remapped, never new tokens (§2.6). */
+
+:root,
+:root[data-theme="dark"] {
+  /* Ground — blue-black, not neutral grey. The hue keeps signal colours readable. */
   --k-bg: #0a0e16;
+  --k-surface: #121a26;
+  --k-surface-raised: #1b2634;
+  --k-surface-sunken: #070a11;
+
+  --k-border: #27364a;
+  --k-border-strong: #3a4c66;
+  --k-border-subtle: #1a2434;
+
   --k-text: #e8eff9;
   --k-text-muted: #8fa3bf;
+  --k-text-faint: #5a6b85;
+  --k-text-inverse: #0a0e16;
+
+  /* Risk — the user's primary anxiety, so the most separable hues. */
+  --k-risk-low: #3dd68c;
+  --k-risk-low-bg: #0e2a1e;
+  --k-risk-med: #f2b33d;
+  --k-risk-med-bg: #2e2412;
+  --k-risk-high: #f2605c;
+  --k-risk-high-bg: #2e1618;
+  --k-risk-denied: #8fa3bf;
+  --k-risk-denied-bg: #1b2634;
+
+  /* Incident state — a different hue family from risk on purpose, so
+     "dangerous" is never confused with "in progress". */
+  --k-state-detected: #4cb8f5;
+  --k-state-collecting: #4cb8f5;
+  --k-state-diagnosing: #9b8cfa;
+  --k-state-awaiting: #f2b33d;
+  --k-state-healing: #22d3ee;
+  --k-state-verifying: #7c7cf5;
+  --k-state-resolved: #3dd68c;
+  --k-state-rolledback: #f58a47;
+  --k-state-escalated: #f2605c;
+
+  /* The ONE gradient. Loop Ring stroke, primary button fill, and the 2px top
+     border of the active incident panel. Nowhere else (§2.4). */
+  --k-loop-gradient: linear-gradient(135deg, #22d3ee 0%, #7c7cf5 100%);
+
+  /* Confidence is never a hue — a red "low confidence" would collide with
+     high risk (§2.5). */
+  --k-confidence-track: #27364a;
+  --k-confidence-fill: #e8eff9;
+}
+
+:root[data-theme="light"] {
+  --k-bg: #fbfcfe;
+  --k-surface: #ffffff;
+  --k-surface-raised: #f4f7fb;
+  --k-surface-sunken: #eef2f8;
+
+  --k-border: #dce4ef;
+  --k-border-strong: #b4c2d6;
+  --k-border-subtle: #ebf0f7;
+
+  --k-text: #0f1826;
+  --k-text-muted: #51627b;
+  --k-text-faint: #8295af;
+  --k-text-inverse: #ffffff;
+
+  --k-risk-low: #10915c;
+  --k-risk-low-bg: #e6f5ee;
+  --k-risk-med: #a86e06;
+  --k-risk-med-bg: #fdf3e0;
+  --k-risk-high: #c53831;
+  --k-risk-high-bg: #fdecea;
+  --k-risk-denied: #51627b;
+  --k-risk-denied-bg: #f4f7fb;
+
+  /* State colours darken by the same amount, keeping ≥4.5:1 on --k-surface. */
+  --k-state-detected: #0b6fa8;
+  --k-state-collecting: #0b6fa8;
+  --k-state-diagnosing: #5b45c7;
+  --k-state-awaiting: #a86e06;
+  --k-state-healing: #0e7490;
+  --k-state-verifying: #4c43c4;
+  --k-state-resolved: #10915c;
+  --k-state-rolledback: #b4541a;
+  --k-state-escalated: #c53831;
+
+  --k-confidence-track: #dce4ef;
+  --k-confidence-fill: #0f1826;
+}
+
+:root {
+  --k-font-sans: var(--font-geist-sans), "Geist", ui-sans-serif, system-ui, sans-serif;
+  --k-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+
+  --k-space-1: 4px;
+  --k-space-2: 8px;
+  --k-space-3: 12px;
+  --k-space-4: 16px;
+  --k-space-5: 24px;
+  --k-space-6: 32px;
+  --k-space-7: 48px;
+  --k-space-8: 64px;
+
+  /* Radius encodes hierarchy. Small atoms sm, containers md, top surfaces lg. */
+  --k-radius-sm: 4px;
+  --k-radius-md: 8px;
+  --k-radius-lg: 12px;
+  --k-radius-full: 9999px;
+
+  --k-dur-fast: 120ms;
+  --k-dur-base: 200ms;
+  --k-dur-slow: 400ms;
+  --k-ease: cubic-bezier(0.2, 0, 0.2, 1);
+
+  --k-rail: 64px;
+  --k-inspector: 380px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
 }
 
 body {
   background: var(--k-bg);
   color: var(--k-text);
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--k-font-sans);
+  font-size: 14px;
+  line-height: 22px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Type scale (§3.1). Sentence case everywhere; no ALL-CAPS labels. */
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+}
+h1 {
+  font-size: 24px;
+  line-height: 32px;
+}
+h2 {
+  font-size: 18px;
+  line-height: 26px;
+}
+h3 {
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.k-display {
+  font-size: 32px;
+  line-height: 38px;
+  font-weight: 600;
+}
+.k-sm {
+  font-size: 13px;
+  line-height: 20px;
+}
+.k-xs {
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+}
+.k-mono {
+  font-family: var(--k-font-mono);
+  font-size: 13px;
+  line-height: 20px;
+}
+.k-mono-sm {
+  font-family: var(--k-font-mono);
+  font-size: 12px;
+  line-height: 18px;
+}
+.k-mono-metric {
+  font-family: var(--k-font-mono);
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.k-muted {
+  color: var(--k-text-muted);
+}
+.k-faint {
+  color: var(--k-text-faint);
+}
+
+/* A metric that jitters its own column width is a defect (§3.2). */
+table,
+.k-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Focus is never removed, and must read on both themes (§8). */
+:focus-visible {
+  outline: 2px solid var(--k-border-strong);
+  outline-offset: 2px;
+  border-radius: var(--k-radius-sm);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Elevation on dark is surface value and border, not shadow (§5). */
+.k-panel {
+  background: var(--k-surface);
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-radius-lg);
+}
+.k-card {
+  background: var(--k-surface);
+  border: 1px solid var(--k-border);
+  border-radius: var(--k-radius-md);
+  padding: var(--k-space-4);
+}
+.k-sunken {
+  background: var(--k-surface-sunken);
+  border-radius: var(--k-radius-sm);
+}
+
+.k-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--k-border-strong) transparent;
+}
+
+/* The three zones (§6), sized so the whole layout fits 1280x720 — the
+   projector constraint UX-06, and the real target device.
+
+   The arithmetic matters and was wrong once: with a 300px health column and a
+   `minmax(480px, 1fr)` centre, the row needed
+   64 + 32 padding + 300 + 480 + 380 + 32 gaps = 1288px and overflowed a
+   1280px viewport by 8px, which `minmax`'s floor turns into horizontal page
+   scroll rather than a narrower centre. The centre column is therefore
+   `minmax(0, 1fr)`: it yields instead of pushing the layout off screen. */
+.k-zones {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 340px;
+  gap: var(--k-space-4);
+  padding: var(--k-space-4);
+  overflow: hidden;
+}
+
+/* >= 1600: stream and inspector both grow; the rail does not. */
+@media (min-width: 1600px) {
+  .k-zones {
+    grid-template-columns: 300px minmax(0, 1fr) var(--k-inspector);
+    gap: var(--k-space-5);
+  }
+}
+
+/* 1024-1280: all three, inspector narrows (§6.1). */
+@media (max-width: 1279px) {
+  .k-zones {
+    grid-template-columns: 220px minmax(0, 1fr) 320px;
+    gap: var(--k-space-3);
+    padding: var(--k-space-3);
+  }
+}
+
+/* < 1024: the inspector drops below the incident rather than becoming an
+   overlay drawer. A drawer is the §6.1 design; this is the honest subset —
+   every zone is still reachable, and nothing is hidden behind a control that
+   does not exist yet. */
+@media (max-width: 1023px) {
+  .k-zones {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    overflow-y: auto;
+  }
+}
+
+/* §9: transitions drop to 0ms, the ring stops rotating, state changes still
+   render. The Loop Ring is the only non-user-triggered motion in the product. */
+@keyframes k-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Screen-reader-only: used for landmark labels and live-region text that the
+   visual design already conveys. */
+.k-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

@@ -329,10 +329,16 @@ the repository agree instead of quietly disagreeing.
 
 ```
 apps/control-plane/kavach/
-├── main.py                        # FastAPI app, /healthz only
+├── main.py                        # FastAPI app: /healthz + the console router
 ├── config.py                      # pydantic-settings
-├── target.py                      # ◀ DEVIATION — the only HTTP client to the target
-├── loop.py                        # ◀ DEVIATION — hand-rolled orchestrator, not graph/
+├── api/                           # ◀ the console surface (P4), not api/routes/
+│   ├── routes.py                   # 6 read routes + POST /v1/loop/run + WS /v1/ws
+│   ├── schemas.py                  # typed response models; the codegen contract
+│   ├── events.py                   # in-process event bus (§4.3), no Redis yet
+│   └── runner.py                   # single-flight loop execution + in-memory history
+├── openapi.py                      # writes the OpenAPI doc without a running server
+├── target.py                       # ◀ DEVIATION — the only HTTP client to the target
+├── loop.py                         # ◀ DEVIATION — hand-rolled orchestrator, not graph/
 ├── onboarding/
 │   ├── manifest.py                # kavach.yaml parsing + validation
 │   ├── preflight.py               # the check registry (read-only checks)
@@ -359,10 +365,17 @@ harness/
 └── rca_f06_live.py                # live RCA + the P2-vs-P3 comparison
 ```
 
-**Not present at all:** `api/`, `ingestion/`, `graph/`, `safety/`, `decision/`,
+**Not present at all:** `ingestion/`, `graph/`, `safety/`, `decision/`,
 `knowledge/`, `audit/`, `db/`, `telemetry/`, `evaluation/`,
 `executor/adapters/`, `harness/inject.py`, `harness/scenarios/`,
-`harness/report.py`. Each is scheduled — see `ROADMAP.md` P4–P7.
+`harness/report.py`. Each is scheduled — see `ROADMAP.md` P5–P7.
+
+**`api/` is flatter than the tree above**, which specifies `api/routes/` with a
+file per resource plus `api/schemas/` and `api/ws.py`. Seven routes over one
+project do not need seven files, and the WebSocket is nine lines on the same
+router. It splits per resource when a second project or an approval flow
+arrives. The console's own tree matches the plan: `app/`, `components/ui|incident|safety/`,
+`lib/` with the generated client under `lib/api/generated/`.
 
 #### The four deviations, and why
 
@@ -518,7 +531,71 @@ There is no 15s detection tick, no `permit()`, no risk gate, no mode routing, no
 
 ### 4.3 Live console path
 
-The graph writes every state transition to Redis pub/sub. The WebSocket hub fans out to connected clients. The console never polls for incident state.
+The console reads state over HTTP and watches an in-flight loop over a
+WebSocket.
+
+```
+browser ──HTTP──▶ GET  /v1/system        composed dependency health, identity,
+                                          mode, corpus, live threshold
+                  GET  /v1/preflight     the existing read-only check registry
+                  GET  /v1/incidents     history, newest first
+                  GET  /v1/incidents/:id one incident in full
+                  GET  /v1/events        the replay buffer
+                  POST /v1/loop/run      ONE pass of the existing loop
+        ──WS────▶ /v1/ws                 every loop stage, as it happens
+```
+
+**Events, not polling, for the thing that moves.** `loop.run_once` takes an
+optional `on_event(stage, status, message)` sink. The runner hands it a
+closure that publishes to `kavach/api/events.py`, which fans out to each
+connected WebSocket. The sink is observation-only: nothing in the loop reads a
+return value, no branch depends on it, every call goes through `_notify` which
+swallows exceptions, and `None` — the default — leaves the P2/P3 loop
+byte-identical. A console that has gone away cannot take an in-flight repair
+with it.
+
+The health zone is the exception and polls at 5s. Those are independent cheap
+probes with no event source behind them, and inventing a change-detection tick
+to feed a socket would be more moving parts for a readout.
+
+**One process, so no Redis.** This section previously specified Redis pub/sub,
+and that is the right answer the moment a second control-plane replica exists.
+There is one. Everything that would change is behind `publish` and `subscribe`
+in `kavach/api/events.py`. Two bounded limits keep a wedged browser harmless:
+a 256-event queue per subscriber, dropped oldest-first for that subscriber
+alone, and a 500-event replay buffer.
+
+**Replay, so a late console is not blind.** A socket receives the buffer before
+the live stream, and the client de-duplicates on `seq`. Without that, opening
+the console mid-incident would show an empty timeline, and a reconnect would
+render every stage twice.
+
+#### What the browser deliberately cannot say
+
+`POST /v1/loop/run` takes no action name, no service, no container, no config
+key, no threshold and no command string — only an `rca` toggle. There is no
+docker route and no proxy to the target. The console reads state and asks for
+one pass of the loop; it cannot bypass detection, bypass RCA validation, reach
+the Docker socket, or name anything `permit()` will have to authorise.
+
+Two consequences recorded on the wire rather than left to the client:
+`RcaOut.confidence_is_calibrated` is always `false`, and
+`SystemOut.mode_is_enforced` is always `false`. A second client cannot read the
+confidence as a probability, or the mode as a gate, by mistake.
+
+#### No timer, and that is load-bearing
+
+**Nothing invokes the loop on a schedule.** A background detection tick that
+healed unattended would need the mode check, and `permit()` does not exist
+until P6 (`docs/decisions/0006`, amendment 2026-10-04). So a run happens
+because an operator asked for one, from the console or a harness, and the
+runner allows one at a time — the narrow stand-in for the A-Lock, since two
+concurrent runs would each capture a pre-state and the second inverse would
+point at the first run's faulty value.
+
+**This constraint must not be removed before the safety engine lands.** It is
+currently the only thing standing between the control plane and unattended
+writes.
 
 ---
 

@@ -322,16 +322,16 @@ Two orthogonal axes, deliberately separated because conflating them caused the L
 |---|---|---|---|
 | `F-ONB` | Project onboarding + preflight validation against a `kavach.yaml` manifest | P0 | P1 ✅ |
 | `F-SLO` | SLO contract declaration as PromQL expressions — the machine-checkable definition of "healthy" | P0 | P1 ✅ |
-| `F-TEL` | Telemetry ingestion: OTLP traces/metrics/logs + Prometheus query | P0 | P1 → P4. *Prometheus query is live; the OTLP receiver inside Kavach is not built* |
+| `F-TEL` | Telemetry ingestion: OTLP traces/metrics/logs + Prometheus query | P0 | P1 → P6. *Prometheus query is live; the OTLP receiver inside Kavach is not built and nothing in the loop reads a trace* |
 | `F-VER-FAST` | **Fast verification**: health probe + short SLO window + 3 deterministic quality checks | P0 | P2 → P6. *Health and the 3 quality checks are live; the SLO-window probe is not* |
 | `F-DET` | Detection layer: SLO breach + statistical anomaly detection | P0 | P2 → P5. *`F06` detection is live; anomaly detection and the other fault classes are not* |
 | `F-SAFE` | Safety / decision engine: risk tiering, allow-list, blast radius, circuit breaker | P0 | P6. *Not started — see the head note on `ARCHITECTURE.md` §6* |
 | `F-HEAL` | Executor with an undo stack and a recorded inverse for every repair | P0 | P2 → P6. *One action with a recorded, verified inverse is live; the undo **stack** and the writer lock are not* |
 | `F-VER` | Three-probe verification + automatic rollback on failure | P0 | P2 → P6. *Two of three probes; escalation on verification failure is live, the severity early abort is not* |
-| `F-AUD` | Immutable, hash-chained audit trail of every autonomous action | P0 | P6. *Not started; runs are JSON artifacts under `harness/reports/`* |
+| `F-AUD` | Immutable, hash-chained audit trail of every autonomous action | P0 | P6. *Not started. Incidents live in memory and the console's history empties on restart; the harness still writes JSON under `harness/reports/`* |
 | `F-INJ` | Fault injection harness for the eight catalogue entries | P0 | P2 → P5. *`F06` live and 20/20 stable; seven remain* |
 | `F-RCA` | Evidence-grounded RCA with cited evidence and calibrated confidence | P0 | P3 ✅ for `F06`. **Confidence is *not* calibrated** — it is raw model output; calibration is P7 (`ARCHITECTURE.md` §6.4) |
-| `F-UI` | Live operations console | P0 | P4 |
+| `F-UI` | Live operations console | P0 | P4 ✅. *Three zones, live loop over WebSocket, generated API client. No approval dialog, audit table or mode switch — those need P6* |
 | `F-MODE` | Three operating modes: `SIMULATION` / `APPROVAL` / `AUTONOMOUS` (§5.4) | P0 | P6. *Not started — see the corrected note below* |
 | `F-GIT` | Git isolation: `kavach/ops` branch off `modernize-stack`, commits for every config/prompt change | P0 | P7. *The branch discipline is honoured by hand today; the adapter is not built, and no action has written a versioned file yet* |
 | `F-UNK` | Unknown-failure flow — evidence → hypotheses → risk → escalate (never auto-execute) | P1 | P6. *The `UNKNOWN` **gate** is already live in the RCA validator; the hypothesis flow is not* |

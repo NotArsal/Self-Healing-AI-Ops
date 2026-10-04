@@ -74,10 +74,20 @@ switch ($Target) {
         Invoke-Step "mypy harness" { uv --directory $cp run mypy --strict ../../harness }
         Invoke-InConsole "tsc --noEmit" @("types")
     }
-    "test"        { Invoke-Step "pytest" { uv --directory $cp run pytest -q } }
+    "test" {
+        Invoke-Step "pytest" { uv --directory $cp run pytest -q }
+        Invoke-InConsole "vitest" @("test")
+    }
     "socket-test" { Invoke-Step "docker socket" { uv --directory $cp run pytest -q -m docker -v } }
 
+    "gen-client" {
+        Invoke-Step "openapi" { uv --directory $cp run python -m kavach.openapi }
+        Invoke-InConsole "openapi-typescript" @("gen:client")
+    }
+
     "check" {
+        # gen-client first, so types checks the console against a fresh client.
+        & $PSCommandPath gen-client
         & $PSCommandPath lint
         & $PSCommandPath types
         & $PSCommandPath test
@@ -93,7 +103,6 @@ switch ($Target) {
     "test-integration" { Todo "P3" }
     "migrate"          { Todo "P3" }
     "migration"        { Todo "P3" }
-    "gen-client"       { Todo "P5" }
     "onboard"          { Todo "P1" }
     "inject"           { Todo "P2" }
     "scenario"         { Todo "P9" }

@@ -21,6 +21,7 @@ the whole design.
 
 from __future__ import annotations
 
+import contextlib
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -49,6 +50,33 @@ from kavach.verification import fast
 RcaStage = Callable[
     [fast.FastVerificationResult, rc.Detection, float | None], RcaResult
 ]
+
+# An OPTIONAL progress sink: (stage, status, message). Added in P4 so the
+# console can watch a run while it happens, because `run_once` is synchronous
+# and otherwise reveals nothing until it returns.
+#
+# It is strictly a notification. Nothing in this module reads a return value,
+# no branch depends on it, and `None` - the default - leaves the P2/P3 loop
+# byte-identical. A callback that raises would take the healing path down with
+# it, so every call site goes through `_notify`, which swallows.
+LoopEvent = Callable[[str, str, str], None]
+
+STAGES: tuple[str, ...] = (
+    "detect", "evidence", "diagnose", "validate",
+    "plan", "repair", "verify", "resolve",
+)
+
+
+def _notify(sink: LoopEvent | None, stage: str, status: str, message: str) -> None:
+    """Fire one progress event. A broken sink must never break a heal.
+
+    The suppression is deliberately total: observation is not the job, and a
+    console that has gone away must not take an in-flight repair with it.
+    """
+    if sink is None:
+        return
+    with contextlib.suppress(Exception):
+        sink(stage, status, message)
 
 
 class IncidentStatus(StrEnum):
@@ -150,10 +178,15 @@ def run_once(
     project: str = "simple-rag",
     incident_id: str | None = None,
     rca: RcaStage | None = None,
+    on_event: LoopEvent | None = None,
 ) -> Incident:
     """One pass of detect -> heal -> verify.
 
     `promql` is injected so the loop can be exercised without Prometheus.
+
+    `on_event` is OPTIONAL and observation-only (see `LoopEvent`). It changes no
+    decision and no return value; omitted, this function behaves exactly as it
+    did in P2/P3.
 
     `rca` is OPTIONAL. Omitted, this is the P2 deterministic loop unchanged -
     the reference baseline, and the fallback if RCA is unavailable. Supplied, an
@@ -178,6 +211,9 @@ def run_once(
     inc.corpus_before = _corpus(promql, prometheus_url)
 
     # --- DETECT: metrics plus the fast set, no LLM
+    _notify(on_event, "detect", "started",
+            f"detection started for {project}; running the 3-case fast set and "
+            f"reading retrieval metrics")
     pre_fast = fast.run(client, fast_set_path)
     metrics = rc.collect(prometheus_url, promql)
     detection = rc.evaluate(metrics, pre_fast.passed, pre_fast.pass_rate)
@@ -185,11 +221,17 @@ def run_once(
     inc.detection["pre_verification"] = pre_fast.to_dict()
 
     if detection.verdict is rc.Verdict.NO_FAULT:
+        _notify(on_event, "detect", "ok",
+                f"no fault: fast set {pre_fast.pass_rate:.0%}, "
+                f"verdict {detection.verdict}")
         inc.status = IncidentStatus.NO_FAULT
         inc.outcome = "no fault detected; nothing to do"
         return inc
 
     if detection.verdict is rc.Verdict.INSUFFICIENT_EVIDENCE:
+        _notify(on_event, "detect", "failed",
+                "detection returned INSUFFICIENT_EVIDENCE; escalating without "
+                "proposing a repair")
         inc.status = IncidentStatus.ESCALATED
         inc.escalation_reason = (
             "detection returned INSUFFICIENT_EVIDENCE; no repair is proposed from "
@@ -201,16 +243,35 @@ def run_once(
     inc.fault_class = detection.fault_class
     inc.fault_name = detection.fault_name
     inc.service = detection.service
+    _notify(on_event, "detect", "ok",
+            f"detected {detection.fault_class} {detection.fault_name} on "
+            f"{detection.service}; fast set {pre_fast.pass_rate:.0%}")
 
     # --- DIAGNOSE (optional): LLM RCA, gated by deterministic validation.
     # The LLM proposes; validate.py decides. A rejected diagnosis escalates
     # rather than falling back to the deterministic plan, because silently
     # ignoring a refused diagnosis would make the gate decorative.
     if rca is not None:
+        _notify(on_event, "diagnose", "started",
+                "collecting evidence and requesting an LLM diagnosis")
         rca_result = rca(pre_fast, detection, baseline_rerank_threshold)
+        if rca_result.diagnosis is not None:
+            d = rca_result.diagnosis
+            _notify(on_event, "diagnose", "ok",
+                    f"diagnosis returned: {d.fault_class} {d.fault_name} on "
+                    f"{d.service}, confidence {d.confidence:.2f} (uncalibrated), "
+                    f"citing {len(d.evidence_ids)} evidence items")
+        else:
+            _notify(on_event, "diagnose", "failed",
+                    f"no usable diagnosis: {rca_result.error or 'unparseable output'}")
         inc.rca = rca_result.to_dict()
         inc.diagnosed_by = "llm_rca"
+        n_checks = len(rca_result.validation.checks) if rca_result.validation else 0
         if not rca_result.approved:
+            _notify(on_event, "validate", "failed",
+                    f"validation REJECTED the diagnosis ({n_checks} checks run): "
+                    + ("; ".join(rca_result.rejection_reasons)
+                       or rca_result.error or "no reason recorded"))
             inc.status = IncidentStatus.ESCALATED
             reasons = rca_result.rejection_reasons
             inc.escalation_reason = (
@@ -222,6 +283,10 @@ def run_once(
             # corpus_after reads like a mutation when nothing happened.
             inc.corpus_after = inc.corpus_before
             return inc
+        _notify(on_event, "validate", "ok",
+                f"validation ACCEPTED the diagnosis; all {n_checks} deterministic "
+                f"checks passed, approved action "
+                f"{rca_result.approved_action!r}")
         # Use the validator's approved action, never the model's raw proposal.
         inc.planned_action = rca_result.approved_action
         if rca_result.diagnosis is not None:
@@ -233,13 +298,20 @@ def run_once(
         inc.diagnosed_by = "deterministic"
         planned = KNOWN_FAULTS.get(detection.fault_class or "")
         if planned is None:
+            _notify(on_event, "plan", "failed",
+                    f"no known repair for {detection.fault_class}")
             inc.status = IncidentStatus.ESCALATED
             inc.escalation_reason = f"no known repair for {detection.fault_class}"
             return inc
         inc.planned_action = planned
 
+    _notify(on_event, "plan", "ok",
+            f"repair proposed: {inc.planned_action}")
+
     # Whichever path chose it, the action must be one this slice implements.
     if inc.planned_action != KNOWN_FAULTS.get(rc.FAULT_CLASS):
+        _notify(on_event, "plan", "failed",
+                f"planned action {inc.planned_action!r} is not implemented")
         inc.status = IncidentStatus.ESCALATED
         inc.escalation_reason = (
             f"planned action {inc.planned_action!r} is not implemented"
@@ -248,19 +320,28 @@ def run_once(
 
     # --- EXECUTE
     inc.status = IncidentStatus.HEALING
+    _notify(on_event, "repair", "started",
+            f"acquiring pre-state and executing {inc.planned_action}")
     try:
         action: ConfigRollback = build_rollback_for_retrieval_collapse(
             inc.incident_id, client, baseline_rerank_threshold
         )
         action.execute(client)
     except ActionError as exc:
+        _notify(on_event, "repair", "failed", f"action failed: {exc}")
         inc.status = IncidentStatus.ESCALATED
         inc.escalation_reason = f"action failed: {exc}"
         inc.outcome = "escalated; target left as found"
         return inc
     inc.action = action.to_dict()
+    _notify(on_event, "repair", "ok",
+            f"{action.name} executed: rerank_threshold "
+            f"{action.inverse_settings.get('rerank_threshold')} -> "
+            f"{action.target_settings.get('rerank_threshold')}; inverse recorded")
 
     # --- VERIFY: the approved fast path only. Never the 40-case evaluator.
+    _notify(on_event, "verify", "started",
+            "verification started: health probe and the 3 fast-set cases")
     post_fast = fast.run(client, fast_set_path)
     inc.verification = post_fast.to_dict()
     inc.corpus_after = _corpus(promql, prometheus_url)
@@ -285,6 +366,7 @@ def run_once(
         )
 
     if problems:
+        _notify(on_event, "verify", "failed", "; ".join(problems))
         # The repair ran but did not work. The honest outcome is escalation, and
         # the inverse is left recorded so the state can be unwound deliberately.
         inc.status = IncidentStatus.ESCALATED
@@ -292,6 +374,10 @@ def run_once(
         inc.outcome = "NOT resolved - repair executed but verification failed"
         return inc
 
+    _notify(on_event, "verify", "ok",
+            f"verification passed: health ok, fast set {post_fast.pass_rate:.0%} "
+            f"in {post_fast.total_s:.1f}s, repair applied, scope respected, "
+            f"corpus unchanged")
     inc.status = IncidentStatus.RESOLVED
     inc.resolved_at = datetime.now(UTC).isoformat(timespec="seconds")
     restored = action.target_settings.get("rerank_threshold")

@@ -35,7 +35,7 @@ help:
 	@echo   lint              ruff check + eslint
 	@echo   format            ruff format + fix
 	@echo   types             mypy --strict + tsc --noEmit
-	@echo   test              pytest
+	@echo   test              pytest + console vitest
 	@echo   socket-test       prove Docker socket access
 	@echo   check             lint + types + test. THE GATE.
 	@echo.
@@ -98,6 +98,7 @@ types:
 
 test:
 	$(UV) run pytest -q
+	cd $(CONSOLE) && pnpm test
 
 socket-test:
 	$(UV) run pytest -q -m docker -v
@@ -106,7 +107,10 @@ test-integration:
 	@echo Not implemented until P3.
 	@exit 1
 
-check: lint types test
+# gen-client runs FIRST so `types` checks the console against a freshly
+# generated client. A backend schema change therefore fails the gate here
+# rather than at runtime in the browser.
+check: gen-client lint types test
 	@echo check: OK
 
 # --- Database ----------------------------------------------------------------
@@ -122,8 +126,8 @@ migration:
 # --- Codegen -----------------------------------------------------------------
 
 gen-client:
-	@echo Not implemented until P5.
-	@exit 1
+	$(UV) run python -m kavach.openapi
+	cd $(CONSOLE) && pnpm gen:client
 
 # --- Demo and measurement ----------------------------------------------------
 

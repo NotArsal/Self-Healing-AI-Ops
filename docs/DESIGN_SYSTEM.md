@@ -382,6 +382,29 @@ Non-negotiable. The console is read on a projector by people who did not build i
 
 ---
 
+## 10.1 Implemented in P4, and where it knowingly differs
+
+The console implements §2–§6 as written: tokens as CSS variables and TS
+constants, both themes with dark primary, the type scale, the 4px spacing
+scale, radius-encodes-hierarchy, surface-and-border elevation, and the three
+zones. §7 components exist except where the thing they describe does not.
+
+| § | Difference | Why |
+|---|---|---|
+| 7.9 Mode switch | Built as an **indicator, not a segmented control** | There is nothing to switch to. `permit()` does not exist, the loop reads no mode, and a control that appeared to change a safety posture while changing nothing would be worse than none. It states in words that the mode is configuration rather than an enforced gate. The control arrives with the thing it controls, in P6 |
+| 7.7 Approval dialog | Not built | There is no approval flow to drive it (P6) |
+| 7.10 Audit entry | The history table reads **incidents**, not an audit log | No hash-chained log exists yet (P6). The table is deliberately not called an audit view |
+| 7.11 Metric readout | Not built | MTTD/MTTR are not persisted across incidents, so there is nothing to read |
+| 7.8 Verification strip | Three probes render; **the SLO-window probe is permanently pending** | Only two of the three `FR-07` probes are implemented. Hiding the third would make a two-probe verification look complete |
+| 6 Layout | A **fourth** zone: health sits between the rail and the stream | The P4 brief puts system health in the left zone. The fixed widths were re-derived so the row still fits 1280px — the first attempt overflowed by 8px, which a test now guards |
+| 6 Breakpoints | Below 1024 the inspector **stacks below** rather than becoming an overlay drawer | Every zone stays reachable; nothing hides behind a control that does not exist yet |
+
+Fonts are self-hosted from npm (`geist`, `@fontsource/jetbrains-mono`) rather
+than fetched from a font CDN, because the demo has to work offline and a
+build-time webfont fetch is a network dependency in the build.
+
+---
+
 ## 11. Anti-patterns
 
 Specific things not to generate in this product. These are the tells.
