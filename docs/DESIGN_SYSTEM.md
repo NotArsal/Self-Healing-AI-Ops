@@ -12,7 +12,9 @@
 
 | In scope | Out of scope |
 |---|---|
-| `apps/console/` — the Kavach operations console, Next.js 15 / Tailwind v4 / shadcn/ui | **The system under management's frontend.** `Simple_RAG-Pipeline` ships its own Next.js 14 / Tailwind 3 / lucide-react chat UI (`PRD.md` §5.1). It is an independent application with its own conventions |
+| `apps/console/` — the Kavach operations console, Next.js 15 / Tailwind v4 / shadcn/ui | **The system under management's frontend.** `Simple_RAG-Pipeline`, the first reference workload, ships its own Next.js 14 / Tailwind 3 / lucide-react chat UI (`PRD.md` §5.1). It is an independent application with its own conventions |
+
+**The console is a Kavach surface, not a RAG surface.** It renders incidents, evidence, diagnoses, actions and verification — the generic vocabulary of `ARCHITECTURE.md` §1.3. Where it currently shows workload-specific rows (`threshold`, `corpus`, a "grounded" case result), that is the first adapter's vocabulary leaking into a generic view, and it is recorded as debt in §1.4. Do not add more of it: a second workload must not require a second console.
 
 Do not restyle, retokenise, or "bring into line" the target's UI. It is not a Kavach surface, it is the application Kavach is watching, and changing it is outside the ten permitted target additions (`PRD.md` §5.2). `AGENTS.md` § Target boundary rule 11 says the same thing from the other direction.
 

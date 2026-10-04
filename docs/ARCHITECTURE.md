@@ -9,7 +9,9 @@
 
 ## 1. System overview
 
-Kavach is a **control plane** that observes and acts on a separate **system under management (SUM)**. The SUM is `Simple_RAG-Pipeline`, a pre-existing RAG application in its own repository (`PRD.md` §5.1). The two never share a process, a codebase, or a database. The only paths between them are telemetry flowing in and a narrow, allow-listed set of actions flowing out.
+Kavach is a **general-purpose control plane** that observes and acts on a separate **system under management (SUM)**. The SUM is replaceable by design: it is identified by a manifest, reached through named operations, and never linked into Kavach's process. The two never share a process, a codebase, or a database. The only paths between them are telemetry flowing in and a narrow, allow-listed set of actions flowing out.
+
+**The SUM in this document is `Simple_RAG-Pipeline`, the first reference workload** — a pre-existing RAG application in its own repository (`PRD.md` §5.1). It is the workload Kavach is *validated against*, not the workload Kavach is *for*. Read every concrete RAG name below — `rerank_threshold`, retrieval similarity, corpus — as "what the first adapter supplies", not as a control-plane concept. §1.2 draws the split, §1.3 names the contracts, and §1.4 lists, without softening, the places where the implementation has not yet earned it.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -78,6 +80,76 @@ Note two deliberate properties of that diagram:
 | **Decision engine (shadow)** | Laya's independent answer to the same decisions; agreement logging | Anything binding. It never gates (`PRD.md` §7.1) |
 
 The separation that matters: **the graph decides, the safety engine permits, the executor acts.** No component does two of those three.
+
+---
+
+### 1.2 Generic core, workload adapters — and where the seam is real today
+
+Kavach is a **general-purpose self-healing control plane for containerised AI
+workloads**. `Simple_RAG-Pipeline` is the **first reference workload**: the
+system Kavach is validated against, not the system Kavach is for.
+
+```
+                          KAVACH
+            general AI self-healing control plane
+        detect → evidence → diagnose → validate → decide
+                 → execute → verify → resolve
+                              │
+                   generic contracts (§1.3)
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+   RAG workload         agent workload        ML / CV workload
+        │                     │                     │
+  Simple_RAG-Pipeline      (none yet)            (none yet)
+   ← implemented and          ← architectural scope only; no adapter
+     validated: F06             exists, and none is claimed
+```
+
+**What is actually true today, stated plainly so nobody reads the diagram as a
+capability claim:** one workload is onboarded, one fault class is implemented,
+and one repair action exists. Everything to the right of `Simple_RAG-Pipeline`
+is architecture, not code. Kavach does not support agent or vision workloads;
+it is being built so that supporting one means writing an adapter rather than
+forking the control plane.
+
+### 1.3 The six contracts
+
+These are the seams a second workload would integrate through. Each row says
+what the contract is, and — honestly — whether the implementation has the seam
+or merely has the behaviour.
+
+| # | Contract | What is generic | Seam status in code |
+|---|---|---|---|
+| 1 | **SUM / project** | A manifest declares identity, compose project, services, SLO expressions, allow/deny lists and a control interface. `TargetClient` exposes *named* operations, never an arbitrary path. Preflight is 24 read-only checks | **Mostly real.** `manifest.py` is workload-agnostic except `corpus_fingerprint`, `embedding_model` and the `embed_model` deny rule, which are RAG concepts in a generic validator |
+| 2 | **Telemetry / evidence** | `EvidenceFrame` of `(eid, kind, name, value, expected, note)` items with stable citable IDs. Kinds — metric, config, verification, health, log, baseline, service — are workload-neutral | **Frame generic, sources not.** `METRIC_QUERIES` in `rca/evidence.py` hardcodes `ragapp_*` PromQL. A second workload needs its own query set behind the same frame |
+| 3 | **Diagnosis** | `fault_class`, `fault_name`, `service`, `confidence`, `evidence_ids`, `reasoning`, `candidate_repair`, `rejected_alternatives` — a closed vocabulary, schema-constrained | **Fully generic.** `rca/schema.py` contains no RAG concept at all. This is the cleanest seam in the system |
+| 4 | **Action / executor** | `prepare()` captures a pre-state witness, `execute()`, `invert()`, `verify_applied()`, `verify_restored()`, `unchanged_elsewhere()`, plus an idempotency key. An action without a recorded inverse cannot be constructed | **Pattern generic, no registry.** `config_rollback.py` is one concrete action; the `Action` protocol and registry arrive with the safety engine |
+| 5 | **Verification** | A health probe plus N deterministic cases scored locally, inside a declared budget, with no cloud key | **Mostly generic.** `verification/fast.py`'s mechanism is workload-neutral; the `sources_block` check is a RAG grounding assertion and belongs in a workload probe |
+| 6 | **Safety / policy** | `permit()` over ownership, deny-list, allow-list, inverse, confidence, risk tier, blast radius, breaker, mode | **Not built.** §6.1–§6.3 describe it; nothing implements it. This is the next phase |
+
+### 1.4 Where the implementation is still RAG-coupled
+
+Recorded as debt, not hidden. None of this is wrong for a one-workload system —
+it is wrong for the system the roadmap says Kavach becomes, and it is cheapest
+to name now.
+
+| Module | Coupling | Why it matters | Closes in |
+|---|---|---|---|
+| **`loop.py`** | Imports `detection.retrieval_collapse` and `build_rollback_for_retrieval_collapse` **directly**; `Incident` carries `corpus_before` / `corpus_after`; `_corpus()` queries `ragapp_corpus_chunks` by name; the signature takes `baseline_rerank_threshold` | **The orchestrator is a RAG loop, not a generic lifecycle with a RAG adapter plugged in.** The generic lifecycle currently exists as a docstring, not as a seam | P5 — the detector and action become registry lookups |
+| **`api/schemas.py`** | `corpus`, `chunks`, `files` and `rerank_threshold` are first-class fields on the public wire contract | A vision workload would have to misreport or extend the schema. These belong in a per-workload extras map | P5 |
+| **`api/routes.py`, `api/runner.py`** | The generic HTTP layer queries `ragapp_corpus_*` and reads `rerank_threshold` from settings | Same reason; the API should ask the adapter, not Prometheus directly | P5 |
+| **`rca/evidence.py`** | `METRIC_QUERIES` / `HEALTHY_EXPECTATION` are module-level RAG constants inside the generic collector | The frame is reusable; the query set is not, and nothing separates them | P5 |
+| **`rca/validate.py`** | Rule 10 (`corpus_intact`) is a RAG invariant in the generic validator; `PERMITTED_REPAIR` is keyed off the RAG detector's constant | Rules 1–9 are workload-neutral. Rule 10 is a workload precondition and should be supplied by the adapter | P5 |
+| **`onboarding/baseline.py`** | Captures `rerank_threshold` and corpus counts as named concepts | Baseline capture is generic; *what* is worth capturing is per workload | P6 |
+| **Console** | `SystemHealth` renders "threshold" and "corpus" as fixed rows; the verification strip labels a case "grounded" | The console should render whatever the adapter declares, not a fixed RAG vocabulary | P6 |
+
+**The rule going forward:** a new workload adds an adapter — a detector, an
+evidence query set, a repair action with an inverse, and a verification probe —
+and changes **nothing** in `rca/schema.py`, `llm/`, `api/events.py`,
+`loop.py`'s control flow, or the safety engine. If a change to the core is
+needed to support a second workload, the seam is in the wrong place and the
+seam is what gets fixed.
 
 ---
 

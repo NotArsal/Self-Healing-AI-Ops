@@ -16,6 +16,29 @@
 
 **One line:** Kavach watches an AI application, works out why it broke, fixes it, and proves the fix worked — without waking anyone up.
 
+**Product scope — read this before anything else.** Kavach is a
+**general-purpose autonomous self-healing operations platform for containerised
+AI workloads**. It is not a self-healing RAG system.
+
+`Simple_RAG-Pipeline` is the **first reference workload**: the system under
+management Kavach is validated against. It is one implementation of the SUM
+side of the contract, not the product.
+
+| | |
+|---|---|
+| **Kavach** | The general control plane: detect, collect evidence, diagnose, validate, decide, execute under a risk gate, verify, roll back |
+| **`Simple_RAG-Pipeline`** | The first reference workload / validation target |
+| **Architectural scope** | RAG applications, LLM applications, AI agents, multimodal systems, CV inference services, ML inference APIs, other containerised AI workloads |
+| **Implemented and validated today** | **One** workload, **one** fault class (`F06`), **one** repair action |
+
+**The last row is the honest one and it governs the other three.** Kavach does
+not currently support agent, multimodal or vision workloads. No adapter for
+them exists and none is claimed. What exists is an architecture intended to
+make adding one a matter of writing an adapter rather than forking the control
+plane — and `ARCHITECTURE.md` §1.4 lists, by module, every place that intent is
+not yet matched by the code. Nothing in this document should be read as a
+production capability for a workload type that has never been onboarded.
+
 **Vision:** Observability tools tell you something is wrong. Kavach closes the loop. It treats an AI application as a system that can be driven back to a declared healthy state by an agent that reasons over evidence, picks a bounded repair, executes it under a risk gate, verifies the outcome against an SLO contract, and rolls back automatically when verification fails.
 
 **What makes it different.** Two things, stated narrowly because the field is more populated than it first appears (see §2.2):
@@ -108,16 +131,19 @@ These decisions constrain everything downstream. Do not widen them without an ex
 
 | Decision | v1 | Deferred |
 |---|---|---|
-| **System under management** | `Simple_RAG-Pipeline`, an existing local `docker-compose` RAG application (§5.1) | Kubernetes, Vercel/Render/Netlify deploy APIs, multi-cloud |
+| **System under management** | **One** SUM: `Simple_RAG-Pipeline`, an existing local `docker-compose` RAG application, as the first reference workload (§5.1) | A second concurrent SUM; non-RAG workload adapters; Kubernetes, Vercel/Render/Netlify deploy APIs, multi-cloud |
 | **Runtime** | Docker Compose only | Kubernetes (`RuntimeAdapter` is the seam) |
 | **Optimisation target** | A convincing live demo for review | Benchmark runs against AIOpsLab / RCAEval |
 | **Default mode** | **`SIMULATION`**, globally and for every newly onboarded project (§5.4) | — |
 | **Autonomy ceiling** | A project explicitly moved to `AUTONOMOUS` executes **only LOW-risk** actions; MEDIUM goes to sandbox-then-approval, HIGH goes to human, UNKNOWN never auto-executes | Autonomous MEDIUM after a fine-tuned decision model and sufficient labelled outcomes |
 | **Fault catalogue** | **Eight** classes: `F01`–`F03`, `F05`–`F09` (§6) | `F04`, index rebuild, anything outside the catalogue |
 
-### 5.1 The System Under Management (SUM)
+### 5.1 The first System Under Management (SUM)
 
-**Kavach does not ship its own target application.** The SUM is a pre-existing, independently-developed RAG application:
+**Kavach does not ship its own target application.** The SUM is replaceable by
+design — it is identified by a manifest and reached through named operations
+(`ARCHITECTURE.md` §1.2–§1.3). v1 onboards exactly one, and it is a pre-existing,
+independently-developed RAG application:
 
 | | |
 |---|---|
@@ -635,6 +661,7 @@ Explicitly not built. Listing these protects the schedule.
 | **Windows demo machine.** Docker socket semantics, `host.docker.internal`, and the nvidia GPU reservation all differ. | The executor's only route to the target may not mount | `PL-03`; validated in Phase 0 |
 | **Sandbox cloning is harder than it looks** (ports, volumes, state). | `F-SBX` slips | P1, not P0. The approval path works without it |
 | **Four people, one semester.** | Over-commitment | The P0 set is 13 features over 8 faults. Everything P1 and below can be cut and the demo still works |
+| **The reference workload's corpus drifted, and nothing detected it.** Observed 2026-10-04: the target holds **162 chunks / 3 files**, not the **30 / 2** this document's fingerprint (§5.1), `kavach.yaml`, and every baseline capture record. A third document, `TY Syllabus_CSE_AI_AY(26_27) SEM I - Final (1).pdf` (132 chunks, ids 57–188), was added between sessions, after the two baseline papers at ids 27–56. | **Reproducibility.** The fast-verification cases were chosen empirically against the two-paper corpus, so every F06 number measured before the drift was measured on a different system than the one running now. Measured cost so far: the fast set still passes 3/3 but takes **73.07s against the 120s budget, up from ~18s** — margin down from 102s to 47s. One more document that size and verification fails on *time*, not quality | **UNRESOLVED, and deliberately not acted on.** No corpus change, no re-baseline, no fast-set change, no threshold change. Two options, both needing an explicit decision: re-baseline and update the fingerprint in §5.1 and `kavach.yaml`, or remove the third document to restore the documented state. **The deeper finding is that no check caught this** — the loop's corpus guard compares before/after *within* one incident, so absolute drift between sessions is invisible to it. A preflight check comparing the live corpus against the manifest fingerprint would have |
 
 ---
 

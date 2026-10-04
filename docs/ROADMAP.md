@@ -2,6 +2,13 @@
 
 > Build order, acceptance criteria, and owner tracks.
 > Read with `PRD.md` (what) and `ARCHITECTURE.md` (how). This file is **when** and **in what order**.
+>
+> **Every phase below expands Kavach's healing capability.** Kavach is a
+> general control plane for containerised AI workloads; `Simple_RAG-Pipeline`
+> is the first reference workload it is validated against (`PRD.md` §1,
+> `ARCHITECTURE.md` §1.2). "Add `F07`" means teaching the platform a fault
+> class, implemented through a workload adapter — not building more of a RAG
+> system.
 
 ---
 
@@ -18,7 +25,7 @@
 
 **1. Vertical, not horizontal.** Never build a layer across all fault classes. Build one fault class through every layer, then the next. A horizontal build means nothing works until the final week.
 
-*Honest note on P2/P3:* the `F06` slice runs detect → diagnose → repair → verify, but **not** through the safety engine, the audit log or a persisted graph, because none of those exist yet. It is a working loop, not a complete vertical. P6 closes that gap, and it has to close it before a second repair action lands.
+*Honest note on P2/P3:* the `F06` slice runs detect → diagnose → repair → verify, but **not** through the safety engine, the audit log or a persisted graph, because none of those exist yet. It is a working loop, not a complete vertical. P5 closes that gap, and it has to close it before a second repair action lands.
 
 **2. Build what breaks before what fixes.** The fault injector shipped with the first fault, in P2, not in a late phase. You cannot test detection without deterministic failure, measure MTTD without a known injection timestamp, or write a single integration test without an injector.
 
@@ -42,8 +49,8 @@ P0 scaffold  ✅
      └─ P2 F06 DETERMINISTIC CLOSED LOOP  ✅ ━━▶ first demoable milestone, reached
          └─ P3 F06 LLM RCA  ✅ ━━▶ the research comparison, recorded
              └─ P4 console  ✅ ━━▶ the loop is now watchable live
-                 ├─ P5 remaining 7 faults ─┐
-                 └─ P6 safety ─────────────┤ ─ P7 git · memory · Laya
+                 └─ P5 SAFETY ENGINE ◀━ gate before any second repair action
+                     └─ P6 remaining 7 faults ─┬─ P7 git · memory · Laya
                                                           │
                                                           └─ P8 measure, report, demo
 ```
@@ -55,10 +62,27 @@ P0 scaffold  ✅
 | P2 | **`F06` deterministic closed loop** | 3–6 | ✅ **`F06` auto-heals end to end with a working rollback; 20/20 inject→heal→verify cycles** |
 | P3 | **`F06` LLM RCA** | 6–8 | ✅ **Schema-validated diagnosis behind a deterministic gate; measured against the P2 baseline** |
 | P4 | Console | 6–9 | ✅ **Loop watchable live over WebSocket, no refresh; generated API client in the gate** |
-| P5 | The remaining seven faults | 8–11 | Each a complete vertical slice |
-| P6 | Full safety engine | 9–11 | Three modes, ownership, breaker, blast radius |
+| P5 | **Full safety engine** | 8–10 | Three modes, ownership, breaker, blast radius — **and the action registry every later repair goes through** |
+| P6 | The remaining seven faults | 10–12 | Each a complete vertical slice, each added as an adapter |
 | P7 | Git isolation, knowledge base, Laya shadow | 11–13 | `make bench` emits the metrics table |
 | P8 | Measure, report, rehearse | 12–14 | Demo runs clean 3× in a row |
+
+**Resequenced 2026-10-04: the safety engine moved ahead of the remaining
+faults.** The previous order was P5 faults, then P6 safety — while P6's own
+text said `permit()` "must land before any second repair action or any
+unattended invocation". The roadmap contradicted itself, and the earlier order
+would have shipped seven new repair actions through a gate that did not exist.
+
+Two reasons the swap is the right correction rather than a cosmetic one:
+
+1. **Safety.** Today exactly one action can run, it is project-scoped and
+   deny-list-safe by construction, and the loop only runs when an operator
+   asks. Every one of those properties stops being true with a second action.
+2. **It is also the generalisation work.** The safety engine is where the
+   `Action` protocol, the registry and `permit()` get built — the seams a
+   second fault class should be added *through*. Doing faults first would mean
+   copying the `F06` pattern seven times and then retrofitting a registry under
+   it (`ARCHITECTURE.md` §1.4).
 
 **P2 and P3 did not deliver everything their earlier drafts listed.** The parts
 that were deliberately not built — LangGraph, the `permit()` safety engine, the
@@ -79,7 +103,7 @@ loop, not a *complete* platform.
 - `git init` the Kavach repository. It is not one today, and `docs/decisions/` is meaningless without it
 - Repo at the structure in `ARCHITECTURE.md` §3 (directories with `.gitkeep`, **no stub code**)
 - `Makefile` with every target in `AGENTS.md`, failing loudly where unimplemented
-- `infra/docker-compose.yml`: postgres+pgvector, prometheus, otel-collector, api. **No Ollama, no second Prometheus** (`ARCHITECTURE.md` §2.4), and **no Redis** — nothing in Phase 0 uses it, so it arrives with the phase whose checks need it — console pub/sub in P4, persisted idempotency keys in P6
+- `infra/docker-compose.yml`: postgres+pgvector, prometheus, otel-collector, api. **No Ollama, no second Prometheus** (`ARCHITECTURE.md` §2.4), and **no Redis** — nothing in Phase 0 uses it, so it arrives with the phase whose checks need it — console pub/sub in P4, persisted idempotency keys in P5
 - FastAPI app with `/healthz` only; Next.js app with one page
 - `pyproject.toml` (uv, ruff, mypy strict, pytest), `package.json` (pnpm, eslint, prettier, vitest)
 - Pre-commit hooks, `.env.example` with placeholders only
@@ -248,17 +272,17 @@ histogram buckets topped out at 1s against 6.5s requests, so
 
 | Not built | Why | Now in |
 |---|---|---|
-| `graph/` — LangGraph with `PostgresSaver` | A hand-rolled `run_once()` proved the mechanism; a graph with no persistence and no approval interrupt buys nothing yet | P6 |
-| `safety/` — the `permit()` gate, risk tiers, blast radius, breaker, writer lock as its own module | The one implemented action is project-scoped and deny-list-safe by construction. A gate with one caller and one action is an interface with one implementation | P6 |
-| The three operating modes, `SIMULATION` as default | There is no mode plumbing to default: the loop is invoked explicitly by a harness, never on a timer, so it cannot act unattended | P6 |
-| `audit/` — the append-only hash-chained log | Nothing persists yet | P6 |
+| `graph/` — LangGraph with `PostgresSaver` | A hand-rolled `run_once()` proved the mechanism; a graph with no persistence and no approval interrupt buys nothing yet | P5 |
+| `safety/` — the `permit()` gate, risk tiers, blast radius, breaker, writer lock as its own module | The one implemented action is project-scoped and deny-list-safe by construction. A gate with one caller and one action is an interface with one implementation | **P5** |
+| The three operating modes, `SIMULATION` as default | There is no mode plumbing to default: the loop is invoked explicitly by a harness, never on a timer, so it cannot act unattended | P5 |
+| `audit/` — the append-only hash-chained log | Nothing persists yet | P5 |
 | Incident persistence, MTTD/MTTR in the database | `Incident` is an in-memory dataclass; runs are recorded as JSON artifacts under `harness/reports/` | P4 |
 | `ingestion/` — an OTLP receiver inside Kavach | Metrics go **direct** to `/metrics` and are scraped by Prometheus (`ARCHITECTURE.md` §4.1); only traces use OTLP, and nothing in the loop reads a trace yet | P4 |
 | `detection/slo.py` on a 15s tick | PromQL instant queries exist and are used; there is no scheduler, because the harness drives every run | P4 |
-| Redis | Still nothing connects to it. It arrives with console pub/sub (P4) and persisted idempotency keys (P6) | P4 / P6 |
+| Redis | Still nothing connects to it. It arrives with console pub/sub (P4) and persisted idempotency keys (P5) | P4 / P5 |
 | The git adapter | `rollback_config` writes through the target's HTTP config interface, not a file, so `FR-05` has not been triggered yet | P7 |
-| `harness/inject.py` CLI and `make inject FAULT=F06` | The injector is used as a Python context manager by the harnesses; a CLI wrapper had no second caller | P5, with the second fault |
-| The 120s SLO-window verification probe | Fast verification is the health probe plus the 3 quality cases. The SLO-window probe is the second of the three `FR-07` probes and is **still missing** | P6 |
+| `harness/inject.py` CLI and `make inject FAULT=F06` | The injector is used as a Python context manager by the harnesses; a CLI wrapper had no second caller | P6, with the second fault |
+| The 120s SLO-window verification probe | Fast verification is the health probe plus the 3 quality cases. The SLO-window probe is the second of the three `FR-07` probes and is **still missing** | P5 |
 
 **This is the project's de-risking milestone and it is banked.** One fault, zero
 intelligence — but it detects a silent failure, repairs it, proves the repair,
@@ -358,7 +382,7 @@ and the gate untestable.
 - [x] **Comparison recorded:** P2 deterministic mapping vs P3 LLM RCA on the same injection
 - [x] RCA completes well under the 45s `PF-02` budget — 1.7 / 1.9 / 2.2s over three reps
 - [x] Unit tests run with **zero network calls**; recorded responses only
-- [ ] **With `F01` injected, RCA still completes** — not testable until `F01` has an injector (P5). The client-side assertion that Kavach bypasses Toxiproxy is in place; the end-to-end proof is not
+- [ ] **With `F01` injected, RCA still completes** — not testable until `F01` has an injector (P6). The client-side assertion that Kavach bypasses Toxiproxy is in place; the end-to-end proof is not
 
 **Live result** — real `llama3.2` on the host Ollama, real `F06` injection:
 
@@ -381,7 +405,7 @@ and the gate untestable.
 beaten.** Both reach the same correct repair; RCA costs ~2.5s and adds cited,
 auditable reasoning. That is why P2 stays the baseline and the fallback. The
 comparison only becomes interesting across several fault classes, where a dict
-lookup cannot discriminate — which is P5's job, and the real test of this
+lookup cannot discriminate — which is P6's job, and the real test of this
 phase's claim.
 
 ### Known limitation — confidence is not calibrated
@@ -495,52 +519,21 @@ Docker, or name anything a future `permit()` would have to authorise.
 
 ---
 
-## P5 — The remaining seven fault classes
+## P5 — The full safety engine ⭐ NEXT
 
-**Weeks 8–11 · Owner: target track leads, control-plane supports**
+**Weeks 8–10 · Owner: control-plane track**
 
-`F06` shipped in P2. Seven remain. One complete vertical slice each: injector → detection signal → RCA path → repair action + inverse → verification probe → integration test. **Never start the next until the previous passes.**
-
-**Each new fault also needs the `harness/inject.py` CLI that P2 skipped** — a second caller finally justifies it.
-
-| Order | Fault | Note |
-|---|---|---|
-| 1 | `F01` primary LLM endpoint outage | Toxiproxy from P1; gives the LOW-risk autonomous demo path of `PRD.md` §8.2 |
-| 2 | `F08` config regression | Reuses the config interface already built for `F06` |
-| 3 | **`F07` prompt regression** | **Needs the git adapter extended to prompt blobs.** Prompts were externalised in P1, so this is the git work, not the extraction |
-| 4 | **`F09` token blowout** | Reuses `F07`'s machinery; token capture landed in P1 |
-| 5 | `F02` latency degradation | Toxiproxy already in place. **Confirm the ~30s timeout from P1 holds** — at 1200s this is a hang, not a fault |
-| 6 | `F05` pool exhaustion | Watch for the target's pre-existing connection leak confounding results (`PRD.md` §12) |
-| — | ~~`F03` crash-loop / OOM~~ | **Deferred, not scheduled.** `restart: always` means Docker heals it first, and removing that would weaken the target's resilience to manufacture a fault. See `PRD.md` §6.4 |
-
-**There is no `F04`** — the target has no cache (`PRD.md` §6.1). Do not add Redis to the target to create one.
-
-**`F03` is not in this phase.** If a deterministic, honest crash-loop injector is found (a memory limit that OOMs on every boot, proven over 20 cycles), it can be added as an eighth slice. **Do not write a placeholder injector to make the catalogue look complete** — `AGENTS.md` forbids it, and a fake injector corrupts every number derived from it.
-
-**Acceptance per fault**
-- [ ] Injector is deterministic, reverts cleanly, 20 cycles stable
-- [ ] Detection fires within 30s
-- [ ] Diagnosis names the right class in ≥8 of 10 runs
-- [ ] Repair executes; the inverse restores prior state exactly, verified against the pre-state witness
-- [ ] All three fast verification probes pass
-- [ ] Integration test green in CI
-- [ ] Forced-verification-failure test green
-- [ ] Ownership and deny-list checks still pass for this fault's action
-
-**Cut line — this is the one that matters.** `F06`–`F09` carry your novelty claim (`PRD.md` §2.2), and `F06` is already banked from P2. If time runs out, **cut `F02` and `F05` — never `F07` or `F09`.** Five faults including all four novel ones beats eight faults where the novel ones are half-finished.
-
----
-
-## P6 — The full safety engine
-
-**Weeks 9–11 · Owner: control-plane track · Parallel with P5**
+> **Moved ahead of the fault classes on 2026-10-04.** It used to sit after
+> them, which contradicted its own entry condition. Nothing that adds a second
+> repair action may start before this phase lands.
 
 > **Correction to the earlier draft**, which assumed ownership, the deny-list
 > and the allow-list were already real from the first loop. They are not.
 > **No `safety/` package exists.** P2 shipped one action that is project-scoped
 > and deny-list-safe by construction, which is not the same as a gate. This
 > phase builds `permit()` from nothing, and it must land before any second
-> repair action or any unattended invocation.
+> repair action or any unattended invocation — which is why it now comes
+> first.
 
 This phase also picks up what P2 deferred: LangGraph with `PostgresSaver`, the
 undo stack as its own module, the hash-chained audit log, the three operating
@@ -578,6 +571,52 @@ probe — the one `FR-07` probe still missing.
 - [ ] No route, parameter or adapter accepts an arbitrary command string (`FR-27`) — grep to confirm
 
 **Cut line:** the sandbox is the most likely thing to overrun — ports, volumes and stateful services make it harder than it reads. The approval path works without it; the proposal simply shows "no sandbox result". Drop the sandbox before dropping anything else here.
+
+---
+
+## P6 — The remaining seven fault classes
+
+**Weeks 10–12 · Owner: target track leads, control-plane supports**
+
+> **Entry condition: P5 has landed.** Every fault here adds a repair action,
+> and a repair action without `permit()` is the thing P5 exists to prevent.
+>
+> **Each fault is an adapter, not a fork.** A new class supplies a detector, an
+> evidence query set, a repair action with its inverse, and a verification
+> probe — and changes nothing in `rca/schema.py`, `llm/`, or the safety engine.
+> If the core has to change, the seam was in the wrong place
+> (`ARCHITECTURE.md` §1.3–§1.4). The first fault added after P5 is the real
+> test of whether those seams exist.
+
+`F06` shipped in P2. Seven remain. One complete vertical slice each: injector → detection signal → RCA path → repair action + inverse → verification probe → integration test. **Never start the next until the previous passes.**
+
+**Each new fault also needs the `harness/inject.py` CLI that P2 skipped** — a second caller finally justifies it.
+
+| Order | Fault | Note |
+|---|---|---|
+| 1 | `F01` primary LLM endpoint outage | Toxiproxy from P1; gives the LOW-risk autonomous demo path of `PRD.md` §8.2 |
+| 2 | `F08` config regression | Reuses the config interface already built for `F06` |
+| 3 | **`F07` prompt regression** | **Needs the git adapter extended to prompt blobs.** Prompts were externalised in P1, so this is the git work, not the extraction |
+| 4 | **`F09` token blowout** | Reuses `F07`'s machinery; token capture landed in P1 |
+| 5 | `F02` latency degradation | Toxiproxy already in place. **Confirm the ~30s timeout from P1 holds** — at 1200s this is a hang, not a fault |
+| 6 | `F05` pool exhaustion | Watch for the target's pre-existing connection leak confounding results (`PRD.md` §12) |
+| — | ~~`F03` crash-loop / OOM~~ | **Deferred, not scheduled.** `restart: always` means Docker heals it first, and removing that would weaken the target's resilience to manufacture a fault. See `PRD.md` §6.4 |
+
+**There is no `F04`** — the target has no cache (`PRD.md` §6.1). Do not add Redis to the target to create one.
+
+**`F03` is not in this phase.** If a deterministic, honest crash-loop injector is found (a memory limit that OOMs on every boot, proven over 20 cycles), it can be added as an eighth slice. **Do not write a placeholder injector to make the catalogue look complete** — `AGENTS.md` forbids it, and a fake injector corrupts every number derived from it.
+
+**Acceptance per fault**
+- [ ] Injector is deterministic, reverts cleanly, 20 cycles stable
+- [ ] Detection fires within 30s
+- [ ] Diagnosis names the right class in ≥8 of 10 runs
+- [ ] Repair executes; the inverse restores prior state exactly, verified against the pre-state witness
+- [ ] All three fast verification probes pass
+- [ ] Integration test green in CI
+- [ ] Forced-verification-failure test green
+- [ ] Ownership and deny-list checks still pass for this fault's action
+
+**Cut line — this is the one that matters.** `F06`–`F09` carry your novelty claim (`PRD.md` §2.2), and `F06` is already banked from P2. If time runs out, **cut `F02` and `F05` — never `F07` or `F09`.** Five faults including all four novel ones beats eight faults where the novel ones are half-finished.
 
 ---
 
@@ -650,8 +689,8 @@ The phase most teams skip and most reviewers notice.
 
 | Track | Phases | Owns |
 |---|---|---|
-| **Control plane** | P0, P2, P3, P6 | `graph/`, **`safety/`, `executor/`, `verification/`** |
-| **Target + faults** | P1, P2, P5 | The target's instrumentation, `harness/faults/` |
+| **Control plane** | P0, P2, P3, P5 | `graph/`, **`safety/`, `executor/`, `verification/`** |
+| **Target + faults** | P1, P2, P6 | The target's instrumentation, `harness/faults/` — and the workload adapters a new fault class needs |
 | **Console** | P4 | `apps/console/` |
 | **Evaluation** | P7, P8 | `evaluation/`, `harness/report.py`, all baselines |
 
@@ -681,7 +720,9 @@ Three failure modes to watch for: building adjacent phases because they appear i
 | End of week 1 | Does the docker socket work from inside a container on the demo machine? | ✅ **Passed** |
 | End of week 3 | Does `F06` inject and revert deterministically, 20×, with the metrics moving? | ✅ **Passed** — 20/20 |
 | End of week 6 | Does one fault auto-heal end to end with a working rollback? | ✅ **Passed** — `F06`, with the LLM RCA layer on top |
-| End of week 8 | Are `F07` and `F09` started? | Drop `F02` and `F05` now, not later. **Note:** the safety engine (P6) must land before the second repair action, so it competes for these weeks |
+| End of week 7 | Does a second workload type look like an adapter, or a fork? | Fix the seam before P6 multiplies the coupling (`ARCHITECTURE.md` §1.4) |
+| End of week 8 | **Has the safety engine started?** | **Stop.** Nothing that adds a repair action may begin until `permit()` exists (P5) |
+| End of week 10 | Are `F07` and `F09` started? | Drop `F02` and `F05` now, not later |
 | End of week 11 | Does `make bench` run unattended? | Cut the Laya shadow, protect P8 |
 | End of week 12 | Has the human baseline been run? | Do it this week. It is 2 hours and it is load-bearing |
 
