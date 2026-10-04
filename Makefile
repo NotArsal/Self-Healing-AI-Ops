@@ -12,7 +12,14 @@
 
 CP      := apps/control-plane
 CONSOLE := apps/console
-COMPOSE := docker compose -f infra/docker-compose.yml
+# NOT 8080. `make up` publishes the container there, and on Windows a local
+# uvicorn can bind the same port without error and shadow it. See .env.example.
+DEV_API_PORT ?= 8081
+# --env-file is REQUIRED, not decoration. Compose reads `.env` from the
+# compose file's directory, so the repo-root .env was silently inert and
+# every ${VAR} fell back to its default - which looked fine only because
+# every var had one. `make setup` creates .env, so this path always exists.
+COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml
 UV      := uv --directory $(CP)
 
 .DEFAULT_GOAL := help
@@ -43,9 +50,14 @@ help:
 
 # --- Setup -------------------------------------------------------------------
 
-setup:
+setup: .env
 	$(UV) sync --extra dev
 	cd $(CONSOLE) && pnpm install
+
+# Compose needs this file to exist. Never overwritten: a real .env wins.
+.env:
+	@echo Creating .env from .env.example - set KAVACH_TARGET_ADMIN_TOKEN in it.
+	cp .env.example .env
 
 # --- Stacks ------------------------------------------------------------------
 
@@ -75,7 +87,8 @@ target-down:
 # --- Development -------------------------------------------------------------
 
 dev-api:
-	$(UV) run uvicorn kavach.main:app --reload --port 8080
+	@echo Hot-reload API on $(DEV_API_PORT). The NORMAL path is `make up` on 8080.
+	$(UV) run uvicorn kavach.main:app --reload --port $(DEV_API_PORT)
 
 dev-console:
 	cd $(CONSOLE) && pnpm dev

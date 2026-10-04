@@ -6,6 +6,7 @@ grepped for out of call sites.
 """
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -64,7 +65,15 @@ class Settings(BaseSettings):
     target_health_url: str = "http://localhost:8000/healthz"
     target_chat_url: str = "http://localhost:8000/v1/chat"
     target_config_url: str = "http://localhost:8000/v1/admin/config"
-    target_admin_token: str = "local-dev-token"
+    # NO DEFAULT, deliberately. A credential literal in source is a credential
+    # in git history, and this field held one. The target reads the same value
+    # from `KAVACH_ADMIN_TOKEN` (its manifest declares `auth_env`), so the two
+    # sides are configured from the environment and agree by configuration
+    # rather than by a shared constant.
+    #
+    # Empty means the config interface is unreachable: the target answers 401
+    # and the loop escalates instead of writing. That is the correct failure.
+    target_admin_token: str = ""
     target_service_names: str = "backend,db,frontend,toxiproxy,prometheus"
 
     # Floor below which a diagnosis cannot drive a repair. Mirrors the
@@ -75,8 +84,33 @@ class Settings(BaseSettings):
     # console is served from the same origin and CORS is unnecessary.
     console_origin: str = "http://localhost:3001"
 
+    # Where Kavach's own files live: the fast-verification set and the
+    # baseline captures. Empty means "work it out", which is right on a host
+    # checkout and impossible inside the image - see `root()`.
+    kavach_root: str = ""
+
     def target_services(self) -> list[str]:
         return [s.strip() for s in self.target_service_names.split(",") if s.strip()]
+
+    def root(self) -> Path:
+        """The directory Kavach reads its own files from.
+
+        On a host checkout this is the repository root, three levels above this
+        file. Inside the image the package sits at `/app/kavach` with no
+        repository around it, so that ancestor does not exist - and deriving it
+        with a fixed `parents[n]` raised IndexError on the containerised API's
+        first request. Compose therefore sets `KAVACH_ROOT=/app` explicitly,
+        and the fallback below keeps a bare `python -m` run working too.
+        """
+        if self.kavach_root:
+            return Path(self.kavach_root)
+        parents = Path(__file__).resolve().parents
+        # parents[3] is the repo root from apps/control-plane/kavach/config.py;
+        # parents[1] is the package parent when there is no repo above it.
+        return parents[3] if len(parents) > 3 else parents[1]
+
+    def baselines_dir(self) -> Path:
+        return self.root() / "harness" / "baselines"
 
 
 @lru_cache(maxsize=1)

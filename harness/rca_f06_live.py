@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import statistics
 import sys
 import time
@@ -90,7 +91,10 @@ def main() -> int:
     ap.add_argument("--prometheus", default="http://localhost:9091")
     ap.add_argument("--ollama", default="http://localhost:11434")
     ap.add_argument("--model", default="llama3.2")
-    ap.add_argument("--admin-token", default="local-dev-token")
+    # From the environment, never a literal. The same variable compose
+    # passes to the API, and the target reads the matching KAVACH_ADMIN_TOKEN.
+    ap.add_argument("--admin-token",
+                    default=os.environ.get("KAVACH_TARGET_ADMIN_TOKEN", ""))
     ap.add_argument("--reps", type=int, default=3,
                     help="RCA repetitions for latency and determinism")
     ap.add_argument("--json-out", default="")

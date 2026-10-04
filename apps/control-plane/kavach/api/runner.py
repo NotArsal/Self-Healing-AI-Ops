@@ -63,9 +63,9 @@ class NoBaselineError(RuntimeError):
     """No captured known-good value, so there is nothing to roll back to."""
 
 
-def newest_baseline(kavach_root: Path, project: str) -> tuple[float | None, str]:
+def newest_baseline(baselines: Path, project: str) -> tuple[float | None, str]:
     """The rerank_threshold from the most recent capture, and its filename."""
-    d = kavach_root / "harness" / "baselines"
+    d = baselines
     if not d.is_dir():
         return None, ""
     files = sorted(d.glob(f"baseline-{project}-*.json"))
@@ -83,9 +83,8 @@ def newest_baseline(kavach_root: Path, project: str) -> tuple[float | None, str]
 class LoopRunner:
     """Owns the incident history and the one-at-a-time run slot."""
 
-    def __init__(self, settings: Settings, kavach_root: Path) -> None:
+    def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.root = kavach_root
         self._incidents: dict[str, loop.Incident] = {}
         self._order: list[str] = []
         self._lock = threading.Lock()
@@ -105,10 +104,26 @@ class LoopRunner:
         )
 
     def fast_set_path(self) -> Path:
-        return self.root / "apps" / "control-plane" / "kavach" / "verification" / "fast_set.yaml"
+        """The 3-case set, resolved the same way preflight resolves it.
+
+        `resolve_set` tries `<root>/<declared>` then
+        `<root>/apps/control-plane/<declared>`, so one call covers both the
+        host checkout and the image, where the package sits at `/app/kavach`.
+        """
+        declared = "kavach/verification/fast_set.yaml"
+        found = fast.resolve_set(declared, self.settings.root())
+        if found is None:
+            raise FileNotFoundError(
+                f"fast verification set {declared!r} not found under "
+                f"{self.settings.root()}; set KAVACH_ROOT to the directory "
+                f"holding Kavach's own files"
+            )
+        return found
 
     def baseline(self) -> tuple[float | None, str]:
-        return newest_baseline(self.root, self.settings.target_project)
+        return newest_baseline(
+            self.settings.baselines_dir(), self.settings.target_project
+        )
 
     # --- history ------------------------------------------------------------
 

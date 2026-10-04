@@ -21,7 +21,10 @@ $ErrorActionPreference = "Continue"
 $root    = $PSScriptRoot
 $cp      = Join-Path $root "apps\control-plane"
 $console = Join-Path $root "apps\console"
-$compose = @("compose", "-f", (Join-Path $root "infra\docker-compose.yml"))
+# --env-file is REQUIRED: compose reads .env from the compose file's
+# directory, so the repo-root .env is otherwise silently inert.
+$compose = @("compose", "--env-file", (Join-Path $root ".env"),
+             "-f", (Join-Path $root "infra\docker-compose.yml"))
 
 function Invoke-Step([string]$Label, [scriptblock]$Block) {
     Write-Host "==> $Label" -ForegroundColor Cyan
@@ -49,6 +52,12 @@ function Todo([string]$Phase) {
 
 switch ($Target) {
     "setup" {
+        $envPath = Join-Path $root ".env"
+        if (-not (Test-Path $envPath)) {
+            # Compose needs it to exist. A real .env is never overwritten.
+            Copy-Item (Join-Path $root ".env.example") $envPath
+            Write-Host "Created .env - set KAVACH_TARGET_ADMIN_TOKEN in it." -ForegroundColor Yellow
+        }
         Invoke-Step "uv sync" { uv --directory $cp sync --extra dev }
         Invoke-InConsole "pnpm install" @("install")
     }
@@ -57,7 +66,13 @@ switch ($Target) {
     "logs"        { docker @compose logs -f @Rest }
     "ps"          { docker @compose ps }
 
-    "dev-api"     { uv --directory $cp run uvicorn kavach.main:app --reload --port 8080 }
+    "dev-api" {
+        # NOT 8080: `make up` publishes the container there, and on Windows a
+        # local uvicorn binds the same port without error and shadows it.
+        $devPort = if ($env:DEV_API_PORT) { $env:DEV_API_PORT } else { "8081" }
+        Write-Host "Hot-reload API on $devPort. The NORMAL path is 'make up' on 8080." -ForegroundColor Yellow
+        uv --directory $cp run uvicorn kavach.main:app --reload --port $devPort
+    }
     "dev-console" { Push-Location $console; try { pnpm dev } finally { Pop-Location } }
 
     "lint" {

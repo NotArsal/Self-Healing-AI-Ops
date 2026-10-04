@@ -228,11 +228,12 @@ def test_a_full_queue_drops_for_that_subscriber_only() -> None:
 
 
 def a_runner(tmp_path: Path) -> LoopRunner:
-    return LoopRunner(Settings(), tmp_path)
+    """A runner rooted at a temp directory, so no test reads the real captures."""
+    return LoopRunner(Settings(kavach_root=str(tmp_path)))
 
 
 def test_newest_baseline_returns_none_with_no_captures(tmp_path: Path) -> None:
-    value, source = newest_baseline(tmp_path, "simple-rag")
+    value, source = newest_baseline(tmp_path / "harness" / "baselines", "simple-rag")
     assert value is None
     assert source == ""
 
@@ -245,7 +246,7 @@ def test_newest_baseline_picks_the_latest_capture(tmp_path: Path) -> None:
     (d / "baseline-simple-rag-20261003T140000+0000.json").write_text(
         '{"rerank_threshold": 0.35}', encoding="utf-8")
 
-    value, source = newest_baseline(tmp_path, "simple-rag")
+    value, source = newest_baseline(d, "simple-rag")
     assert value == 0.35
     assert "140000" in source
 
@@ -259,7 +260,7 @@ def test_newest_baseline_skips_an_unreadable_capture(tmp_path: Path) -> None:
     (d / "baseline-simple-rag-20261003T140000+0000.json").write_text(
         "not json at all", encoding="utf-8")
 
-    value, _ = newest_baseline(tmp_path, "simple-rag")
+    value, _ = newest_baseline(d, "simple-rag")
     assert value == 0.35
 
 
@@ -268,7 +269,7 @@ def test_newest_baseline_ignores_another_project(tmp_path: Path) -> None:
     d.mkdir(parents=True)
     (d / "baseline-other-20261003T100000+0000.json").write_text(
         '{"rerank_threshold": 0.9}', encoding="utf-8")
-    assert newest_baseline(tmp_path, "simple-rag")[0] is None
+    assert newest_baseline(d, "simple-rag")[0] is None
 
 
 @pytest.mark.asyncio
@@ -317,6 +318,75 @@ def test_remembering_the_same_incident_twice_updates_it(tmp_path: Path) -> None:
     stored = runner.incident("INC-1")
     assert stored is not None
     assert stored.status is loop.IncidentStatus.RESOLVED
+
+
+# --- configuration: the two P4 cleanup fixes --------------------------------
+
+
+def test_root_is_explicit_when_set() -> None:
+    """Compose sets KAVACH_ROOT=/app, because the container cannot derive it."""
+    assert Settings(kavach_root="/app").root() == Path("/app")
+    assert Settings(kavach_root="/app").baselines_dir() == Path("/app/harness/baselines")
+
+
+def test_root_falls_back_without_a_repository_above_the_package() -> None:
+    """The regression that 500'd the containerised API on its first request.
+
+    `parents[4]` only exists on a host checkout. At `/app/kavach/config.py`
+    there are three parents, so a fixed index raised IndexError. The fallback
+    has to return the package parent instead of exploding.
+    """
+    deep = Path("/repo/apps/control-plane/kavach/config.py")
+    flat = Path("/app/kavach/config.py")
+    # Mirrors `Settings.root()`: index 3 when it exists, else index 1.
+    for path, expected in ((deep, Path("/repo")), (flat, Path("/app"))):
+        parents = path.parents
+        assert (parents[3] if len(parents) > 3 else parents[1]) == expected
+
+
+def test_root_resolves_on_this_checkout() -> None:
+    root = Settings().root()
+    assert (root / "harness").is_dir()
+    assert (root / "apps" / "control-plane").is_dir()
+
+
+def test_admin_token_has_no_source_default() -> None:
+    """No credential literal in source, and none in git history going forward.
+
+    Empty is a usable state: the target answers 401 and the loop escalates
+    rather than writing, which is the correct failure for a missing secret.
+    """
+    assert Settings().target_admin_token == ""
+    field = Settings.model_fields["target_admin_token"]
+    assert field.default == ""
+
+
+def test_fast_set_resolves_in_both_layouts(tmp_path: Path) -> None:
+    """One call covers the host checkout and the image.
+
+    On a host checkout the set is under `apps/control-plane/`; in the image the
+    package is at `/app/kavach` and the set is directly under the root.
+    """
+    declared = "kavach/verification/fast_set.yaml"
+
+    container = tmp_path / "app"
+    (container / "kavach" / "verification").mkdir(parents=True)
+    (container / declared).write_text("cases: []", encoding="utf-8")
+    assert fast.resolve_set(declared, container) == container / declared
+
+    checkout = tmp_path / "repo"
+    nested = checkout / "apps" / "control-plane" / "kavach" / "verification"
+    nested.mkdir(parents=True)
+    (nested / "fast_set.yaml").write_text("cases: []", encoding="utf-8")
+    assert fast.resolve_set(declared, checkout) == nested / "fast_set.yaml"
+
+    assert fast.resolve_set(declared, tmp_path / "nowhere") is None
+
+
+def test_runner_reports_a_missing_fast_set_clearly(tmp_path: Path) -> None:
+    runner = LoopRunner(Settings(kavach_root=str(tmp_path)))
+    with pytest.raises(FileNotFoundError, match="KAVACH_ROOT"):
+        runner.fast_set_path()
 
 
 # --- the loop's event sink stays observation-only ----------------------------

@@ -19,7 +19,6 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Annotated, Any
 
 import structlog
@@ -44,17 +43,12 @@ router = APIRouter(prefix="/v1", tags=["console"])
 _runner: LoopRunner | None = None
 
 
-def kavach_root() -> Path:
-    """The repository root, from this file's location."""
-    return Path(__file__).resolve().parents[4]
-
-
 def get_runner(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> LoopRunner:
     global _runner
     if _runner is None:
-        _runner = LoopRunner(settings, kavach_root())
+        _runner = LoopRunner(settings)
     return _runner
 
 
@@ -288,7 +282,7 @@ async def get_preflight(
     try:
         report = await asyncio.to_thread(
             preflight.run, settings.target_path, settings.prometheus_url,
-            kavach_root(),
+            settings.root(),
         )
     except Exception as exc:
         # A preflight that cannot run is a reportable result, not a 500.

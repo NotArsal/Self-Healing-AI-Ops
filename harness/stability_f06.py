@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from dataclasses import dataclass, field
@@ -233,7 +234,10 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--cycles", type=int, default=20)
     ap.add_argument("--prometheus", default="http://localhost:9091")
-    ap.add_argument("--admin-token", default="local-dev-token")
+    # From the environment, never a literal. The same variable compose
+    # passes to the API, and the target reads the matching KAVACH_ADMIN_TOKEN.
+    ap.add_argument("--admin-token",
+                    default=os.environ.get("KAVACH_TARGET_ADMIN_TOKEN", ""))
     ap.add_argument("--json-out", default="")
     args = ap.parse_args()
 

@@ -1153,6 +1153,27 @@ make onboard     # preflight + baseline capture against the target
 make demo        # scripted injection sequence
 ```
 
+**`make up` is the one API.** It builds and publishes the control-plane API on
+`API_PORT` (8080). `make dev-api` is a hot-reload copy of the *same* app and
+runs on `DEV_API_PORT` (8081) — deliberately not 8080, because Docker Desktop on
+Windows does not exclusively reserve a published port: a local uvicorn binds
+8080 alongside the container without any error and silently shadows it for
+`127.0.0.1` traffic while `localhost` still resolves to the container. Two
+different builds answering one port, no warning. A separate port makes the
+distinction visible instead.
+
+**Compose is invoked with `--env-file .env`, and that flag is load-bearing.**
+Compose reads `.env` from the *compose file's* directory, so the repo-root
+`.env` was inert and every `${VAR}` silently fell back to its default — which
+looked correct only because every variable had one. `make setup` creates `.env`
+from `.env.example`, and never overwrites an existing one.
+
+**The container cannot derive the repository root.** The package sits at
+`/app/kavach` with no repository above it, so compose sets `KAVACH_KAVACH_ROOT=/app`
+and mounts `harness/baselines` read-only. The target is reached through
+`host.docker.internal`, because `localhost` inside the control-plane container
+is the control plane.
+
 The control plane mounts the docker socket read-write — this is the executor's only route to the target, and it is the single most dangerous privilege in the system. It is why project ownership (§6.3) and the deny-list run before the allow-list in `permit()`, and why `SIMULATION` is the default mode for every project (`PRD.md` §5.4).
 
 **Platform note (`PL-03`).** The demo machine is Windows 11 with Docker Desktop. Docker socket semantics, `host.docker.internal` resolution, and the target's unconditional `deploy.resources.reservations.devices` nvidia block all behave differently there than on Linux. Phase 0 validates the socket mount and container control on the actual demo machine; this is not deferred to the phase that first needs it.

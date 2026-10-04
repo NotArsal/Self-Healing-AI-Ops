@@ -108,6 +108,22 @@ services:
       KAVACH_LLM_BASE_URL: ${KAVACH_LLM_BASE_URL:-http://host.docker.internal:11434}
       KAVACH_LLM_MODEL: ${KAVACH_LLM_MODEL:-llama3.2}
       KAVACH_LOG_LEVEL: ${KAVACH_LOG_LEVEL:-INFO}
+      # Kavach's own files. The package lives at /app/kavach with no repository
+      # around it, so the root cannot be derived from __file__ the way it can
+      # on a host checkout - deriving it is what used to make this container's
+      # first P4 request fail with IndexError.
+      KAVACH_KAVACH_ROOT: /app
+      # The target runs in its OWN compose project on the host network, so
+      # `localhost` here would be this container. These are the host-visible
+      # ports, reached through the gateway.
+      KAVACH_TARGET_HEALTH_URL: ${KAVACH_TARGET_HEALTH_URL:-http://host.docker.internal:8000/healthz}
+      KAVACH_TARGET_CHAT_URL: ${KAVACH_TARGET_CHAT_URL:-http://host.docker.internal:8000/v1/chat}
+      KAVACH_TARGET_CONFIG_URL: ${KAVACH_TARGET_CONFIG_URL:-http://host.docker.internal:8000/v1/admin/config}
+      # No default and no literal: the token comes from .env, which is
+      # gitignored. Empty means the target answers 401 and the loop escalates
+      # rather than writing, which is the correct failure.
+      KAVACH_TARGET_ADMIN_TOKEN: ${KAVACH_TARGET_ADMIN_TOKEN:-}
+      KAVACH_CONSOLE_ORIGIN: ${KAVACH_CONSOLE_ORIGIN:-http://localhost:3001}
     ports:
       - "${API_PORT:-8080}:8000"
     volumes:
@@ -117,6 +133,10 @@ services:
       # Nothing in Phase 0 mutates anything; tests/test_docker_socket.py proves
       # access against a throwaway container it creates and removes itself.
       - /var/run/docker.sock:/var/run/docker.sock
+      # Read-only. The runner needs a captured known-good value to roll back
+      # TO, and `make onboard` writes those on the host. Read-only because
+      # capture is an onboarding operation, never something the API does.
+      - ../harness/baselines:/app/harness/baselines:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
