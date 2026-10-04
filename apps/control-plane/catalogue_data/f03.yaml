@@ -1,0 +1,22 @@
+actions:
+  - name: rollback_deployment
+    inverse:
+      name: rollforward_deployment
+      params_mapping:
+        version: $target_version
+    mutations:
+      deployment_version: $target_version
+      api_health: healthy
+      
+  - name: rollforward_deployment
+    inverse:
+      name: noop
+      params_mapping: {}
+    mutations:
+      deployment_version: $version
+      api_health: crash-loop
+
+faults:
+  - fault_class: F03
+    recommended_actions:
+      - rollback_deployment

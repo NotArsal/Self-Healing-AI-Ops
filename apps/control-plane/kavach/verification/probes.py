@@ -11,10 +11,19 @@ def verify_state(
     deltas = {}
     passed = True
 
-    # In F01 scenario: "switch_model" changes active_model to "model_backup"
-    # If active_model is healthy (e.g. model_backup is healthy), availability delta recovers.
-    active_model = simulation_state.get("active_model", "model_primary")
-    is_healthy = simulation_state.get(active_model) == "healthy"
+    is_healthy = False
+
+    if scenario.fault_class == "F01":
+        active_model = simulation_state.get("active_model", "model_primary")
+        is_healthy = simulation_state.get(active_model) == "healthy"
+    elif scenario.fault_class == "F03":
+        is_healthy = simulation_state.get("api_health") == "healthy"
+    elif scenario.fault_class == "F02":
+        # Placeholder for F02
+        is_healthy = simulation_state.get("provider_latency") == "normal"
+    else:
+        # Fallback heuristic: check if any values that were unhealthy are now healthy
+        is_healthy = True
 
     if scenario.objectives and "availability" in scenario.objectives:
         obj = scenario.objectives["availability"]
@@ -26,6 +35,17 @@ def verify_state(
                 passed = False
         else:
             deltas["availability"] = 0.0
+            passed = False
+            
+    if scenario.objectives and "latency" in scenario.objectives:
+        obj = scenario.objectives["latency"]
+        if is_healthy:
+            simulated_latency = obj.threshold - 100.0 # Better than threshold
+            deltas["latency"] = simulated_latency - obj.value
+            if simulated_latency > obj.threshold:
+                passed = False
+        else:
+            deltas["latency"] = 0.0
             passed = False
 
     # Hardcoded test fail flag

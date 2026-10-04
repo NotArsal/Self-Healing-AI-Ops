@@ -1,0 +1,21 @@
+actions:
+  - name: enable_circuit_breaker
+    inverse:
+      name: disable_circuit_breaker
+      params_mapping: {}
+    mutations:
+      circuit_breaker_status: open
+      provider_latency: normal
+      
+  - name: disable_circuit_breaker
+    inverse:
+      name: noop
+      params_mapping: {}
+    mutations:
+      circuit_breaker_status: closed
+      provider_latency: degraded
+
+faults:
+  - fault_class: F02
+    recommended_actions:
+      - enable_circuit_breaker

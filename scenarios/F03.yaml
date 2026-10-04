@@ -1,0 +1,54 @@
+id: scenario-f03-crash
+fault_class: F03
+services:
+  api:
+    role: application
+    depends_on: [database]
+  database:
+    role: database
+health:
+  api: crash-loop
+  database: healthy
+quality:
+  golden_set: ./golden_set.yaml
+  min_cases: 20
+  scorers: [availability]
+objectives:
+  availability:
+    value: 0.0
+    threshold: 0.99
+    weight: 1.0
+tolerance:
+  quality_drop_pct: 15.0
+  latency_increase_pct: 50.0
+  cost_increase_pct: 100.0
+reversible_state:
+  deployment:
+    value: v1.2.1
+permissions:
+  allowed_actions:
+    - rollback_deployment
+    - restart_service
+  max_risk_tier: MEDIUM
+signals:
+  api_availability: 0.0
+  pod_restart_count: 15
+evidence:
+  - id: ev-001
+    kind: metric
+    source: api_availability
+    value: 0.0
+  - id: ev-002
+    kind: log
+    source: api
+    payload:
+      status: 500
+      message: "panic: nil pointer dereference"
+  - id: ev-003
+    kind: metric
+    source: pod_restart_count
+    value: 15
+state:
+  api_health: crash-loop
+  deployment_version: v1.2.1
+debt: {}

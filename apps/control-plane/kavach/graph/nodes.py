@@ -29,12 +29,17 @@ def plan_node(state: IncidentState) -> IncidentState:
         f_def = catalogue.faults[fault]
         for act_name in f_def.recommended_actions:
             if act_name == "switch_model":
-                # For now, hardcode parameter injection logic for specific actions 
-                # (A full templating engine is out of scope for MVP, but the pipeline logic is declarative)
                 plan.append(
                     Action(
                         name="switch_model",
                         params={"target": "model_primary", "fallback": "model_backup"},
+                    )
+                )
+            elif act_name == "rollback_deployment":
+                plan.append(
+                    Action(
+                        name="rollback_deployment",
+                        params={"target_version": "v1.2.0"},
                     )
                 )
             else:

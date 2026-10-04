@@ -123,6 +123,18 @@ export function Dashboard() {
           >
             Launch F01
           </button>
+          <button 
+            onClick={() => launchScenario("F03")}
+            className="px-4 py-2 bg-k-danger text-white rounded hover:bg-opacity-90 text-sm font-medium transition-colors"
+          >
+            Launch F03
+          </button>
+          <button 
+            onClick={() => launchScenario("F02")}
+            className="px-4 py-2 bg-k-warning text-white rounded hover:bg-opacity-90 text-sm font-medium transition-colors"
+          >
+            Launch F02
+          </button>
           <span className="text-xs px-2 py-1 bg-k-surface-strong rounded text-k-ink uppercase tracking-wider font-semibold">
             SIMULATION
           </span>
