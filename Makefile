@@ -46,3 +46,6 @@ test:
 # Run a specific scenario validation and load
 scenario:
 	cd apps/control-plane && uv run python -m kavach.scenarios.runner $(NAME)
+
+bench:
+	cd apps/control-plane && uv run python scripts/evaluate_laya.py

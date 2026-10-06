@@ -1,22 +1,19 @@
 actions:
-  - name: rollback_prompt
-    inverse:
-      name: rollforward_prompt
-      params_mapping:
-        version: $target_version
-    mutations:
-      prompt_version: $target_version
-      prompt_health: healthy
-      
-  - name: rollforward_prompt
-    inverse:
-      name: noop
-      params_mapping: {}
-    mutations:
-      prompt_version: $version
-      prompt_health: regressed
-
+- name: rollback_prompt
+  inverse:
+    name: rollforward_prompt
+    params_mapping:
+      version: $target_version
+  mutations:
+    prompt_version: $target_version
+    prompt_health: healthy
+- name: rollforward_prompt
+  inverse:
+    name: noop
+    params_mapping: {}
+  mutations:
+    prompt_version: $version
 faults:
-  - fault_class: F07
-    recommended_actions:
-      - rollback_prompt
+- fault_class: F07
+  recommended_actions:
+  - rollback_prompt

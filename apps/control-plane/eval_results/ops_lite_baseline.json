@@ -1,0 +1,52 @@
+{
+  "overall": {
+    "total_cases": 455,
+    "mapped_cases": 106,
+    "unmapped_cases": 349,
+    "mapping_coverage": 23.296703296703296,
+    "extraction_failures": 0,
+    "execution_failures": 0,
+    "average_latency_ms": 1363.6323373396317,
+    "median_latency_ms": 1330.388069152832,
+    "p95_latency_ms": 1774.1382122039795
+  },
+  "mapped_evaluation": {
+    "top1_accuracy": 86.79245283018868,
+    "correct": 92,
+    "total": 106,
+    "single_fault_acc": 89.65517241379311,
+    "hybrid_fault_acc": 83.33333333333334,
+    "per_chaos_type": {
+      "NetworkDelay": {
+        "correct": 58,
+        "total": 66
+      },
+      "JVMLatency": {
+        "correct": 15,
+        "total": 20
+      },
+      "HTTPResponseDelay": {
+        "correct": 11,
+        "total": 11
+      },
+      "HTTPRequestDelay": {
+        "correct": 8,
+        "total": 9
+      }
+    },
+    "confusion": {
+      "F02->F02": 92,
+      "F02->F01": 10,
+      "F02->F04": 4
+    }
+  },
+  "unmapped_evaluation": {
+    "total": 349,
+    "predictions": {
+      "F02": 252,
+      "F04": 39,
+      "F01": 47,
+      "F03": 11
+    }
+  }
+}

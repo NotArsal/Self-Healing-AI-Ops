@@ -1,0 +1,607 @@
+[
+  {
+    "case_id": "hs0-attractions-pod-failure-s8fsgm",
+    "dataset_fault": "PodFailure",
+    "normalized_fault": "UNMAPPED",
+    "predicted": "F02",
+    "passed": false,
+    "scenario": {
+      "id": "eval-hs0-attractions-pod-failure-s8fsgm",
+      "fault_class": "UNKNOWN",
+      "services": {
+        "frontend": {
+          "role": "service",
+          "depends_on": null
+        },
+        "search": {
+          "role": "service",
+          "depends_on": null
+        },
+        "reservation": {
+          "role": "service",
+          "depends_on": null
+        }
+      },
+      "health": {
+        "frontend": "healthy",
+        "search": "healthy",
+        "reservation": "healthy"
+      },
+      "quality": null,
+      "objectives": {},
+      "tolerance": null,
+      "reversible_state": {},
+      "permissions": null,
+      "signals": {
+        "frontend_error": 0.05727699530516432,
+        "frontend_latency-50": 0.605294,
+        "search_latency-50": 0.6891995,
+        "reservation_latency-50": 0.40041150000000003,
+        "reservation_latency-90": 2.444192
+      },
+      "evidence": [
+        {
+          "id": "ev-metric-frontend_error",
+          "kind": "metric",
+          "source": "frontend_error",
+          "value": 0.05727699530516432,
+          "payload": {
+            "anomaly_score": 57.27699530516432
+          }
+        },
+        {
+          "id": "ev-metric-frontend_latency-50",
+          "kind": "metric",
+          "source": "frontend_latency-50",
+          "value": 0.605294,
+          "payload": {
+            "anomaly_score": 0.3171875427976663
+          }
+        },
+        {
+          "id": "ev-metric-search_latency-50",
+          "kind": "metric",
+          "source": "search_latency-50",
+          "value": 0.6891995,
+          "payload": {
+            "anomaly_score": 0.10683698356305722
+          }
+        },
+        {
+          "id": "ev-metric-reservation_latency-50",
+          "kind": "metric",
+          "source": "reservation_latency-50",
+          "value": 0.40041150000000003,
+          "payload": {
+            "anomaly_score": 0.10354509655498292
+          }
+        },
+        {
+          "id": "ev-metric-reservation_latency-90",
+          "kind": "metric",
+          "source": "reservation_latency-90",
+          "value": 2.444192,
+          "payload": {
+            "anomaly_score": 0.09187794225938972
+          }
+        },
+        {
+          "id": "ev-log-3",
+          "kind": "log",
+          "source": "",
+          "value": null,
+          "payload": {
+            "message": "{\"object\":{\"apiVersion\":\"events.k8s.io/v1\",\"deprecatedCount\":1,\"deprecatedFirstTimestamp\":\"2026-05-02T06:20:16Z\",\"deprecatedLastTimestamp\":\"2026-05-02T06:20:16Z\",\"deprecatedSource\":{\"component\":\"kubelet\",\"host\":\"10.124.143.72\"},\"eventTime\":null,\"kind\":\"Event\",\"metadata\":{\"creationTimestamp\":\"2026-05-02T06:20:16Z\",\"managedFields\":[{\"apiVersion\":\"v1\",\"fieldsType\":\"FieldsV1\",\"fieldsV1\":{\"f:count\":{},\"f:firstTimestamp\":{},\"f:involvedObject\":{},\"f:lastTimestamp\":{},\"f:message\":{},\"f:reason\":{},\"f:rep"
+          }
+        },
+        {
+          "id": "ev-log-14",
+          "kind": "log",
+          "source": "frontend",
+          "value": null,
+          "payload": {
+            "message": "NearbyMus failed for hotelId 42"
+          }
+        },
+        {
+          "id": "ev-log-1841",
+          "kind": "log",
+          "source": "reservation",
+          "value": null,
+          "payload": {
+            "message": "Making hotel reservation: hotel_id=73, in_date=2015-04-10, out_date=2015-04-14, room_number=1, customer_name=Cornell_463"
+          }
+        }
+      ],
+      "state": {},
+      "debt": null
+    }
+  },
+  {
+    "case_id": "hs1-frontend-delay-24srn4",
+    "dataset_fault": "NetworkDelay",
+    "normalized_fault": "F02",
+    "predicted": "F02",
+    "passed": true,
+    "scenario": {
+      "id": "eval-hs1-frontend-delay-24srn4",
+      "fault_class": "UNKNOWN",
+      "services": {
+        "frontend": {
+          "role": "service",
+          "depends_on": null
+        },
+        "search": {
+          "role": "service",
+          "depends_on": null
+        },
+        "profile": {
+          "role": "service",
+          "depends_on": null
+        },
+        "reservation": {
+          "role": "service",
+          "depends_on": null
+        }
+      },
+      "health": {
+        "frontend": "healthy",
+        "search": "healthy",
+        "profile": "healthy",
+        "reservation": "healthy"
+      },
+      "quality": null,
+      "objectives": {},
+      "tolerance": null,
+      "reversible_state": {},
+      "permissions": null,
+      "signals": {
+        "frontend_latency-90": 1661.2531659,
+        "search_latency-90": 4.023820400000001,
+        "profile_latency-90": 0.846555800000001,
+        "reservation_latency-90": 1.6434222000000034,
+        "reservation_latency-50": 0.262816
+      },
+      "evidence": [
+        {
+          "id": "ev-metric-frontend_latency-90",
+          "kind": "metric",
+          "source": "frontend_latency-90",
+          "value": 1661.2531659,
+          "payload": {
+            "anomaly_score": 985.6492642617155
+          }
+        },
+        {
+          "id": "ev-metric-search_latency-90",
+          "kind": "metric",
+          "source": "search_latency-90",
+          "value": 4.023820400000001,
+          "payload": {
+            "anomaly_score": 1.6015994486784244
+          }
+        },
+        {
+          "id": "ev-metric-profile_latency-90",
+          "kind": "metric",
+          "source": "profile_latency-90",
+          "value": 0.846555800000001,
+          "payload": {
+            "anomaly_score": 0.5424569085634453
+          }
+        },
+        {
+          "id": "ev-metric-reservation_latency-90",
+          "kind": "metric",
+          "source": "reservation_latency-90",
+          "value": 1.6434222000000034,
+          "payload": {
+            "anomaly_score": 0.19357268132683791
+          }
+        },
+        {
+          "id": "ev-metric-reservation_latency-50",
+          "kind": "metric",
+          "source": "reservation_latency-50",
+          "value": 0.262816,
+          "payload": {
+            "anomaly_score": 0.08814084999639739
+          }
+        },
+        {
+          "id": "ev-log-1400",
+          "kind": "log",
+          "source": "frontend",
+          "value": null,
+          "payload": {
+            "message": "Authentication failed for reservation: username=Cornell_320"
+          }
+        },
+        {
+          "id": "ev-log-1401",
+          "kind": "log",
+          "source": "reservation",
+          "value": null,
+          "payload": {
+            "message": "Making hotel reservation: hotel_id=31, in_date=2015-04-17, out_date=2015-04-21, room_number=1, customer_name=Cornell_320"
+          }
+        },
+        {
+          "id": "ev-log-5",
+          "kind": "log",
+          "source": "profile",
+          "value": null,
+          "payload": {
+            "message": "Getting hotel profiles: hotel_count=0"
+          }
+        }
+      ],
+      "state": {},
+      "debt": null
+    }
+  },
+  {
+    "case_id": "hs1-geo-cpu-exhaustion-q8nln6",
+    "dataset_fault": "CPUStress",
+    "normalized_fault": "UNMAPPED",
+    "predicted": "F02",
+    "passed": false,
+    "scenario": {
+      "id": "eval-hs1-geo-cpu-exhaustion-q8nln6",
+      "fault_class": "UNKNOWN",
+      "services": {
+        "search": {
+          "role": "service",
+          "depends_on": null
+        },
+        "frontend": {
+          "role": "service",
+          "depends_on": null
+        },
+        "reservation": {
+          "role": "service",
+          "depends_on": null
+        },
+        "attractions": {
+          "role": "service",
+          "depends_on": null
+        }
+      },
+      "health": {
+        "search": "healthy",
+        "frontend": "healthy",
+        "reservation": "healthy",
+        "attractions": "healthy"
+      },
+      "quality": null,
+      "objectives": {},
+      "tolerance": null,
+      "reversible_state": {},
+      "permissions": null,
+      "signals": {
+        "search_latency-90": 8.2405519,
+        "frontend_latency-90": 7.940604399999999,
+        "reservation_latency-90": 2.7014747999999997,
+        "reservation_latency-50": 0.3096505,
+        "attractions_latency-90": 0.778469
+      },
+      "evidence": [
+        {
+          "id": "ev-metric-search_latency-90",
+          "kind": "metric",
+          "source": "search_latency-90",
+          "value": 8.2405519,
+          "payload": {
+            "anomaly_score": 0.20894749338968094
+          }
+        },
+        {
+          "id": "ev-metric-frontend_latency-90",
+          "kind": "metric",
+          "source": "frontend_latency-90",
+          "value": 7.940604399999999,
+          "payload": {
+            "anomaly_score": 0.052629626645361714
+          }
+        },
+        {
+          "id": "ev-metric-reservation_latency-90",
+          "kind": "metric",
+          "source": "reservation_latency-90",
+          "value": 2.7014747999999997,
+          "payload": {
+            "anomaly_score": 0.044069365999749824
+          }
+        },
+        {
+          "id": "ev-metric-reservation_latency-50",
+          "kind": "metric",
+          "source": "reservation_latency-50",
+          "value": 0.3096505,
+          "payload": {
+            "anomaly_score": 0.03081318058203458
+          }
+        },
+        {
+          "id": "ev-metric-attractions_latency-90",
+          "kind": "metric",
+          "source": "attractions_latency-90",
+          "value": 0.778469,
+          "payload": {
+            "anomaly_score": 0.019405455498996638
+          }
+        },
+        {
+          "id": "ev-log-1715",
+          "kind": "log",
+          "source": "frontend",
+          "value": null,
+          "payload": {
+            "message": "Authentication failed for reservation: username=Cornell_487"
+          }
+        },
+        {
+          "id": "ev-log-1740",
+          "kind": "log",
+          "source": "reservation",
+          "value": null,
+          "payload": {
+            "message": "Making hotel reservation: hotel_id=56, in_date=2015-04-23, out_date=2015-04-26, room_number=1, customer_name=Cornell_385"
+          }
+        },
+        {
+          "id": "ev-log-18",
+          "kind": "log",
+          "source": "search",
+          "value": null,
+          "payload": {
+            "message": "Searching nearby hotels: lat=38.085, lon=-122.074, in_date=2015-04-15, out_date=2015-04-22"
+          }
+        }
+      ],
+      "state": {},
+      "debt": null
+    }
+  },
+  {
+    "case_id": "ts0-ts-travel-plan-service-response-delay-pfwcqk",
+    "dataset_fault": "HTTPResponseDelay",
+    "normalized_fault": "F02",
+    "predicted": "F02",
+    "passed": true,
+    "scenario": {
+      "id": "eval-ts0-ts-travel-plan-service-response-delay-pfwcqk",
+      "fault_class": "UNKNOWN",
+      "services": {
+        "ts-travel-plan-service": {
+          "role": "service",
+          "depends_on": null
+        },
+        "ts-route-plan-service": {
+          "role": "service",
+          "depends_on": null
+        },
+        "ts-preserve-service": {
+          "role": "service",
+          "depends_on": null
+        }
+      },
+      "health": {
+        "ts-travel-plan-service": "healthy",
+        "ts-route-plan-service": "healthy",
+        "ts-preserve-service": "healthy"
+      },
+      "quality": null,
+      "objectives": {},
+      "tolerance": null,
+      "reversible_state": {},
+      "permissions": null,
+      "signals": {
+        "ts-travel-plan-service_latency-50": 273.9905265,
+        "ts-travel-plan-service_latency-90": 1582.7601084,
+        "ts-route-plan-service_latency-50": 100.894797,
+        "ts-travel-plan-service_error": 0.0024449877750611247,
+        "ts-preserve-service_latency-90": 258.55020640000004
+      },
+      "evidence": [
+        {
+          "id": "ev-metric-ts-travel-plan-service_latency-50",
+          "kind": "metric",
+          "source": "ts-travel-plan-service_latency-50",
+          "value": 273.9905265,
+          "payload": {
+            "anomaly_score": 79.01114812492936
+          }
+        },
+        {
+          "id": "ev-metric-ts-travel-plan-service_latency-90",
+          "kind": "metric",
+          "source": "ts-travel-plan-service_latency-90",
+          "value": 1582.7601084,
+          "payload": {
+            "anomaly_score": 17.860099207026025
+          }
+        },
+        {
+          "id": "ev-metric-ts-route-plan-service_latency-50",
+          "kind": "metric",
+          "source": "ts-route-plan-service_latency-50",
+          "value": 100.894797,
+          "payload": {
+            "anomaly_score": 6.279211141410034
+          }
+        },
+        {
+          "id": "ev-metric-ts-travel-plan-service_error",
+          "kind": "metric",
+          "source": "ts-travel-plan-service_error",
+          "value": 0.0024449877750611247,
+          "payload": {
+            "anomaly_score": 2.444987775061125
+          }
+        },
+        {
+          "id": "ev-metric-ts-preserve-service_latency-90",
+          "kind": "metric",
+          "source": "ts-preserve-service_latency-90",
+          "value": 258.55020640000004,
+          "payload": {
+            "anomaly_score": 1.2773656619973595
+          }
+        },
+        {
+          "id": "ev-log-73",
+          "kind": "log",
+          "source": "ts-food-service",
+          "value": null,
+          "payload": {
+            "message": "[getAllFood][reGetTrainFoodListResult][Get the Get Food Request Failed!][date: 2025-09-04, tripId: Z1235]"
+          }
+        },
+        {
+          "id": "ev-log-151",
+          "kind": "log",
+          "source": "ts-travel-plan-service",
+          "value": null,
+          "payload": {
+            "message": "Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed; nested exception is org.springframework.web.client.ResourceAccessException: I/O error on POST request for \"http://ts-route-plan-service:8080/api/v1/routeplanservice/routePlan/quickestRoute\": Connection reset; nested exception is java.net.SocketException: Connection reset] with root cause"
+          }
+        },
+        {
+          "id": "ev-log-299",
+          "kind": "log",
+          "source": "ts-notification-service",
+          "value": null,
+          "payload": {
+            "message": "Failed to check/redeclare auto-delete queue(s)."
+          }
+        }
+      ],
+      "state": {},
+      "debt": null
+    }
+  },
+  {
+    "case_id": "ts0-ts-travel-plan-service-response-replace-code-7ps8tm",
+    "dataset_fault": "HTTPResponseReplaceCode",
+    "normalized_fault": "UNMAPPED",
+    "predicted": "F02",
+    "passed": false,
+    "scenario": {
+      "id": "eval-ts0-ts-travel-plan-service-response-replace-code-7ps8tm",
+      "fault_class": "UNKNOWN",
+      "services": {
+        "ts-travel-plan-service": {
+          "role": "service",
+          "depends_on": null
+        },
+        "ts-ui-dashboard": {
+          "role": "service",
+          "depends_on": null
+        },
+        "ts-preserve-service": {
+          "role": "service",
+          "depends_on": null
+        },
+        "ts-travel-service": {
+          "role": "service",
+          "depends_on": null
+        }
+      },
+      "health": {
+        "ts-travel-plan-service": "healthy",
+        "ts-ui-dashboard": "healthy",
+        "ts-preserve-service": "healthy",
+        "ts-travel-service": "healthy"
+      },
+      "quality": null,
+      "objectives": {},
+      "tolerance": null,
+      "reversible_state": {},
+      "permissions": null,
+      "signals": {
+        "ts-travel-plan-service_error": 0.22235328811560012,
+        "ts-travel-plan-service_latency-50": 152.990966,
+        "ts-ui-dashboard_error": 0.02449479485609308,
+        "ts-preserve-service_latency-90": 277.6626768000001,
+        "ts-travel-service_latency-90": 37.4204455
+      },
+      "evidence": [
+        {
+          "id": "ev-metric-ts-travel-plan-service_error",
+          "kind": "metric",
+          "source": "ts-travel-plan-service_error",
+          "value": 0.22235328811560012,
+          "payload": {
+            "anomaly_score": 222.35328811560012
+          }
+        },
+        {
+          "id": "ev-metric-ts-travel-plan-service_latency-50",
+          "kind": "metric",
+          "source": "ts-travel-plan-service_latency-50",
+          "value": 152.990966,
+          "payload": {
+            "anomaly_score": 43.93251487143306
+          }
+        },
+        {
+          "id": "ev-metric-ts-ui-dashboard_error",
+          "kind": "metric",
+          "source": "ts-ui-dashboard_error",
+          "value": 0.02449479485609308,
+          "payload": {
+            "anomaly_score": 24.49479485609308
+          }
+        },
+        {
+          "id": "ev-metric-ts-preserve-service_latency-90",
+          "kind": "metric",
+          "source": "ts-preserve-service_latency-90",
+          "value": 277.6626768000001,
+          "payload": {
+            "anomaly_score": 8.29532322392145
+          }
+        },
+        {
+          "id": "ev-metric-ts-travel-service_latency-90",
+          "kind": "metric",
+          "source": "ts-travel-service_latency-90",
+          "value": 37.4204455,
+          "payload": {
+            "anomaly_score": 4.931983654101539
+          }
+        },
+        {
+          "id": "ev-log-0",
+          "kind": "log",
+          "source": "ts-food-service",
+          "value": null,
+          "payload": {
+            "message": "[createFoodOrder][AddFoodOrder][send delivery info to mq error][exception: org.springframework.amqp.AmqpIOException: java.io.IOException]"
+          }
+        },
+        {
+          "id": "ev-log-6",
+          "kind": "log",
+          "source": "ts-ui-dashboard",
+          "value": null,
+          "payload": {
+            "message": "{\"level\":\"info\",\"ts\":1753274936.1350777,\"logger\":\"http.log.access.log0\",\"msg\":\"handled request\",\"request\":{\"remote_ip\":\"10.0.6.121\",\"remote_port\":\"46176\",\"client_ip\":\"10.0.6.121\",\"proto\":\"HTTP/1.1\",\"method\":\"POST\",\"host\":\"ts-ui-dashboard:8080\",\"uri\":\"/api/v1/preserveservice/preserve\",\"headers\":{\"Accept\":[\"application/json\"],\"User-Agent\":[\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36\"],\"X-Envoy-Expected-Rq-Timeout-Ms\":[\""
+          }
+        },
+        {
+          "id": "ev-log-90",
+          "kind": "log",
+          "source": "ts-travel-plan-service",
+          "value": null,
+          "payload": {
+            "message": "Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed; nested exception is org.springframework.web.client.ResourceAccessException: I/O error on POST request for \"http://ts-route-plan-service:8080/api/v1/routeplanservice/routePlan/quickestRoute\": Connection reset; nested exception is java.net.SocketException: Connection reset] with root cause"
+          }
+        }
+      ],
+      "state": {},
+      "debt": null
+    }
+  }
+]

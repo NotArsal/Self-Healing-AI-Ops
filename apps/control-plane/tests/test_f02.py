@@ -1,8 +1,11 @@
-import pytest
 from typing import Any
-from kavach.scenarios.loader import load_scenario
+
+import pytest
+
 from kavach.graph.workflow import build_workflow
 from kavach.llm.rca import RCAResponse
+from kavach.scenarios.loader import load_scenario
+
 
 @pytest.fixture(autouse=True)
 def mock_rca(monkeypatch: pytest.MonkeyPatch) -> None:

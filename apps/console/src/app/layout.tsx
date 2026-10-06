@@ -1,3 +1,4 @@
+import { ReticleDev } from './reticle-dev';
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
@@ -26,7 +27,7 @@ export default function RootLayout({
     <html lang="en">
       <body
         className={`${inter.variable} ${jetBrainsMono.variable} antialiased min-h-screen bg-k-canvas text-k-body`}
-      >
+      >{process.env.NODE_ENV === 'development' ? <ReticleDev /> : null}
         {children}
       </body>
     </html>

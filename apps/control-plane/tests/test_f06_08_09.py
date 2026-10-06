@@ -1,8 +1,11 @@
-import pytest
 from typing import Any
-from kavach.scenarios.loader import load_scenario
+
+import pytest
+
 from kavach.graph.workflow import build_workflow
 from kavach.llm.rca import RCAResponse
+from kavach.scenarios.loader import load_scenario
+
 
 def mock_rca_factory(monkeypatch: pytest.MonkeyPatch, fault_class: str) -> None:
     def fake_analyze(*args: Any, **kwargs: Any) -> RCAResponse:

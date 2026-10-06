@@ -16,7 +16,9 @@ class CustomEncoder(json.JSONEncoder):
             return obj.model_dump()
         return super().default(obj)
 
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
+
 
 @router.get("/stream")
 async def event_stream(request: Request) -> Any:

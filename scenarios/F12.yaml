@@ -1,0 +1,32 @@
+id: scenario-f12-cascading
+fault_class: F12
+services:
+  frontend:
+    role: frontend
+    depends_on:
+      - api
+  api:
+    role: backend
+    depends_on:
+      - db
+  db:
+    role: database
+    depends_on: []
+health:
+  frontend: degraded
+  api: degraded
+  db: offline
+evidence:
+  - id: ev-001
+    kind: metric
+    source: frontend_error_ratio
+    value: 0.8
+  - id: ev-002
+    kind: metric
+    source: api_error_ratio
+    value: 1.0
+  - id: ev-003
+    kind: log
+    source: db_unreachable
+    value: 1.0
+    payload: {"msg": "Connection refused to database on port 5432"}

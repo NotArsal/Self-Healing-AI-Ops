@@ -62,6 +62,8 @@ async def run_scenario(req: RunScenarioRequest, background_tasks: BackgroundTask
     }
     
     incident_id = create_incident(scenario.id, initial_state)
+    initial_state["incident_id"] = incident_id
+    update_incident(incident_id, initial_state)
     
     background_tasks.add_task(execute_graph_background, incident_id, initial_state)
     
@@ -91,7 +93,7 @@ async def get_incident_detail(incident_id: str) -> dict[str, Any]:
     if "scenario" in ui_state:
         ui_state["scenario_id"] = ui_state["scenario"].id
         ui_state["evidence"] = [e.model_dump() for e in ui_state["scenario"].evidence] if ui_state["scenario"].evidence else []
-        ui_state["debt"] = ui_state["scenario"].debt.copy() if ui_state["scenario"].debt else {}
+        ui_state["debt"] = ui_state["scenario"].active_debt.copy() if ui_state["scenario"].active_debt else {}
         del ui_state["scenario"]
         
     return ui_state
@@ -106,17 +108,24 @@ async def repay_debt_endpoint(incident_id: str) -> dict[str, Any]:
     scenario = state.get("scenario")
     sim_state = state.get("simulation_state", {})
     
-    if not scenario or not scenario.debt:
+    if not scenario or not scenario.active_debt:
         raise HTTPException(status_code=400, detail="No active debt for this incident")
         
     # We simulate fixing the original fault by reverting the `healthy` status in sim_state to what it should be
     # For example, if it's F01, we set model_primary to healthy.
-    # To be generic, let's just make the whole state "healthy".
+    # To be generic, let's just make the whole state "healthy" or "normal" or "clean".
     for k in list(sim_state.keys()):
         if "health" in k or k == "model_primary":
             sim_state[k] = "healthy"
+        if k == "provider_latency":
+            sim_state[k] = "normal"
+        if k == "cache_state":
+            sim_state[k] = "clean"
             
-    success = repay_debt(scenario, sim_state)
+    debt_def = scenario.debt_config.get(scenario.fault_class) if scenario.debt_config else None
+    repayment_action = debt_def.get("repayment_action") if isinstance(debt_def, dict) else (debt_def.repayment_action if hasattr(debt_def, 'repayment_action') else "restore_model")
+    
+    success = repay_debt(scenario, sim_state, repayment_action)
     if success:
         update_incident(incident_id, {"simulation_state": sim_state, "outcome": "RESOLVED"})
         await broadcast_event({

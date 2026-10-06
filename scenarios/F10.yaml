@@ -1,0 +1,31 @@
+id: scenario-f10-demo
+fault_class: F10
+description: "A safe configuration refresh task that involves generic shell commands"
+services:
+  api:
+    role: application
+health:
+  api: unhealthy
+quality:
+  golden_set: ./golden_set.yaml
+  min_cases: 1
+  scorers: [latency]
+objectives:
+  latency:
+    value: 2.0
+    threshold: 1.0
+    weight: 1.0
+tolerance:
+  quality_drop_pct: 10.0
+permissions:
+  allowed_actions:
+    - shell_command
+signals:
+  api_latency: 5.0
+evidence:
+  - id: ev-001
+    kind: metric
+    source: api_latency
+    value: 5.0
+state:
+  api: degraded

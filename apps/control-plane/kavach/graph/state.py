@@ -8,6 +8,7 @@ from kavach.tnr.models import Action, UndoRecord
 
 class IncidentState(TypedDict, total=False):
     scenario: Scenario
+    incident_id: str
 
     # LLM Diagnosis
     diagnosis: RCAResponse | None

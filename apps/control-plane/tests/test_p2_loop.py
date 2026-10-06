@@ -1,6 +1,7 @@
+from typing import Any
+
 import pytest
 
-from typing import Any
 from kavach.graph.workflow import build_workflow
 from kavach.llm.rca import RCAResponse
 from kavach.scenarios.loader import load_scenario

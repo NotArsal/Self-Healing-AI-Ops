@@ -1,22 +1,19 @@
 actions:
-  - name: scale_connection_pool
-    inverse:
-      name: scale_down_connection_pool
-      params_mapping:
-        target_size: $original_size
-    mutations:
-      db_pool_size: $target_size
-      db_health: healthy
-      
-  - name: scale_down_connection_pool
-    inverse:
-      name: noop
-      params_mapping: {}
-    mutations:
-      db_pool_size: $target_size
-      db_health: exhausted
-
+- name: scale_connection_pool
+  inverse:
+    name: scale_down_connection_pool
+    params_mapping:
+      target_size: $original_size
+  mutations:
+    db_pool_size: $target_size
+    db_health: healthy
+- name: scale_down_connection_pool
+  inverse:
+    name: noop
+    params_mapping: {}
+  mutations:
+    db_pool_size: $target_size
 faults:
-  - fault_class: F05
-    recommended_actions:
-      - scale_connection_pool
+- fault_class: F05
+  recommended_actions:
+  - scale_connection_pool

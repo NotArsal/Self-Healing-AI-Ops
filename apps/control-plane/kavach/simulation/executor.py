@@ -7,6 +7,7 @@ class ExecutorError(Exception):
 
 from kavach.catalogue.loader import load_catalogue
 
+
 def execute_action(action: Action, state: dict[str, str]) -> UndoRecord:
     """
     Executes a simulated action dynamically via Catalogue. Mutates `state` in place.
@@ -21,7 +22,7 @@ def execute_action(action: Action, state: dict[str, str]) -> UndoRecord:
     
     # 1. Capture witness for all mutated keys
     pre_state = {}
-    for state_key in act_def.mutations.keys():
+    for state_key in act_def.mutations:
         pre_state[state_key] = state.get(state_key, "unavailable") # Default fallback
         
     # We must also capture anything the inverse needs if it's dynamic

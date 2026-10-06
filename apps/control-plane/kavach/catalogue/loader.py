@@ -1,7 +1,9 @@
 import os
-import yaml
 from pathlib import Path
-from kavach.catalogue.schema import Catalogue, ActionDef, FaultDef, InverseDef
+
+import yaml
+
+from kavach.catalogue.schema import ActionDef, Catalogue, FaultDef
 
 
 class CatalogueValidationError(Exception):

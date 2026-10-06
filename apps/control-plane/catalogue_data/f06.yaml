@@ -1,22 +1,19 @@
 actions:
-  - name: scale_retrievers
-    inverse:
-      name: scale_down_retrievers
-      params_mapping:
-        target_count: $original_count
-    mutations:
-      retriever_count: $target_count
-      retriever_health: healthy
-      
-  - name: scale_down_retrievers
-    inverse:
-      name: noop
-      params_mapping: {}
-    mutations:
-      retriever_count: $target_count
-      retriever_health: collapsed
-
+- name: scale_retrievers
+  inverse:
+    name: scale_down_retrievers
+    params_mapping:
+      target_count: $original_count
+  mutations:
+    retriever_count: $target_count
+    retriever_health: healthy
+- name: scale_down_retrievers
+  inverse:
+    name: noop
+    params_mapping: {}
+  mutations:
+    retriever_count: $target_count
 faults:
-  - fault_class: F06
-    recommended_actions:
-      - scale_retrievers
+- fault_class: F06
+  recommended_actions:
+  - scale_retrievers

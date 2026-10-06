@@ -1,0 +1,592 @@
+[
+  {
+    "case_id": "re2tt_ts-route-service_delay_1",
+    "dataset_fault": "delay",
+    "normalized_fault": "F02",
+    "inject_time": 1705939611,
+    "extracted_scenario": {
+      "id": "eval-re2tt_ts-route-service_delay_1",
+      "fault_class": "UNKNOWN",
+      "services": {
+        "ts-route-service": {
+          "role": "service",
+          "depends_on": null
+        },
+        "ts-admin-travel-service": {
+          "role": "service",
+          "depends_on": null
+        },
+        "ts-travel2-service": {
+          "role": "service",
+          "depends_on": null
+        }
+      },
+      "health": {
+        "ts-route-service": "healthy",
+        "ts-admin-travel-service": "healthy",
+        "ts-travel2-service": "healthy"
+      },
+      "quality": null,
+      "objectives": {},
+      "tolerance": null,
+      "reversible_state": {},
+      "permissions": null,
+      "signals": {
+        "ts-route-service_latency-50": 0.21637503574181935,
+        "ts-route-service_latency-90": 0.4174232479208483,
+        "ts-admin-travel-service_latency-90": 4.776950442967885,
+        "ts-admin-travel-service_latency-50": 3.257244897959184,
+        "ts-travel2-service_latency-50": 0.2699857936906032
+      },
+      "evidence": [
+        {
+          "id": "ev-metric-ts-route-service_latency-50",
+          "kind": "metric",
+          "source": "ts-route-service_latency-50",
+          "value": 0.21637503574181935,
+          "payload": {
+            "anomaly_score": 514.6541182390838
+          }
+        },
+        {
+          "id": "ev-metric-ts-route-service_latency-90",
+          "kind": "metric",
+          "source": "ts-route-service_latency-90",
+          "value": 0.4174232479208483,
+          "payload": {
+            "anomaly_score": 442.09407731685457
+          }
+        },
+        {
+          "id": "ev-metric-ts-admin-travel-service_latency-90",
+          "kind": "metric",
+          "source": "ts-admin-travel-service_latency-90",
+          "value": 4.776950442967885,
+          "payload": {
+            "anomaly_score": 193.27447871035744
+          }
+        },
+        {
+          "id": "ev-metric-ts-admin-travel-service_latency-50",
+          "kind": "metric",
+          "source": "ts-admin-travel-service_latency-50",
+          "value": 3.257244897959184,
+          "payload": {
+            "anomaly_score": 176.1282698189091
+          }
+        },
+        {
+          "id": "ev-metric-ts-travel2-service_latency-50",
+          "kind": "metric",
+          "source": "ts-travel2-service_latency-50",
+          "value": 0.2699857936906032,
+          "payload": {
+            "anomaly_score": 120.49070796747925
+          }
+        },
+        {
+          "id": "ev-log-141882",
+          "kind": "log",
+          "source": "ts-inside-payment-service",
+          "value": null,
+          "payload": {
+            "message": "2024-01-22 16:07:13.509  INFO 1 --- [io-18673-exec-1] i.service.InsidePaymentServiceImpl       : [Inside Payment Service][Pay] Error. Order status Not allowed to Pay."
+          }
+        },
+        {
+          "id": "ev-log-138965",
+          "kind": "log",
+          "source": "ts-route-service",
+          "value": null,
+          "payload": {
+            "message": "2024-01-22 16:06:50.521  INFO 1 --- [io-11178-exec-7] route.controller.RouteController         : Route id: 92708982-77af-4318-be25-57ccb0ff69ad"
+          }
+        },
+        {
+          "id": "ev-log-139729",
+          "kind": "log",
+          "source": "ts-admin-travel-service",
+          "value": null,
+          "payload": {
+            "message": "2024-01-22 16:06:56.575  INFO 1 --- [io-16114-exec-8] a.service.AdminTravelServiceImpl         : [Admin Travel Service][Get All Travels]"
+          }
+        }
+      ],
+      "state": {},
+      "debt": null
+    }
+  },
+  {
+    "case_id": "re2tt_ts-order-service_socket_1",
+    "dataset_fault": "socket",
+    "normalized_fault": "F05",
+    "inject_time": 1705986772,
+    "extracted_scenario": {
+      "id": "eval-re2tt_ts-order-service_socket_1",
+      "fault_class": "UNKNOWN",
+      "services": {
+        "ts-order-service": {
+          "role": "service",
+          "depends_on": null
+        },
+        "ts-preserve-service": {
+          "role": "service",
+          "depends_on": null
+        },
+        "ts-security-service": {
+          "role": "service",
+          "depends_on": null
+        }
+      },
+      "health": {
+        "ts-order-service": "healthy",
+        "ts-preserve-service": "healthy",
+        "ts-security-service": "healthy"
+      },
+      "quality": null,
+      "objectives": {},
+      "tolerance": null,
+      "reversible_state": {},
+      "permissions": null,
+      "signals": {
+        "ts-order-service_latency-50": 0.07142391211721255,
+        "ts-preserve-service_latency-90": 2.931496138996139,
+        "ts-security-service_latency-90": 0.4736098107319038,
+        "ts-preserve-service_latency-50": 1.7683337355212352,
+        "ts-security-service_latency-50": 0.26734178519892804
+      },
+      "evidence": [
+        {
+          "id": "ev-metric-ts-order-service_latency-50",
+          "kind": "metric",
+          "source": "ts-order-service_latency-50",
+          "value": 0.07142391211721255,
+          "payload": {
+            "anomaly_score": 33.30208947821485
+          }
+        },
+        {
+          "id": "ev-metric-ts-preserve-service_latency-90",
+          "kind": "metric",
+          "source": "ts-preserve-service_latency-90",
+          "value": 2.931496138996139,
+          "payload": {
+            "anomaly_score": 20.857853875139817
+          }
+        },
+        {
+          "id": "ev-metric-ts-security-service_latency-90",
+          "kind": "metric",
+          "source": "ts-security-service_latency-90",
+          "value": 0.4736098107319038,
+          "payload": {
+            "anomaly_score": 15.599789665719465
+          }
+        },
+        {
+          "id": "ev-metric-ts-preserve-service_latency-50",
+          "kind": "metric",
+          "source": "ts-preserve-service_latency-50",
+          "value": 1.7683337355212352,
+          "payload": {
+            "anomaly_score": 13.577782959246028
+          }
+        },
+        {
+          "id": "ev-metric-ts-security-service_latency-50",
+          "kind": "metric",
+          "source": "ts-security-service_latency-50",
+          "value": 0.26734178519892804,
+          "payload": {
+            "anomaly_score": 12.204071488237055
+          }
+        },
+        {
+          "id": "ev-log-141123",
+          "kind": "log",
+          "source": "ts-inside-payment-service",
+          "value": null,
+          "payload": {
+            "message": "2024-01-23 05:13:15.848  INFO 1 --- [io-18673-exec-4] i.service.InsidePaymentServiceImpl       : [Inside Payment Service][Pay] Error. Order status Not allowed to Pay."
+          }
+        },
+        {
+          "id": "ev-log-136656",
+          "kind": "log",
+          "source": "ts-security-service",
+          "value": null,
+          "payload": {
+            "message": "2024-01-23 05:12:52.074  INFO 1 --- [io-11188-exec-3] security.controller.SecurityController   : [Security Service][Check Security] Check Account Id: 4d2a46c7-71cb-4cf1-b5bb-b68406d9da6f"
+          }
+        },
+        {
+          "id": "ev-log-136422",
+          "kind": "log",
+          "source": "ts-order-service",
+          "value": null,
+          "payload": {
+            "message": "2024-01-23 05:12:51.604  INFO 1 --- [io-12031-exec-6] order.controller.OrderController         : [Order Other Service][Calculate Sold Tickets] Date: Tue Jan 23 00:00:00 GMT 2024 TrainNumber: D1345"
+          }
+        }
+      ],
+      "state": {},
+      "debt": null
+    }
+  },
+  {
+    "case_id": "re2tt_ts-auth-service_cpu_3",
+    "dataset_fault": "cpu",
+    "normalized_fault": "UNMAPPED",
+    "inject_time": 1706025155,
+    "extracted_scenario": {
+      "id": "eval-re2tt_ts-auth-service_cpu_3",
+      "fault_class": "UNKNOWN",
+      "services": {
+        "ts-auth-service": {
+          "role": "service",
+          "depends_on": null
+        },
+        "ts-ui-dashboard": {
+          "role": "service",
+          "depends_on": null
+        }
+      },
+      "health": {
+        "ts-auth-service": "healthy",
+        "ts-ui-dashboard": "healthy"
+      },
+      "quality": null,
+      "objectives": {},
+      "tolerance": null,
+      "reversible_state": {},
+      "permissions": null,
+      "signals": {
+        "ts-auth-service_latency-50": 0.751725352358614,
+        "ts-auth-service_cpu": 34.63781181396082,
+        "ts-auth-service_latency-90": 1.7333189042019992,
+        "ts-ui-dashboard_latency-90": 0.9660907611929548,
+        "ts-ui-dashboard_latency-50": 0.39575741419125904
+      },
+      "evidence": [
+        {
+          "id": "ev-metric-ts-auth-service_latency-50",
+          "kind": "metric",
+          "source": "ts-auth-service_latency-50",
+          "value": 0.751725352358614,
+          "payload": {
+            "anomaly_score": 9.77298067604559
+          }
+        },
+        {
+          "id": "ev-metric-ts-auth-service_cpu",
+          "kind": "metric",
+          "source": "ts-auth-service_cpu",
+          "value": 34.63781181396082,
+          "payload": {
+            "anomaly_score": 5.733526832247015
+          }
+        },
+        {
+          "id": "ev-metric-ts-auth-service_latency-90",
+          "kind": "metric",
+          "source": "ts-auth-service_latency-90",
+          "value": 1.7333189042019992,
+          "payload": {
+            "anomaly_score": 5.255289630591936
+          }
+        },
+        {
+          "id": "ev-metric-ts-ui-dashboard_latency-90",
+          "kind": "metric",
+          "source": "ts-ui-dashboard_latency-90",
+          "value": 0.9660907611929548,
+          "payload": {
+            "anomaly_score": 3.1002302482186264
+          }
+        },
+        {
+          "id": "ev-metric-ts-ui-dashboard_latency-50",
+          "kind": "metric",
+          "source": "ts-ui-dashboard_latency-50",
+          "value": 0.39575741419125904,
+          "payload": {
+            "anomaly_score": 2.512075589639468
+          }
+        },
+        {
+          "id": "ev-log-137973",
+          "kind": "log",
+          "source": "ts-inside-payment-service",
+          "value": null,
+          "payload": {
+            "message": "2024-01-23 15:52:45.578  INFO 1 --- [o-18673-exec-10] i.service.InsidePaymentServiceImpl       : [Inside Payment Service][Pay] Error. Order status Not allowed to Pay."
+          }
+        },
+        {
+          "id": "ev-log-136360",
+          "kind": "log",
+          "source": "ts-auth-service",
+          "value": null,
+          "payload": {
+            "message": "2024-01-23 15:52:34.604  INFO 1 --- [o-12340-exec-10] auth.service.impl.TokenServiceImpl       : LOGIN USER :fdse_microservice __ 111111 __ null"
+          }
+        },
+        {
+          "id": "ev-log-136388",
+          "kind": "log",
+          "source": "ts-ui-dashboard",
+          "value": null,
+          "payload": {
+            "message": "127.0.0.6 - - [23/Jan/2024:23:52:34 +0800] \"POST /api/v1/travel2service/trips/left HTTP/1.1\" 200 356 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36"
+          }
+        }
+      ],
+      "state": {},
+      "debt": null
+    }
+  },
+  {
+    "case_id": "re2tt_ts-train-service_mem_1",
+    "dataset_fault": "mem",
+    "normalized_fault": "UNMAPPED",
+    "inject_time": 1706008312,
+    "extracted_scenario": {
+      "id": "eval-re2tt_ts-train-service_mem_1",
+      "fault_class": "UNKNOWN",
+      "services": {
+        "ts-train-service": {
+          "role": "service",
+          "depends_on": null
+        },
+        "ts-route-service": {
+          "role": "service",
+          "depends_on": null
+        },
+        "ts-ticketinfo-service": {
+          "role": "service",
+          "depends_on": null
+        },
+        "ts-basic-service": {
+          "role": "service",
+          "depends_on": null
+        }
+      },
+      "health": {
+        "ts-train-service": "healthy",
+        "ts-route-service": "healthy",
+        "ts-ticketinfo-service": "healthy",
+        "ts-basic-service": "healthy"
+      },
+      "quality": null,
+      "objectives": {},
+      "tolerance": null,
+      "reversible_state": {},
+      "permissions": null,
+      "signals": {
+        "ts-train-service_diskio": 41196954.58407084,
+        "ts-train-service_latency-90": 0.5044088401787208,
+        "ts-route-service_diskio": 1834052.4805298096,
+        "ts-ticketinfo-service_diskio": 1745590.628344173,
+        "ts-basic-service_diskio": 1701430.3218630515
+      },
+      "evidence": [
+        {
+          "id": "ev-metric-ts-train-service_diskio",
+          "kind": "metric",
+          "source": "ts-train-service_diskio",
+          "value": 41196954.58407084,
+          "payload": {
+            "anomaly_score": 1905.2032497493446
+          }
+        },
+        {
+          "id": "ev-metric-ts-train-service_latency-90",
+          "kind": "metric",
+          "source": "ts-train-service_latency-90",
+          "value": 0.5044088401787208,
+          "payload": {
+            "anomaly_score": 447.8845881567093
+          }
+        },
+        {
+          "id": "ev-metric-ts-route-service_diskio",
+          "kind": "metric",
+          "source": "ts-route-service_diskio",
+          "value": 1834052.4805298096,
+          "payload": {
+            "anomaly_score": 87.05099558602927
+          }
+        },
+        {
+          "id": "ev-metric-ts-ticketinfo-service_diskio",
+          "kind": "metric",
+          "source": "ts-ticketinfo-service_diskio",
+          "value": 1745590.628344173,
+          "payload": {
+            "anomaly_score": 78.13566176463421
+          }
+        },
+        {
+          "id": "ev-metric-ts-basic-service_diskio",
+          "kind": "metric",
+          "source": "ts-basic-service_diskio",
+          "value": 1701430.3218630515,
+          "payload": {
+            "anomaly_score": 74.76093567783099
+          }
+        },
+        {
+          "id": "ev-log-141786",
+          "kind": "log",
+          "source": "ts-inside-payment-service",
+          "value": null,
+          "payload": {
+            "message": "2024-01-23 11:12:14.206  INFO 1 --- [io-18673-exec-8] i.service.InsidePaymentServiceImpl       : [Inside Payment Service][Pay] Error. Order status Not allowed to Pay."
+          }
+        },
+        {
+          "id": "ev-log-139464",
+          "kind": "log",
+          "source": "ts-train-service",
+          "value": null,
+          "payload": {
+            "message": "2024-01-23 11:12:04.339  INFO 1 --- [io-14567-exec-4] org.mongodb.driver.connection            : Opened connection [connectionId{localValue:7, serverValue:7}] to ts-train-mongo:27017"
+          }
+        },
+        {
+          "id": "ev-log-137039",
+          "kind": "log",
+          "source": "ts-basic-service",
+          "value": null,
+          "payload": {
+            "message": "2024-01-23 11:11:51.588  INFO 1 --- [io-15680-exec-7] f.microservice.service.BasicServiceImpl  : [Basic Information Service][Query For Station Id] Station Id: Shang Hai"
+          }
+        }
+      ],
+      "state": {},
+      "debt": null
+    }
+  },
+  {
+    "case_id": "re2tt_ts-travel-service_loss_3",
+    "dataset_fault": "loss",
+    "normalized_fault": "UNMAPPED",
+    "inject_time": 1708456140,
+    "extracted_scenario": {
+      "id": "eval-re2tt_ts-travel-service_loss_3",
+      "fault_class": "UNKNOWN",
+      "services": {
+        "ts-travel-service": {
+          "role": "service",
+          "depends_on": null
+        },
+        "ts-ui-dashboard": {
+          "role": "service",
+          "depends_on": null
+        },
+        "ts-admin-travel-service": {
+          "role": "service",
+          "depends_on": null
+        },
+        "ts-seat-service": {
+          "role": "service",
+          "depends_on": null
+        }
+      },
+      "health": {
+        "ts-travel-service": "healthy",
+        "ts-ui-dashboard": "healthy",
+        "ts-admin-travel-service": "healthy",
+        "ts-seat-service": "healthy"
+      },
+      "quality": null,
+      "objectives": {},
+      "tolerance": null,
+      "reversible_state": {},
+      "permissions": null,
+      "signals": {
+        "ts-travel-service_error": 0.08638205980066445,
+        "ts-ui-dashboard_error": 0.06647840531561462,
+        "ts-admin-travel-service_error": 0.026604651162790694,
+        "ts-admin-travel-service_latency-90": 1.8327860834256178,
+        "ts-seat-service_latency-90": 0.24069284538865104
+      },
+      "evidence": [
+        {
+          "id": "ev-metric-ts-travel-service_error",
+          "kind": "metric",
+          "source": "ts-travel-service_error",
+          "value": 0.08638205980066445,
+          "payload": {
+            "anomaly_score": 86382059.80066444
+          }
+        },
+        {
+          "id": "ev-metric-ts-ui-dashboard_error",
+          "kind": "metric",
+          "source": "ts-ui-dashboard_error",
+          "value": 0.06647840531561462,
+          "payload": {
+            "anomaly_score": 66478405.31561462
+          }
+        },
+        {
+          "id": "ev-metric-ts-admin-travel-service_error",
+          "kind": "metric",
+          "source": "ts-admin-travel-service_error",
+          "value": 0.026604651162790694,
+          "payload": {
+            "anomaly_score": 26604651.162790693
+          }
+        },
+        {
+          "id": "ev-metric-ts-admin-travel-service_latency-90",
+          "kind": "metric",
+          "source": "ts-admin-travel-service_latency-90",
+          "value": 1.8327860834256178,
+          "payload": {
+            "anomaly_score": 67.99089427381793
+          }
+        },
+        {
+          "id": "ev-metric-ts-seat-service_latency-90",
+          "kind": "metric",
+          "source": "ts-seat-service_latency-90",
+          "value": 0.24069284538865104,
+          "payload": {
+            "anomaly_score": 15.562326896395616
+          }
+        },
+        {
+          "id": "ev-log-153505",
+          "kind": "log",
+          "source": "ts-inside-payment-service",
+          "value": null,
+          "payload": {
+            "message": "2024-02-20 19:09:00.248  INFO 1 --- [io-18673-exec-6] i.service.InsidePaymentServiceImpl       : [Inside Payment Service][Pay] Error. Order status Not allowed to Pay."
+          }
+        },
+        {
+          "id": "ev-log-156462",
+          "kind": "log",
+          "source": "ts-travel-service",
+          "value": null,
+          "payload": {
+            "message": "2024-02-20 19:09:18.314 ERROR 1 --- [io-12346-exec-3] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed; nested exception is org.springframework.web.client.ResourceAccessException: I/O error on GET request for \"http://ts-train-service:14567/api/v1/trainservice/trains/GaoTieOne\": ts-train-service; nested exception is java.net.UnknownHostException: ts-train-service] with root cause"
+          }
+        },
+        {
+          "id": "ev-log-157230",
+          "kind": "log",
+          "source": "ts-admin-travel-service",
+          "value": null,
+          "payload": {
+            "message": "2024-02-20 19:09:18.338 ERROR 1 --- [io-16114-exec-1] o.a.c.c.C.[.[.[/].[dispatcherServlet]    : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed; nested exception is org.springframework.web.client.HttpServerErrorException: 500 Internal Server Error] with root cause"
+          }
+        }
+      ],
+      "state": {},
+      "debt": null
+    }
+  }
+]

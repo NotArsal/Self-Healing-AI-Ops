@@ -1,0 +1,6 @@
+{
+  "base_model": "laya-zero-shot",
+  "dataset_size": 3275,
+  "epochs_trained": 5,
+  "accuracy": 0.95
+}

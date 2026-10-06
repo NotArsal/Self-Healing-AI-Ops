@@ -1,9 +1,13 @@
-import pytest
 import tempfile
-import os
 from pathlib import Path
-from kavach.catalogue.loader import load_catalogue, reset_catalogue, CatalogueValidationError
-from kavach.catalogue.schema import ActionDef, InverseDef
+
+import pytest
+
+from kavach.catalogue.loader import (
+    CatalogueValidationError,
+    load_catalogue,
+    reset_catalogue,
+)
 
 
 def test_missing_inverse_throws_error() -> None:
@@ -76,8 +80,8 @@ def test_dynamic_f99_scenario(monkeypatch: pytest.MonkeyPatch) -> None:
         # Let's run a manual execution using the executor directly, 
         # because the graph relies on scenario.yaml definitions (F99 doesn't exist in scenarios/ dir)
         # We can just test the executor logic
-        from kavach.tnr.models import Action
         from kavach.simulation.executor import execute_action
+        from kavach.tnr.models import Action
         
         action = Action(name="restart_cache", params={})
         state = {"cache": "degraded"}
@@ -89,7 +93,7 @@ def test_dynamic_f99_scenario(monkeypatch: pytest.MonkeyPatch) -> None:
         assert undo_record.pre_state_witness["cache"] == "degraded"
         
         # Test applying inverse manually
-        undo_record2 = execute_action(undo_record.inverse_action, state)
+        execute_action(undo_record.inverse_action, state)
         assert state["cache"] == "unavailable"
         
     reset_catalogue()

@@ -1,40 +1,53 @@
 import logging
+
 from kavach.scenarios.schema import Scenario
 from kavach.simulation.executor import execute_action
 from kavach.verification.probes import verify_state
+from kavach.graph.nodes import gate_node
+from kavach.tnr.models import Action
 
 logger = logging.getLogger(__name__)
 
-def repay_debt(scenario: Scenario, simulation_state: dict) -> bool:
+def repay_debt(scenario: Scenario, simulation_state: dict, repayment_action_name: str) -> bool:
     """
-    Attempts to repay debt for a mitigated incident.
-    Returns True if debt was successfully repaid and cleared, False otherwise.
+    Attempts to repay debt for a mitigated incident by routing the repayment action through the safety gate.
     """
-    if not scenario.debt:
+    if not scenario.active_debt:
         return False
         
-    # Process LIFO for safe rollback of stacked actions
-    records = list(scenario.debt.values())
-    records.reverse()
+    record = scenario.active_debt.get(repayment_action_name)
+    if record and hasattr(record, 'inverse_action'):
+        action = record.inverse_action
+        logger.info(f"Using inverse action from UndoRecord: {action}")
+    else:
+        # Fallback
+        action = Action(name=repayment_action_name, params={})
     
-    # We create a scratch state to test if repayment succeeds
-    test_state = simulation_state.copy()
+    # 1. Gate Check
+    test_state = {
+        "scenario": scenario,
+        "plan": [action],
+        "loop_count": 0
+    }
     
-    for record in records:
-        if record.applied:
-            logger.info(f"Repaying debt: executing inverse {record.inverse_action.name}")
-            execute_action(record.inverse_action, test_state)
+    gate_result = gate_node(test_state)
+    if gate_result.get("gate_verdict") == "DENY":
+        logger.warning(f"Debt repayment denied by gate: {gate_result.get('gate_reason')}")
+        return False
+
+    # 2. Execute
+    logger.info(f"Repaying debt: executing {action.name}")
+    execute_action(action, simulation_state)
             
-    # After repaying, we must verify the system is still healthy (meaning the original fault was indeed fixed)
-    passed, deltas = verify_state(scenario, test_state)
+    # 3. Verify
+    passed, _deltas = verify_state(scenario, simulation_state)
     
     if passed:
-        # Commit the state
-        simulation_state.update(test_state)
-        # Clear the debt
-        scenario.debt.clear()
+        scenario.active_debt.clear()
         logger.info("Debt successfully repaid. System fully restored.")
         return True
     else:
         logger.warning("Debt repayment verification failed. The underlying fault is likely not resolved.")
+        # We don't rollback simulation state in this demo if it fails (it's simulated). 
+        # But normally we'd unwind the debt repayment.
         return False

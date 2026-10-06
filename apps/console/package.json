@@ -17,6 +17,8 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@reticlehq/next": "3.5.0",
+    "@reticlehq/react": "3.5.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",

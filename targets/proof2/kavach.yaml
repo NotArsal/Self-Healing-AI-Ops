@@ -1,0 +1,71 @@
+services:
+  api:
+    role: application
+    depends_on: [model_primary]
+    health:
+      type: http
+      target: http://localhost:8080/healthz
+      timeout_s: 3
+      expect_status: 200
+  llm-proxy:
+    role: model_primary
+    health:
+      type: http
+      target: http://localhost:8080/provider/status
+      timeout_s: 3
+      expect_status: 200
+
+quality:
+  golden_set: ./golden_set.yaml
+  min_cases: 20
+  scorers: [groundedness]
+  schedule_s: 300
+  runner:
+    type: http
+    target: http://localhost:8080/v1/query
+
+objectives:
+  availability:
+    - metric: http_requests_errors_ratio
+      comparator: "<"
+      threshold: 0.01
+      window_s: 120
+      weight: 1.0
+  quality:
+    - metric: kavach_eval_pass_rate
+      comparator: ">="
+      threshold: 0.85
+      window_s: 300
+      weight: 1.0
+
+tolerance:
+  quality_drop_pct: 15
+
+reversible_state:
+  model_selection:
+    kind: runtime_config
+    read: http://localhost:8080/v1/admin/model
+    write: http://localhost:8080/v1/admin/model
+
+permissions:
+  allowed_actions:
+    - switch_model
+    - restart_container
+  max_risk_tier: MEDIUM
+
+telemetry:
+  otlp_endpoint: http://localhost:4318
+  semconv_version: "1.42.0"
+  genai_instrumented: true
+  required_attributes:
+    - provider
+    - request_model
+
+debt:
+  f01_provider_outage:
+    repayment_action: switch_model
+    trigger:
+      metric: llm_proxy_health
+      condition: healthy_for_s
+      value: 600
+    max_age_s: 86400

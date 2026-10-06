@@ -80,6 +80,7 @@ state:
   model_primary: unavailable
   model_backup: healthy
   cache: healthy
+  active_model: model_primary
 debt:
   f01_provider_outage:
     repayment_action: switch_model
