@@ -1,7 +1,9 @@
 import pytest
-from kavach.debt.ledger import record_debt, get_active_debts, clear_debt
+
+from kavach.debt.ledger import clear_debt, get_active_debts, record_debt
 from kavach.debt.triggers import evaluate_trigger
-from kavach.scenarios.schema import Scenario, DebtDef, TriggerDef
+from kavach.scenarios.schema import DebtDef, TriggerDef
+
 
 def test_ledger_record_and_clear():
     # Setup
@@ -41,9 +43,10 @@ def test_trigger_primary_healthy_for_s():
 
 @pytest.mark.anyio
 async def test_evaluate_all_debts_escalation():
-    from kavach.debt.checker import evaluate_all_debts
-    from kavach.api.store import get_all_incidents, create_incident, get_incident
     import time
+
+    from kavach.api.store import create_incident, get_incident
+    from kavach.debt.checker import evaluate_all_debts
     
     incident_id = create_incident("F01", {"simulation_state": {}, "scenario": None})
     
@@ -67,8 +70,8 @@ async def test_evaluate_all_debts_escalation():
 
 @pytest.mark.anyio
 async def test_evaluate_all_debts_repayment():
+    from kavach.api.store import create_incident, get_incident
     from kavach.debt.checker import evaluate_all_debts
-    from kavach.api.store import get_all_incidents, create_incident, get_incident
     from kavach.scenarios.loader import load_scenario
     
     scenario = load_scenario("F01")
@@ -83,7 +86,7 @@ async def test_evaluate_all_debts_repayment():
         max_age_s=86400
     )
     record_debt(incident_id, scenario.id, "F01", debt_def)
-    from kavach.tnr.models import UndoRecord, Action
+    from kavach.tnr.models import Action, UndoRecord
     scenario.active_debt = {
         "switch_model": UndoRecord(
             original_action=Action(name="switch_model", params={"fallback": "model_backup"}),

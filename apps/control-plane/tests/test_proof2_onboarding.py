@@ -1,8 +1,18 @@
-import pytest
 import os
-from kavach.preflight.checker import PreflightChecker
+
+import pytest
+
 from kavach.graph.workflow import build_workflow
-from kavach.scenarios.schema import Scenario, ServiceDef, QualityDef, ObjectiveDef, PermissionDef, EvidenceItem, TriggerDef, DebtDef
+from kavach.preflight.checker import PreflightChecker
+from kavach.scenarios.schema import (
+    EvidenceItem,
+    ObjectiveDef,
+    PermissionDef,
+    QualityDef,
+    Scenario,
+    ServiceDef,
+)
+
 
 def test_proof2_preflight_and_heal(monkeypatch: pytest.MonkeyPatch):
     # 1. Read kavach.yaml
@@ -96,7 +106,6 @@ def test_proof2_preflight_and_heal(monkeypatch: pytest.MonkeyPatch):
     }
     
     result = app.invoke(initial_state)
-    import json
     # we can't print easily with pytest without -s, but we can put it in the assert message
     assert result["outcome"] in ["RESOLVED", "MITIGATED"], f"Escalated with gate verdict: {result.get('gate_verdict')}, reason: {result.get('gate_reason')}, plan: {result.get('plan')}"
 

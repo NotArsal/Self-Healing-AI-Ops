@@ -1,6 +1,6 @@
-from typing import Dict, List, Any
 import yaml
 from pydantic import ValidationError
+
 from kavach.preflight.schema import KavachManifest
 
 
@@ -14,7 +14,7 @@ class CheckResult:
 
 class PreflightReport:
     def __init__(self):
-        self.checks: List[CheckResult] = []
+        self.checks: list[CheckResult] = []
         self.conformance_level: str = "UNARMED"
     
     def add(self, result: CheckResult):
@@ -80,11 +80,11 @@ class PreflightChecker:
             self.report.add(CheckResult("P01", True, "Manifest parses and validates successfully."))
             return True
         except ValidationError as e:
-            self.report.add(CheckResult("P01", False, f"Schema validation failed: {str(e)}", "Fix schema errors in kavach.yaml according to CONTRACT.md"))
+            self.report.add(CheckResult("P01", False, f"Schema validation failed: {e!s}", "Fix schema errors in kavach.yaml according to CONTRACT.md"))
         except yaml.YAMLError as e:
-            self.report.add(CheckResult("P01", False, f"YAML parsing failed: {str(e)}", "Fix YAML syntax errors in kavach.yaml"))
+            self.report.add(CheckResult("P01", False, f"YAML parsing failed: {e!s}", "Fix YAML syntax errors in kavach.yaml"))
         except Exception as e:
-            self.report.add(CheckResult("P01", False, f"Unknown error during parsing: {str(e)}", "Check kavach.yaml format"))
+            self.report.add(CheckResult("P01", False, f"Unknown error during parsing: {e!s}", "Check kavach.yaml format"))
         return False
 
     def _check_p02(self):

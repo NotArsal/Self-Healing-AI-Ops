@@ -1,5 +1,6 @@
 from typing import Any
 
+
 def evaluate_trigger(condition: str, value: float, current_signals: dict[str, Any]) -> bool:
     """
     Evaluate if a debt repayment trigger has been met.

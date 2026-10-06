@@ -1,10 +1,10 @@
 import logging
 
+from kavach.graph.nodes import gate_node
 from kavach.scenarios.schema import Scenario
 from kavach.simulation.executor import execute_action
-from kavach.verification.probes import verify_state
-from kavach.graph.nodes import gate_node
 from kavach.tnr.models import Action
+from kavach.verification.probes import verify_state
 
 logger = logging.getLogger(__name__)
 

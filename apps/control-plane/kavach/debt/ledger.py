@@ -1,6 +1,8 @@
-from typing import Dict, Any, List
 import time
+from typing import Any
+
 from pydantic import BaseModel
+
 
 class ActiveDebt(BaseModel):
     incident_id: str
@@ -13,7 +15,7 @@ class ActiveDebt(BaseModel):
     repayment_action: str
 
 # In-memory ledger
-_ledger: Dict[str, ActiveDebt] = {}
+_ledger: dict[str, ActiveDebt] = {}
 
 def record_debt(incident_id: str, scenario_id: str, fault_class: str, debt_def: Any) -> None:
     """Record a debt when an incident is mitigated."""
@@ -29,9 +31,8 @@ def record_debt(incident_id: str, scenario_id: str, fault_class: str, debt_def: 
     )
     _ledger[incident_id] = debt
 
-def get_active_debts() -> List[ActiveDebt]:
+def get_active_debts() -> list[ActiveDebt]:
     return list(_ledger.values())
 
 def clear_debt(incident_id: str) -> None:
-    if incident_id in _ledger:
-        del _ledger[incident_id]
+    _ledger.pop(incident_id, None)

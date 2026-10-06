@@ -1,6 +1,4 @@
-import pytest
 from kavach.preflight.checker import PreflightChecker
-
 
 VALID_YAML = """
 services:

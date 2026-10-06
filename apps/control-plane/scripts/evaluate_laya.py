@@ -1,6 +1,7 @@
 import json
 import random
 
+
 def evaluate():
     print("Running Held-out Evaluation: Fine-Tuned Laya vs Rule Engine")
     print("-" * 60)
@@ -55,12 +56,12 @@ def evaluate():
         print(f"   Rule Engine: {d['rule_engine']} | Laya: {d['laya_model']} | Ground Truth: {d['right']} was right")
     
     print("\nMetrics Table:")
-    print(f"| Metric | Score |")
-    print(f"|--------|-------|")
+    print("| Metric | Score |")
+    print("|--------|-------|")
     print(f"| Laya Accuracy (Shadow Mode) | {95.2}% |")
     print(f"| Agreement with Rule Engine | {agreement_rate:.1f}% |")
-    print(f"| TNR Pass Rate | 98.1% |")
-    print(f"| Average Decision Latency | 145ms |")
+    print("| TNR Pass Rate | 98.1% |")
+    print("| Average Decision Latency | 145ms |")
     
 if __name__ == "__main__":
     evaluate()

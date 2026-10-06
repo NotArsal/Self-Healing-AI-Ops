@@ -1,4 +1,5 @@
-from typing import Any, Literal, List, Dict, Optional
+from typing import Literal
+
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -11,7 +12,7 @@ class HealthDef(BaseModel):
 
 class ServiceDef(BaseModel):
     role: str
-    depends_on: List[str] = Field(default_factory=list)
+    depends_on: list[str] = Field(default_factory=list)
     health: HealthDef | None = None
 
 
@@ -23,7 +24,7 @@ class RunnerDef(BaseModel):
 class QualityDef(BaseModel):
     golden_set: str
     min_cases: int
-    scorers: List[str]
+    scorers: list[str]
     schedule_s: int
     runner: RunnerDef
 
@@ -37,10 +38,10 @@ class ObjectiveMetric(BaseModel):
 
 
 class ObjectivesDef(BaseModel):
-    availability: List[ObjectiveMetric] = Field(default_factory=list)
-    latency: List[ObjectiveMetric] = Field(default_factory=list)
-    quality: List[ObjectiveMetric] = Field(default_factory=list)
-    cost: List[ObjectiveMetric] = Field(default_factory=list)
+    availability: list[ObjectiveMetric] = Field(default_factory=list)
+    latency: list[ObjectiveMetric] = Field(default_factory=list)
+    quality: list[ObjectiveMetric] = Field(default_factory=list)
+    cost: list[ObjectiveMetric] = Field(default_factory=list)
 
 
 class ToleranceDef(BaseModel):
@@ -59,8 +60,8 @@ class ReversibleStateDef(BaseModel):
 
 
 class PermissionDef(BaseModel):
-    allowed_actions: List[str] = Field(default_factory=list)
-    forbidden_services: List[str] = Field(default_factory=list)
+    allowed_actions: list[str] = Field(default_factory=list)
+    forbidden_services: list[str] = Field(default_factory=list)
     max_risk_tier: Literal["LOW", "MEDIUM", "HIGH"] = "MEDIUM"
 
 
@@ -68,7 +69,7 @@ class TelemetryDef(BaseModel):
     otlp_endpoint: str
     semconv_version: str
     genai_instrumented: bool
-    required_attributes: List[str]
+    required_attributes: list[str]
 
 
 class DependencyDef(BaseModel):
@@ -91,15 +92,15 @@ class DebtItemDef(BaseModel):
 
 
 class KavachManifest(BaseModel):
-    services: Dict[str, ServiceDef]
+    services: dict[str, ServiceDef]
     quality: QualityDef | None = None
     objectives: ObjectivesDef | None = None
     tolerance: ToleranceDef | None = None
-    reversible_state: Dict[str, ReversibleStateDef] | None = None
+    reversible_state: dict[str, ReversibleStateDef] | None = None
     permissions: PermissionDef = Field(default_factory=PermissionDef)
     telemetry: TelemetryDef | None = None
-    dependencies: List[DependencyDef] = Field(default_factory=list)
-    debt: Dict[str, DebtItemDef] | None = None
+    dependencies: list[DependencyDef] = Field(default_factory=list)
+    debt: dict[str, DebtItemDef] | None = None
 
     @model_validator(mode="after")
     def validate_objectives(self) -> 'KavachManifest':
