@@ -91,22 +91,13 @@ def plan_node(state: IncidentState) -> IncidentState:
 
 def gate_node(state: IncidentState) -> IncidentState:
     from kavach.remediation.tnr_gate import evaluate_safety
+    from kavach.safety.engine import permit
+    from kavach.api.store import get_all_incidents
 
     scenario = state["scenario"]
     loop_count = state.get("loop_count", 0) + 1
     
-    # 1. Circuit Breaker
-    if loop_count > 3:
-        return {
-            "loop_count": loop_count,
-            "gate_verdict": "DENY",
-            "gate_reason": "CIRCUIT_BREAKER_TRIPPED",
-            "approved_actions": []
-        }
-
-    allowed = scenario.permissions.allowed_actions if scenario.permissions else []
     plan = state.get("plan", [])
-    
     if not plan:
         return {
             "loop_count": loop_count,
@@ -115,33 +106,39 @@ def gate_node(state: IncidentState) -> IncidentState:
             "approved_actions": []
         }
         
-    # 2. Blast Radius Check
-    # For now, simplistic rule: max 2 actions allowed concurrently
-    if len(plan) > 2:
-        return {
-            "loop_count": loop_count,
-            "gate_verdict": "DENY",
-            "gate_reason": "BLAST_RADIUS_EXCEEDED",
-            "approved_actions": []
-        }
-
-    # 3. Allow-list and TNR Laya Check (Laya in SHADOW mode)
+    incident_history = list(get_all_incidents().values())
+    
     approved = []
     for action in plan:
-        # Run Laya for shadow evaluation on all actions
+        # 1. Shadow Laya evaluation
         context = f"Scenario {scenario.id}"
         assessment = evaluate_safety(action.name, context)
-        # Log Laya's assessment (Shadow mode)
         print(f"[SHADOW LAYA] {action.name}: {assessment.is_safe} - {assessment.reason}")
         
-        # Actual gating is strictly rule-based
-        if action.name in allowed:
+        # 2. Strict Rule-Based Gating
+        permit_res = permit(action, scenario, incident_history)
+        if permit_res.is_allowed:
             approved.append(action)
         else:
             return {
                 "loop_count": loop_count,
                 "gate_verdict": "DENY",
-                "gate_reason": f"UNAPPROVED_ACTION_{action.name.upper()}",
+                "gate_reason": permit_res.reason,
+                "approved_actions": []
+            }
+
+    mode = state.get("mode", "SIMULATION")
+    if mode != "SIMULATION":
+        # Request human approval before returning ALLOW
+        approval_result = interrupt({
+            "prompt": "Approval required for LIVE execution.",
+            "actions": [a.name for a in approved]
+        })
+        if approval_result != "APPROVED":
+            return {
+                "loop_count": loop_count,
+                "gate_verdict": "DENY",
+                "gate_reason": "HUMAN_REJECTED",
                 "approved_actions": []
             }
 
@@ -153,21 +150,40 @@ def gate_node(state: IncidentState) -> IncidentState:
     }
 
 
+from langgraph.types import interrupt
 def execute_node(state: IncidentState) -> IncidentState:
     from kavach.remediation.executor import execute_command
+    from kavach.api.store import get_all_incidents
+    
     sim_state = state.get("simulation_state", {}).copy()
     undo_records = []
+    
+    # Check Idempotency Key
+    idempotency_key = state.get("idempotency_key")
+    if idempotency_key:
+        for inc_id, inc_state in get_all_incidents().items():
+            if inc_id != state.get("incident_id") and inc_state.get("idempotency_key") == idempotency_key:
+                # Duplicate idempotency key is a no-op
+                return {"simulation_state": sim_state, "undo_stack": [], "outcome": "MITIGATED"}
 
+    mode = state.get("mode", "SIMULATION")
     last_output = ""
+    
     for action in state.get("approved_actions", []):
         if action.name == "shell_command":
             cmd = action.params.get("cmd", "")
             context = f"Scenario {state['scenario'].id}" if state.get("scenario") else ""
-            # We already know it's safe because gate_node approved it
-            _success, output = execute_command(cmd, context)
+            
+            if mode == "SIMULATION":
+                # Do not write anything/execute shell commands in SIMULATION
+                _success = True
+                output = "Simulated success"
+            else:
+                _success, output = execute_command(cmd, context)
+                
             last_output = output
             sim_state["last_shell_output"] = last_output
-            # Dummy undo record for shell commands (real system would need reverse cmd)
+            
             from kavach.tnr.models import UndoRecord
             record = UndoRecord(
                 original_action=action,
@@ -262,3 +278,5 @@ def outcome_node(state: IncidentState) -> IncidentState:
         return {"outcome": "MITIGATED"}
     else:
         return {"outcome": "ESCALATED"}
+
+

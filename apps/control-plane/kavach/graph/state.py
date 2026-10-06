@@ -35,9 +35,12 @@ class IncidentState(TypedDict, total=False):
     # State tracking
     simulation_state: dict[str, str]
     
+    mode: str | None
+    idempotency_key: str | None
     # Loop tracking for circuit breaker
     loop_count: int
 
     # Gate feedback
     gate_verdict: str | None
     gate_reason: str | None
+
