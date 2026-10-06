@@ -69,6 +69,11 @@ def analyze_root_cause(
     else:
         prompt += "- No similar past incidents found in the knowledge base.\n"
 
+    from kavach.knowledge.context7 import query_docs_for_incident
+    docs = query_docs_for_incident(scenario.fault_class, list(scenario.services.keys()))
+    if docs:
+        prompt += f"\n--- CONTEXT7 DOCUMENTATION EVIDENCE ---\n{docs}\n---------------------------------------\n"
+
     prompt += "\nOutput the structured RCA response."
 
     # In case Ollama's structured output struggles, we could wrap with a retry or fallback.

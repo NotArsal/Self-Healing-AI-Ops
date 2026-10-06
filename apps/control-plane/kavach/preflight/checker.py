@@ -69,6 +69,14 @@ class PreflightChecker:
         self._check_p12()
         self._check_p13()
         
+        # Resolve Context7 dependencies at onboarding
+        try:
+            from kavach.knowledge.context7 import resolve_dependencies_at_onboarding
+            dependencies = list(self.manifest.services.keys()) if self.manifest and self.manifest.services else []
+            resolve_dependencies_at_onboarding(dependencies)
+        except Exception as e:
+            pass # Non-fatal
+            
         self.report.determine_level()
         return self.report
 
