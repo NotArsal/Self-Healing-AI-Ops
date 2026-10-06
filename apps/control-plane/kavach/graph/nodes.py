@@ -107,7 +107,23 @@ def gate_node(state: IncidentState) -> IncidentState:
     scenario = state["scenario"]
     loop_count = state.get("loop_count", 0) + 1
 
+    if loop_count >= 4:
+        return {
+            "loop_count": loop_count,
+            "gate_verdict": "DENY",
+            "gate_reason": "CIRCUIT_BREAKER_TRIPPED",
+            "approved_actions": [],
+        }
+
     plan = state.get("plan", [])
+    if len(plan) > 2:
+        return {
+            "loop_count": loop_count,
+            "gate_verdict": "DENY",
+            "gate_reason": "BLAST_RADIUS_EXCEEDED",
+            "approved_actions": [],
+        }
+
     if not plan:
         return {
             "loop_count": loop_count,
@@ -139,7 +155,7 @@ def gate_node(state: IncidentState) -> IncidentState:
                 "approved_actions": [],
             }
 
-    mode = state.get("mode", "SIMULATION")
+    mode = state.get("mode") or "SIMULATION"
     if mode != "SIMULATION":
         # Request human approval before returning ALLOW
         approval_result = interrupt(
@@ -189,7 +205,7 @@ def execute_node(state: IncidentState) -> IncidentState:
                     "outcome": "MITIGATED",
                 }
 
-    mode = state.get("mode", "SIMULATION")
+    mode = state.get("mode") or "SIMULATION"
     last_output = ""
 
     for action in state.get("approved_actions", []):

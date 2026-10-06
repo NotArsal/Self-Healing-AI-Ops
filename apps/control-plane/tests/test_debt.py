@@ -8,7 +8,7 @@ def mock_laya(monkeypatch):
     def fake_evaluate(action, context):
         return SafetyAssessment(is_safe=True, reason="Mock safe")
 
-    monkeypatch.setattr("kavach.graph.nodes.evaluate_safety", fake_evaluate)
+    monkeypatch.setattr("kavach.remediation.tnr_gate.evaluate_safety", fake_evaluate)
 
 
 from kavach.debt.ledger import clear_debt, get_active_debts, record_debt

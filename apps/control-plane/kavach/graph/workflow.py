@@ -18,7 +18,7 @@ from kavach.graph.state import IncidentState
 
 def observe_node(state: IncidentState) -> IncidentState:
     sim_state = state.get("simulation_state", {})
-    mode = state.get("mode", "SIMULATION")
+    mode = state.get("mode") or "SIMULATION"
 
     if mode == "SIMULATION":
         if sim_state.get("_regression_detected") == "true":
