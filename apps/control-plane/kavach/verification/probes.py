@@ -47,33 +47,33 @@ def verify_state(
         else:
             deltas["availability"] = 0.0
             passed = False
-            
+
     if scenario.objectives and "latency" in scenario.objectives:
         obj = scenario.objectives["latency"]
         if is_healthy:
-            simulated_latency = obj.threshold - 100.0 # Better than threshold
+            simulated_latency = obj.threshold - 100.0  # Better than threshold
             deltas["latency"] = simulated_latency - obj.value
             if simulated_latency > obj.threshold:
                 passed = False
         else:
             deltas["latency"] = 0.0
             passed = False
-            
+
     if scenario.objectives and "quality" in scenario.objectives:
         obj = scenario.objectives["quality"]
         if is_healthy:
-            simulated_quality = obj.threshold + 0.05 # Better than threshold
+            simulated_quality = obj.threshold + 0.05  # Better than threshold
             deltas["quality"] = simulated_quality - obj.value
             if simulated_quality < obj.threshold:
                 passed = False
         else:
             deltas["quality"] = 0.0
             passed = False
-            
+
     if scenario.objectives and "cost" in scenario.objectives:
         obj = scenario.objectives["cost"]
         if is_healthy:
-            simulated_cost = obj.threshold - 50.0 # Better than threshold
+            simulated_cost = obj.threshold - 50.0  # Better than threshold
             deltas["cost"] = simulated_cost - obj.value
             if simulated_cost > obj.threshold:
                 passed = False

@@ -12,11 +12,9 @@ from kavach.tnr.models import Action
 def mock_rca(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_analyze(*args: Any, **kwargs: Any) -> RCAResponse:
         return RCAResponse(
-            fault_class="F01",
-            confidence=0.9,
-            evidence_ids=[],
-            rejected_alternatives=[]
+            fault_class="F01", confidence=0.9, evidence_ids=[], rejected_alternatives=[]
         )
+
     monkeypatch.setattr("kavach.graph.nodes.analyze_root_cause", fake_analyze)
 
 
@@ -40,17 +38,20 @@ def test_circuit_breaker_trips() -> None:
 
 def test_unapproved_action_blocked(monkeypatch: pytest.MonkeyPatch) -> None:
     scenario = load_scenario("F01")
-    
+
     # Mock the plan node to return an unapproved action (e.g. drop_database)
     def malicious_plan(state: Any) -> dict[str, Any]:
         return {"plan": [Action(name="drop_database", params={})]}
-    
+
     monkeypatch.setattr("kavach.graph.workflow.plan_node", malicious_plan)
-    
+
     app = build_workflow()
-    initial_state = {"scenario": scenario, "simulation_state": scenario.state.copy() if scenario.state else {}}
+    initial_state = {
+        "scenario": scenario,
+        "simulation_state": scenario.state.copy() if scenario.state else {},
+    }
     result = app.invoke(initial_state)
-    
+
     assert result["gate_verdict"] == "DENY"
     assert result["gate_reason"] == "UNAPPROVED_ACTION_DROP_DATABASE"
     assert result["outcome"] == "ESCALATED"
@@ -59,21 +60,26 @@ def test_unapproved_action_blocked(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_blast_radius_exceeded(monkeypatch: pytest.MonkeyPatch) -> None:
     scenario = load_scenario("F01")
-    
+
     # Mock the plan node to return too many actions
     def overeager_plan(state: Any) -> dict[str, Any]:
-        return {"plan": [
-            Action(name="switch_model", params={}),
-            Action(name="switch_model", params={}),
-            Action(name="switch_model", params={})
-        ]}
-    
+        return {
+            "plan": [
+                Action(name="switch_model", params={}),
+                Action(name="switch_model", params={}),
+                Action(name="switch_model", params={}),
+            ]
+        }
+
     monkeypatch.setattr("kavach.graph.workflow.plan_node", overeager_plan)
-    
+
     app = build_workflow()
-    initial_state = {"scenario": scenario, "simulation_state": scenario.state.copy() if scenario.state else {}}
+    initial_state = {
+        "scenario": scenario,
+        "simulation_state": scenario.state.copy() if scenario.state else {},
+    }
     result = app.invoke(initial_state)
-    
+
     assert result["gate_verdict"] == "DENY"
     assert result["gate_reason"] == "BLAST_RADIUS_EXCEEDED"
     assert result["outcome"] == "ESCALATED"

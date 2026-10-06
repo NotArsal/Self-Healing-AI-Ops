@@ -103,11 +103,11 @@ class KavachManifest(BaseModel):
     debt: dict[str, DebtItemDef] | None = None
 
     @model_validator(mode="after")
-    def validate_objectives(self) -> 'KavachManifest':
+    def validate_objectives(self) -> "KavachManifest":
         if self.objectives:
             if not self.objectives.availability and not self.objectives.quality:
-                # Actually, CONTRACT C4 says: "At least one objective in availability and one in quality. 
-                # An application declaring only availability objectives is conformant but cannot be protected 
+                # Actually, CONTRACT C4 says: "At least one objective in availability and one in quality.
+                # An application declaring only availability objectives is conformant but cannot be protected
                 # against silent degradation, and the platform must say so at onboarding."
                 # So we won't error here, but the checker will handle level assignment.
                 pass

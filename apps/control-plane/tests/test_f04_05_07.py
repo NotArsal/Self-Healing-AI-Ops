@@ -13,8 +13,9 @@ def mock_rca_factory(monkeypatch: pytest.MonkeyPatch, fault_class: str) -> None:
             fault_class=fault_class,
             confidence=0.9,
             evidence_ids=[],
-            rejected_alternatives=[]
+            rejected_alternatives=[],
         )
+
     monkeypatch.setattr("kavach.graph.nodes.analyze_root_cause", fake_analyze)
 
 
@@ -22,7 +23,10 @@ def test_f04_loop(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_rca_factory(monkeypatch, "F04")
     scenario = load_scenario("F04")
     app = build_workflow()
-    initial_state = {"scenario": scenario, "simulation_state": scenario.state.copy() if scenario.state else {}}
+    initial_state = {
+        "scenario": scenario,
+        "simulation_state": scenario.state.copy() if scenario.state else {},
+    }
     result = app.invoke(initial_state)
 
     assert result["verification_passed"] is True
@@ -34,7 +38,10 @@ def test_f05_loop(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_rca_factory(monkeypatch, "F05")
     scenario = load_scenario("F05")
     app = build_workflow()
-    initial_state = {"scenario": scenario, "simulation_state": scenario.state.copy() if scenario.state else {}}
+    initial_state = {
+        "scenario": scenario,
+        "simulation_state": scenario.state.copy() if scenario.state else {},
+    }
     result = app.invoke(initial_state)
 
     assert result["verification_passed"] is True
@@ -46,7 +53,10 @@ def test_f07_loop(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_rca_factory(monkeypatch, "F07")
     scenario = load_scenario("F07")
     app = build_workflow()
-    initial_state = {"scenario": scenario, "simulation_state": scenario.state.copy() if scenario.state else {}}
+    initial_state = {
+        "scenario": scenario,
+        "simulation_state": scenario.state.copy() if scenario.state else {},
+    }
     result = app.invoke(initial_state)
 
     assert result["verification_passed"] is True

@@ -11,6 +11,7 @@ class EvaluationCase(BaseModel):
     inject_time: int
     data_dir: str
 
+
 class CaseResult(BaseModel):
     case_id: str
     dataset_fault: str
@@ -21,6 +22,7 @@ class CaseResult(BaseModel):
     latency_ms: float
     is_unmapped: bool
     scenario_dump: dict
+
 
 class EvaluationReport(BaseModel):
     total_cases: int

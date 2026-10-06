@@ -21,11 +21,8 @@ async def lifespan(app: FastAPI):
     except asyncio.CancelledError:
         pass
 
-app = FastAPI(
-    title=settings.app_name,
-    version=settings.version,
-    lifespan=lifespan
-)
+
+app = FastAPI(title=settings.app_name, version=settings.version, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

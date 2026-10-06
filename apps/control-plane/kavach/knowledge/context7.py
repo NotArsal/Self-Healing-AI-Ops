@@ -1,12 +1,13 @@
 import json
 import logging
 import os
-import httpx
+
 from kavach.docs.queries import DOC_QUERIES
 
 logger = logging.getLogger(__name__)
 
 CACHE_FILE = ".context7_cache.json"
+
 
 def _load_cache() -> dict:
     if os.path.exists(CACHE_FILE):
@@ -17,12 +18,14 @@ def _load_cache() -> dict:
             return {}
     return {}
 
+
 def _save_cache(cache: dict) -> None:
     try:
         with open(CACHE_FILE, "w") as f:
             json.dump(cache, f)
     except Exception as e:
         logger.warning(f"Failed to save Context7 cache: {e}")
+
 
 def resolve_dependencies_at_onboarding(dependencies: list[str]) -> None:
     """Run once at preflight. Resolves library IDs and caches them."""
@@ -33,6 +36,7 @@ def resolve_dependencies_at_onboarding(dependencies: list[str]) -> None:
             cache[dep] = f"/{dep}/mocked"
     _save_cache(cache)
 
+
 def query_docs_for_incident(fault_class: str, dependencies: list[str]) -> str:
     """
     Fetch documentation evidence for specific fault classes.
@@ -41,20 +45,20 @@ def query_docs_for_incident(fault_class: str, dependencies: list[str]) -> str:
     """
     if fault_class not in ["F05", "F08", "F09", "UNKNOWN"]:
         return ""
-        
+
     queries = DOC_QUERIES.get(fault_class, [])[:2]
     if not queries:
         return ""
-        
+
     cache = _load_cache()
     evidence_blocks = []
-    
+
     for query in queries:
         cache_key = f"{fault_class}_{query}"
         if cache_key in cache:
             evidence_blocks.append(cache[cache_key])
             continue
-            
+
         # Network call to Context7 (Mocked)
         try:
             # We enforce the 5s timeout rule here
@@ -66,6 +70,6 @@ def query_docs_for_incident(fault_class: str, dependencies: list[str]) -> str:
         except Exception as e:
             logger.warning(f"Context7 lookup failed (non-fatal): {e}")
             continue
-            
+
     _save_cache(cache)
     return "\n\n".join(evidence_blocks)

@@ -1,16 +1,19 @@
 def observe_node(state: IncidentState) -> IncidentState:
     import time
+
     sim_state = state.get("simulation_state", {})
     mode = state.get("mode", "SIMULATION")
-    
+
     if mode == "SIMULATION":
         if sim_state.get("_regression_detected") == "true":
             return {"verification_passed": False}
     else:
         # Mock 120s observation window or interrupt based regression check
         time.sleep(1)
-        
+
     return {}
+
+
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
@@ -57,12 +60,12 @@ def build_workflow() -> Any:
 
     workflow.add_conditional_edges("diagnose", check_diagnosis)
     workflow.add_edge("plan", "gate")
-    
+
     def check_gate(state: IncidentState) -> str:
         if state.get("gate_verdict") == "DENY":
             return "outcome"
         return "execute"
-        
+
     workflow.add_conditional_edges("gate", check_gate)
     workflow.add_edge("execute", "verify")
 
@@ -73,16 +76,14 @@ def build_workflow() -> Any:
         return "unwind"
 
     workflow.add_conditional_edges("verify", check_verification)
-    
+
     def check_observation(state: IncidentState) -> str:
         if state.get("verification_passed"):
             return "outcome"
         return "unwind"
-        
+
     workflow.add_conditional_edges("observe", check_observation)
     workflow.add_edge("unwind", "plan")
     workflow.add_edge("outcome", END)
 
     return workflow.compile()
-
-

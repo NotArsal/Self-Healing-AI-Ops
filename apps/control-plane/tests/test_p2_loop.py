@@ -11,11 +11,9 @@ from kavach.scenarios.loader import load_scenario
 def mock_rca(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_analyze(*args: Any, **kwargs: Any) -> RCAResponse:
         return RCAResponse(
-            fault_class="F01",
-            confidence=0.9,
-            evidence_ids=[],
-            rejected_alternatives=[]
+            fault_class="F01", confidence=0.9, evidence_ids=[], rejected_alternatives=[]
         )
+
     monkeypatch.setattr("kavach.graph.nodes.analyze_root_cause", fake_analyze)
 
 

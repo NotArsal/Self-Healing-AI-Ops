@@ -40,7 +40,9 @@ def load_catalogue(base_dir: str = "catalogue_data") -> Catalogue:
     # Validate inverses exist
     for act_name, act in catalogue.actions.items():
         if act.inverse.name != "noop" and act.inverse.name not in catalogue.actions:
-            raise CatalogueValidationError(f"Action '{act_name}' specifies inverse '{act.inverse.name}', but it is not defined in the catalogue.")
+            raise CatalogueValidationError(
+                f"Action '{act_name}' specifies inverse '{act.inverse.name}', but it is not defined in the catalogue."
+            )
 
     _CATALOGUE_CACHE = catalogue
     return catalogue

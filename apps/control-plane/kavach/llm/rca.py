@@ -21,8 +21,10 @@ def analyze_root_cause(
     scenario: Scenario, model_name: str = "qwen2.5:7b-instruct"
 ) -> RCAResponse:
     from kavach.topology.graph import build_topology_graph
-    
-    llm = ChatOllama(model=model_name, temperature=0.0, base_url="http://127.0.0.1:11434")
+
+    llm = ChatOllama(
+        model=model_name, temperature=0.0, base_url="http://127.0.0.1:11434"
+    )
     structured_llm = llm.with_structured_output(RCAResponse)
 
     topology = build_topology_graph(scenario.services)
@@ -59,7 +61,7 @@ def analyze_root_cause(
             prompt += f"- ID: {ev.id} | Kind: {ev.kind} | Source: {ev.source} | Value: {ev.value} | Payload: {ev.payload}\n"
     else:
         prompt += "- None\n"
-        
+
     prompt += "\nKNOWLEDGE BASE (Similar Past Incidents):\n"
     # Mocking knowledge base retrieval - this satisfies "Similar past incidents appear in evidence collection"
     if "error ratio" in prompt.lower() or "gen_ai_error_ratio" in prompt.lower():
@@ -70,6 +72,7 @@ def analyze_root_cause(
         prompt += "- No similar past incidents found in the knowledge base.\n"
 
     from kavach.knowledge.context7 import query_docs_for_incident
+
     docs = query_docs_for_incident(scenario.fault_class, list(scenario.services.keys()))
     if docs:
         prompt += f"\n--- CONTEXT7 DOCUMENTATION EVIDENCE ---\n{docs}\n---------------------------------------\n"

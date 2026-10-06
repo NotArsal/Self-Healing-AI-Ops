@@ -11,11 +11,9 @@ from kavach.scenarios.loader import load_scenario
 def mock_rca(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake_analyze(*args: Any, **kwargs: Any) -> RCAResponse:
         return RCAResponse(
-            fault_class="F02",
-            confidence=0.9,
-            evidence_ids=[],
-            rejected_alternatives=[]
+            fault_class="F02", confidence=0.9, evidence_ids=[], rejected_alternatives=[]
         )
+
     monkeypatch.setattr("kavach.graph.nodes.analyze_root_cause", fake_analyze)
 
 
@@ -34,7 +32,8 @@ def test_f02_loop() -> None:
     assert result["outcome"] == "MITIGATED"
     assert len(result["approved_actions"]) == 1
     assert result["approved_actions"][0].name == "enable_circuit_breaker"
-    
+
+
 def test_f02_forced_verification_failure_triggers_unwind() -> None:
     scenario = load_scenario("F02")
     app = build_workflow()

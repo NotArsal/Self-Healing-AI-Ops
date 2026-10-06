@@ -7,8 +7,9 @@ def test_verify_execution_success():
     status = verify_execution(output, command)
     assert status == "success"
 
+
 def test_verify_execution_failure():
     command = "kubectl get pods"
-    output = "Error from server (NotFound): pods \"xyz\" not found"
+    output = 'Error from server (NotFound): pods "xyz" not found'
     status = verify_execution(output, command)
     assert status == "failure"

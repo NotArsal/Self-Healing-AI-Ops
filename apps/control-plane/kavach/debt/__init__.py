@@ -11,5 +11,5 @@ __all__ = [
     "evaluate_trigger",
     "get_active_debts",
     "record_debt",
-    "repay_debt"
+    "repay_debt",
 ]

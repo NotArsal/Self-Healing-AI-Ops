@@ -6,7 +6,12 @@ def test_tnr_gate_destructive():
     action = "rm -rf /var/lib/mysql"
     result = evaluate_safety(action, context)
     assert result.is_safe == False
-    assert "destructive" in result.reason.lower() or "high_risk" in result.reason.lower() or "medium_risk" in result.reason.lower()
+    assert (
+        "destructive" in result.reason.lower()
+        or "high_risk" in result.reason.lower()
+        or "medium_risk" in result.reason.lower()
+    )
+
 
 def test_tnr_gate_safe():
     context = "High network latency observed"
@@ -14,6 +19,7 @@ def test_tnr_gate_safe():
     result = evaluate_safety(action, context)
     # Ping should be completely safe
     assert result.is_safe == True
+
 
 def test_tnr_gate_restart_service():
     context = "Service is hanging"

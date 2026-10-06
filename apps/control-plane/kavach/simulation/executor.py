@@ -14,17 +14,17 @@ def execute_action(action: Action, state: dict[str, str]) -> UndoRecord:
     Returns an UndoRecord containing the inverse action and the pre-state witness.
     """
     catalogue = load_catalogue()
-    
+
     if action.name not in catalogue.actions:
         raise ExecutorError(f"Unknown action in catalogue: {action.name}")
-        
+
     act_def = catalogue.actions[action.name]
-    
+
     # 1. Capture witness for all mutated keys
     pre_state = {}
     for state_key in act_def.mutations:
-        pre_state[state_key] = state.get(state_key, "unavailable") # Default fallback
-        
+        pre_state[state_key] = state.get(state_key, "unavailable")  # Default fallback
+
     # We must also capture anything the inverse needs if it's dynamic
     # e.g., if inverse restores target, we need to know what target was.
     # We can just witness the whole state generically or just the mutations
@@ -41,7 +41,7 @@ def execute_action(action: Action, state: dict[str, str]) -> UndoRecord:
             state[state_key] = str(action.params.get(param_name, "unknown"))
         else:
             state[state_key] = val_template
-            
+
     # 3. Construct Inverse Action
     inverse_params = {}
     for k, v in act_def.inverse.params_mapping.items():
@@ -50,9 +50,9 @@ def execute_action(action: Action, state: dict[str, str]) -> UndoRecord:
             inverse_params[k] = action.params.get(param_name, "unknown")
         else:
             inverse_params[k] = v
-            
+
     inverse_action = Action(name=act_def.inverse.name, params=inverse_params)
-    
+
     return UndoRecord(
         original_action=action,
         inverse_action=inverse_action,

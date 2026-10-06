@@ -23,6 +23,7 @@ class ObjectiveDef(BaseModel):
 class PermissionDef(BaseModel):
     allowed_actions: list[str] = Field(default_factory=list)
     max_risk_tier: str = "HIGH"
+    forbidden_services: list[str] = Field(default_factory=list)
 
 
 class EvidenceItem(BaseModel):
