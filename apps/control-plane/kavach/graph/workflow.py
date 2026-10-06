@@ -1,19 +1,4 @@
-def observe_node(state: IncidentState) -> IncidentState:
-    import time
-
-    sim_state = state.get("simulation_state", {})
-    mode = state.get("mode", "SIMULATION")
-
-    if mode == "SIMULATION":
-        if sim_state.get("_regression_detected") == "true":
-            return {"verification_passed": False}
-    else:
-        # Mock 120s observation window or interrupt based regression check
-        time.sleep(1)
-
-    return {}
-
-
+import time
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
@@ -30,6 +15,19 @@ from kavach.graph.nodes import (
 )
 from kavach.graph.state import IncidentState
 
+
+def observe_node(state: IncidentState) -> IncidentState:
+    sim_state = state.get("simulation_state", {})
+    mode = state.get("mode", "SIMULATION")
+
+    if mode == "SIMULATION":
+        if sim_state.get("_regression_detected") == "true":
+            return {"verification_passed": False}
+    else:
+        # Mock 120s observation window or interrupt based regression check
+        time.sleep(1)
+
+    return {}
 
 def build_workflow() -> Any:
     workflow = StateGraph(IncidentState)
