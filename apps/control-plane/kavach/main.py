@@ -23,10 +23,11 @@ async def lifespan(app: FastAPI):
 
 
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
 tracer_provider = TracerProvider()
-tracer_provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
+tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint="http://localhost:4318/v1/traces")))
 
 app = FastAPI(
     title=settings.app_name, 
