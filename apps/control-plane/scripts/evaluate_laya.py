@@ -28,10 +28,10 @@ def evaluate():
         labels = r["labels"]
         r_risk = labels["risk_tier"]
         r_dest = labels["is_destructive"]
-        
+
         # Rule Engine (Mocked strict)
         is_safe_rule = (r_risk == "A") and (r_dest == "B")
-        
+
         # Laya Model (Allows MEDIUM risk)
         is_safe_model = (r_risk in ["A", "B"]) and (r_dest == "B")
 
@@ -66,6 +66,7 @@ def evaluate():
     print(f"| Agreement with Rule Engine | {agreement_rate:.1f}% |")
     print("| TNR Pass Rate | 98.1% |")
     print("| Average Decision Latency | 145ms |")
+
 
 if __name__ == "__main__":
     evaluate()

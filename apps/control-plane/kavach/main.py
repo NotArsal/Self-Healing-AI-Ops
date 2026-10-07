@@ -27,13 +27,15 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
 tracer_provider = TracerProvider()
-tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint="http://localhost:4318/v1/traces")))
+tracer_provider.add_span_processor(
+    BatchSpanProcessor(OTLPSpanExporter(endpoint="http://localhost:4318/v1/traces"))
+)
 
 app = FastAPI(
-    title=settings.app_name, 
-    version=settings.version, 
+    title=settings.app_name,
+    version=settings.version,
     lifespan=lifespan,
-    telemetry={"tracer_provider": tracer_provider}
+    telemetry={"tracer_provider": tracer_provider},
 )
 
 app.add_middleware(
@@ -54,4 +56,6 @@ app.include_router(alerts.router)
 @app.get("/")
 async def root() -> dict[str, str]:
     return {"message": f"Welcome to {settings.app_name}"}
+
+
 app.include_router(debts.router, prefix="/api/v1")

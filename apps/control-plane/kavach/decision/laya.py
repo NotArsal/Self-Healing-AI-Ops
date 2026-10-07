@@ -5,19 +5,28 @@ try:
 except ImportError:
     Router = None
 
+
 class ShadowDecision(BaseModel):
     is_safe: bool
     reason: str
     confidence: float
     risk_tier: str
 
+
 def compress_decision_frame(incident_context: str, max_length: int = 2500) -> str:
     """Compress decision frame to respect the ~768-token budget."""
     if len(incident_context) > max_length:
-        raise ValueError("Decision frame overflowed token budget (max_length=" + str(max_length) + "). Bug in compressor.")
+        raise ValueError(
+            "Decision frame overflowed token budget (max_length="
+            + str(max_length)
+            + "). Bug in compressor."
+        )
     return incident_context
 
-def refit_temperature(question_type: str, option_count: int, raw_confidence: float) -> float:
+
+def refit_temperature(
+    question_type: str, option_count: int, raw_confidence: float
+) -> float:
     """
     Refit temperature per (question type, option count) on our own data.
     Uncalibrated output is a correctness bug.
@@ -33,6 +42,7 @@ def refit_temperature(question_type: str, option_count: int, raw_confidence: flo
     calibrated = min(1.0, raw_confidence ** (1.0 / temp))
     return calibrated
 
+
 def shadow_evaluate(proposed_action: str, incident_context: str) -> ShadowDecision:
     """
     Evaluate an action using Laya in shadow-only mode.
@@ -42,11 +52,14 @@ def shadow_evaluate(proposed_action: str, incident_context: str) -> ShadowDecisi
     """
     if not Router:
         return ShadowDecision(
-            is_safe=False, reason="Laya not available.", confidence=0.0, risk_tier="HIGH"
+            is_safe=False,
+            reason="Laya not available.",
+            confidence=0.0,
+            risk_tier="HIGH",
         )
 
     router = Router()
-    
+
     questions = {
         "is_destructive": {
             "type": "choice",
@@ -75,28 +88,29 @@ def shadow_evaluate(proposed_action: str, incident_context: str) -> ShadowDecisi
         },
     }
 
-    frame = compress_decision_frame(f"Context: {incident_context}\nAction: {proposed_action}")
+    frame = compress_decision_frame(
+        f"Context: {incident_context}\nAction: {proposed_action}"
+    )
 
     try:
         # Laya predict call
         result = router.predict(frame, questions)
         answers = result.get("answers", {})
-        
+
         # Extract choices using neutral keys
         is_destructive_ans = answers.get("is_destructive", {}).get("choice", "A")
         raw_dest_conf = answers.get("is_destructive", {}).get("confidence", 0.5)
-        
-        
+
         raw_res_conf = answers.get("will_resolve", {}).get("confidence", 0.5)
-        
+
         risk_tier_ans = answers.get("risk_tier", {}).get("choice", "C")
         raw_risk_conf = answers.get("risk_tier", {}).get("confidence", 0.5)
-        
+
         # Refit temperatures (calibration)
         dest_conf = refit_temperature("choice", 2, raw_dest_conf)
         res_conf = refit_temperature("choice", 2, raw_res_conf)
         risk_conf = refit_temperature("choice", 3, raw_risk_conf)
-        
+
         # Average confidence across questions
         avg_confidence = (dest_conf + res_conf + risk_conf) / 3.0
 
@@ -106,7 +120,7 @@ def shadow_evaluate(proposed_action: str, incident_context: str) -> ShadowDecisi
 
         is_safe = True
         reason = "Safe"
-        
+
         if is_destructive_ans == "A":
             is_safe = False
             reason = "Destructive action"
@@ -118,12 +132,10 @@ def shadow_evaluate(proposed_action: str, incident_context: str) -> ShadowDecisi
             is_safe=is_safe,
             reason=reason,
             confidence=avg_confidence,
-            risk_tier=risk_tier
+            risk_tier=risk_tier,
         )
 
     except Exception as e:
-        return ShadowDecision(is_safe=False, reason=f"Laya error: {e}", confidence=0.0, risk_tier="HIGH")
-
-
-
-
+        return ShadowDecision(
+            is_safe=False, reason=f"Laya error: {e}", confidence=0.0, risk_tier="HIGH"
+        )

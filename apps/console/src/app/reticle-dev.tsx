@@ -1,11 +1,11 @@
-'use client';
-import { useEffect } from 'react';
+"use client";
+import { useEffect } from "react";
 
 /** Dev-only: connect Reticle + install the React adapter, after hydration. */
 export function ReticleDev() {
   useEffect(() => {
-    if (process.env.NODE_ENV !== 'development') return;
-    void import('@reticlehq/react').then(
+    if (process.env.NODE_ENV !== "development") return;
+    void import("@reticlehq/react").then(
       ({ reticle, install, registerCapabilities }) => {
         install();
         // Both provided by withReticle() in next.config. The bridge rejects a connect with no token;
@@ -18,7 +18,8 @@ export function ReticleDev() {
         // So a version-skewed pair names the SDK's version instead of "an unknown older wire".
         const sdkVersion = process.env.NEXT_PUBLIC_RETICLE_SDK_VERSION;
         reticle.connect({
-          projectId: 'kavach-console-a495cd5d', ...(url ? { url } : {}),
+          projectId: "kavach-console-a495cd5d",
+          ...(url ? { url } : {}),
           ...(token ? { token } : {}),
           ...(root ? { root } : {}),
           ...(sdkVersion ? { sdkVersion } : {}),

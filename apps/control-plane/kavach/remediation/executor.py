@@ -3,16 +3,20 @@ import httpx
 
 from kavach.remediation.tnr_gate import evaluate_safety
 
+
 class RequiresHumanApprovalError(Exception):
     def __init__(self, reason: str, command: str):
         self.reason = reason
         self.command = command
         super().__init__(f"Action requires human approval. Reason: {reason}")
 
+
 def execute_command(command: str, incident_context: str = "") -> tuple[bool, str]:
     safety_assessment = evaluate_safety(command, incident_context)
     if not safety_assessment.is_safe:
-        raise RequiresHumanApprovalError(reason=safety_assessment.reason, command=command)
+        raise RequiresHumanApprovalError(
+            reason=safety_assessment.reason, command=command
+        )
 
     try:
         result = subprocess.run(
@@ -26,7 +30,10 @@ def execute_command(command: str, incident_context: str = "") -> tuple[bool, str
     except Exception as e:
         return False, f"Execution failed: {e!s}"
 
-def execute_http(method: str, url: str, payload: dict, incident_context: str = "") -> tuple[bool, str]:
+
+def execute_http(
+    method: str, url: str, payload: dict, incident_context: str = ""
+) -> tuple[bool, str]:
     # Very basic HTTP executor for Proof2
     safety_assessment = evaluate_safety(url, incident_context)
     if not safety_assessment.is_safe:
@@ -41,8 +48,10 @@ def execute_http(method: str, url: str, payload: dict, incident_context: str = "
     except Exception as e:
         return False, f"HTTP Execution failed: {e!s}"
 
+
 def verify_execution(output_text: str, command: str) -> str:
     from laya import Router
+
     router = Router()
     questions = {
         "status": {
@@ -58,4 +67,3 @@ def verify_execution(output_text: str, command: str) -> str:
     prompt = f"Command: {command}\nOutput: {output_text}"
     result = router.predict(prompt, questions)
     return result["answers"]["status"].get("choice", "unknown")
-

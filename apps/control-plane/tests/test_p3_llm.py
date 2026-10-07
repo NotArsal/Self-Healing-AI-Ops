@@ -1,4 +1,3 @@
-
 import pytest
 
 from kavach.llm.rca import RCAResponse
@@ -9,22 +8,37 @@ from kavach.remediation.tnr_gate import SafetyAssessment
 def mock_laya(monkeypatch):
     def fake_evaluate(action, context):
         return SafetyAssessment(is_safe=True, reason="Mock safe")
+
     monkeypatch.setattr("kavach.remediation.tnr_gate.evaluate_safety", fake_evaluate)
+
 
 @pytest.fixture(autouse=True)
 def mock_ollama(monkeypatch):
     class FakeLLM:
         def __init__(self, *args, **kwargs):
             pass
+
         def invoke(self, prompt, *args, **kwargs):
             if "- None" in str(prompt) or "[]" in str(prompt) or not prompt:
-                return RCAResponse(fault_class="INSUFFICIENT_EVIDENCE", confidence=0.3, evidence_ids=[], rejected_alternatives=[])
-            return RCAResponse(fault_class="F01", confidence=0.9, evidence_ids=["log-1"], rejected_alternatives=[])
-    
+                return RCAResponse(
+                    fault_class="INSUFFICIENT_EVIDENCE",
+                    confidence=0.3,
+                    evidence_ids=[],
+                    rejected_alternatives=[],
+                )
+            return RCAResponse(
+                fault_class="F01",
+                confidence=0.9,
+                evidence_ids=["log-1"],
+                rejected_alternatives=[],
+            )
+
     def fake_with_structured(self, schema, *args, **kwargs):
         return FakeLLM()
-        
-    monkeypatch.setattr("langchain_ollama.ChatOllama.with_structured_output", fake_with_structured)
+
+    monkeypatch.setattr(
+        "langchain_ollama.ChatOllama.with_structured_output", fake_with_structured
+    )
 
 
 from kavach.graph.workflow import build_workflow
@@ -69,7 +83,3 @@ def test_insufficient_evidence_escalates() -> None:
     # With no evidence, LLM should lack confidence or choose INSUFFICIENT_EVIDENCE
     assert graph_result["outcome"] == "ESCALATED"
     assert "plan" not in graph_result or len(graph_result.get("plan", [])) == 0
-
-
-
-

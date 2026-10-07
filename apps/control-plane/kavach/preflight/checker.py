@@ -75,11 +75,9 @@ class PreflightChecker:
         try:
             from kavach.knowledge.context7 import resolve_dependencies_at_onboarding
 
-            dependencies = (
-                list(self.manifest.services.keys())
-                if self.manifest and self.manifest.services
-                else []
-            )
+            dependencies = []
+            if self.manifest and self.manifest.dependencies:
+                dependencies = [d.name for d in self.manifest.dependencies]
             resolve_dependencies_at_onboarding(dependencies)
         except Exception:
             pass  # Non-fatal

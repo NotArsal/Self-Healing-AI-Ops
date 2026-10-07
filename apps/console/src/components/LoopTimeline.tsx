@@ -29,9 +29,13 @@ export function LoopTimeline({ currentStage }: { currentStage?: string }) {
       {stages.map((stage) => {
         const isActiveOrPast = true; // For now everything is colored, later we can highlight current
         const isDone = stage.id === "outcome";
-        const bgColor = isActiveOrPast ? getStageColor(stage.id) : "var(--color-k-surface-strong)";
-        const textColor = isDone ? "var(--color-k-on-primary)" : "var(--color-k-ink)";
-        
+        const bgColor = isActiveOrPast
+          ? getStageColor(stage.id)
+          : "var(--color-k-surface-strong)";
+        const textColor = isDone
+          ? "var(--color-k-on-primary)"
+          : "var(--color-k-ink)";
+
         return (
           <div
             key={stage.id}

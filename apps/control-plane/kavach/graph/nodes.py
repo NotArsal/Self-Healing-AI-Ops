@@ -238,23 +238,33 @@ def execute_node(state: IncidentState) -> IncidentState:
             url = action.params.get("url", "")
             method = action.params.get("method", "POST")
             payload = action.params.get("payload", {})
-            context = f"Scenario {state['scenario'].id}" if state.get("scenario") else ""
-            
+            context = (
+                f"Scenario {state['scenario'].id}" if state.get("scenario") else ""
+            )
+
             from kavach.remediation.executor import execute_http
+
             if mode == "SIMULATION":
                 _success = True
                 output = "Simulated success"
             else:
                 _success, output = execute_http(method, url, payload, context)
-            
+
             sim_state["last_http_output"] = output
-            
+
             from kavach.tnr.models import UndoRecord
             from kavach.tnr.models import Action
-            
+
             record = UndoRecord(
                 original_action=action,
-                inverse_action=Action(name="http_request", params={"url": url, "method": method, "payload": {"model": "primary"}}),  # hardcoded inverse for proof2 demo
+                inverse_action=Action(
+                    name="http_request",
+                    params={
+                        "url": url,
+                        "method": method,
+                        "payload": {"model": "primary"},
+                    },
+                ),  # hardcoded inverse for proof2 demo
                 pre_state_witness={"output": output},
                 applied=True,
             )

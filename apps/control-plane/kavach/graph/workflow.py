@@ -29,6 +29,7 @@ def observe_node(state: IncidentState) -> IncidentState:
 
     return {}
 
+
 def build_workflow() -> Any:
     workflow = StateGraph(IncidentState)
 

@@ -56,7 +56,8 @@ export function IncidentRow({
       </div>
       {incident.fault_class && (
         <div className="text-sm mt-1 text-k-body">
-          Fault: <span className="font-mono text-k-ink">{incident.fault_class}</span>
+          Fault:{" "}
+          <span className="font-mono text-k-ink">{incident.fault_class}</span>
         </div>
       )}
       {incident.outcome === "MITIGATED" && incident.debt && (

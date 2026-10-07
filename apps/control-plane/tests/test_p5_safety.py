@@ -9,7 +9,9 @@ from kavach.remediation.tnr_gate import SafetyAssessment
 def mock_laya(monkeypatch):
     def fake_evaluate(action, context):
         return SafetyAssessment(is_safe=True, reason="Mock safe")
+
     monkeypatch.setattr("kavach.remediation.tnr_gate.evaluate_safety", fake_evaluate)
+
 
 from kavach.graph.workflow import build_workflow
 from kavach.llm.rca import RCAResponse
@@ -92,5 +94,3 @@ def test_blast_radius_exceeded(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result["gate_verdict"] == "DENY"
     assert result["gate_reason"] == "BLAST_RADIUS_EXCEEDED"
     assert result["outcome"] == "ESCALATED"
-
-

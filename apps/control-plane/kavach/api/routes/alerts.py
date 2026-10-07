@@ -43,7 +43,7 @@ async def receive_alert(
 
     # 1. Laya Triage
     category = classify_alert(combined_text)
-    
+
     # Extract optional target path from annotations for dynamic loading
     target_path = None
     for a in payload.alerts:
@@ -57,18 +57,21 @@ async def receive_alert(
     if target_path:
         # Dynamic loading for Phase 9b
         from kavach.scenarios.loader import load_scenario_from_yaml
+
         try:
             # We mock the scenario wrapper for the graph to run
             scenario = load_scenario_from_yaml(target_path)
             scenario.id = f"dynamic-{category}"
             if not scenario.fault_class:
-                scenario.fault_class = "F01" # Default assumption
+                scenario.fault_class = "F01"  # Default assumption
             if not scenario.evidence:
                 scenario.evidence = []
             if not scenario.state:
                 scenario.state = {}
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to load target {target_path}: {e}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to load target {target_path}: {e}"
+            )
     else:
         # Fallback to hardcoded scenarios
         if category == "application":
@@ -77,7 +80,7 @@ async def receive_alert(
             scenario_name = "F11"
         else:
             return {"status": "triaged", "category": category, "action": "ignored"}
-            
+
         try:
             scenario = load_scenario(scenario_name)
         except Exception as e:
