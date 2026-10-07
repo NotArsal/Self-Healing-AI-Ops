@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from kavach.api.routes import alerts, events, health, incidents, scenarios
+from kavach.api.routes import alerts, events, health, incidents, scenarios, debts
 from kavach.config import settings
 from kavach.debt.checker import check_debts_loop
 
@@ -54,3 +54,4 @@ app.include_router(alerts.router)
 @app.get("/")
 async def root() -> dict[str, str]:
     return {"message": f"Welcome to {settings.app_name}"}
+app.include_router(debts.router, prefix="/api/v1")

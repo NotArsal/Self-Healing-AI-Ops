@@ -18,6 +18,8 @@ export const metadata: Metadata = {
   description: "Autonomous AI Operations Platform",
 };
 
+import { Navigation } from "@/components/Navigation";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -26,9 +28,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${jetBrainsMono.variable} antialiased min-h-screen bg-k-canvas text-k-body`}
+        className={`${inter.variable} ${jetBrainsMono.variable} antialiased min-h-screen bg-k-canvas text-k-body flex flex-col`}
       >{process.env.NODE_ENV === 'development' ? <ReticleDev /> : null}
-        {children}
+        <Navigation />
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
       </body>
     </html>
   );
