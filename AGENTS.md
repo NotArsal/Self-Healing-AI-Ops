@@ -222,7 +222,9 @@ make bench                 # 9 faults × 5 reps → metrics table
 - Weaken a safety check to make something pass
 - Add a second agent framework, a second database, or a second dashboard
 - Implement Kubernetes, cloud deploy, canary traffic splitting, or multi-tenancy support
-- Implement autonomous code repair, GitHub PR-based remediation, Loki or Tempo. All four are rejected in `ARCHITECTURE.md` §2.2 with reasons
+- Implement autonomous code repair or GitHub PR-based remediation. Both are rejected in `ARCHITECTURE.md` §2.2 with reasons
+- Query Loki or Tempo from anywhere in the healing loop. They are a human view behind an optional profile (`ARCHITECTURE.md` §2.4); Postgres is the source of truth for everything Kavach reasons over. Detection reading LogQL makes the loop depend on Loki being up
+- Build operational views in Grafana. It is the viewer for Loki and Tempo only; incidents are managed in the console
 - Let an unknown failure auto-execute anything. Unknown always escalates to a human in v1
 - Put a Context7 lookup on a LOW-risk repair path, or let retrieved documentation influence a decision as anything other than cited evidence
 - Rewrite a component in another language

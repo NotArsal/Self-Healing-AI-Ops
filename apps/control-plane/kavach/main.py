@@ -22,7 +22,18 @@ async def lifespan(app: FastAPI):
         pass
 
 
-app = FastAPI(title=settings.app_name, version=settings.version, lifespan=lifespan)
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+
+tracer_provider = TracerProvider()
+tracer_provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
+
+app = FastAPI(
+    title=settings.app_name, 
+    version=settings.version, 
+    lifespan=lifespan,
+    telemetry={"tracer_provider": tracer_provider}
+)
 
 app.add_middleware(
     CORSMiddleware,
