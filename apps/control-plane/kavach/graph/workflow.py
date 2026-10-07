@@ -44,7 +44,14 @@ def build_workflow() -> Any:
     workflow.add_node("outcome", outcome_node)
 
     workflow.add_edge(START, "detect")
-    workflow.add_edge("detect", "diagnose")
+    workflow.add_edge(START, "diagnose")
+
+    def join_investigation(state: IncidentState) -> IncidentState:
+        return {}
+    
+    workflow.add_node("join_investigation", join_investigation)
+    workflow.add_edge("detect", "join_investigation")
+    workflow.add_edge("diagnose", "join_investigation")
 
     def check_diagnosis(state: IncidentState) -> str:
         diag = state.get("diagnosis")
@@ -57,7 +64,7 @@ def build_workflow() -> Any:
             return "outcome"
         return "plan"
 
-    workflow.add_conditional_edges("diagnose", check_diagnosis)
+    workflow.add_conditional_edges("join_investigation", check_diagnosis)
     workflow.add_edge("plan", "gate")
 
     def check_gate(state: IncidentState) -> str:

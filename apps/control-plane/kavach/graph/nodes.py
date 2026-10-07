@@ -6,11 +6,12 @@ from kavach.verification.probes import verify_state
 
 
 def detect_node(state: IncidentState) -> IncidentState:
-    # Just transitions to diagnose
+    # Future: parallel evidence gathering (e.g. telemetry)
     return {}
 
 
 def diagnose_node(state: IncidentState) -> IncidentState:
+    # Future: parallel evidence gathering (e.g. logs)
     scenario = state["scenario"]
     if scenario.fault_class in ["F10", "F11"]:
         from kavach.llm.rca import RCAResponse
@@ -22,8 +23,10 @@ def diagnose_node(state: IncidentState) -> IncidentState:
             rejected_alternatives=[],
         )
     else:
+        # We need to make this async friendly if it were real, but it's fine for now
         diagnosis = analyze_root_cause(scenario)
     return {"diagnosis": diagnosis, "fault_class": diagnosis.fault_class}
+
 
 
 from kavach.catalogue.loader import load_catalogue
@@ -252,8 +255,7 @@ def execute_node(state: IncidentState) -> IncidentState:
 
             sim_state["last_http_output"] = output
 
-            from kavach.tnr.models import UndoRecord
-            from kavach.tnr.models import Action
+            from kavach.tnr.models import Action, UndoRecord
 
             record = UndoRecord(
                 original_action=action,
