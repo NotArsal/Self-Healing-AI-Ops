@@ -43,24 +43,47 @@ async def receive_alert(
 
     # 1. Laya Triage
     category = classify_alert(combined_text)
+    
+    # Extract optional target path from annotations for dynamic loading
+    target_path = None
+    for a in payload.alerts:
+        if a.annotations.description and "target=" in a.annotations.description:
+            parts = a.annotations.description.split("target=")
+            if len(parts) > 1:
+                target_path = parts[1].split()[0]
+                break
 
     # 2. Trigger Actionable Incidents
-    # We use F10 to simulate a safe remediation for application alerts
-    if category == "application":
-        scenario_name = "F10"
-    elif category == "database":
-        # We use F11 to simulate an unsafe destructive attempt
-        scenario_name = "F11"
+    if target_path:
+        # Dynamic loading for Phase 9b
+        from kavach.scenarios.loader import load_scenario_from_yaml
+        try:
+            # We mock the scenario wrapper for the graph to run
+            scenario = load_scenario_from_yaml(target_path)
+            scenario.id = f"dynamic-{category}"
+            if not scenario.fault_class:
+                scenario.fault_class = "F01" # Default assumption
+            if not scenario.evidence:
+                scenario.evidence = []
+            if not scenario.state:
+                scenario.state = {}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to load target {target_path}: {e}")
     else:
-        # Ignore network or unknown noise for this test
-        return {"status": "triaged", "category": category, "action": "ignored"}
-
-    try:
-        scenario = load_scenario(scenario_name)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to load scenario {scenario_name}: {e}"
-        )
+        # Fallback to hardcoded scenarios
+        if category == "application":
+            scenario_name = "F10"
+        elif category == "database":
+            scenario_name = "F11"
+        else:
+            return {"status": "triaged", "category": category, "action": "ignored"}
+            
+        try:
+            scenario = load_scenario(scenario_name)
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"Failed to load scenario {scenario_name}: {e}"
+            )
 
     initial_state = {
         "scenario": scenario,

@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -38,6 +39,21 @@ def revert_fault(fault: str):
     else:
         raise HTTPException(status_code=400, detail="Unknown fault")
     return {"status": f"reverted {fault}"}
+
+@app.get("/v1/admin/model")
+def get_model():
+    return {"model": "backup" if state["f01_active"] else "primary"}
+
+class ModelReq(BaseModel):
+    model: str
+
+@app.post("/v1/admin/model")
+def set_model(req: ModelReq):
+    if req.model == "backup":
+        state["f01_active"] = False # Heals F01 by switching to backup
+    elif req.model == "primary":
+        pass
+    return {"status": "ok", "model": req.model}
 
 @app.get("/v1/query")
 def query():
