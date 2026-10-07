@@ -10,7 +10,7 @@ setup:
 
 # Start infrastructure
 up:
-	docker-compose -f infra/docker-compose.yml up -d
+	docker-compose $(if $(PROFILE),--profile $(PROFILE),) -f infra/docker-compose.yml up -d
 
 # Stop infrastructure
 down:

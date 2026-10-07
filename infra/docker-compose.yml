@@ -27,5 +27,39 @@ services:
       timeout: 5s
       retries: 5
 
+  loki:
+    image: grafana/loki:latest
+    container_name: kavach-loki
+    ports:
+      - "3100:3100"
+    profiles:
+      - observability
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: kavach-tempo
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+      - "4318:4318"
+    profiles:
+      - observability
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: kavach-grafana
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+    ports:
+      - "3001:3000"
+    profiles:
+      - observability
+
 volumes:
   pgdata:
+
