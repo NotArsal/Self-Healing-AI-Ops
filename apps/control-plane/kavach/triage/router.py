@@ -1,10 +1,16 @@
-from laya import Router
+try:
+    from laya import Router
+except ImportError:
+    Router = None
 
 
 def classify_alert(alert_text: str) -> str:
     """
     Classifies a raw alert text into a high-level incident domain.
     """
+    if not Router:
+        return "unknown"
+
     router = Router()
 
     questions = {

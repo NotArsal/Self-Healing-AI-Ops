@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+
 import httpx
 
 from kavach.docs.queries import DOC_QUERIES

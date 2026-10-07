@@ -1,8 +1,8 @@
 import json
 import time
 
-from kavach.scenarios.loader import load_scenario
 from kavach.graph.workflow import build_workflow
+from kavach.scenarios.loader import load_scenario
 
 
 def run_ablation() -> None:

@@ -1,10 +1,8 @@
 import argparse
-import sys
 import time
 
-from kavach.scenarios.loader import ScenarioLoadError, load_scenario
 from kavach.graph.workflow import build_workflow
-from kavach.graph.state import IncidentState
+from kavach.scenarios.loader import ScenarioLoadError, load_scenario
 
 
 def run_scenario(name: str, force_verify_fail: bool = False) -> None:
@@ -53,21 +51,21 @@ def run_scenario(name: str, force_verify_fail: bool = False) -> None:
     # Check for approval / denial
     gate_verdict = result.get("gate_verdict")
     if gate_verdict == "DENY":
-        print(f"    - Gate Verdict    : DENY (Escalated to human approval)")
+        print("    - Gate Verdict    : DENY (Escalated to human approval)")
     else:
-        print(f"    - Gate Verdict    : PERMIT")
+        print("    - Gate Verdict    : PERMIT")
 
     # Check unwind
     undo_stack = result.get("undo_stack", [])
     if undo_stack and not result.get("verification_passed"):
         print(f"    - Verification    : FAILED (Unwound {len(undo_stack)} actions)")
     elif result.get("verification_passed"):
-        print(f"    - Verification    : PASSED")
+        print("    - Verification    : PASSED")
 
     # Check debt
     active_debt = scenario.active_debt
     if active_debt:
-        print(f"    - Debt Incurred   : YES")
+        print("    - Debt Incurred   : YES")
 
     print(f"\n>>> FINAL OUTCOME: {outcome} <<<\n")
 

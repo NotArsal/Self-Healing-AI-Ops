@@ -1,4 +1,7 @@
-from laya import Router
+try:
+    from laya import Router
+except ImportError:
+    Router = None
 
 
 def filter_logs(logs_text: str, incident_context: str) -> float:
@@ -6,6 +9,9 @@ def filter_logs(logs_text: str, incident_context: str) -> float:
     Scores a chunk of logs from 1 to 10 on its relevance to the incident.
     Returns the float score.
     """
+    if not Router:
+        return 0.0
+
     router = Router()
 
     questions = {

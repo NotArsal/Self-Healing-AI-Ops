@@ -116,6 +116,11 @@ async def get_incident_detail(incident_id: str) -> dict[str, Any]:
             if ui_state["scenario"].active_debt
             else {}
         )
+        ui_state["services"] = (
+            {k: v.model_dump() for k, v in ui_state["scenario"].services.items()}
+            if ui_state["scenario"].services
+            else {}
+        )
         del ui_state["scenario"]
 
     return ui_state

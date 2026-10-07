@@ -7,7 +7,7 @@ def evaluate():
     print("Running Held-out Evaluation: Fine-Tuned Laya vs Rule Engine")
     print("-" * 60)
 
-    dataset_path = "dataset.jsonl"
+    dataset_path = "datasets/laya_tnr_dataset.jsonl"
     if not os.path.exists(dataset_path):
         print(f"Dataset not found at {dataset_path}")
         return
@@ -25,22 +25,22 @@ def evaluate():
     disagreements = []
 
     for r in held_out:
-        labels = r["labels"]
-        r_risk = labels["risk_tier"]
+        labels = r["label"]
+        r_risk = labels["risk_level"]
         r_dest = labels["is_destructive"]
 
         # Rule Engine (Mocked strict)
-        is_safe_rule = (r_risk == "A") and (r_dest == "B")
+        is_safe_rule = (r_risk == "low_risk") and (r_dest == "safe")
 
         # Laya Model (Allows MEDIUM risk)
-        is_safe_model = (r_risk in ["A", "B"]) and (r_dest == "B")
+        is_safe_model = (r_risk in ["low_risk", "medium_risk"]) and (r_dest == "safe")
 
         if is_safe_rule == is_safe_model:
             agreements += 1
         else:
             disagreements.append(
                 {
-                    "action": r["decision_frame"].split("Action: ")[-1],
+                    "action": r["text"].split("Action: ")[-1],
                     "rule_engine": is_safe_rule,
                     "laya_model": is_safe_model,
                     "right": "laya_model" if random.random() > 0.3 else "rule_engine",

@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from kavach.api.routes import alerts, events, health, incidents, scenarios, debts
+from kavach.api.routes import alerts, debts, events, health, incidents, scenarios
 from kavach.config import settings
 from kavach.debt.checker import check_debts_loop
 
@@ -22,9 +22,9 @@ async def lifespan(app: FastAPI):
         pass
 
 
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
 tracer_provider = TracerProvider()
 tracer_provider.add_span_processor(

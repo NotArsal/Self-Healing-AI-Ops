@@ -1,4 +1,3 @@
-import pytest
 
 from kavach.docs.queries import DOC_QUERIES
 from kavach.knowledge.context7 import query_docs_for_incident
