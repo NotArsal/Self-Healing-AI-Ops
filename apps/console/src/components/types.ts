@@ -1,3 +1,10 @@
+export interface UndoRecord {
+  original_action: { name: string; params: Record<string, unknown> };
+  inverse_action: { name: string; params: Record<string, unknown> };
+  pre_state_witness: Record<string, unknown>;
+  applied: boolean;
+}
+
 export interface Incident {
   id: string;
   scenario?: string;
@@ -15,4 +22,6 @@ export interface Incident {
   verification_deltas?: Record<string, number>;
   simulation_state?: Record<string, unknown>;
   debt?: Record<string, unknown>;
+  undo_stack?: UndoRecord[];
+  services?: Record<string, { role: string; depends_on?: string[] }>;
 }

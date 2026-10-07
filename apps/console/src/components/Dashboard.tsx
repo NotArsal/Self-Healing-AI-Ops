@@ -7,6 +7,8 @@ import { IncidentRow } from "./IncidentRow";
 import { DeltaStrip } from "./DeltaStrip";
 import { DiagnosisCard } from "./DiagnosisCard";
 import { ActionPlan } from "./ActionPlan";
+import { UndoStackTimeline } from "./UndoStackTimeline";
+import { TopologyGraph } from "./TopologyGraph";
 
 export function Dashboard() {
   const [incidents, setIncidents] = useState<Record<string, Incident>>({});
@@ -203,6 +205,11 @@ export function Dashboard() {
                 <DeltaStrip deltas={activeIncident.verification_deltas || {}} />
               </div>
 
+              <UndoStackTimeline 
+                undoStack={activeIncident.undo_stack} 
+                outcome={activeIncident.outcome} 
+              />
+
               {activeIncident.outcome === "MITIGATED" && (
                 <div className="bg-k-caution-bg rounded border border-k-caution p-5 flex flex-col gap-3 shadow-sm">
                   <div className="flex flex-col">
@@ -221,6 +228,8 @@ export function Dashboard() {
                   </button>
                 </div>
               )}
+              
+              <TopologyGraph services={activeIncident.services} />
             </div>
           )}
         </aside>
