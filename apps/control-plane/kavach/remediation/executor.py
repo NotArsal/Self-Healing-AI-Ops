@@ -1,4 +1,5 @@
 import subprocess
+
 import httpx
 
 from kavach.remediation.tnr_gate import evaluate_safety
@@ -32,7 +33,7 @@ def execute_command(command: str, incident_context: str = "") -> tuple[bool, str
 
 
 def execute_http(
-    method: str, url: str, payload: dict, incident_context: str = ""
+    method: str, url: str, payload: dict[str, str], incident_context: str = ""
 ) -> tuple[bool, str]:
     # Very basic HTTP executor for Proof2
     safety_assessment = evaluate_safety(url, incident_context)
@@ -40,8 +41,13 @@ def execute_http(
         raise RequiresHumanApprovalError(reason=safety_assessment.reason, command=url)
 
     try:
+        from opentelemetry import propagate
+
+        headers: dict[str, str] = {}
+        propagate.inject(headers)
+
         with httpx.Client(timeout=30) as client:
-            req = client.build_request(method, url, json=payload)
+            req = client.build_request(method, url, json=payload, headers=headers)
             res = client.send(req)
             success = res.is_success
             return success, res.text
@@ -50,7 +56,17 @@ def execute_http(
 
 
 def verify_execution(output_text: str, command: str) -> str:
-    from laya import Router
+    try:
+        from laya import Router
+    except ImportError:
+        Router = None
+
+    if not Router:
+        # Fallback heuristic if Laya is not installed
+        lower_out = output_text.lower()
+        if "error" in lower_out or "exception" in lower_out or "fatal" in lower_out:
+            return "failure"
+        return "success" if output_text.strip() else "unknown"
 
     router = Router()
     questions = {
@@ -66,4 +82,4 @@ def verify_execution(output_text: str, command: str) -> str:
     }
     prompt = f"Command: {command}\nOutput: {output_text}"
     result = router.predict(prompt, questions)
-    return result["answers"]["status"].get("choice", "unknown")
+    return str(result["answers"]["status"].get("choice", "unknown"))
