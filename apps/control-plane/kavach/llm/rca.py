@@ -79,15 +79,29 @@ def analyze_root_cause(
 
     prompt += "\nOutput the structured RCA response."
 
-    # In case Ollama's structured output struggles, we could wrap with a retry or fallback.
-    # But for MVP, we rely on `langchain_ollama` structured output.
-    response = structured_llm.invoke(prompt)
+    import logging
+    logger = logging.getLogger(__name__)
 
-    # Type hinting check for invoke which returns BaseModel depending on config
-    if isinstance(response, RCAResponse):
-        return response
+    try:
+        # In case Ollama's structured output struggles, we wrap with a try-except.
+        response = structured_llm.invoke(prompt)
+        if isinstance(response, RCAResponse):
+            return response
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Primary LLM ({model_name}) failed: {e}. Degrading to fallback model.")
+        try:
+            fallback_model = "qwen2.5:0.5b-instruct"
+            llm_fallback = ChatOllama(
+                model=fallback_model, temperature=0.0, base_url="http://127.0.0.1:11434"
+            )
+            structured_fallback = llm_fallback.with_structured_output(RCAResponse)
+            fallback_response = structured_fallback.invoke(prompt)
+            if isinstance(fallback_response, RCAResponse):
+                return fallback_response
+        except Exception as e2:  # noqa: BLE001
+            logger.error(f"Fallback LLM also failed: {e2}")
 
-    # Fallback if structure parsing fails silently
+    # Fallback if structure parsing fails silently or both LLMs fail
     return RCAResponse(
         fault_class="INSUFFICIENT_EVIDENCE",
         confidence=0.0,
