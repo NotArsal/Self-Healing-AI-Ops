@@ -49,3 +49,6 @@ scenario:
 
 bench:
 	cd apps/control-plane && uv run python scripts/evaluate_laya.py
+
+onboard:
+	cd apps/control-plane && uv run python scripts/onboard.py ../../$(APP)/kavach.yaml
