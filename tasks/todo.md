@@ -261,3 +261,19 @@
 **Verification:**
 - [x] Test passes.
 **Dependencies:** Task 25
+
+## Task 27: Fix test_proof2_onboarding.py
+**Description:** The integration test for Proof #2 hangs. We need to debug the test (likely a subprocess issue with running the FastAPI app) and fix it.
+**Acceptance criteria:**
+- [x] `pytest tests/test_proof2_onboarding.py` passes quickly and reliably.
+**Verification:**
+- [x] Test passes (issue was Context7 timeouts, fixed by caching mechanism).
+**Dependencies:** None
+
+## Task 28: Add `make onboard` command
+**Description:** Add a `make onboard` command to the root Makefile that delegates to `scripts/onboard.py`.
+**Acceptance criteria:**
+- [x] `make onboard APP=targets/proof2` executes successfully.
+**Verification:**
+- [x] Command works manually.
+**Dependencies:** None
