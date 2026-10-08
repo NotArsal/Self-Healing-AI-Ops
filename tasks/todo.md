@@ -236,3 +236,28 @@
 
 ## Checkpoint: Complete
 - [x] F-SBX fully implemented.
+
+## Task 24: Implement `GitOpsAdapter`
+**Description:** Create a git operations executor adapter that modifies files and commits to `kavach/ops`.
+**Acceptance criteria:**
+- [x] `git_ops.py` adapter created in `executor`.
+- [x] Supports branching (`kavach/ops`), modifying files, and committing.
+**Verification:**
+- [x] Manual check.
+**Dependencies:** None
+
+## Task 25: Integrate `GitOpsAdapter` into `F07` Execution
+**Description:** Use the new git adapter when rolling back a prompt.
+**Acceptance criteria:**
+- [x] The `execute_node` or `F07` specific handler uses `GitOpsAdapter` for state mutations.
+**Verification:**
+- [x] Manual check of `nodes.py` or executor logic.
+**Dependencies:** Task 24
+
+## Task 26: Test F-GIT Reversibility
+**Description:** Write an integration test to ensure `rollback_prompt` modifies the file on `kavach/ops` and commits it, leaving `main` intact.
+**Acceptance criteria:**
+- [x] Test proves branch isolation and commit logic.
+**Verification:**
+- [x] Test passes.
+**Dependencies:** Task 25

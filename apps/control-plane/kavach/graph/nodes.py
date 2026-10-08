@@ -270,6 +270,24 @@ def execute_node(state: IncidentState) -> IncidentState:
                 applied=True,
             )
             undo_records.append(record)
+        elif action.name in ["rollback_prompt", "rollforward_prompt"]:
+            from kavach.remediation.git_ops import GitOpsAdapter
+            
+            git_adapter = GitOpsAdapter()
+            if mode != "SIMULATION":
+                git_adapter.checkout_ops_branch()
+                
+                # Mock file modification for F07
+                prompt_file = "prompts.yaml"
+                version = action.params.get("target_version") or action.params.get("version") or "unknown"
+                with open(prompt_file, "w") as f:
+                    f.write(f"version: {version}\n")
+                    
+                git_adapter.commit_changes(prompt_file, f"Execute {action.name} to {version}")
+
+            # Still mutate simulation state
+            record = execute_action(action, sim_state)
+            undo_records.append(record)
         else:
             record = execute_action(action, sim_state)
             undo_records.append(record)
@@ -328,6 +346,7 @@ def sandbox_verify_node(state: IncidentState) -> IncidentState:
 def unwind_node(state: IncidentState) -> IncidentState:
     sim_state = state.get("simulation_state", {}).copy()
     undo_stack = state.get("undo_stack", [])
+    mode = state.get("mode") or "SIMULATION"
 
     # Process LIFO
     for record in reversed(undo_stack):
@@ -337,6 +356,20 @@ def unwind_node(state: IncidentState) -> IncidentState:
                 sim_state[k] = v
             # If it's a real shell command, we would execute the inverse action
             # For simulation, updating from witness is sufficient to restore state.
+            
+            if record.original_action.name in ["rollback_prompt", "rollforward_prompt"] and mode != "SIMULATION":
+                from kavach.remediation.git_ops import GitOpsAdapter
+                git_adapter = GitOpsAdapter()
+                git_adapter.checkout_ops_branch()
+                
+                # Undo file modification
+                prompt_file = "prompts.yaml"
+                version = record.pre_state_witness.get("prompt_version", "unknown")
+                with open(prompt_file, "w") as f:
+                    f.write(f"version: {version}\n")
+                    
+                git_adapter.commit_changes(prompt_file, f"Undo {record.original_action.name} (Restored to {version})")
+
             if record.original_action.name != "shell_command":
                 execute_action(record.inverse_action, sim_state)
 
