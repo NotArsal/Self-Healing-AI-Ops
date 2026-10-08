@@ -1,0 +1,28 @@
+faults:
+  - id: F10
+    name: safe_shell_command
+    applies_to_roles: [test]
+    detect:
+      signal: test_signal
+      condition: eq_1
+    evidence: []
+    repair:
+      action: shell_command
+      params:
+        cmd: "echo 'status is healthy'"
+    verify: [health]
+    risk: LOW
+
+  - id: F11
+    name: destructive_shell_command
+    applies_to_roles: [test]
+    detect:
+      signal: test_signal
+      condition: eq_1
+    evidence: []
+    repair:
+      action: shell_command
+      params:
+        cmd: "rm -rf /var/lib/mysql"
+    verify: [health]
+    risk: HIGH

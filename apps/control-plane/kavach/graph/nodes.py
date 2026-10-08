@@ -11,8 +11,40 @@ def detect_node(state: IncidentState) -> IncidentState:
 
 
 def diagnose_node(state: IncidentState) -> IncidentState:
-    # Future: parallel evidence gathering (e.g. logs)
+    import asyncio
+    from kavach.api.db import get_db_session
+    from kavach.knowledge.retrieval import retrieve_similar_incidents
+    from kavach.scenarios.schema import EvidenceItem
+
     scenario = state["scenario"]
+    
+    # Retrieve past incidents as evidence
+    async def _fetch():
+        try:
+            async with get_db_session() as session:
+                query_text = f"Fault: {scenario.fault_class}\nSymptoms: {scenario.trigger.condition if scenario.trigger else ''}"
+                return await retrieve_similar_incidents(session, query_text)
+        except Exception as e:
+            import logging
+            logging.warning(f"Failed to query knowledge base: {e}")
+            return []
+
+    try:
+        past_incidents = asyncio.run(_fetch())
+    except RuntimeError:
+        try:
+            loop = asyncio.get_event_loop()
+            past_incidents = loop.run_until_complete(_fetch())
+        except Exception:
+            past_incidents = []
+
+    for inc in past_incidents:
+        scenario.evidence.append(EvidenceItem(
+            source="kavach_memory",
+            kind="log",
+            content=f"Past Incident {inc.id}: {inc.summary}\nRepair Action: {inc.repair_action}\nOutcome: {inc.outcome}"
+        ))
+
     if scenario.fault_class in ["F10", "F11"]:
         from kavach.llm.rca import RCAResponse
 
@@ -23,10 +55,12 @@ def diagnose_node(state: IncidentState) -> IncidentState:
             rejected_alternatives=[],
         )
     else:
-        # We need to make this async friendly if it were real, but it's fine for now
-        diagnosis = analyze_root_cause(scenario)
+        app_roles = None
+        if scenario.services:
+            app_roles = {s.role for s in scenario.services.values()}
+        diagnosis = analyze_root_cause(scenario, app_roles=app_roles)
+        
     return {"diagnosis": diagnosis, "fault_class": diagnosis.fault_class}
-
 
 
 from kavach.catalogue.loader import load_catalogue
@@ -37,69 +71,34 @@ def plan_node(state: IncidentState) -> IncidentState:
     fault = fault_raw.split(":")[0].strip() if fault_raw else ""
     plan = []
 
-    catalogue = load_catalogue()
+    scenario = state.get("scenario")
+    app_roles = None
+    if scenario and scenario.services:
+        app_roles = {s.role for s in scenario.services.values()}
 
-    if fault == "F10":
-        # Safe shell command
-        plan.append(
-            Action(name="shell_command", params={"cmd": "echo 'status is healthy'"})
-        )
-    elif fault == "F11":
-        # Destructive shell command
-        plan.append(
-            Action(name="shell_command", params={"cmd": "rm -rf /var/lib/mysql"})
-        )
-    elif fault and fault in catalogue.faults:
-        # Generate plan based on recommended actions
+    catalogue = load_catalogue(app_roles=app_roles)
+
+    sandbox_required = False
+    if fault and fault in catalogue.faults:
         f_def = catalogue.faults[fault]
-        for act_name in f_def.recommended_actions:
-            if act_name == "switch_model":
-                plan.append(
-                    Action(
-                        name="switch_model",
-                        params={"target": "model_primary", "fallback": "model_backup"},
-                    )
+        
+        if f_def.risk == "MEDIUM":
+            sandbox_required = True
+
+        if f_def.repair:
+            # Declarative execution
+            plan.append(
+                Action(
+                    name=f_def.repair.action,
+                    params=f_def.repair.params,
                 )
-            elif act_name == "rollback_deployment":
-                plan.append(
-                    Action(
-                        name="rollback_deployment",
-                        params={"target_version": "v1.2.0"},
-                    )
-                )
-            elif act_name == "scale_connection_pool":
-                plan.append(
-                    Action(
-                        name="scale_connection_pool",
-                        params={"target_size": "50", "original_size": "10"},
-                    )
-                )
-            elif act_name == "rollback_prompt":
-                plan.append(
-                    Action(
-                        name="rollback_prompt",
-                        params={"target_version": "v1.0"},
-                    )
-                )
-            elif act_name == "scale_retrievers":
-                plan.append(
-                    Action(
-                        name="scale_retrievers",
-                        params={"target_count": "5", "original_count": "2"},
-                    )
-                )
-            elif act_name == "rollback_config":
-                plan.append(
-                    Action(
-                        name="rollback_config",
-                        params={"target_version": "v3.0"},
-                    )
-                )
-            else:
-                # Generic action with no params
+            )
+        else:
+            # Legacy fallback if they still use recommended_actions
+            for act_name in f_def.recommended_actions:
                 plan.append(Action(name=act_name, params={}))
 
-    return {"plan": plan}
+    return {"plan": plan, "sandbox_required": sandbox_required}
 
 
 def gate_node(state: IncidentState) -> IncidentState:
@@ -299,9 +298,31 @@ def verify_node(state: IncidentState) -> IncidentState:
             "verification_deltas": {"laya_status": status},
         }
     else:
-        # Fallback to simulation verification
         passed, deltas = verify_state(state["scenario"], sim_state)
         return {"verification_passed": passed, "verification_deltas": deltas}
+
+
+def sandbox_execute_node(state: IncidentState) -> IncidentState:
+    # Run a dry-run/simulated execution for sandbox verification
+    sim_state = state.get("simulation_state", {}).copy()
+    
+    # We do not append to undo_stack here because it's just a sandbox
+    # and we won't unwind it in the same way. We just want to see if it passes verification.
+    for action in state.get("approved_actions", []):
+        if action.name == "shell_command":
+            sim_state["last_shell_output"] = "Simulated success"
+        elif action.name == "http_request":
+            sim_state["last_http_output"] = "Simulated success"
+        else:
+            execute_action(action, sim_state)
+
+    return {"simulation_state": sim_state}
+
+
+def sandbox_verify_node(state: IncidentState) -> IncidentState:
+    # Use the same verify logic but output to sandbox_passed
+    res = verify_node(state)
+    return {"sandbox_passed": res.get("verification_passed", False)}
 
 
 def unwind_node(state: IncidentState) -> IncidentState:
@@ -324,6 +345,8 @@ def unwind_node(state: IncidentState) -> IncidentState:
 
 
 def outcome_node(state: IncidentState) -> IncidentState:
+    import asyncio
+    
     # Check if we bypassed planning due to low confidence
     diag = state.get("diagnosis")
     if diag and (diag.confidence < 0.8 or diag.fault_class == "INSUFFICIENT_EVIDENCE"):
@@ -340,11 +363,13 @@ def outcome_node(state: IncidentState) -> IncidentState:
         return {"outcome": "ESCALATED"}
 
     passed = state.get("verification_passed", False)
+    
+    scenario = state["scenario"]
+    incident_id = state.get("incident_id", "unknown")
+    outcome_str = "MITIGATED" if passed else "ESCALATED"
+    
     if passed:
         # F01 usually results in MITIGATED because primary is still down, just backup is active.
-        scenario = state["scenario"]
-        incident_id = state.get("incident_id", "unknown")
-
         if scenario.active_debt is None:
             scenario.active_debt = {}
         for record in state.get("undo_stack", []):
@@ -356,10 +381,43 @@ def outcome_node(state: IncidentState) -> IncidentState:
         if scenario.fault_class and scenario.debt_config:
             debt_def = scenario.debt_config.get(scenario.fault_class)
             if debt_def:
-                from kavach.debt.ledger import record_debt
+                # Store debt_def on the scenario so we can persist it later in the async route
+                scenario.active_debt_def = debt_def
+    
+    # --- F-MEM: Save Incident Memory ---
+    async def _save():
+        try:
+            from kavach.api.db import get_db_session
+            from kavach.knowledge.store import save_incident_memory
+            
+            # Determine the repairs taken
+            repair_action_data = {}
+            if passed and state.get("undo_stack"):
+                record = state.get("undo_stack")[-1]
+                if hasattr(record.original_action, "params"):
+                    repair_action_data = {"name": record.original_action.name, "params": record.original_action.params}
+                
+            async with get_db_session() as session:
+                await save_incident_memory(
+                    session=session,
+                    incident_id=incident_id,
+                    fault_class=scenario.fault_class,
+                    symptoms=scenario.trigger.condition if scenario.trigger else "",
+                    summary=f"Automated RCA identified {scenario.fault_class}.",
+                    repair_action=repair_action_data,
+                    outcome=outcome_str
+                )
+        except Exception as e:
+            import logging
+            logging.warning(f"Failed to save incident to knowledge base: {e}")
 
-                record_debt(incident_id, scenario.id, scenario.fault_class, debt_def)
+    try:
+        asyncio.run(_save())
+    except RuntimeError:
+        try:
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(_save())
+        except Exception:
+            pass
 
-        return {"outcome": "MITIGATED"}
-    else:
-        return {"outcome": "ESCALATED"}
+    return {"outcome": outcome_str}

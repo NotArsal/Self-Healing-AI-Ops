@@ -1,22 +1,97 @@
 actions:
-- name: switch_model
-  inverse:
-    name: restore_model
-    params_mapping:
-      target: $target
-  mutations:
-    active_model: $fallback
-- name: restore_model
-  inverse:
-    name: noop
-    params_mapping: {}
-  mutations: {}
-- name: noop
-  inverse:
-    name: noop
-    params_mapping: {}
-  mutations: {}
+  - name: switch_model
+    inverse:
+      name: switch_model
+      params_mapping:
+        target: "$fallback"
+        fallback: "$target"
+    mutations:
+      active_model: "$target"
+
+  - name: rollback_deployment
+    inverse:
+      name: rollout_deployment
+      params_mapping:
+        target_version: "$original_version"
+        
+  - name: rollout_deployment
+    inverse:
+      name: noop
+      params_mapping: {}
+    mutations: {}
+
+  - name: rollback_prompt
+    inverse:
+      name: rollout_prompt
+      params_mapping: {}
+    mutations: {}
+    
+  - name: rollout_prompt
+    inverse:
+      name: noop
+      params_mapping: {}
+    mutations: {}
+
+  - name: shell_command
+    inverse:
+      name: noop
+
+  - name: restore_model
+    inverse:
+      name: noop
+    mutations: {}
+
+  - name: noop
+    inverse:
+      name: noop
+    mutations: {}
+
 faults:
-- fault_class: F01
-  recommended_actions:
-  - switch_model
+  - id: F01
+    name: provider_outage
+    applies_to_roles: [application]
+    detect:
+      signal: gen_ai_error_rate
+      condition: gt
+      threshold_pct: 50
+      window_s: 60
+      requires: [llm_client.provider]
+    evidence: [spans:gen_ai, error_logs]
+    repair:
+      action: switch_model
+      params: 
+        target: model_backup
+        fallback: model_primary
+    verify: [health, objectives, eval]
+    risk: LOW
+
+  - id: F03
+    name: container_crash
+    applies_to_roles: [application]
+    detect:
+      signal: container_status
+      condition: eq_exit_1
+    evidence: [container_logs, pod_events]
+    repair:
+      action: rollback_deployment
+      params:
+        target_version: last_known_good
+    verify: [health]
+    risk: MEDIUM
+
+  - id: F07
+    name: prompt_regression
+    applies_to_roles: [application]
+    detect:
+      signal: kavach_eval_pass_rate
+      condition: drop_from_baseline
+      threshold_pct: 10
+      window_s: 300
+      requires: [reversible_state.prompts]
+    evidence: [eval_history, git_diff:prompts, spans:gen_ai]
+    repair:
+      action: rollback_prompt
+      params: 
+        to: last_known_good
+    verify: [health, objectives, golden_eval]
+    risk: MEDIUM

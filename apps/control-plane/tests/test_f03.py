@@ -32,7 +32,7 @@ def test_f03_loop() -> None:
     assert result["outcome"] == "MITIGATED"
     assert len(result["approved_actions"]) == 1
     assert result["approved_actions"][0].name == "rollback_deployment"
-    assert result["approved_actions"][0].params["target_version"] == "v1.2.0"
+    assert result["approved_actions"][0].params["target_version"] == "last_known_good"
 
 
 def test_f03_forced_verification_failure_triggers_unwind() -> None:

@@ -12,6 +12,8 @@ from kavach.graph.nodes import (
     plan_node,
     unwind_node,
     verify_node,
+    sandbox_execute_node,
+    sandbox_verify_node,
 )
 from kavach.graph.state import IncidentState
 
@@ -37,6 +39,8 @@ def build_workflow() -> Any:
     workflow.add_node("diagnose", diagnose_node)
     workflow.add_node("plan", plan_node)
     workflow.add_node("gate", gate_node)
+    workflow.add_node("sandbox_execute", sandbox_execute_node)
+    workflow.add_node("sandbox_verify", sandbox_verify_node)
     workflow.add_node("execute", execute_node)
     workflow.add_node("verify", verify_node)
     workflow.add_node("observe", observe_node)
@@ -70,9 +74,20 @@ def build_workflow() -> Any:
     def check_gate(state: IncidentState) -> str:
         if state.get("gate_verdict") == "DENY":
             return "outcome"
+        if state.get("sandbox_required"):
+            return "sandbox_execute"
         return "execute"
 
     workflow.add_conditional_edges("gate", check_gate)
+    workflow.add_edge("sandbox_execute", "sandbox_verify")
+
+    def check_sandbox(state: IncidentState) -> str:
+        if state.get("sandbox_passed"):
+            return "execute"
+        # If sandbox fails, we don't execute and just abort (ESCALATED outcome).
+        return "outcome"
+
+    workflow.add_conditional_edges("sandbox_verify", check_sandbox)
     workflow.add_edge("execute", "verify")
 
     # Conditional edge after verify

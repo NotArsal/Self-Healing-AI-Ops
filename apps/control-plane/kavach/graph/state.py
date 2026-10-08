@@ -40,6 +40,10 @@ class IncidentState(TypedDict, total=False):
     # Loop tracking for circuit breaker
     loop_count: int
 
+    # Sandbox Execution (F-SBX)
+    sandbox_required: bool | None
+    sandbox_passed: bool | None
+
     # Gate feedback
     gate_verdict: str | None
     gate_reason: str | None

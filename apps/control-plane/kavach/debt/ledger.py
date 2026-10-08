@@ -1,44 +1,91 @@
 import time
 from typing import Any
+from uuid import uuid4
 
+from sqlalchemy import select, text
 from pydantic import BaseModel
 
+from kavach.api.db import get_db_session
 
 class ActiveDebt(BaseModel):
+    id: str
     incident_id: str
-    scenario_id: str
-    fault_class: str
-    created_at: float
+    action_name: str
+    action_params: dict[str, Any]
+    trigger_type: str
     trigger_condition: str
-    trigger_value: float
+    created_at: float
     max_age_s: int
-    repayment_action: str
+    status: str
 
-
-# In-memory ledger
-_ledger: dict[str, ActiveDebt] = {}
-
-
-def record_debt(
-    incident_id: str, scenario_id: str, fault_class: str, debt_def: Any
+async def record_debt_async(
+    incident_id: str, action_name: str, action_params: dict[str, Any], debt_def: Any
 ) -> None:
-    """Record a debt when an incident is mitigated."""
-    debt = ActiveDebt(
-        incident_id=incident_id,
-        scenario_id=scenario_id,
-        fault_class=fault_class,
-        created_at=time.time(),
-        trigger_condition=debt_def.trigger.condition,
-        trigger_value=debt_def.trigger.value,
-        max_age_s=debt_def.max_age_s,
-        repayment_action=debt_def.repayment_action,
-    )
-    _ledger[incident_id] = debt
+    """Record a debt when an incident is mitigated, using Postgres."""
+    debt_id = f"debt-{uuid4().hex[:8]}"
+    trigger_cond = debt_def.trigger.condition if hasattr(debt_def, "trigger") else "unknown"
+    max_age_s = debt_def.max_age_s if hasattr(debt_def, "max_age_s") else 86400
+    
+    # We will use raw SQL for simplicity, matching the pattern in incidents.py
+    async with get_db_session() as session:
+        import json
+        await session.execute(
+            text(
+                "INSERT INTO remediation_debt (id, incident_id, action_name, action_params, trigger_type, trigger_condition, max_age_s, status) "
+                "VALUES (:id, :inc, :act, :params, :tt, :tc, :age, :st)"
+            ),
+            {
+                "id": debt_id,
+                "inc": incident_id,
+                "act": action_name,
+                "params": json.dumps(action_params),
+                "tt": "promql", # hardcoded for v1
+                "tc": trigger_cond,
+                "age": max_age_s,
+                "st": "PENDING"
+            },
+        )
+        await session.commit()
 
+async def get_active_debts_async() -> list[ActiveDebt]:
+    """Fetch all PENDING debts from Postgres."""
+    async with get_db_session() as session:
+        result = await session.execute(
+            text("SELECT id, incident_id, action_name, action_params, trigger_type, trigger_condition, EXTRACT(EPOCH FROM created_at) as created_at, max_age_s, status FROM remediation_debt WHERE status = 'PENDING'")
+        )
+        rows = result.fetchall()
+        
+    debts = []
+    for r in rows:
+        debts.append(
+            ActiveDebt(
+                id=r.id,
+                incident_id=r.incident_id,
+                action_name=r.action_name,
+                action_params=r.action_params if isinstance(r.action_params, dict) else {},
+                trigger_type=r.trigger_type,
+                trigger_condition=r.trigger_condition,
+                created_at=r.created_at,
+                max_age_s=r.max_age_s,
+                status=r.status
+            )
+        )
+    return debts
 
-def get_active_debts() -> list[ActiveDebt]:
-    return list(_ledger.values())
+async def clear_debt_async(incident_id: str) -> None:
+    """Mark debt as REPAID in Postgres."""
+    async with get_db_session() as session:
+        await session.execute(
+            text("UPDATE remediation_debt SET status = 'REPAID' WHERE incident_id = :inc"),
+            {"inc": incident_id}
+        )
+        await session.commit()
 
-
-def clear_debt(incident_id: str) -> None:
-    _ledger.pop(incident_id, None)
+async def escalate_debt_async(incident_id: str) -> None:
+    """Mark debt as ESCALATED in Postgres."""
+    async with get_db_session() as session:
+        await session.execute(
+            text("UPDATE remediation_debt SET status = 'ESCALATED' WHERE incident_id = :inc"),
+            {"inc": incident_id}
+        )
+        await session.commit()

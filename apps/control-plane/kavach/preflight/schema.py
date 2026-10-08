@@ -112,3 +112,7 @@ class KavachManifest(BaseModel):
                 # So we won't error here, but the checker will handle level assignment.
                 pass
         return self
+
+    @property
+    def active_roles(self) -> set[str]:
+        return {s.role for s in self.services.values()}

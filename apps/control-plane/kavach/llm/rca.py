@@ -18,9 +18,10 @@ class RCAResponse(BaseModel):
 
 
 def analyze_root_cause(
-    scenario: Scenario, model_name: str = "qwen2.5:7b-instruct"
+    scenario: Scenario, model_name: str = "qwen2.5:7b-instruct", app_roles: set[str] | None = None
 ) -> RCAResponse:
     from kavach.topology.graph import build_topology_graph
+    from kavach.catalogue.loader import load_catalogue
 
     llm = ChatOllama(
         model=model_name, temperature=0.0, base_url="http://127.0.0.1:11434"
@@ -29,6 +30,10 @@ def analyze_root_cause(
 
     topology = build_topology_graph(scenario.services)
     topo_text = topology.describe_topology()
+    
+    catalogue = load_catalogue(app_roles=app_roles)
+    applicable_faults = list(catalogue.faults.keys())
+    applicable_faults_str = ", ".join(applicable_faults)
 
     prompt = f"""
     You are an expert AI operations engineer performing Root Cause Analysis (RCA).
@@ -36,6 +41,9 @@ def analyze_root_cause(
     
     SYSTEM TOPOLOGY:
     {topo_text}
+    
+    You may ONLY diagnose one of the following applicable faults (or INSUFFICIENT_EVIDENCE):
+    {applicable_faults_str}
     
     CRITICAL RULES - Match the evidence to the EXACT class below:
     - If you see 'error ratio' or 'gen_ai_error_ratio' -> output F01

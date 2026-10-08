@@ -26,6 +26,12 @@ async def execute_graph_background(
 ) -> None:
     app = build_workflow()
 
+    import time
+    from datetime import datetime, timezone
+    
+    started_at = datetime.now(timezone.utc)
+    start_t = time.time()
+
     # Broadcast incident start
     scenario_obj = initial_state.get("scenario")
     await broadcast_event(
@@ -57,6 +63,63 @@ async def execute_graph_background(
 
             # Add artificial delay to simulate real-world operations and make console watchable
             await asyncio.sleep(1.0)
+
+    # End of graph execution: record MTTR metrics and Remediation Debt
+    final_state = get_incident(incident_id)
+    if final_state:
+        outcome = final_state.get("outcome", "UNKNOWN")
+        fault_class = final_state.get("fault_class", "UNKNOWN")
+        duration_ms = int((time.time() - start_t) * 1000)
+        resolved_at = datetime.now(timezone.utc)
+        
+        # Check if we need to record debt
+        scenario_after = final_state.get("scenario")
+        if scenario_after and hasattr(scenario_after, "active_debt_def") and scenario_after.active_debt_def:
+            from kavach.debt.ledger import record_debt_async
+            
+            # Find the params from active_debt (undo_stack inverse)
+            action_params = {}
+            if scenario_after.active_debt:
+                for a_name, record in scenario_after.active_debt.items():
+                    action_params = record.inverse_action.params if hasattr(record, "inverse_action") else {}
+                    break
+            
+            # Use the repayment action from the debt definition
+            debt_def = scenario_after.active_debt_def
+            action_name = debt_def.repayment_action if hasattr(debt_def, "repayment_action") else "unknown"
+            
+            try:
+                await record_debt_async(
+                    incident_id, action_name, action_params, debt_def
+                )
+            except Exception as e:
+                import logging
+                logging.warning(f"Failed to record debt for {incident_id}: {e}")
+
+        try:
+            from sqlalchemy import text
+            from kavach.api.db import get_db_session
+            
+            async with get_db_session() as session:
+                await session.execute(
+                    text(
+                        "INSERT INTO incident_metrics (incident_id, started_at, resolved_at, duration_ms, outcome, fault_class) "
+                        "VALUES (:id, :start, :res, :dur, :out, :fc)"
+                    ),
+                    {
+                        "id": incident_id,
+                        "start": started_at,
+                        "res": resolved_at,
+                        "dur": duration_ms,
+                        "out": outcome,
+                        "fc": fault_class,
+                    },
+                )
+                await session.commit()
+        except Exception as e:  # noqa: BLE001
+            import logging
+            logging.warning(f"Failed to record incident metrics to database: {e}")
+
 
 
 @router.post("/run")
@@ -166,6 +229,8 @@ async def repay_debt_endpoint(incident_id: str) -> dict[str, Any]:
 
     success = repay_debt(scenario, sim_state, repayment_action)
     if success:
+        from kavach.debt.ledger import clear_debt_async
+        await clear_debt_async(incident_id)
         update_incident(
             incident_id, {"simulation_state": sim_state, "outcome": "RESOLVED"}
         )

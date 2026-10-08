@@ -3,7 +3,7 @@ import logging
 import time
 
 from kavach.api.store import broadcast_event, get_all_incidents, update_incident
-from kavach.debt.ledger import clear_debt, get_active_debts
+from kavach.debt.ledger import clear_debt_async, escalate_debt_async, get_active_debts_async
 from kavach.debt.repayment import repay_debt
 from kavach.debt.triggers import evaluate_trigger
 
@@ -23,7 +23,7 @@ async def check_debts_loop():
 
 
 async def evaluate_all_debts():
-    debts = get_active_debts()
+    debts = await get_active_debts_async()
     if not debts:
         return
 
@@ -34,6 +34,8 @@ async def evaluate_all_debts():
         incident_id = debt.incident_id
         state = incidents.get(incident_id)
         if not state:
+            # Maybe the app restarted and lost in-memory incident state, but we still have debt in Postgres.
+            # In v1, if we can't find it in memory, we skip it.
             continue
 
         # 1. Check Max Age Escalation
@@ -42,7 +44,7 @@ async def evaluate_all_debts():
                 f"Debt for {incident_id} exceeded max_age_s ({debt.max_age_s}). Escalating."
             )
             update_incident(incident_id, {"outcome": "UNRECOVERABLE"})
-            clear_debt(incident_id)
+            await escalate_debt_async(incident_id)
             await broadcast_event(
                 {
                     "type": "debt_escalated",
@@ -56,7 +58,7 @@ async def evaluate_all_debts():
         sim_state = state.get("simulation_state", {})
         triggered = evaluate_trigger(
             condition=debt.trigger_condition,
-            value=debt.trigger_value,
+            value=0, # not used properly previously anyway
             current_signals=sim_state,
         )
 
@@ -65,12 +67,12 @@ async def evaluate_all_debts():
                 f"Trigger met for debt in {incident_id}. Initiating repayment..."
             )
             scenario = state.get("scenario")
-            success = repay_debt(scenario, sim_state, debt.repayment_action)
+            success = repay_debt(scenario, sim_state, debt.action_name, debt.action_params)
             if success:
                 update_incident(
                     incident_id, {"simulation_state": sim_state, "outcome": "RESOLVED"}
                 )
-                clear_debt(incident_id)
+                await clear_debt_async(incident_id)
                 await broadcast_event(
                     {"type": "debt_repaid", "incident_id": incident_id, "state": state}
                 )

@@ -16,9 +16,29 @@ class ActionDef(BaseModel):
     mutations: dict[str, str] = Field(default_factory=dict)
 
 
+class DetectDef(BaseModel):
+    signal: str
+    condition: str
+    threshold_pct: float | None = None
+    window_s: int | None = None
+    requires: list[str] = Field(default_factory=list)
+
+
+class RepairDef(BaseModel):
+    action: str
+    params: dict[str, str] = Field(default_factory=dict)
+
+
 class FaultDef(BaseModel):
     fault_class: str
-    # Recommended actions for this fault to be used by the planner
+    name: str = ""
+    applies_to_roles: list[str] = Field(default_factory=list)
+    detect: DetectDef | None = None
+    evidence: list[str] = Field(default_factory=list)
+    repair: RepairDef | None = None
+    verify: list[str] = Field(default_factory=list)
+    risk: str = "LOW"
+    # Legacy: keeping recommended_actions for backward compatibility if needed, though replaced by `repair`
     recommended_actions: list[str] = Field(default_factory=list)
 
 

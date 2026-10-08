@@ -15,5 +15,7 @@ actions:
     deployment_version: $version
 faults:
 - fault_class: F03
-  recommended_actions:
-  - rollback_deployment
+  repair:
+    action: rollback_deployment
+    params:
+      target_version: last_known_good

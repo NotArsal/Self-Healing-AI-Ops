@@ -70,6 +70,7 @@ class PreflightChecker:
         self._check_p11()
         self._check_p12()
         self._check_p13()
+        self._check_p14()
 
         # Resolve Context7 dependencies at onboarding
         try:
@@ -375,3 +376,27 @@ class PreflightChecker:
                     "Ensure objectives and reversible_state are defined.",
                 )
             )
+
+    def _check_p14(self):
+        """P14: Exclude unsupported faults based on application roles"""
+        from kavach.catalogue.loader import load_catalogue
+        if not self.manifest:
+            return
+
+        app_roles = self.manifest.active_roles
+        
+        # Load the full catalogue to find all faults
+        full_catalogue = load_catalogue(app_roles=None)
+        
+        excluded_faults = []
+        for f_class, f_def in full_catalogue.faults.items():
+            if f_def.applies_to_roles and not set(f_def.applies_to_roles).intersection(app_roles):
+                req_roles = ", ".join(f_def.applies_to_roles)
+                excluded_faults.append(f"{f_class} (requires {req_roles})")
+        
+        if excluded_faults:
+            msg = f"Excluded unsupported fault classes due to missing roles: {', '.join(excluded_faults)}"
+        else:
+            msg = "All declared fault classes are supported by the application's roles."
+            
+        self.report.add(CheckResult("P14", True, msg))

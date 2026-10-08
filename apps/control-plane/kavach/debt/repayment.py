@@ -10,21 +10,24 @@ logger = logging.getLogger(__name__)
 
 
 def repay_debt(
-    scenario: Scenario, simulation_state: dict, repayment_action_name: str
+    scenario: Scenario, simulation_state: dict, repayment_action_name: str, repayment_action_params: dict = None
 ) -> bool:
     """
     Attempts to repay debt for a mitigated incident by routing the repayment action through the safety gate.
     """
-    if not scenario.active_debt:
-        return False
+    if repayment_action_params is None:
+        repayment_action_params = {}
 
-    record = scenario.active_debt.get(repayment_action_name)
-    if record and hasattr(record, "inverse_action"):
-        action = record.inverse_action
-        logger.info(f"Using inverse action from UndoRecord: {action}")
-    else:
-        # Fallback
-        action = Action(name=repayment_action_name, params={})
+    action = None
+    if scenario.active_debt:
+        record = scenario.active_debt.get(repayment_action_name)
+        if record and hasattr(record, "inverse_action"):
+            action = record.inverse_action
+            logger.info(f"Using inverse action from UndoRecord: {action}")
+            
+    if not action:
+        # Fallback to DB params
+        action = Action(name=repayment_action_name, params=repayment_action_params)
 
     # 1. Gate Check
     test_state = {"scenario": scenario, "plan": [action], "loop_count": 0}
