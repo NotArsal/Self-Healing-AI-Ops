@@ -44,6 +44,9 @@ class IncidentState(TypedDict, total=False):
     sandbox_required: bool | None
     sandbox_passed: bool | None
 
+    # Risk tier of the diagnosed fault, from the catalogue. Drives the mode policy.
+    risk_tier: str | None
+
     # Gate feedback
     gate_verdict: str | None
     gate_reason: str | None

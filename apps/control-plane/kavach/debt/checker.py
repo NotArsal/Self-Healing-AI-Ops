@@ -10,7 +10,7 @@ from kavach.debt.triggers import evaluate_trigger
 logger = logging.getLogger(__name__)
 
 
-async def check_debts_loop():
+async def check_debts_loop() -> None:
     """Background task that ticks every 60 seconds to check active debts."""
     while True:
         try:
@@ -22,7 +22,7 @@ async def check_debts_loop():
             logger.error(f"Error in debt checker loop: {e}")
 
 
-async def evaluate_all_debts():
+async def evaluate_all_debts() -> None:
     debts = await get_active_debts_async()
     if not debts:
         return

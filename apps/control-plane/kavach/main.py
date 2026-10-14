@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -7,19 +8,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from kavach.api.routes import alerts, debts, events, health, incidents, scenarios
 from kavach.config import settings
 from kavach.debt.checker import check_debts_loop
+from kavach.detection.loop import detection_loop
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup
-    task = asyncio.create_task(check_debts_loop())
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    tasks = [
+        asyncio.create_task(check_debts_loop()),
+        asyncio.create_task(detection_loop()),
+    ]
     yield
-    # Shutdown
-    task.cancel()
-    try:
-        await task
-    except asyncio.CancelledError:
-        pass
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
 
 
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter

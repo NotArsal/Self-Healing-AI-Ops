@@ -1,5 +1,9 @@
 actions:
   - name: switch_model
+    effect:
+      kind: reversible_state
+      key: model_selection
+      value: "$target"
     inverse:
       name: switch_model
       params_mapping:

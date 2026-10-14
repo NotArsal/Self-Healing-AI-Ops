@@ -46,6 +46,10 @@ reversible_state:
     kind: runtime_config
     read: http://localhost:8080/v1/admin/model
     write: http://localhost:8080/v1/admin/model
+    field: model
+    values:
+      model_primary: primary
+      model_backup: backup
 
 permissions:
   allowed_actions:

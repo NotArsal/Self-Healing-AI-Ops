@@ -1,7 +1,14 @@
+from collections.abc import Callable
+
+from kavach.catalogue.schema import EffectDef
 from kavach.graph.state import IncidentState
 from kavach.llm.rca import analyze_root_cause
-from kavach.simulation.executor import execute_action
-from kavach.tnr.models import Action
+from kavach.preflight.schema import ReversibleStateDef
+from kavach.remediation.runtime_config import apply_effect, revert_effect
+from kavach.scenarios.schema import Scenario
+from kavach.simulation.executor import ExecutorError, execute_action
+from kavach.tnr.models import Action, UndoRecord
+from kavach.verification.live import verify_live
 from kavach.verification.probes import verify_state
 
 
@@ -79,9 +86,11 @@ def plan_node(state: IncidentState) -> IncidentState:
     catalogue = load_catalogue(app_roles=app_roles)
 
     sandbox_required = False
+    risk_tier = None
     if fault and fault in catalogue.faults:
         f_def = catalogue.faults[fault]
-        
+        risk_tier = f_def.risk
+
         if f_def.risk == "MEDIUM":
             sandbox_required = True
 
@@ -98,7 +107,11 @@ def plan_node(state: IncidentState) -> IncidentState:
             for act_name in f_def.recommended_actions:
                 plan.append(Action(name=act_name, params={}))
 
-    return {"plan": plan, "sandbox_required": sandbox_required}
+    return {
+        "plan": plan,
+        "sandbox_required": sandbox_required,
+        "risk_tier": risk_tier,
+    }
 
 
 def gate_node(state: IncidentState) -> IncidentState:
@@ -157,32 +170,99 @@ def gate_node(state: IncidentState) -> IncidentState:
                 "approved_actions": [],
             }
 
+    # Mode policy (ARCHITECTURE.md 8, PRD F-MODE). This runs only after the
+    # allow-list, forbidden-services, breaker and blast-radius checks above have
+    # all passed: a mode can never buy permission those checks refused.
     mode = state.get("mode") or "SIMULATION"
-    if mode != "SIMULATION":
-        # Request human approval before returning ALLOW
-        approval_result = interrupt(
-            {
-                "prompt": "Approval required for LIVE execution.",
-                "actions": [a.name for a in approved],
-            }
-        )
-        if approval_result != "APPROVED":
-            return {
-                "loop_count": loop_count,
-                "gate_verdict": "DENY",
-                "gate_reason": "HUMAN_REJECTED",
-                "approved_actions": [],
-            }
-
-    return {
+    # An unrecognised risk tier is treated as HIGH. Absent information is not
+    # permission.
+    risk_tier = state.get("risk_tier") or "HIGH"
+    allow: IncidentState = {
         "loop_count": loop_count,
         "gate_verdict": "ALLOW",
         "gate_reason": "PASSED",
         "approved_actions": approved,
     }
 
+    def deny(reason: str) -> IncidentState:
+        return {
+            "loop_count": loop_count,
+            "gate_verdict": "DENY",
+            "gate_reason": reason,
+            "approved_actions": [],
+        }
+
+    match mode:
+        case "SIMULATION":
+            # Plans and dry-runs only; execute_node writes nothing in this mode.
+            return allow
+        case "AUTONOMOUS":
+            if risk_tier == "LOW":
+                return allow
+            if risk_tier == "MEDIUM":
+                # plan_node set sandbox_required; approval is requested after the
+                # sandbox run proves the repair, in sandbox_verify_node.
+                return allow
+            return deny("HIGH_RISK_REQUIRES_HUMAN")
+        case _:
+            # APPROVAL, and any unknown mode, routes everything to a human.
+            return _request_approval(approved, loop_count, allow, deny)
+
+
+def _request_approval(
+    approved: list[Action],
+    loop_count: int,
+    allow: IncidentState,
+    deny: "Callable[[str], IncidentState]",
+) -> IncidentState:
+    approval_result = interrupt(
+        {
+            "prompt": "Approval required before execution.",
+            "actions": [a.name for a in approved],
+        }
+    )
+    if approval_result != "APPROVED":
+        return deny("HUMAN_REJECTED")
+    return allow
+
 
 from langgraph.types import interrupt
+
+
+def _live_effect_binding(
+    action: Action, scenario: Scenario | None
+) -> tuple[EffectDef, ReversibleStateDef] | None:
+    """Resolve an action to a live application effect, or None if it has none.
+
+    Returns a binding only when the catalogue declares how the action is realised
+    *and* the incident concerns a real application that declares the state it
+    touches. Both are data, so adding an action or a target needs no change here.
+    """
+    if scenario is None or scenario.target is None:
+        return None
+
+    catalogue = load_catalogue()
+    act_def = catalogue.actions.get(action.name)
+    if act_def is None or act_def.effect is None:
+        return None
+
+    rs_def = (scenario.target.manifest.reversible_state or {}).get(act_def.effect.key)
+    if rs_def is None:
+        raise ExecutorError(
+            f"action {action.name} needs reversible_state '{act_def.effect.key}', "
+            f"which {scenario.target.manifest_path} does not declare"
+        )
+    return act_def.effect, rs_def
+
+
+def _apply_live_effect(
+    action: Action, scenario: Scenario | None, mode: str
+) -> UndoRecord | None:
+    binding = _live_effect_binding(action, scenario)
+    if binding is None:
+        return None
+    effect, rs_def = binding
+    return apply_effect(effect, action, rs_def, mode)
 
 
 def execute_node(state: IncidentState) -> IncidentState:
@@ -211,6 +291,11 @@ def execute_node(state: IncidentState) -> IncidentState:
     last_output = ""
 
     for action in state.get("approved_actions", []):
+        effect_record = _apply_live_effect(action, state.get("scenario"), mode)
+        if effect_record is not None:
+            undo_records.append(effect_record)
+            continue
+
         if action.name == "shell_command":
             cmd = action.params.get("cmd", "")
             context = (
@@ -301,6 +386,13 @@ def verify_node(state: IncidentState) -> IncidentState:
     sim_state = state.get("simulation_state", {})
     approved_actions = state.get("approved_actions", [])
 
+    scenario = state.get("scenario")
+    if scenario is not None and scenario.target is not None:
+        # Real application: measure it. Nothing below this point is reachable for
+        # a live target, so no simulated number can leak into a live verdict.
+        passed, deltas = verify_live(scenario)
+        return {"verification_passed": passed, "verification_deltas": deltas}
+
     # Check if any action was a shell_command
     shell_action = next(
         (a for a in approved_actions if a.name == "shell_command"), None
@@ -340,7 +432,26 @@ def sandbox_execute_node(state: IncidentState) -> IncidentState:
 def sandbox_verify_node(state: IncidentState) -> IncidentState:
     # Use the same verify logic but output to sandbox_passed
     res = verify_node(state)
-    return {"sandbox_passed": res.get("verification_passed", False)}
+    passed = res.get("verification_passed", False)
+
+    # MEDIUM risk under AUTONOMOUS is "sandbox, then approval": a human approves
+    # on the evidence of a sandbox run rather than on a proposal.
+    mode = state.get("mode") or "SIMULATION"
+    if passed and mode == "AUTONOMOUS" and state.get("risk_tier") == "MEDIUM":
+        approval_result = interrupt(
+            {
+                "prompt": "Sandbox run passed. Approval required for live execution.",
+                "actions": [a.name for a in state.get("approved_actions", [])],
+            }
+        )
+        if approval_result != "APPROVED":
+            return {
+                "sandbox_passed": False,
+                "gate_verdict": "DENY",
+                "gate_reason": "HUMAN_REJECTED",
+            }
+
+    return {"sandbox_passed": passed}
 
 
 def unwind_node(state: IncidentState) -> IncidentState:
@@ -348,9 +459,17 @@ def unwind_node(state: IncidentState) -> IncidentState:
     undo_stack = state.get("undo_stack", [])
     mode = state.get("mode") or "SIMULATION"
 
+    scenario = state.get("scenario")
+
     # Process LIFO
     for record in reversed(undo_stack):
         if record.applied:
+            binding = _live_effect_binding(record.original_action, scenario)
+            if binding is not None:
+                effect, rs_def = binding
+                revert_effect(effect, record, rs_def, mode)
+                continue
+
             # Restore state from witness for faithful undo
             for k, v in record.pre_state_witness.items():
                 sim_state[k] = v

@@ -44,6 +44,12 @@ dev = [
 [tool.hatch.build.targets.wheel]
 packages = ["kavach"]
 
+[tool.pytest.ini_options]
+markers = [
+    "live: runs the real target application over HTTP; slow (~3 min). Deselect with -m 'not live'.",
+    "llm: calls a local model; excluded from CI.",
+]
+
 [tool.ruff]
 line-length = 88
 target-version = "py312"

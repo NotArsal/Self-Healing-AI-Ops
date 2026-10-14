@@ -57,6 +57,21 @@ class ReversibleStateDef(BaseModel):
     restore_cmd: str | None = None
     read: str | None = None
     write: str | None = None
+    # runtime_config only. `field` is the JSON key carrying the value at both the
+    # read and write endpoints. `values` translates the catalogue's vocabulary
+    # (model_primary) into this application's (primary), so neither side has to
+    # adopt the other's spelling -- contract defect #3.
+    field: str | None = None
+    values: dict[str, str] = Field(default_factory=dict)
+
+    def to_app_value(self, catalogue_value: str) -> str:
+        return self.values.get(catalogue_value, catalogue_value)
+
+    def to_catalogue_value(self, app_value: str) -> str:
+        for catalogue_value, mapped in self.values.items():
+            if mapped == app_value:
+                return catalogue_value
+        return app_value
 
 
 class PermissionDef(BaseModel):

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -8,12 +10,29 @@ class InverseDef(BaseModel):
     params_mapping: dict[str, str] = Field(default_factory=dict)
 
 
+class EffectDef(BaseModel):
+    """How an action is realised against a live application.
+
+    Without this, an action can only mutate Kavach's own simulated state dict --
+    the gap logged as contract defects #3 and #4 during proof #2. `key` names an
+    entry in the application's declared `reversible_state`, so the binding is
+    data and the executor never dispatches on an action's name.
+    """
+
+    kind: Literal["reversible_state"]
+    key: str
+    # Template for the value to write; "$param" reads the action's param.
+    value: str
+
+
 class ActionDef(BaseModel):
     name: str
     inverse: InverseDef
     # Simple state mutations: keys are state variables, values are templates or constants
     # e.g. {"active_model": "$fallback"} means set active_model to the fallback param of the action
     mutations: dict[str, str] = Field(default_factory=dict)
+    # Absent means the action is simulation-only; it cannot touch a live target.
+    effect: EffectDef | None = None
 
 
 class DetectDef(BaseModel):

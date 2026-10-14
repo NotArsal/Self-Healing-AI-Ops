@@ -2,6 +2,20 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from kavach.preflight.schema import KavachManifest
+
+
+class TargetBinding(BaseModel):
+    """A live application this incident is about.
+
+    Its presence on a Scenario is what switches the executor and the verifier
+    from simulated state onto the real thing. Dispatch is on this field being
+    set, never on the fault class.
+    """
+
+    manifest_path: str
+    manifest: KavachManifest
+
 
 class ServiceDef(BaseModel):
     role: str
@@ -18,6 +32,10 @@ class ObjectiveDef(BaseModel):
     value: float
     threshold: float
     weight: float
+    # Direction of "better". Defaults to higher-is-better, which is what the
+    # hand-authored simulation scenarios assume; a manifest metric such as
+    # http_requests_errors_ratio declares "<" and is compared the other way.
+    comparator: str = ">="
 
 
 class PermissionDef(BaseModel):
@@ -60,3 +78,6 @@ class Scenario(BaseModel):
     state: dict[str, str] | None = None
     debt_config: dict[str, Any] | None = Field(default=None, alias="debt")
     active_debt: dict[str, Any] | None = None
+    # Absent for the hand-authored simulation scenarios; set when the incident
+    # concerns a real onboarded application.
+    target: TargetBinding | None = None

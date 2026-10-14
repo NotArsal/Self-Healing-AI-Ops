@@ -1,10 +1,15 @@
-# CONTRACT.md — The Healability Contract, v1
+# CONTRACT.md — The Healability Contract, v1.1
 
 > **Specification.** What an AI application must expose to be autonomously recoverable.
 >
 > This document is versioned and specified independently of the platform that
 > implements it. Kavach is the reference implementation; the contract is the
 > claim. Changes here are breaking changes and require a version bump.
+>
+> **v1.1** closes four defects found by the proof #2 onboarding experiment:
+> the `runtime_config` call protocol (§6.1), the action-to-state vocabulary map
+> (§6.1), and objective measurability plus the onboarding baseline (§5.1).
+> See `docs/decisions/ADR-002-contract-v1.1-runtime-config.md`.
 
 ---
 
@@ -182,6 +187,25 @@ tolerance:                     # acceptable degradation during a MITIGATED state
 - `weight` derives the scalar severity used for the no-regression check (§7 of `ARCHITECTURE.md`). Weights are the application owner's statement of what matters.
 - `tolerance` defines what counts as acceptable damage from a mitigation, which is what separates `RESOLVED` from `MITIGATED` (§8).
 
+### 5.1 Measurability (v1.1)
+
+An objective the platform cannot measure cannot be verified, and verification
+that silently skips an objective reports a success it did not establish. v1 did
+not say which metrics a platform must be able to read, so an application could
+declare a conformant objective that nothing would ever check. Added in v1.1
+(proof #2 defect #5).
+
+- A declared metric must be obtainable either from the application's own
+  telemetry or **by active probing** of the declared liveness and quality
+  runners. The reference implementation does not query a metrics backend inside
+  the healing loop (`ARCHITECTURE.md` §2.4), so it probes.
+- **Onboarding must report every declared metric it cannot measure**, and must
+  not treat an unmeasurable objective as satisfied. Verification of an incident
+  touching that objective does not pass.
+- **A healthy baseline is captured at onboarding.** Deltas are reported against
+  it, not against the values observed at detection time: comparing a repair to
+  the outage it replaced scores a degraded recovery as an improvement.
+
 ---
 
 ## 6. C5 — Reversibility
@@ -204,12 +228,38 @@ reversible_state:
     kind: runtime_config
     read: http://api:8080/v1/admin/model
     write: http://api:8080/v1/admin/model
+    field: model               # the JSON key carrying the value
+    values:                    # platform vocabulary -> yours
+      model_primary: primary
+      model_backup: backup
 ```
 
 **Obligations:**
 - Prompts are **files**, one per prompt, in git. Prompts inlined in source cannot be rolled back independently of a code deploy, so `F07` is unreachable.
 - `snapshot_cmd` is idempotent and returns a reference; `restore_cmd` accepts that reference.
 - Restoring any declared state returns the application to byte-identical behaviour. This is the property the undo stack rests on.
+
+### 6.1 The `runtime_config` protocol
+
+v1 declared `read` and `write` endpoints without saying how to call them, which
+left the platform unable to construct a mutation. Added in v1.1 (proof #2
+defects #2, #3, #4).
+
+- **`read`** accepts `GET` and returns a JSON object containing `field`. Reading
+  has no side effect; the platform reads before every write to capture the
+  witness its undo depends on.
+- **`write`** accepts `POST` with body `{"<field>": "<value>"}` and returns a
+  2xx on success. It is **idempotent**: writing the current value again is a
+  no-op, which is what makes an unwind safe to retry.
+- **`field`** names the JSON key at both endpoints.
+- **`values`** maps the platform's action vocabulary onto the application's. The
+  key is the value a repair action carries (`model_backup`); the value is what
+  this application calls it (`backup`). Without this map one side has to adopt
+  the other's spelling, which is a source change — and so a contract defect.
+  An unmapped value is passed through unchanged.
+- A declared `runtime_config` state is readable and writable **independently of
+  application health**. If the admin endpoint fails while the application is
+  broken, the repair is unreachable exactly when it is needed.
 
 ---
 

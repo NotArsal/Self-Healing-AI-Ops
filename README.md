@@ -14,23 +14,47 @@ Kavach is an autonomous self-healing control plane designed to detect, diagnose,
 - **Console**: Next.js 15, React 19, Tailwind CSS.
 
 ## Getting Started
-1. Start Ollama: `ollama serve`
+1. Start Ollama: `ollama serve` (needs `qwen2.5:7b-instruct` pulled)
 2. Start the Control Plane: `cd apps/control-plane && uv run uvicorn kavach.main:app --port 8000`
 3. Start the Console: `cd apps/console && pnpm dev`
 4. Simulate Alerts: `cd apps/control-plane && uv run python simulate_alert.py`
 
-## Project Status: Completed
-All 13 core phases of the Kavach Self-Healing Platform have been successfully implemented and verified:
-1. Scenario Framework & Schema Definition
-2. State Graph Skeleton (LangGraph)
-3. LLM RCA Integration
-4. Simulated Execution & Rollback
-5. TNR Safety Gate
-6. Declarative Action Catalogue
-7. Full F01-F09 Validation
-8. External Evaluation
-9. Laya Environment Sandbox
-10. End-to-End Incident Pipeline
-11. Real-Time Telemetry Webhooks
-12. Knowledge Graph Context
-13. Laya Fine-Tuning Pipeline
+## The live F01 loop
+
+`F01` (provider outage) runs against a real application, `targets/proof2`. No
+part of this path is simulated: detection probes the app over HTTP, the repair
+writes to its admin endpoint, verification runs its golden set, and the undo
+reads back the witnessed prior value.
+
+```bash
+make target-up                              # the application under management
+make onboard APP=targets/proof2             # preflight + capture healthy baseline
+make dev-api-live                           # control plane, detection on a 15s tick
+make inject FAULT=F01                       # break the primary provider
+```
+
+Within one tick the control plane opens an incident on its own, diagnoses `F01`,
+switches the app to its backup model, and verifies by re-measuring. The expected
+outcome is **`MITIGATED`, not `RESOLVED`**: availability is restored, the golden
+set scores a real 10% quality drop on the backup model, and debt is owed because
+the primary is still down. `make revert FAULT=F01` lets the debt trigger repay.
+
+Run `make test-integration` to execute that loop as a test (it starts its own
+copy of the target, so `make target-up` must not be running).
+
+## Project status
+
+Honest summary, because the distinction matters for how results are read:
+
+| Area | State |
+|---|---|
+| `F01` against a live app | **Real** — detection, repair, verification, undo, debt |
+| `F02`–`F09` | Simulated: the loop runs against an in-memory state dict, and `verification/probes.py` derives metrics from thresholds rather than measuring |
+| Contract (`CONTRACT.md` v1.1) | Proof #2 onboarded; five defects found and closed (`docs/decisions/proof2_defects.md`) |
+| Audit log | **Not built.** `AGENTS.md` names it a core guarantee; no table, module or route exists |
+| Incident persistence | In-memory only; no `PostgresSaver` checkpointer, so approvals do not survive a restart |
+| Preflight P01–P13 | Structure present, most individual checks still report `(Simulated)` |
+| `make check` | Red: 96 mypy errors, 54 ruff errors, all outside the modules listed above |
+
+Phase-by-phase claims in `PROJECT_COMPLETION_REPORT.md` predate this table and
+overstate what runs; prefer this section.
