@@ -1,4 +1,4 @@
-.PHONY: setup up dev-api dev-console check test lint format types
+.PHONY: setup up down dev-api dev-api-live dev-console check test test-integration lint format types migrate migration scenario bench onboard target-up inject revert
 
 # Default
 all: setup check test
@@ -18,7 +18,7 @@ down:
 
 # Run the API server
 dev-api:
-	cd apps/control-plane && uv run uvicorn kavach.main:app --reload
+	cd apps/control-plane && uv run uvicorn kavach.main:app --reload --port 8001
 
 # Run the console
 dev-console:
@@ -40,7 +40,7 @@ check: lint format types
 
 # Testing
 test:
-	cd apps/control-plane && uv run pytest -m "not live"
+	cd apps/control-plane && uv run pytest -m "not live and not llm"
 	cd apps/console && pnpm test
 
 # The live F01 loop against targets/proof2. Starts its own copy of the target,
@@ -54,6 +54,13 @@ scenario:
 
 bench:
 	cd apps/control-plane && uv run python scripts/evaluate_laya.py
+
+# Database
+migrate:
+	cd apps/control-plane && uv run alembic upgrade head
+
+migration:
+	cd apps/control-plane && uv run alembic revision --autogenerate -m "$(NAME)"
 
 # Onboard an application: preflight + capture the healthy baseline that
 # verification measures its deltas against. Run it with the target up and healthy.

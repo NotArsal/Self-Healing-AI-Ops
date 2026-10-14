@@ -7,7 +7,9 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: kavach
     ports:
-      - "5432:5432"
+      # 5433 on the host: 5432 is routinely taken by another project's postgres,
+      # and two containers claiming it fail in confusing ways.
+      - "5433:5432"
     volumes:
       - pgdata:/home/postgres/pgdata/data
     healthcheck:

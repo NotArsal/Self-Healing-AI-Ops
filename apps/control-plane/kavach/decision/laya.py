@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from pydantic import BaseModel
 
 try:
@@ -43,6 +45,17 @@ def refit_temperature(
     return calibrated
 
 
+@lru_cache(maxsize=1)
+def _router() -> "Router":
+    """Load the Laya checkpoint once.
+
+    Constructing Router() reloads the checkpoint from disk, which the gate does
+    on every single action. One unwind loop is four loads, and the live test
+    suite spent minutes per test re-reading the same weights.
+    """
+    return Router()
+
+
 def shadow_evaluate(proposed_action: str, incident_context: str) -> ShadowDecision:
     """
     Evaluate an action using Laya in shadow-only mode.
@@ -58,7 +71,7 @@ def shadow_evaluate(proposed_action: str, incident_context: str) -> ShadowDecisi
             risk_tier="HIGH",
         )
 
-    router = Router()
+    router = _router()
 
     questions = {
         "is_destructive": {

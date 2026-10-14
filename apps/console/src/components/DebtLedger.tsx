@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { apiUrl } from "@/lib/api";
 
 export interface ActiveDebt {
   incident_id: string;
@@ -18,7 +19,7 @@ export function DebtLedger() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/v1/debts/")
+    fetch(apiUrl("/api/v1/debts/"))
       .then((res) => res.json())
       .then((data) => {
         setDebts(data);

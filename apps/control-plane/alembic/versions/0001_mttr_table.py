@@ -39,6 +39,14 @@ def upgrade() -> None:
 
     # 3. Create Continuous Aggregate for MTTR
     # Calculate avg duration for resolved incidents per hour, split by outcome
+    #
+    # WITH NO DATA is required, not an optimisation: a continuous aggregate
+    # created WITH DATA runs a refresh, and TimescaleDB refuses that inside a
+    # transaction block ("cannot run inside a transaction block"), which alembic
+    # always provides. Without it this migration fails on a clean database and
+    # nothing after it -- remediation_debt included -- ever gets created.
+    # The view backfills on its refresh policy, or on demand via
+    # CALL refresh_continuous_aggregate('mttr_hourly_rollup', NULL, NULL).
     op.execute("""
     CREATE MATERIALIZED VIEW mttr_hourly_rollup
     WITH (timescaledb.continuous) AS
@@ -48,7 +56,8 @@ def upgrade() -> None:
            COUNT(incident_id) AS incident_count
     FROM incident_metrics
     WHERE duration_ms IS NOT NULL
-    GROUP BY bucket, outcome;
+    GROUP BY bucket, outcome
+    WITH NO DATA;
     """)
 
 def downgrade() -> None:

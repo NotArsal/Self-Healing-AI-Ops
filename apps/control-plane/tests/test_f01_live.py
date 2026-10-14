@@ -48,7 +48,13 @@ def _port_is_free(port: int) -> bool:
 def proof2_app():
     """Run the real proof2 service for the duration of this module."""
     if not _port_is_free(PORT):
-        pytest.skip(f"port {PORT} already in use; cannot run the live target")
+        # Deliberately a failure, not a skip: pytest exits 0 on an all-skipped
+        # run, so `make test-integration` would report success having asserted
+        # nothing about the live loop.
+        pytest.fail(
+            f"port {PORT} is in use, so the live target cannot start. Stop "
+            f"`make target-up` (or whatever holds {PORT}) and re-run."
+        )
 
     spec = importlib.util.spec_from_file_location("proof2_main", PROOF2_DIR / "main.py")
     assert spec and spec.loader
@@ -76,6 +82,22 @@ def proof2_app():
 
     server.should_exit = True
     thread.join(timeout=10)
+
+
+@pytest.fixture(autouse=True)
+def stub_shadow_laya(monkeypatch):
+    """Laya is shadow-only and cannot change a verdict, so stub it.
+
+    Left real, each gate call runs a local transformer inference; the unwind loop
+    alone does four, which dominated the runtime of this file without asserting
+    anything. tests/test_debt.py stubs it the same way.
+    """
+    from kavach.remediation.tnr_gate import SafetyAssessment
+
+    monkeypatch.setattr(
+        "kavach.remediation.tnr_gate.evaluate_safety",
+        lambda action, context: SafetyAssessment(is_safe=True, reason="stubbed"),
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -308,6 +330,42 @@ def _breach_for(target):
     breach = detect_breach(target)
     assert breach is not None
     return breach
+
+
+# --- remediation debt against the live application ---
+
+
+def test_debt_repayment_writes_to_the_live_app(healthy_baseline, proof2_app):
+    """Repayment must move the real application, not a simulated dict."""
+    from kavach.debt.repayment import repay_debt
+
+    target = healthy_baseline
+    scenario = build_incident_scenario(target, _breach_for(target), scenario_id="inc-repay")
+    rs_def = (target.manifest.reversible_state or {})["model_selection"]
+
+    # Mitigate: move onto the backup, as the F01 repair does.
+    effect = load_catalogue().actions["switch_model"].effect
+    assert effect is not None
+    apply_effect(
+        effect,
+        Action(name="switch_model", params={"target": "model_backup"}),
+        rs_def,
+        mode="AUTONOMOUS",
+    )
+    assert read_value(rs_def) == "backup"
+
+    # Primary recovers, then the debt is repaid.
+    httpx.post(f"{BASE}/revert/F01", timeout=5)
+    ok = repay_debt(
+        scenario,
+        {},
+        "switch_model",
+        {"target": "model_primary", "fallback": "model_backup"},
+        mode="AUTONOMOUS",
+    )
+
+    assert ok is True
+    assert read_value(rs_def) == "primary", "repayment must return the live app to primary"
 
 
 # --- the detection tick, which is what makes a heal start with no human ---

@@ -9,6 +9,7 @@ import { DiagnosisCard } from "./DiagnosisCard";
 import { ActionPlan } from "./ActionPlan";
 import { UndoStackTimeline } from "./UndoStackTimeline";
 import { TopologyGraph } from "./TopologyGraph";
+import { apiUrl } from "@/lib/api";
 
 export function Dashboard() {
   const [incidents, setIncidents] = useState<Record<string, Incident>>({});
@@ -16,13 +17,13 @@ export function Dashboard() {
 
   useEffect(() => {
     // Fetch initial list
-    fetch("http://localhost:8000/incidents")
+    fetch(apiUrl("/incidents"))
       .then((res) => res.json())
       .then((data) => setIncidents(data))
       .catch((err) => console.error(err));
 
     // Listen to SSE
-    const evtSource = new EventSource("http://localhost:8000/events/stream");
+    const evtSource = new EventSource(apiUrl("/events/stream"));
     evtSource.onmessage = (event) => {
       const payload = JSON.parse(event.data);
       if (
@@ -61,7 +62,7 @@ export function Dashboard() {
 
   const fetchIncident = async (id: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/incidents/${id}`);
+      const res = await fetch(apiUrl(`/incidents/${id}`));
       const data = await res.json();
       setActiveIncident({ id, ...data });
     } catch (e) {
@@ -71,7 +72,7 @@ export function Dashboard() {
 
   const launchScenario = async (name: string) => {
     try {
-      const res = await fetch("http://localhost:8000/incidents/run", {
+      const res = await fetch(apiUrl("/incidents/run"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scenario_name: name }),
@@ -85,7 +86,7 @@ export function Dashboard() {
 
   const repayDebt = async (id: string) => {
     try {
-      await fetch(`http://localhost:8000/incidents/${id}/repay-debt`, {
+      await fetch(apiUrl(`/incidents/${id}/repay-debt`), {
         method: "POST",
       });
     } catch (e) {
