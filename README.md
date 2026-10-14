@@ -37,7 +37,14 @@ Within one tick the control plane opens an incident on its own, diagnoses `F01`,
 switches the app to its backup model, and verifies by re-measuring. The expected
 outcome is **`MITIGATED`, not `RESOLVED`**: availability is restored, the golden
 set scores a real 10% quality drop on the backup model, and debt is owed because
-the primary is still down. `make revert FAULT=F01` lets the debt trigger repay.
+the primary is still down. Outstanding debt is visible at `/api/v1/debts/`.
+
+Then `make revert FAULT=F01`. Once the application has been continuously healthy
+for the dwell its manifest declares (30s for this target), the debt checker
+repays: it switches back to the primary *through the same safety gate*, verifies
+again, clears the debt and moves the incident to `RESOLVED`.
+
+Requires `make up` and `make migrate` first — debt is persisted in Postgres.
 
 Run `make test-integration` to execute that loop as a test (it starts its own
 copy of the target, so `make target-up` must not be running).
@@ -48,11 +55,12 @@ Honest summary, because the distinction matters for how results are read:
 
 | Area | State |
 |---|---|
-| `F01` against a live app | **Real** — detection, repair, verification, undo, debt |
+| `F01` against a live app | **Real** — detection, repair, verification, undo, and the full debt lifecycle through to `RESOLVED` |
 | `F02`–`F09` | Simulated: the loop runs against an in-memory state dict, and `verification/probes.py` derives metrics from thresholds rather than measuring |
-| Contract (`CONTRACT.md` v1.1) | Proof #2 onboarded; five defects found and closed (`docs/decisions/proof2_defects.md`) |
+| Contract (`CONTRACT.md` v1.1) | Proof #2 onboarded; six defects found and closed (`docs/decisions/proof2_defects.md`) |
 | Audit log | **Not built.** `AGENTS.md` names it a core guarantee; no table, module or route exists |
-| Incident persistence | In-memory only; no `PostgresSaver` checkpointer, so approvals do not survive a restart |
+| Knowledge base (F-MEM) | **Broken.** Reads and writes both raise `'Scenario' object has no attribute 'trigger'`, swallowed by a bare `except`, so nothing is ever stored |
+| Incident persistence | In-memory only; no `PostgresSaver` checkpointer, so approvals and the debt dwell clock do not survive a restart |
 | Preflight P01–P13 | Structure present, most individual checks still report `(Simulated)` |
 | `make check` | Red: 96 mypy errors, 54 ruff errors, all outside the modules listed above |
 

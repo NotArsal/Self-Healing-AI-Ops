@@ -13,6 +13,7 @@ measure a live application, and is also closed by v1.1 §5.1.
 | 3 | Actions unmapped to reversible state | catalogue `effect` block; `field`/`values` in §6.1 |
 | 4 | No HTTP action executor | `remediation/runtime_config.py` |
 | 5 | Unmeasurable objectives pass silently | `CONTRACT.md` §5.1 |
+| 6 | Debt key's binding to a fault class unspecified | `CONTRACT.md` §10.1 — the key is the fault class ID |
 
 The point of the log is that each one was a *missing obligation*, not a missing
 feature: every fix is a sentence the specification should have contained.
@@ -36,4 +37,18 @@ feature: every fix is a sentence the specification should have contained.
 ## 5. Unmeasurable Objectives Pass Silently
 **Defect:** An application can declare a conformant objective whose metric the platform has no way to read (anything requiring a Prometheus query, since the healing loop must not depend on the metrics stack). Verification skipped the objective and still reported a pass, so an unverified objective was indistinguishable from a satisfied one. Relatedly, nothing in the contract required a healthy baseline, so deltas could only be measured against the breach — which scores a degraded repair as an improvement.
 **Obligation:** The contract must state which metrics a conforming platform can measure, require onboarding to report the ones it cannot, forbid treating an unmeasurable objective as satisfied, and require a healthy baseline captured at onboarding for deltas to be measured against.
+
+## 6. Debt Key Binding Unspecified
+**Defect:** The `debt` map's example key was a descriptive label (`f01_provider_outage`) and the contract never said how it bound to a fault class. The platform looked debt up by fault class, so the lookup never matched and **no `MITIGATED` outcome ever recorded a debt** — the whole of §10.1 was unreachable. An onboarder reading v1 had no way to know what the key had to be.
+**Obligation:** The key is the fault class ID the entry repays. The readable name remains available from the fault catalogue.
+
+### Found alongside, as platform bugs rather than contract defects
+
+These are recorded here because they were discovered by the same exercise and each one independently prevented debt from working:
+
+- `alembic upgrade head` failed on a clean database: a TimescaleDB continuous aggregate was created `WITH DATA`, which cannot run inside a transaction block. Migration `0001` aborted, so `remediation_debt` never existed. Fixed with `WITH NO DATA`.
+- `kavach/api/db.py` defaulted to password `postgres` while `infra/docker-compose.yml` creates the container with `password`. Every debt and knowledge write failed authentication and was swallowed by a bare `except`.
+- The debt trigger's dwell (`healthy_for_s: 600`) was declared but never persisted; the checker passed `value=0`, so a debt would have repaid the instant the provider first looked healthy. Added `trigger_value` (migration `0004`) and a dwell state machine.
+- `scenario.active_debt_def` was assigned to a Pydantic model that did not declare the field, which raises. It was unreachable only because the key lookup above it already failed.
+- `repay_debt` called `.clear()` on `active_debt` without a None guard, raising *after* the live write had landed — repaid application, outstanding debt.
 

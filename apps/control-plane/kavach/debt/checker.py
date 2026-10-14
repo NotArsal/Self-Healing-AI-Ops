@@ -3,18 +3,23 @@ import logging
 import time
 
 from kavach.api.store import broadcast_event, get_all_incidents, update_incident
-from kavach.debt.ledger import clear_debt_async, escalate_debt_async, get_active_debts_async
+from kavach.config import settings
+from kavach.debt.ledger import (
+    clear_debt_async,
+    escalate_debt_async,
+    get_active_debts_async,
+)
 from kavach.debt.repayment import repay_debt
-from kavach.debt.triggers import evaluate_trigger
+from kavach.debt.triggers import evaluate_trigger, reset_dwell
 
 logger = logging.getLogger(__name__)
 
 
 async def check_debts_loop() -> None:
-    """Background task that ticks every 60 seconds to check active debts."""
+    """Background task that ticks periodically to check active debts."""
     while True:
         try:
-            await asyncio.sleep(60)
+            await asyncio.sleep(settings.debt_interval_s)
             await evaluate_all_debts()
         except asyncio.CancelledError:
             break
@@ -44,6 +49,7 @@ async def evaluate_all_debts() -> None:
                 f"Debt for {incident_id} exceeded max_age_s ({debt.max_age_s}). Escalating."
             )
             update_incident(incident_id, {"outcome": "UNRECOVERABLE"})
+            reset_dwell(incident_id)
             await escalate_debt_async(incident_id)
             await broadcast_event(
                 {
@@ -56,22 +62,36 @@ async def evaluate_all_debts() -> None:
 
         # 2. Evaluate Trigger
         sim_state = state.get("simulation_state", {})
+        scenario = state.get("scenario")
+        if scenario is None:
+            logger.warning(
+                "debt for %s has no scenario in memory; cannot evaluate", incident_id
+            )
+            continue
         triggered = evaluate_trigger(
             condition=debt.trigger_condition,
-            value=0, # not used properly previously anyway
+            value=debt.trigger_value,
             current_signals=sim_state,
+            scenario=scenario,
+            incident_id=incident_id,
         )
 
         if triggered:
             logger.info(
                 f"Trigger met for debt in {incident_id}. Initiating repayment..."
             )
-            scenario = state.get("scenario")
-            success = repay_debt(scenario, sim_state, debt.action_name, debt.action_params)
+            success = repay_debt(
+                scenario,
+                sim_state,
+                debt.action_name,
+                debt.action_params,
+                mode=state.get("mode") or "SIMULATION",
+            )
             if success:
                 update_incident(
                     incident_id, {"simulation_state": sim_state, "outcome": "RESOLVED"}
                 )
+                reset_dwell(incident_id)
                 await clear_debt_async(incident_id)
                 await broadcast_event(
                     {"type": "debt_repaid", "incident_id": incident_id, "state": state}

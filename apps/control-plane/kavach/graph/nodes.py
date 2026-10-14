@@ -3,7 +3,7 @@ from collections.abc import Callable
 from kavach.catalogue.schema import EffectDef
 from kavach.graph.state import IncidentState
 from kavach.llm.rca import analyze_root_cause
-from kavach.preflight.schema import ReversibleStateDef
+from kavach.preflight.schema import DebtItemDef, ReversibleStateDef
 from kavach.remediation.runtime_config import apply_effect, revert_effect
 from kavach.scenarios.schema import Scenario
 from kavach.simulation.executor import ExecutorError, execute_action
@@ -515,11 +515,19 @@ def outcome_node(state: IncidentState) -> IncidentState:
         return {"outcome": "ESCALATED"}
 
     passed = state.get("verification_passed", False)
-    
+
     scenario = state["scenario"]
     incident_id = state.get("incident_id", "unknown")
     outcome_str = "MITIGATED" if passed else "ESCALATED"
-    
+
+    # The diagnosis is authoritative. A detection-created incident arrives as
+    # UNKNOWN and is only classified by the diagnose node, so reading the
+    # scenario's own field here resolved debt against "UNKNOWN" and never found
+    # any. Record the diagnosed class on the scenario so the API routes that read
+    # it later agree with the graph.
+    fault_class = state.get("fault_class") or scenario.fault_class
+    scenario.fault_class = fault_class
+
     if passed:
         # F01 usually results in MITIGATED because primary is still down, just backup is active.
         if scenario.active_debt is None:
@@ -529,12 +537,21 @@ def outcome_node(state: IncidentState) -> IncidentState:
                 # Store the entire record dict or object
                 scenario.active_debt[record.original_action.name] = record
 
-        # Register debt in the central ledger
-        if scenario.fault_class and scenario.debt_config:
-            debt_def = scenario.debt_config.get(scenario.fault_class)
-            if debt_def:
-                # Store debt_def on the scenario so we can persist it later in the async route
-                scenario.active_debt_def = debt_def
+        # Register debt in the central ledger. debt_config is keyed by fault
+        # class (CONTRACT.md 10.1).
+        if fault_class and scenario.debt_config:
+            raw_debt = scenario.debt_config.get(fault_class)
+            if raw_debt is not None:
+                # Parsed into the typed model, because the ledger and the API
+                # route both reach for .repayment_action / .trigger.condition via
+                # hasattr and silently substitute "unknown" on a plain dict --
+                # which is how a recorded debt ended up with a trigger that could
+                # never fire.
+                scenario.active_debt_def = (
+                    raw_debt
+                    if isinstance(raw_debt, DebtItemDef)
+                    else DebtItemDef(**raw_debt)
+                )
     
     # --- F-MEM: Save Incident Memory ---
     async def _save():

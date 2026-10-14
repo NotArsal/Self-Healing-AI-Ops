@@ -66,10 +66,12 @@ telemetry:
     - request_model
 
 debt:
-  f01_provider_outage:
+  F01:
     repayment_action: switch_model
     trigger:
       metric: llm_proxy_health
       condition: healthy_for_s
-      value: 600
+      # 30s, not the 600s a production app would want: this is a demo target and
+      # the repayment has to be observable within a presentation.
+      value: 30
     max_age_s: 86400

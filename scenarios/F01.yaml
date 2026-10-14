@@ -82,9 +82,10 @@ state:
   cache: healthy
   active_model: model_primary
 debt:
-  f01_provider_outage:
+  F01:
     repayment_action: switch_model
     trigger:
+      metric: model_primary_health
       condition: primary_healthy_for_s
       value: 600.0
     max_age_s: 86400

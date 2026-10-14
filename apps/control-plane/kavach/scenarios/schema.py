@@ -78,6 +78,11 @@ class Scenario(BaseModel):
     state: dict[str, str] | None = None
     debt_config: dict[str, Any] | None = Field(default=None, alias="debt")
     active_debt: dict[str, Any] | None = None
+    # The debt entry owed by this incident, resolved from debt_config once the
+    # fault is diagnosed. Declared rather than attached dynamically: assigning an
+    # undeclared attribute to a Pydantic model raises, which is why the debt path
+    # only ever appeared to work while the lookup above it was silently failing.
+    active_debt_def: Any | None = None
     # Absent for the hand-authored simulation scenarios; set when the incident
     # concerns a real onboarded application.
     target: TargetBinding | None = None

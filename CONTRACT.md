@@ -366,7 +366,7 @@ A `MITIGATED` outcome is not an end state. Failing over to a backup model does n
 
 ```yaml
 debt:
-  f01_provider_outage:
+  F01:                                  # the fault class this repays
     repayment_action: switch_model      # back to primary
     trigger:
       metric: llm_proxy_health
@@ -377,6 +377,11 @@ debt:
 
 **Obligations:**
 - Every `MITIGATED` outcome records a debt with a repayment action and a machine-evaluable trigger.
+- **The key is the fault class ID** this entry repays, so the platform can resolve
+  a mitigation to its debt without inferring anything from the key's spelling.
+  v1 showed a descriptive label here (`f01_provider_outage`) and never said how
+  it bound to a fault, so no debt was ever resolvable — proof #2 defect #6.
+  The readable name remains available from the fault catalogue.
 - Debt is visible as a first-class object, not buried in incident history.
 - Unpaid debt past `max_age_s` escalates.
 

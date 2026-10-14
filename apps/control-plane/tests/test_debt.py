@@ -20,8 +20,9 @@ _MOCK_LEDGER = []
 async def fake_record_debt_async(incident_id, action_name, action_params, debt_def):
     from kavach.debt.ledger import ActiveDebt
     import time
-    trigger_cond = debt_def.trigger.condition if hasattr(debt_def, "trigger") else "unknown"
-    max_age_s = debt_def.max_age_s if hasattr(debt_def, "max_age_s") else 86400
+    trigger_cond = debt_def.trigger.condition
+    trigger_value = float(debt_def.trigger.value)
+    max_age_s = debt_def.max_age_s
     _MOCK_LEDGER.append(
         ActiveDebt(
             id="test-debt",
@@ -30,6 +31,7 @@ async def fake_record_debt_async(incident_id, action_name, action_params, debt_d
             action_params=action_params,
             trigger_type="promql",
             trigger_condition=trigger_cond,
+            trigger_value=trigger_value,
             created_at=time.time(),
             max_age_s=max_age_s,
             status="PENDING"
