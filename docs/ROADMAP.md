@@ -62,7 +62,7 @@ P0 scaffold  ✅
 | P2 | **`F06` deterministic closed loop** | 3–6 | ✅ **`F06` auto-heals end to end with a working rollback; 20/20 inject→heal→verify cycles** |
 | P3 | **`F06` LLM RCA** | 6–8 | ✅ **Schema-validated diagnosis behind a deterministic gate; measured against the P2 baseline** |
 | P4 | Console | 6–9 | ✅ **Loop watchable live over WebSocket, no refresh; generated API client in the gate** |
-| P5 | **Full safety engine** | 8–10 | Three modes, ownership, breaker, blast radius — **and the action registry every later repair goes through** |
+| P5 | **Full safety engine** | 8–10 | ✅ **`permit()` live with a deny case per rule; three modes enforced; approval flow; incidents persisted; action registry** |
 | P6 | The remaining seven faults | 10–12 | Each a complete vertical slice, each added as an adapter |
 | P7 | Git isolation, knowledge base, Laya shadow | 11–13 | `make bench` emits the metrics table |
 | P8 | Measure, report, rehearse | 12–14 | Demo runs clean 3× in a row |
@@ -519,13 +519,25 @@ Docker, or name anything a future `permit()` would have to authorise.
 
 ---
 
-## P5 — The full safety engine ⭐ NEXT
+## P5 — The full safety engine ✅ COMPLETE
 
 **Weeks 8–10 · Owner: control-plane track**
 
-> **Moved ahead of the fault classes on 2026-10-04.** It used to sit after
-> them, which contradicted its own entry condition. Nothing that adds a second
-> repair action may start before this phase lands.
+> **Moved ahead of the fault classes on 2026-10-04**, because it used to sit
+> after them and contradicted its own entry condition.
+>
+> **Completed 2026-10-16.** Commits `39903e8` (the gate and its deny cases) and
+> `a616385` (wiring, persistence, approval, mode switch). The entry condition
+> for P6 is now satisfied: a second repair action may be added.
+>
+> **Delivered beyond the original list:** the action registry, which is the
+> seam a new fault class plugs into, and the approval flow with its
+> scroll-to-end control. **Not delivered, with reasons:** LangGraph (what it
+> would buy is delivered by persisting the incident and re-preparing on
+> resume; replacing a validated `run_once()` with a graph framework is a
+> rewrite with no behaviour change), `F-UNK`'s hypothesis flow (the table
+> exists; the flow does not), and the 120s SLO-window probe. Those three move
+> to P6.
 
 > **Correction to the earlier draft**, which assumed ownership, the deny-list
 > and the allow-list were already real from the first loop. They are not.

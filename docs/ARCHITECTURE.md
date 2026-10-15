@@ -126,7 +126,7 @@ or merely has the behaviour.
 | 3 | **Diagnosis** | `fault_class`, `fault_name`, `service`, `confidence`, `evidence_ids`, `reasoning`, `candidate_repair`, `rejected_alternatives` — a closed vocabulary, schema-constrained | **Fully generic.** `rca/schema.py` contains no RAG concept at all. This is the cleanest seam in the system |
 | 4 | **Action / executor** | `prepare()` captures a pre-state witness, `execute()`, `invert()`, `verify_applied()`, `verify_restored()`, `unchanged_elsewhere()`, plus an idempotency key. An action without a recorded inverse cannot be constructed | **Pattern generic, no registry.** `config_rollback.py` is one concrete action; the `Action` protocol and registry arrive with the safety engine |
 | 5 | **Verification** | A health probe plus N deterministic cases scored locally, inside a declared budget, with no cloud key | **Mostly generic.** `verification/fast.py`'s mechanism is workload-neutral; the `sources_block` check is a RAG grounding assertion and belongs in a workload probe |
-| 6 | **Safety / policy** | `permit()` over ownership, deny-list, allow-list, inverse, confidence, risk tier, blast radius, breaker, mode | **Not built.** §6.1–§6.3 describe it; nothing implements it. This is the next phase |
+| 6 | **Safety / policy** | `permit()` over ownership, deny-list, allow-list, inverse, confidence, risk tier, blast radius, breaker, mode | **Built.** Every rule has a deny-case test. The policy comes from the manifest, so a new workload changes configuration rather than code |
 
 ### 1.4 Where the implementation is still RAG-coupled
 
@@ -136,7 +136,7 @@ to name now.
 
 | Module | Coupling | Why it matters | Closes in |
 |---|---|---|---|
-| **`loop.py`** | Imports `detection.retrieval_collapse` and `build_rollback_for_retrieval_collapse` **directly**; `Incident` carries `corpus_before` / `corpus_after`; `_corpus()` queries `ragapp_corpus_chunks` by name; the signature takes `baseline_rerank_threshold` | **The orchestrator is a RAG loop, not a generic lifecycle with a RAG adapter plugged in.** The generic lifecycle currently exists as a docstring, not as a seam | P5 — the detector and action become registry lookups |
+| **`loop.py`** | **Partly fixed in P5.** The action now comes from `registry.build(name, ...)` and the plan check asks `registry.knows()`, so the RAG repair is no longer imported by name and the outcome text reads the action's own record. Still coupled: `Incident` carries `corpus_before` / `corpus_after`, `_corpus()` queries `ragapp_corpus_*` by name, and the detector is still imported directly | The executor seam is real; the detection and corpus seams are not | P6 — a second fault class is what forces the detector seam |
 | **`api/schemas.py`** | `corpus`, `chunks`, `files` and `rerank_threshold` are first-class fields on the public wire contract | A vision workload would have to misreport or extend the schema. These belong in a per-workload extras map | P5 |
 | **`api/routes.py`, `api/runner.py`** | The generic HTTP layer queries `ragapp_corpus_*` and reads `rerank_threshold` from settings | Same reason; the API should ask the adapter, not Prometheus directly | P5 |
 | **`rca/evidence.py`** | `METRIC_QUERIES` / `HEALTHY_EXPECTATION` are module-level RAG constants inside the generic collector | The frame is reusable; the query set is not, and nothing separates them | P5 |
@@ -904,13 +904,19 @@ Redis is **not started yet**, and was not in Phase 0. Every one of those four ke
 
 ## 6. The safety engine
 
-> **Implementation status, 2026-10-04: §6.1–§6.3 are not built.** There is no
-> `safety/` package. The `F06` slice (P2/P3) ships one action that is
-> project-scoped and deny-list-safe by construction, which is not the same
-> thing as a gate. §6.4 is the part that *is* implemented, and it is a
-> narrower thing: it validates a diagnosis, not an action. `permit()` is
-> scheduled in `ROADMAP.md` P6 and must land before any second repair action
-> or any unattended invocation of the loop.
+> **Implementation status, 2026-10-16: §6.1–§6.2 are BUILT and live.**
+> `safety/engine.py` implements `permit()` with every step real; `safety/limits.py`
+> holds blast radius and the breaker; `safety/writer_lock.py` is the A-Lock,
+> process-local until a Postgres advisory lock replaces it. The loop calls the
+> gate before any mutation, and the manifest supplies the policy.
+>
+> Two caveats stated rather than buried. **§6.3's Docker ownership checks are
+> partly built**: compose-project and declared-service identity are enforced,
+> the full ten-step container-resolution sequence is not, because no action
+> touches a container yet. And `apply_patch` (§6.2.1) is specified with a fixed
+> HIGH tier but **deliberately not registered** — it needs the sandbox, and
+> registering an action whose safety precondition is unbuilt would let
+> `permit()` authorise something that cannot yet be made safe.
 
 The single most important component. Its guarantee is **Transactional No-Regression (TNR)**, taken from STRATUS (NeurIPS'25, arXiv:2506.02009). Kavach implements the same three properties against Docker rather than Kubernetes.
 
