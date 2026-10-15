@@ -35,8 +35,14 @@ class AuditChainError(Exception):
     pass
 
 
-def _row_hash(prev_hash: str, actor: str, event: str, incident_id: str | None,
-              payload: dict[str, Any], ts: str) -> str:
+def _row_hash(
+    prev_hash: str,
+    actor: str,
+    event: str,
+    incident_id: str | None,
+    payload: dict[str, Any],
+    ts: str,
+) -> str:
     """Hash over the row's content and its predecessor's hash.
 
     sort_keys, because a dict that serialises two ways hashes two ways and the
@@ -108,7 +114,9 @@ async def read_log(
 
 async def verify_chain(session: AsyncSession) -> tuple[bool, str | None]:
     """Recompute every hash in order. Returns (intact, first broken row's id)."""
-    rows = list((await session.execute(select(AuditLog).order_by(AuditLog.id))).scalars())
+    rows = list(
+        (await session.execute(select(AuditLog).order_by(AuditLog.id))).scalars()
+    )
     prev_hash = GENESIS
     # cast, not ignore: api/models.py uses the legacy Column() style, under which
     # mypy types an *instance* attribute as Column[T] rather than T.
@@ -161,5 +169,6 @@ def record(
     try:
         asyncio.run(_go())
     except Exception as e:  # noqa: BLE001 -- see docstring
-        logger.error("audit append failed for event=%s incident=%s: %s",
-                     event, incident_id, e)
+        logger.error(
+            "audit append failed for event=%s incident=%s: %s", event, incident_id, e
+        )

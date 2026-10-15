@@ -17,10 +17,12 @@ from kavach.scenarios.schema import DebtDef, TriggerDef
 # Mock the ledger functions to avoid needing a real Postgres DB in tests
 _MOCK_LEDGER = []
 
+
 async def fake_record_debt_async(incident_id, action_name, action_params, debt_def):
     import time
 
     from kavach.debt.ledger import ActiveDebt
+
     trigger_cond = debt_def.trigger.condition
     trigger_value = float(debt_def.trigger.value)
     max_age_s = debt_def.max_age_s
@@ -35,33 +37,46 @@ async def fake_record_debt_async(incident_id, action_name, action_params, debt_d
             trigger_value=trigger_value,
             created_at=time.time(),
             max_age_s=max_age_s,
-            status="PENDING"
+            status="PENDING",
         )
     )
 
+
 async def fake_get_active_debts_async():
     return [d for d in _MOCK_LEDGER if d.status == "PENDING"]
+
 
 async def fake_clear_debt_async(incident_id):
     for d in _MOCK_LEDGER:
         if d.incident_id == incident_id:
             d.status = "REPAID"
 
+
 async def fake_escalate_debt_async(incident_id):
     for d in _MOCK_LEDGER:
         if d.incident_id == incident_id:
             d.status = "ESCALATED"
 
+
 @pytest.fixture(autouse=True)
 def mock_ledger(monkeypatch):
     _MOCK_LEDGER.clear()
     monkeypatch.setattr("kavach.debt.ledger.record_debt_async", fake_record_debt_async)
-    monkeypatch.setattr("kavach.debt.ledger.get_active_debts_async", fake_get_active_debts_async)
+    monkeypatch.setattr(
+        "kavach.debt.ledger.get_active_debts_async", fake_get_active_debts_async
+    )
     monkeypatch.setattr("kavach.debt.ledger.clear_debt_async", fake_clear_debt_async)
-    monkeypatch.setattr("kavach.debt.ledger.escalate_debt_async", fake_escalate_debt_async)
-    monkeypatch.setattr("kavach.debt.checker.get_active_debts_async", fake_get_active_debts_async)
+    monkeypatch.setattr(
+        "kavach.debt.ledger.escalate_debt_async", fake_escalate_debt_async
+    )
+    monkeypatch.setattr(
+        "kavach.debt.checker.get_active_debts_async", fake_get_active_debts_async
+    )
     monkeypatch.setattr("kavach.debt.checker.clear_debt_async", fake_clear_debt_async)
-    monkeypatch.setattr("kavach.debt.checker.escalate_debt_async", fake_escalate_debt_async)
+    monkeypatch.setattr(
+        "kavach.debt.checker.escalate_debt_async", fake_escalate_debt_async
+    )
+
 
 # Use the real functions for imports but they will be mocked at runtime
 
@@ -80,12 +95,13 @@ async def test_ledger_record_and_clear():
 
     # Run
     from kavach.debt import ledger
+
     await ledger.record_debt_async(incident_id, action_name, action_params, debt_def)
     debts = await ledger.get_active_debts_async()
 
     # Assert
     assert len(debts) >= 1
-    
+
     # We might have remnants from other tests in DB, find ours
     my_debt = next((d for d in debts if d.incident_id == incident_id), None)
     assert my_debt is not None
@@ -127,7 +143,10 @@ async def test_evaluate_all_debts_escalation():
         max_age_s=0,  # force immediate escalation
     )
     from kavach.debt import ledger
-    await ledger.record_debt_async(incident_id, "switch_model", {"fallback": "model_primary"}, debt_def)
+
+    await ledger.record_debt_async(
+        incident_id, "switch_model", {"fallback": "model_primary"}, debt_def
+    )
 
     # In database, the age is compared to created_at
     # We force max_age_s = 0, so it will instantly escalate
@@ -136,7 +155,7 @@ async def test_evaluate_all_debts_escalation():
     # Should be escalated and cleared
     debts = await ledger.get_active_debts_async()
     assert not any(d.incident_id == incident_id for d in debts)
-    
+
     inc = get_incident(incident_id)
     assert inc["outcome"] == "UNRECOVERABLE"
 
@@ -166,16 +185,21 @@ async def test_evaluate_all_debts_repayment(monkeypatch):
         max_age_s=86400,
     )
     from kavach.debt import ledger
-    await ledger.record_debt_async(incident_id, "switch_model", {"fallback": "model_primary"}, debt_def)
+
+    await ledger.record_debt_async(
+        incident_id, "switch_model", {"fallback": "model_primary"}, debt_def
+    )
     from kavach.tnr.models import Action, UndoRecord
 
     scenario.active_debt = {
         "switch_model": UndoRecord(
             original_action=Action(
-                name="switch_model", params={"target": "model_backup", "fallback": "model_primary"}
+                name="switch_model",
+                params={"target": "model_backup", "fallback": "model_primary"},
             ),
             inverse_action=Action(
-                name="switch_model", params={"target": "model_primary", "fallback": "model_backup"}
+                name="switch_model",
+                params={"target": "model_primary", "fallback": "model_backup"},
             ),
             pre_state_witness={"active_model": "model_primary"},
             applied=True,
@@ -188,6 +212,6 @@ async def test_evaluate_all_debts_repayment(monkeypatch):
     # Should be repaid (cleared, outcome RESOLVED)
     debts = await ledger.get_active_debts_async()
     assert not any(d.incident_id == incident_id for d in debts)
-    
+
     inc = get_incident(incident_id)
     assert inc["outcome"] == "RESOLVED"

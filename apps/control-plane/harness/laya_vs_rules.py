@@ -41,7 +41,9 @@ def _planned_action(fault_def: Any) -> Action | None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--out", type=Path, default=REPO_ROOT / "eval_results" / "laya_vs_rules.json")
+    ap.add_argument(
+        "--out", type=Path, default=REPO_ROOT / "eval_results" / "laya_vs_rules.json"
+    )
     args = ap.parse_args()
 
     catalogue = load_catalogue()
@@ -94,14 +96,20 @@ def main() -> int:
         "declared_risk_distribution": dict(declared),
         "disagreements": [r for r in rows if not r["agree"]],
         "caveats": [
-            ("permit() is the authority: Laya is shadow-only and cannot gate, so "
-            "every disagreement is a Laya error rather than a tie."),
-            ("Laya's risk tier is reported, not scored. The declared tiers are "
-            "LOW for seven faults and MEDIUM for two, and nine cases over two "
-            "classes is too thin to call it agreement or disagreement."),
-            ("Laya confidence is reported as returned. The checkpoint ships "
-            "invalid temperatures (runtime warning on load), so treat it as "
-            "uncalibrated."),
+            (
+                "permit() is the authority: Laya is shadow-only and cannot gate, so "
+                "every disagreement is a Laya error rather than a tie."
+            ),
+            (
+                "Laya's risk tier is reported, not scored. The declared tiers are "
+                "LOW for seven faults and MEDIUM for two, and nine cases over two "
+                "classes is too thin to call it agreement or disagreement."
+            ),
+            (
+                "Laya confidence is reported as returned. The checkpoint ships "
+                "invalid temperatures (runtime warning on load), so treat it as "
+                "uncalibrated."
+            ),
         ],
     }
 
@@ -110,7 +118,9 @@ def main() -> int:
     print(f"laya tiers: {dict(tiers)}   declared: {dict(declared)}")
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps({"summary": summary, "rows": rows}, indent=2), encoding="utf-8")
+    args.out.write_text(
+        json.dumps({"summary": summary, "rows": rows}, indent=2), encoding="utf-8"
+    )
     print(f"wrote {args.out}")
     return 0
 

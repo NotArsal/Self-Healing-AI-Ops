@@ -125,7 +125,9 @@ def main() -> int:
             seconds = time.time() - started
 
             declared = catalogue.faults.get(fault)
-            expected_repair = declared.repair.action if declared and declared.repair else ""
+            expected_repair = (
+                declared.repair.action if declared and declared.repair else ""
+            )
             cases.append(
                 HumanCase(
                     fault=fault,

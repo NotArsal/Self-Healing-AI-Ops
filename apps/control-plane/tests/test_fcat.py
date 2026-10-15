@@ -23,10 +23,10 @@ def setup_teardown():
 def test_loader_parses_builtin_and_fixtures() -> None:
     # Test loader successfully loads builtin and test fixtures
     cat = load_catalogue()
-    
+
     assert "F01" in cat.faults
     assert "F03" in cat.faults
-    
+
     f01 = cat.faults["F01"]
     assert f01.name == "provider_outage"
     assert f01.detect.signal == "gen_ai_error_rate"
@@ -45,7 +45,7 @@ def test_loader_maps_id_to_fault_class() -> None:
 def test_plan_node_extracts_declarative_repair() -> None:
     state = IncidentState(fault_class="F01", scenario=None)
     new_state = plan_node(state)
-    
+
     plan = new_state.get("plan", [])
     assert len(plan) == 1
     assert plan[0].name == "switch_model"
@@ -57,7 +57,7 @@ def test_plan_node_extracts_destructive_repair_from_fixture() -> None:
     # The safety engine (gate_node) is what blocks it in production.
     state = IncidentState(fault_class="F11", scenario=None)
     new_state = plan_node(state)
-    
+
     plan = new_state.get("plan", [])
     assert len(plan) == 1
     assert plan[0].name == "shell_command"
@@ -71,7 +71,7 @@ def test_invalid_yaml_fails_fast() -> None:
             fault_class="F99",
             # missing detect, etc but wait, they are Optional except fault_class.
             # let's pass a bad type to detect
-            detect="invalid_string_not_dict"
+            detect="invalid_string_not_dict",
         )
 
 
@@ -101,7 +101,7 @@ def test_gate_node_blocks_f11_destructive_command() -> None:
         incident_id="inc_test",
         fault_class="F11",
         scenario=scenario,
-        plan=[Action(name="shell_command", params={"cmd": "rm -rf /var/lib/mysql"})]
+        plan=[Action(name="shell_command", params={"cmd": "rm -rf /var/lib/mysql"})],
     )
 
     new_state = gate_node(state)

@@ -1,4 +1,4 @@
-.PHONY: setup up down dev-api dev-api-live dev-console check test test-integration lint format format-check types migrate migration scenario bench bench-live onboard target-up inject revert
+.PHONY: setup up down dev-api dev-api-live dev-console check test test-integration lint format format-check types migrate migration scenario bench bench-live human-baseline onboard target-up inject revert
 
 # Default
 all: setup check test
@@ -65,6 +65,12 @@ bench:
 	cd apps/control-plane && uv run python -m harness.rca_bench
 	cd apps/control-plane && uv run python -m harness.laya_vs_rules
 	cd apps/control-plane && uv run python -m harness.report
+
+# The one measurement that cannot be automated: the same nine scenarios, the
+# same evidence and the same SIMULATION mode, answered by a person against a
+# stopwatch. Roughly two hours. `make bench` renders the result afterwards.
+human-baseline:
+	cd apps/control-plane && uv run python -m harness.human_baseline
 
 # The undo ablation measures a live application, so the target must be up:
 #   make target-up ; make onboard APP=targets/proof2 ; make bench-live

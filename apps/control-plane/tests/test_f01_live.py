@@ -226,7 +226,9 @@ def test_detection_evidence_cites_what_was_measured(target) -> None:
 
 
 @patch("kavach.graph.nodes.analyze_root_cause")
-def test_f01_heals_end_to_end_with_real_deltas(mock_rca, healthy_baseline, proof2_app) -> None:
+def test_f01_heals_end_to_end_with_real_deltas(
+    mock_rca, healthy_baseline, proof2_app
+) -> None:
     """Inject, detect, diagnose, repair, verify -- with no human and no fiction."""
     mock_rca.return_value = RCAResponse(
         fault_class="F01",
@@ -256,9 +258,10 @@ def test_f01_heals_end_to_end_with_real_deltas(mock_rca, healthy_baseline, proof
     # Primary is still down; the system routed around it rather than fixing it.
     assert result["outcome"] == "MITIGATED"
 
-    assert read_value(
-        (target.manifest.reversible_state or {})["model_selection"]
-    ) == "backup", "the live application must actually be on the backup model"
+    assert (
+        read_value((target.manifest.reversible_state or {})["model_selection"])
+        == "backup"
+    ), "the live application must actually be on the backup model"
 
     deltas = result["verification_deltas"]
     assert deltas["availability"] == pytest.approx(0.0), "errors back to baseline"
@@ -295,9 +298,10 @@ def test_verification_failure_unwinds_the_live_app(
     )
 
     assert result["outcome"] == "ESCALATED"
-    assert read_value(
-        (target.manifest.reversible_state or {})["model_selection"]
-    ) == "primary", "unwind must restore the witnessed prior model"
+    assert (
+        read_value((target.manifest.reversible_state or {})["model_selection"])
+        == "primary"
+    ), "unwind must restore the witnessed prior model"
 
 
 def test_unwind_restores_after_direct_execute(target) -> None:
@@ -318,11 +322,17 @@ def test_unwind_restores_after_direct_execute(target) -> None:
     )
 
     res = execute_node(state)
-    assert read_value((target.manifest.reversible_state or {})["model_selection"]) == "backup"
+    assert (
+        read_value((target.manifest.reversible_state or {})["model_selection"])
+        == "backup"
+    )
 
     state["undo_stack"] = res["undo_stack"]
     unwind_node(state)
-    assert read_value((target.manifest.reversible_state or {})["model_selection"]) == "primary"
+    assert (
+        read_value((target.manifest.reversible_state or {})["model_selection"])
+        == "primary"
+    )
 
 
 def _breach_for(target):
@@ -340,7 +350,9 @@ def test_debt_repayment_writes_to_the_live_app(healthy_baseline, proof2_app) -> 
     from kavach.debt.repayment import repay_debt
 
     target = healthy_baseline
-    scenario = build_incident_scenario(target, _breach_for(target), scenario_id="inc-repay")
+    scenario = build_incident_scenario(
+        target, _breach_for(target), scenario_id="inc-repay"
+    )
     # outcome_node stamps the diagnosed class onto the scenario before debt is
     # recorded, so the checker only ever repays a classified incident. Detection
     # leaves it UNKNOWN, and repaying an unclassified incident is refused -- see
@@ -370,10 +382,14 @@ def test_debt_repayment_writes_to_the_live_app(healthy_baseline, proof2_app) -> 
     )
 
     assert ok is True
-    assert read_value(rs_def) == "primary", "repayment must return the live app to primary"
+    assert read_value(rs_def) == "primary", (
+        "repayment must return the live app to primary"
+    )
 
 
-def test_repayment_of_an_unclassified_incident_is_refused(healthy_baseline, proof2_app) -> None:
+def test_repayment_of_an_unclassified_incident_is_refused(
+    healthy_baseline, proof2_app
+) -> None:
     """The deny case: no known risk tier means no autonomous repayment.
 
     An unclassified incident has no catalogue entry, so its risk tier is unknown.
@@ -383,7 +399,9 @@ def test_repayment_of_an_unclassified_incident_is_refused(healthy_baseline, proo
     from kavach.debt.repayment import repay_debt
 
     target = healthy_baseline
-    scenario = build_incident_scenario(target, _breach_for(target), scenario_id="inc-unk")
+    scenario = build_incident_scenario(
+        target, _breach_for(target), scenario_id="inc-unk"
+    )
     assert scenario.fault_class == "UNKNOWN"
     rs_def = (target.manifest.reversible_state or {})["model_selection"]
 
@@ -420,9 +438,7 @@ def test_detection_tick_opens_one_incident_per_breach(proof2_app) -> None:
     original = settings.target_manifest
     settings.target_manifest = str(MANIFEST)
     try:
-        with patch(
-            "kavach.api.routes.incidents.execute_graph_background", _noop_graph
-        ):
+        with patch("kavach.api.routes.incidents.execute_graph_background", _noop_graph):
             assert asyncio.run(detection_tick()) is None, "healthy app, no incident"
 
             httpx.post(f"{BASE}/inject/F01", timeout=5)

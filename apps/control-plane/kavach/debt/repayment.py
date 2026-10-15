@@ -38,7 +38,7 @@ def repay_debt(
         if record and hasattr(record, "inverse_action"):
             action = record.inverse_action
             logger.info(f"Using inverse action from UndoRecord: {action}")
-            
+
     if not action:
         # Fallback to DB params
         action = Action(name=repayment_action_name, params=repayment_action_params)

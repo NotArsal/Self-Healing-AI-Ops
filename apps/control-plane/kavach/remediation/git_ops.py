@@ -13,7 +13,7 @@ class GitOpsAdapter:
             cwd=self.repo_path,
             check=False,
             capture_output=True,
-            text=True
+            text=True,
         )
 
     def checkout_ops_branch(self) -> tuple[bool, str]:
@@ -31,7 +31,7 @@ class GitOpsAdapter:
         else:
             # Create and checkout
             res = self._run_git("checkout", "-b", self.branch_name)
-            
+
         if res.returncode == 0:
             return True, "Successfully checked out kavach/ops"
         return False, f"Failed to checkout kavach/ops: {res.stderr}"
@@ -41,13 +41,16 @@ class GitOpsAdapter:
         res_add = self._run_git("add", file_path)
         if res_add.returncode != 0:
             return False, f"Failed to git add: {res_add.stderr}"
-            
+
         res_commit = self._run_git("commit", "-m", message)
         if res_commit.returncode == 0:
             return True, f"Committed: {res_commit.stdout}"
-        
+
         # If there's nothing to commit, return True but note it
-        if "nothing to commit" in res_commit.stdout.lower() or "no changes added" in res_commit.stdout.lower():
+        if (
+            "nothing to commit" in res_commit.stdout.lower()
+            or "no changes added" in res_commit.stdout.lower()
+        ):
             return True, "No changes to commit"
-            
+
         return False, f"Failed to commit: {res_commit.stderr}"

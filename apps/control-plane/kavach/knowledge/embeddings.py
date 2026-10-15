@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings
 
 logger = logging.getLogger(__name__)
 
+
 class EmbeddingSettings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     embedding_model: str = "nomic-embed-text"
@@ -12,16 +13,15 @@ class EmbeddingSettings(BaseSettings):
     class Config:
         env_prefix = "KAVACH_"
 
+
 settings = EmbeddingSettings()
+
 
 async def generate_embedding(text: str) -> list[float] | None:
     """Generates a vector embedding for the given text using Ollama."""
     url = f"{settings.ollama_base_url}/api/embeddings"
-    payload = {
-        "model": settings.embedding_model,
-        "prompt": text
-    }
-    
+    payload = {"model": settings.embedding_model, "prompt": text}
+
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.post(url, json=payload)

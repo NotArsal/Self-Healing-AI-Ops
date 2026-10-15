@@ -13,6 +13,7 @@ Revises: 0004
 Create Date: 2026-10-15 00:00:00.000000
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -21,26 +22,30 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '0005'
-down_revision: str | None = '0004'
+revision: str = "0005"
+down_revision: str | None = "0004"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     op.create_table(
-        'audit_log',
-        sa.Column('id', sa.BigInteger(), autoincrement=True, primary_key=True),
-        sa.Column('incident_id', sa.String(), nullable=True),
-        sa.Column('ts', sa.DateTime(timezone=True), nullable=False,
-                  server_default=sa.func.now()),
-        sa.Column('actor', sa.String(), nullable=False),
-        sa.Column('event', sa.String(), nullable=False),
-        sa.Column('payload', postgresql.JSONB(), nullable=False, server_default='{}'),
-        sa.Column('prev_hash', sa.String(length=64), nullable=True),
-        sa.Column('hash', sa.String(length=64), nullable=False, unique=True),
+        "audit_log",
+        sa.Column("id", sa.BigInteger(), autoincrement=True, primary_key=True),
+        sa.Column("incident_id", sa.String(), nullable=True),
+        sa.Column(
+            "ts",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sa.Column("actor", sa.String(), nullable=False),
+        sa.Column("event", sa.String(), nullable=False),
+        sa.Column("payload", postgresql.JSONB(), nullable=False, server_default="{}"),
+        sa.Column("prev_hash", sa.String(length=64), nullable=True),
+        sa.Column("hash", sa.String(length=64), nullable=False, unique=True),
     )
-    op.create_index('ix_audit_log_incident_id', 'audit_log', ['incident_id'])
+    op.create_index("ix_audit_log_incident_id", "audit_log", ["incident_id"])
 
     # Append-only, in the database. A revoked privilege would be cleaner but the
     # application and the migrations share one role here, and a role that cannot
@@ -66,7 +71,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute('DROP TRIGGER IF EXISTS audit_log_no_update_or_delete ON audit_log')
-    op.execute('DROP FUNCTION IF EXISTS kavach_audit_log_is_append_only()')
-    op.drop_index('ix_audit_log_incident_id', table_name='audit_log')
-    op.drop_table('audit_log')
+    op.execute("DROP TRIGGER IF EXISTS audit_log_no_update_or_delete ON audit_log")
+    op.execute("DROP FUNCTION IF EXISTS kavach_audit_log_is_append_only()")
+    op.drop_index("ix_audit_log_incident_id", table_name="audit_log")
+    op.drop_table("audit_log")

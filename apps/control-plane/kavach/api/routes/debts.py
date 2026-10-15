@@ -11,4 +11,3 @@ router = APIRouter(prefix="/debts", tags=["debts"])
 async def get_debts() -> list[dict[str, Any]]:
     debts = await get_active_debts_async()
     return [debt.model_dump() for debt in debts]
-

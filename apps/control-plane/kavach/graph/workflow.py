@@ -52,7 +52,7 @@ def build_workflow() -> Any:
 
     def join_investigation(state: IncidentState) -> IncidentState:
         return {}
-    
+
     workflow.add_node("join_investigation", join_investigation)
     workflow.add_edge("detect", "join_investigation")
     workflow.add_edge("diagnose", "join_investigation")

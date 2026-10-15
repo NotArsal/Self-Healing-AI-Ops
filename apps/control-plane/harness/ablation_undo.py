@@ -93,9 +93,7 @@ def _one_run(arm: str, rep: int) -> Run:
     def _noop_unwind(state: IncidentState) -> IncidentState:
         return {}
 
-    def _ineffective_revert(
-        effect: Any, record: Any, rs_def: Any, mode: str
-    ) -> bool:
+    def _ineffective_revert(effect: Any, record: Any, rs_def: Any, mode: str) -> bool:
         """The unwind runs, the write is lost, the readback is real."""
         from kavach.remediation.runtime_config import read_value
 
@@ -175,9 +173,7 @@ def _summarise(runs: list[Run]) -> dict[str, Any]:
     # The finding that matters as much as the headline: can an operator tell from
     # the reported outcome that the application was left mutated? The first run of
     # this study answered no for every arm, because the unwind was never checked.
-    outcomes = {
-        arm: {r.outcome for r in runs if r.arm == arm} for arm in ARMS
-    }
+    outcomes = {arm: {r.outcome for r in runs if r.arm == arm} for arm in ARMS}
     good = outcomes.get("undo_enabled") or set()
     for arm in ("undo_ineffective", "undo_disabled"):
         seen = outcomes.get(arm) or set()
@@ -197,13 +193,18 @@ def _summarise(runs: list[Run]) -> dict[str, Any]:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--reps", type=int, default=5)
-    ap.add_argument("--out", type=Path, default=REPO_ROOT / "eval_results" / "ablation_undo.json")
+    ap.add_argument(
+        "--out", type=Path, default=REPO_ROOT / "eval_results" / "ablation_undo.json"
+    )
     args = ap.parse_args()
 
     try:
         httpx.get(f"{BASE}/healthz", timeout=3)
     except httpx.HTTPError:
-        print(f"target not reachable at {BASE}. Run `make target-up` first.", file=sys.stderr)
+        print(
+            f"target not reachable at {BASE}. Run `make target-up` first.",
+            file=sys.stderr,
+        )
         return 1
 
     print(

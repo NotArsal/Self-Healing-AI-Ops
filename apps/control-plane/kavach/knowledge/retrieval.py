@@ -8,14 +8,13 @@ from kavach.knowledge.embeddings import generate_embedding
 
 logger = logging.getLogger(__name__)
 
+
 async def retrieve_similar_incidents(
-    session: AsyncSession,
-    query_text: str,
-    limit: int = 3
+    session: AsyncSession, query_text: str, limit: int = 3
 ) -> list[IncidentMemory]:
     """Retrieves past incidents similar to the query text."""
     query_embedding = await generate_embedding(query_text)
-    
+
     if not query_embedding:
         logger.warning("Could not generate query embedding. Returning empty evidence.")
         return []

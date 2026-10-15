@@ -84,9 +84,7 @@ def _run_one(fault: str, rep: int, expected: str | None = None) -> Injection:
             "kavach.remediation.tnr_gate.evaluate_safety",
             lambda action, context: SafetyAssessment(is_safe=True, reason="stubbed"),
         ),
-        patch(
-            "kavach.knowledge.retrieval.retrieve_similar_incidents", return_value=[]
-        ),
+        patch("kavach.knowledge.retrieval.retrieve_similar_incidents", return_value=[]),
         patch("kavach.knowledge.store.save_incident_memory", return_value=None),
     ):
         result = build_workflow().invoke(
@@ -128,7 +126,9 @@ def _pct(num: int, den: int) -> float | None:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--reps", type=int, default=5, help="reps per fault (PRD: 5)")
-    ap.add_argument("--out", type=Path, default=REPO_ROOT / "eval_results" / "rca_bench.json")
+    ap.add_argument(
+        "--out", type=Path, default=REPO_ROOT / "eval_results" / "rca_bench.json"
+    )
     args = ap.parse_args()
 
     print(f"RCA bench: {len(FAULTS)} faults x {args.reps} reps, real local model")
@@ -177,12 +177,18 @@ def main() -> int:
         "rca_accuracy_pct": _pct(len(correct), len(runs)),
         "heal_rate_pct": _pct(len(healed), len(runs)),
         # PRD 11.1: the conditionals are the point.
-        "p_heal_given_correct_dx_pct": _pct(sum(1 for r in correct if r.healed), len(correct)),
-        "p_heal_given_wrong_dx_pct": _pct(sum(1 for r in wrong if r.healed), len(wrong)),
+        "p_heal_given_correct_dx_pct": _pct(
+            sum(1 for r in correct if r.healed), len(correct)
+        ),
+        "p_heal_given_wrong_dx_pct": _pct(
+            sum(1 for r in wrong if r.healed), len(wrong)
+        ),
         "p_correct_dx_given_heal_pct": _pct(
             sum(1 for r in healed if r.diagnosis_correct), len(healed)
         ),
-        "median_loop_s": statistics.median(r.duration_s for r in runs) if runs else None,
+        "median_loop_s": statistics.median(r.duration_s for r in runs)
+        if runs
+        else None,
         "fails_closed": {
             "reps": len(closed),
             "answered_insufficient_evidence": sum(
@@ -256,7 +262,9 @@ def main() -> int:
     print(f"RCA accuracy            {summary['rca_accuracy_pct']}%  (PRD target >= 75)")
     print(f"Heal rate               {summary['heal_rate_pct']}%")
     print(f"P(heal | correct dx)    {summary['p_heal_given_correct_dx_pct']}%")
-    print(f"P(heal | wrong dx)      {summary['p_heal_given_wrong_dx_pct']}%   <- luck in the headline")
+    print(
+        f"P(heal | wrong dx)      {summary['p_heal_given_wrong_dx_pct']}%   <- luck in the headline"
+    )
     print(f"P(correct dx | heal)    {summary['p_correct_dx_given_heal_pct']}%")
     print(f"outcomes                {summary['outcomes']}")
     if summary["misdiagnoses"]:

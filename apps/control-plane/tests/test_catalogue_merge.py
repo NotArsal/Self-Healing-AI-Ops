@@ -46,9 +46,7 @@ def test_action_overlay_keeps_an_effect_binding() -> None:
 
 @pytest.mark.parametrize("fault,expected_tier", [("F01", "LOW"), ("F03", "MEDIUM")])
 def test_plan_node_reaches_the_sandbox_branch(fault, expected_tier) -> None:
-    result = plan_node(
-        IncidentState(scenario=load_scenario(fault), fault_class=fault)
-    )
+    result = plan_node(IncidentState(scenario=load_scenario(fault), fault_class=fault))
     assert result["risk_tier"] == expected_tier
     assert result["sandbox_required"] is (expected_tier == "MEDIUM")
     assert result["plan"], "a declared repair must still produce a plan"
@@ -69,10 +67,14 @@ def test_declared_repair_params_resolve() -> None:
         act = cat.actions[f_def.repair.action]
         params = set(f_def.repair.params)
         forward = {v[1:] for v in act.mutations.values() if v.startswith("$")}
-        assert not forward - params, f"{fc} repair omits {forward - params} for {act.name}"
+        assert not forward - params, (
+            f"{fc} repair omits {forward - params} for {act.name}"
+        )
 
         witnessed = set(act.mutations)
-        inverse = {v[1:] for v in act.inverse.params_mapping.values() if v.startswith("$")}
+        inverse = {
+            v[1:] for v in act.inverse.params_mapping.values() if v.startswith("$")
+        }
         unresolvable = inverse - params - witnessed
         assert not unresolvable, (
             f"{fc}: {act.inverse.name} reads {unresolvable}, which is neither a "

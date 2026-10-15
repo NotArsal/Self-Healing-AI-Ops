@@ -88,54 +88,58 @@ def _laya(s: dict[str, Any] | None) -> str:
 
 Real inference over each fault's proposed repair.
 
-- Agreement: **{s['agreements']}/{s['cases']} ({s['agreement_rate_pct']}%)**
-- Laya risk tiers: `{s['laya_tier_distribution']}` against declared `{s['declared_risk_distribution']}`
-- Laya judged {blocked} of {s['cases']} legitimate repairs unsafe
+- Agreement: **{s["agreements"]}/{s["cases"]} ({s["agreement_rate_pct"]}%)**
+- Laya risk tiers: `{s["laya_tier_distribution"]}` against declared `{s["declared_risk_distribution"]}`
+- Laya judged {blocked} of {s["cases"]} legitimate repairs unsafe
 
 Had Laya been gating, it would have blocked **{pct}%** of correct repairs. That is
 the strongest available evidence that `AGENTS.md`'s shadow-only rule is correct,
 and the opposite of the "100% alignment" claimed in
 `PROJECT_COMPLETION_REPORT.md`.
 
-{_bullets(s.get('caveats', []))}
+{_bullets(s.get("caveats", []))}
 """
 
 
 def _rca(s: dict[str, Any] | None) -> str:
     if s is None:
-        return "## 3. RCA accuracy and conditional metrics\n\n**NOT RUN.** `make bench`\n"
+        return (
+            "## 3. RCA accuracy and conditional metrics\n\n**NOT RUN.** `make bench`\n"
+        )
     p_wrong = s["p_heal_given_wrong_dx_pct"]
     wrong_cell = (
-        f"**{p_wrong}%**" if p_wrong is not None else "n/a — no wrong diagnoses occurred"
+        f"**{p_wrong}%**"
+        if p_wrong is not None
+        else "n/a — no wrong diagnoses occurred"
     )
     reps = s["injections"] // 9 if s["injections"] else 0
     return f"""## 3. RCA accuracy and the conditional metrics
 
-{s['injections']} injections ({reps} reps x 9 faults), real local model, cold memory, and
+{s["injections"]} injections ({reps} reps x 9 faults), real local model, cold memory, and
 with no answer key in the prompt.
 
 | Metric | Value | PRD target |
 |---|---|---|
-| RCA accuracy | **{s['rca_accuracy_pct']}%** | >= 75% |
-| Heal rate | {s['heal_rate_pct']}% | >= 70% (LOW) |
-| P(heal {PIPE} correct dx) | {s['p_heal_given_correct_dx_pct']}% | — |
+| RCA accuracy | **{s["rca_accuracy_pct"]}%** | >= 75% |
+| Heal rate | {s["heal_rate_pct"]}% | >= 70% (LOW) |
+| P(heal {PIPE} correct dx) | {s["p_heal_given_correct_dx_pct"]}% | — |
 | P(heal {PIPE} wrong dx) | {wrong_cell} | — |
-| P(correct dx {PIPE} heal) | {s['p_correct_dx_given_heal_pct']}% | — |
-| Median loop | {s['median_loop_s']}s | — |
+| P(correct dx {PIPE} heal) | {s["p_correct_dx_given_heal_pct"]}% | — |
+| Median loop | {s["median_loop_s"]}s | — |
 
-Outcomes: `{s['outcomes']}`. Misdiagnoses: `{s['misdiagnoses'] or 'none'}`.
+Outcomes: `{s["outcomes"]}`. Misdiagnoses: `{s["misdiagnoses"] or "none"}`.
 
 PRD §11.1 warns that a headline resolution rate cannot evidence that RCA works,
 because published work shows mitigation succeeding on wrong diagnoses 22–62% of
-the time. Here it succeeds on a wrong diagnosis **{p_wrong if p_wrong is not None else 'n/a'}%** of the time. Per-fault
-accuracy: `{s['per_fault_accuracy_pct']}`.
+the time. Here it succeeds on a wrong diagnosis **{p_wrong if p_wrong is not None else "n/a"}%** of the time. Per-fault
+accuracy: `{s["per_fault_accuracy_pct"]}`.
 
 **Read §3.1 before this table.** These nine scenarios each carry evidence that
 points at one catalogue entry, so they measure whether the model can read
 evidence that is there. They say nothing about what it does when the evidence
 does not identify a fault, and that turns out to be the more important question.
 
-{_bullets(s.get('caveats', []))}
+{_bullets(s.get("caveats", []))}
 """
 
 
@@ -162,8 +166,8 @@ reward a model for refusing everywhere.
 |---|---|
 | Answered `INSUFFICIENT_EVIDENCE` | **{declined}/{reps}** |
 | Took no action | **{no_action}/{reps}** |
-| Guessed instead | `{fc['guesses'] or 'none'}` |
-| Outcomes | `{fc['outcomes']}` |
+| Guessed instead | `{fc["guesses"] or "none"}` |
+| Outcomes | `{fc["outcomes"]}` |
 
 With {declined}/{reps} declining and {no_action}/{reps} staying out of the
 application, the accuracy figure above does not transfer to ambiguity. The model
@@ -211,14 +215,14 @@ by a person against a stopwatch.
 
 | Metric | Human | Machine |
 |---|---|---|
-| Cases | {s['cases']} | 45 (5 reps x 9) |
-| Diagnosis accuracy | **{s['diagnosis_accuracy_pct']}%** | see §3 |
-| Repair chosen correctly | {s['repair_accuracy_pct']}% | — |
-| Declined to diagnose | {s['declined_pct']}% | 0% (§3.1) |
-| Median time to a diagnosis | **{s['median_seconds']}s** | {machine} |
-| Fastest / slowest | {s['fastest_seconds']}s / {s['slowest_seconds']}s | — |
+| Cases | {s["cases"]} | 45 (5 reps x 9) |
+| Diagnosis accuracy | **{s["diagnosis_accuracy_pct"]}%** | see §3 |
+| Repair chosen correctly | {s["repair_accuracy_pct"]}% | — |
+| Declined to diagnose | {s["declined_pct"]}% | 0% (§3.1) |
+| Median time to a diagnosis | **{s["median_seconds"]}s** | {machine} |
+| Fastest / slowest | {s["fastest_seconds"]}s / {s["slowest_seconds"]}s | — |
 
-{_bullets(s.get('caveats', []))}
+{_bullets(s.get("caveats", []))}
 """
 
 

@@ -38,9 +38,7 @@ def test_proof2_preflight_and_heal(monkeypatch: pytest.MonkeyPatch) -> None:
     assert by_code["P09"].status == "PASS", by_code["P09"].message
     assert by_code["P14"].status == "PASS", by_code["P14"].message
     # Nothing silently passed: a check that could not be run says so.
-    assert all(
-        c.status in ("PASS", "FAIL", "UNVERIFIED") for c in report.checks
-    )
+    assert all(c.status in ("PASS", "FAIL", "UNVERIFIED") for c in report.checks)
 
     # 3. Create a synthetic scenario to simulate an F01 fault on proof2
     # The scenario must match the schema expected by the graph

@@ -93,7 +93,11 @@ def apply_effect(
     # app was somewhere unexpected when we arrived, that is where we put it back.
     inverse = Action(
         name=action.name,
-        params={**action.params, "target": prior_catalogue_value, "fallback": catalogue_value},
+        params={
+            **action.params,
+            "target": prior_catalogue_value,
+            "fallback": catalogue_value,
+        },
     )
 
     return UndoRecord(

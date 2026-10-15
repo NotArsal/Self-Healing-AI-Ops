@@ -17,17 +17,33 @@ from kavach.audit.log import _row_hash, append, read_log, verify_chain
 
 def test_row_hash_is_stable_across_dict_ordering() -> None:
     """A payload that serialises two ways would break the chain on a re-read."""
-    a = _row_hash("prev", "kavach.gate", "gate_verdict", "inc-1",
-                  {"verdict": "ALLOW", "risk_tier": "LOW"}, "2026-10-15T00:00:00+00:00")
-    b = _row_hash("prev", "kavach.gate", "gate_verdict", "inc-1",
-                  {"risk_tier": "LOW", "verdict": "ALLOW"}, "2026-10-15T00:00:00+00:00")
+    a = _row_hash(
+        "prev",
+        "kavach.gate",
+        "gate_verdict",
+        "inc-1",
+        {"verdict": "ALLOW", "risk_tier": "LOW"},
+        "2026-10-15T00:00:00+00:00",
+    )
+    b = _row_hash(
+        "prev",
+        "kavach.gate",
+        "gate_verdict",
+        "inc-1",
+        {"risk_tier": "LOW", "verdict": "ALLOW"},
+        "2026-10-15T00:00:00+00:00",
+    )
     assert a == b
 
 
 def test_row_hash_changes_with_every_field() -> None:
     base = {
-        "prev_hash": "p", "actor": "a", "event": "e", "incident_id": "i",
-        "payload": {"x": 1}, "ts": "2026-10-15T00:00:00+00:00",
+        "prev_hash": "p",
+        "actor": "a",
+        "event": "e",
+        "incident_id": "i",
+        "payload": {"x": 1},
+        "ts": "2026-10-15T00:00:00+00:00",
     }
     original = _row_hash(**base)  # type: ignore[arg-type]
     for field, altered in [
@@ -62,12 +78,18 @@ def _run(coro):  # type: ignore[no-untyped-def]
 def test_chain_links_and_verifies() -> None:
     async def body(session):  # type: ignore[no-untyped-def]
         first = await append(
-            session, event="gate_verdict", actor="kavach.gate",
-            incident_id="inc-audit-test", payload={"verdict": "ALLOW"},
+            session,
+            event="gate_verdict",
+            actor="kavach.gate",
+            incident_id="inc-audit-test",
+            payload={"verdict": "ALLOW"},
         )
         second = await append(
-            session, event="executed", actor="kavach.executor",
-            incident_id="inc-audit-test", payload={"actions": ["switch_model"]},
+            session,
+            event="executed",
+            actor="kavach.executor",
+            incident_id="inc-audit-test",
+            payload={"actions": ["switch_model"]},
         )
         assert first != second
 
@@ -93,8 +115,11 @@ def test_chain_links_and_verifies() -> None:
 def test_database_refuses_to_mutate_the_log(statement: str) -> None:
     async def body(session):  # type: ignore[no-untyped-def]
         await append(
-            session, event="outcome", actor="kavach.graph",
-            incident_id="inc-audit-immutable", payload={"outcome": "MITIGATED"},
+            session,
+            event="outcome",
+            actor="kavach.graph",
+            incident_id="inc-audit-immutable",
+            payload={"outcome": "MITIGATED"},
         )
         with pytest.raises(Exception) as excinfo:
             await session.execute(text(statement))

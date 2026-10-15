@@ -69,6 +69,4 @@ def _isolate_knowledge_base(request, monkeypatch):
         "kavach.knowledge.retrieval.retrieve_similar_incidents",
         _no_similar_incidents,
     )
-    monkeypatch.setattr(
-        "kavach.knowledge.store.save_incident_memory", _no_save
-    )
+    monkeypatch.setattr("kavach.knowledge.store.save_incident_memory", _no_save)

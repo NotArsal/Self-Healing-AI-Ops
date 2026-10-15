@@ -38,7 +38,7 @@ def test_a_zero_exit_verifies() -> None:
 
 
 def test_a_nonzero_exit_does_not_verify() -> None:
-    result = verify_node(_state("false", 'Error from server (NotFound)'))
+    result = verify_node(_state("false", "Error from server (NotFound)"))
     assert result["verification_passed"] is False
     assert result["verification_deltas"] == {"exit_ok": 0.0}
 
