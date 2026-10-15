@@ -4,3 +4,4 @@ AGENTS.md
 graphify-out
 __pycache__/
 .kavach_baseline.json
+*.partial.json
