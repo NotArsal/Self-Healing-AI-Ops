@@ -7,25 +7,35 @@ receivers:
 exporters:
   prometheusremotewrite:
     endpoint: "http://prometheus:9090/api/v1/write"
-  otlp/kavach:
-    endpoint: "http://host.docker.internal:8000/api/v1/ingestion"
-    tls:
-      insecure: true
-  loki:
-    endpoint: "http://kavach-loki:3100/loki/api/v1/push"
-  otlp/tempo:
-    endpoint: "http://kavach-tempo:4317"
-    tls:
-      insecure: true
+  # Spans are received and printed, nothing more. See the note below.
+  debug:
+    verbosity: normal
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
-      exporters: [otlp/tempo, otlp/kavach]
+      exporters: [debug]
     metrics:
       receivers: [otlp]
       exporters: [prometheusremotewrite]
-    logs:
-      receivers: [otlp]
-      exporters: [loki]
+
+# This file previously declared a `loki` exporter unconditionally. That type no
+# longer exists in opentelemetry-collector-contrib, so the collector refused its
+# own config and exited(1) on every start -- for as long as nobody checked,
+# because preflight P11 reported "OTLP endpoint is reachable (Simulated)"
+# without opening a socket.
+#
+# It also exported traces to `otlp/kavach` at http://host.docker.internal:8000/
+# api/v1/ingestion. Three things were wrong with that: the `otlp` exporter takes
+# host:port and rejects a path, the control plane moved to 8001, and there is no
+# ingestion route -- kavach/telemetry/ and kavach/evidence/ are empty
+# directories. ARCHITECTURE.md 2.3's GenAI normalisation does not exist, so
+# nothing downstream could have consumed a span. Spans go to `debug` until it
+# does; that is visible in `docker logs kavach-otel-collector` and claims
+# nothing.
+#
+# Loki and Tempo stay out: both are a human view behind the optional compose
+# profile (ARCHITECTURE.md 2.4) and neither may sit in the healing loop.
+# Enabling that profile needs its exporters added back, pointed at the
+# containers the profile starts.

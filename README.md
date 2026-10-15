@@ -65,7 +65,8 @@ Honest summary, because the distinction matters for how results are read:
 | Incident persistence | In-memory only; no `PostgresSaver` checkpointer, so approvals and the debt dwell clock do not survive a restart |
 | Risk tiers and the sandbox | **Real** — F03 and F07 load MEDIUM and prove the repair in an isolated dry run before it is executed; a failed dry run stops the repair and leaves the application untouched |
 | Undo | **Real** — the live adapter reads the state back after restoring it and reports `UNRECOVERABLE` on a mismatch; `tests/test_unwind.py` asserts the restoration per fault |
-| Preflight P01–P13 | Structure present, most individual checks still report `(Simulated)` |
+| Preflight P01–P14 | **Real** — 13 of 14 checks measure the application: TCP and HTTP probes, a full golden-set run, objective probes, reversible-state reads, catalogue adapter and inverse resolution, git worktree state, baseline on disk. A check the platform cannot establish reports `UNVERIFIED`, which earns no conformance level |
+| Telemetry ingestion | **Not built.** `kavach/telemetry/` and `kavach/evidence/` are empty directories; there is no ingestion route and no GenAI normalisation (`ARCHITECTURE.md` §2.3). This is what caps `targets/proof2` at `UNARMED` — preflight P12 has nothing to check spans against |
 | `make check` | Red: 79 mypy errors, 48 ruff errors, all outside the modules listed above |
 
 Phase-by-phase claims in `PROJECT_COMPLETION_REPORT.md` predate this table and

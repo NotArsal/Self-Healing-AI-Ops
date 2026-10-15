@@ -53,8 +53,10 @@ reversible_state:
 
 permissions:
   allowed_actions:
+    # restart_container was declared here and has no adapter in the catalogue, so
+    # this manifest granted permission for something the platform cannot execute.
+    # Preflight P09 found it the first time that check actually ran.
     - switch_model
-    - restart_container
   max_risk_tier: MEDIUM
 
 telemetry:

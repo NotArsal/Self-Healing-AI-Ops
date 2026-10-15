@@ -58,15 +58,34 @@ def main() -> None:
         print(f"Error reading file: {e}")
         sys.exit(1)
 
-    checker = PreflightChecker(manifest_yaml)
+    # The path, so the checks can probe the application instead of trusting its
+    # manifest. Without it every network and filesystem check reports UNVERIFIED.
+    checker = PreflightChecker(manifest_yaml, manifest_path=path)
     report = checker.run_all()
 
     print(f"Conformance Level: {report.conformance_level}")
     for c in report.checks:
-        icon = "[PASS]" if c.passed else "[FAIL]"
-        print(f"{icon} {c.code}: {c.message}")
+        print(f"[{c.status}] {c.code}: {c.message}")
         if not c.passed and c.remediation:
             print(f"    Remediation: {c.remediation}")
+
+    capped = report.level_capped_by()
+    if capped:
+        print()
+        print("Level capped by:")
+        for c in capped:
+            print(f"  [{c.status}] {c.code}: {c.message.splitlines()[0]}")
+
+    unverified = report.unverified()
+    if unverified:
+        print()
+        print(
+            f"{len(unverified)} check(s) could not be verified. An unverified "
+            "obligation does not count towards a conformance level, because an "
+            "unprovable claim and a satisfied one must not look alike:"
+        )
+        for c in unverified:
+            print(f"  {c.code}: {c.message}")
 
     capture_baseline(path)
 

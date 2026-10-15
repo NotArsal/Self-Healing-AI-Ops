@@ -67,15 +67,42 @@ telemetry:
 """
 
 
-def test_preflight_valid_l3():
-    checker = PreflightChecker(VALID_YAML)
-    report = checker.run_all()
+def test_a_manifest_that_only_parses_is_not_healable():
+    """This test used to assert L3 - Healable for exactly this input.
 
-    # Check all passed
-    assert all(c.passed for c in report.checks), [
-        c.message for c in report.checks if not c.passed
-    ]
-    assert report.conformance_level == "L3 - Healable"
+    It could, because every check from P02 to P13 reported `PASS (Simulated)` on
+    the strength of the declaration in front of it. The manifest below names
+    services at `http://api:8080` and a collector at `otel-collector:4318`, none
+    of which exist on the machine running this test, and it was certified with
+    the strongest claim the contract can make.
+    """
+    report = PreflightChecker(VALID_YAML).run_all()
+    by_code = {c.code: c for c in report.checks}
+
+    assert report.conformance_level != "L3 - Healable"
+    # The manifest is well-formed, and that much is still a real pass.
+    assert by_code["P01"].status == "PASS"
+    # Nothing answers at those hostnames, and the checks now say so.
+    assert by_code["P04"].status == "FAIL"
+    assert by_code["P11"].status == "FAIL"
+    # Structural checks need no network and are measured either way.
+    assert by_code["P09"].status == "PASS", by_code["P09"].message
+
+
+def test_checks_needing_a_path_report_unverified_rather_than_passing():
+    """A result the platform could not establish must not look like a pass."""
+    report = PreflightChecker(VALID_YAML).run_all()
+    by_code = {c.code: c for c in report.checks}
+
+    # P06 runs the golden set, which is resolved relative to the manifest.
+    assert by_code["P06"].status == "UNVERIFIED"
+    assert "no manifest path" in by_code["P06"].message
+    # P12 cannot pass for any application yet: there is no span ingestion.
+    assert by_code["P12"].status == "UNVERIFIED"
+
+    assert {c.code for c in report.unverified()} >= {"P06", "P12"}
+    # And the report names what is standing in the way of the next level.
+    assert report.level_capped_by(), "a capped level with no explanation"
 
 
 def test_preflight_invalid_yaml():
@@ -99,6 +126,7 @@ def test_preflight_missing_liveness_drops_l0():
 
     p05 = next(c for c in report.checks if c.code == "P05")
     assert not p05.passed
+    assert "api" in p05.message
     assert report.conformance_level == "UNARMED"
 
 
@@ -120,5 +148,8 @@ def test_preflight_missing_quality_drops_l1():
 
     p06 = next(c for c in report.checks if c.code == "P06")
     assert not p06.passed
-    # Conformance level drops to L0
-    assert report.conformance_level == "L0 - Observed"
+    assert "Quality configuration missing" in p06.message
+    # Not L0 either: these services are unreachable from the test machine and
+    # P12 cannot be verified at all, so the ladder was never climbed. The old
+    # expectation of "L0 - Observed" came from checks that measured nothing.
+    assert report.conformance_level == "UNARMED"
