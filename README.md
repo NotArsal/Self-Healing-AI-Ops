@@ -46,8 +46,9 @@ again, clears the debt and moves the incident to `RESOLVED`.
 
 Requires `make up` and `make migrate` first — debt is persisted in Postgres.
 
-Run `make test-integration` to execute that loop as a test (it starts its own
-copy of the target, so `make target-up` must not be running).
+Run `make test-integration` to execute that loop as a test: 12 assertions
+against the real application in about 35 seconds. It starts its own copy of the
+target, so `make target-up` must not be running.
 
 ## Project status
 
@@ -59,10 +60,10 @@ Honest summary, because the distinction matters for how results are read:
 | `F02`–`F09` | Simulated: the loop runs against an in-memory state dict, and `verification/probes.py` derives metrics from thresholds rather than measuring |
 | Contract (`CONTRACT.md` v1.1) | Proof #2 onboarded; six defects found and closed (`docs/decisions/proof2_defects.md`) |
 | Audit log | **Not built.** `AGENTS.md` names it a core guarantee; no table, module or route exists |
-| Knowledge base (F-MEM) | **Broken.** Reads and writes both raise `'Scenario' object has no attribute 'trigger'`, swallowed by a bare `except`, so nothing is ever stored |
+| Knowledge base (F-MEM) | **Real** — incidents are embedded and stored, and recalled by similarity into the diagnosis evidence. Needs `make up` plus Ollama for `nomic-embed-text` |
 | Incident persistence | In-memory only; no `PostgresSaver` checkpointer, so approvals and the debt dwell clock do not survive a restart |
 | Preflight P01–P13 | Structure present, most individual checks still report `(Simulated)` |
-| `make check` | Red: 96 mypy errors, 54 ruff errors, all outside the modules listed above |
+| `make check` | Red: 79 mypy errors, 48 ruff errors, all outside the modules listed above |
 
 Phase-by-phase claims in `PROJECT_COMPLETION_REPORT.md` predate this table and
 overstate what runs; prefer this section.

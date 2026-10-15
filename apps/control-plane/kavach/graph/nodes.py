@@ -1,7 +1,9 @@
 from collections.abc import Callable
+from typing import Any
 
 from kavach.catalogue.schema import EffectDef
 from kavach.graph.state import IncidentState
+from kavach.knowledge.summary import describe_incident, describe_symptoms
 from kavach.llm.rca import analyze_root_cause
 from kavach.preflight.schema import DebtItemDef, ReversibleStateDef
 from kavach.remediation.runtime_config import apply_effect, revert_effect
@@ -19,6 +21,7 @@ def detect_node(state: IncidentState) -> IncidentState:
 
 def diagnose_node(state: IncidentState) -> IncidentState:
     import asyncio
+
     from kavach.api.db import get_db_session
     from kavach.knowledge.retrieval import retrieve_similar_incidents
     from kavach.scenarios.schema import EvidenceItem
@@ -26,10 +29,11 @@ def diagnose_node(state: IncidentState) -> IncidentState:
     scenario = state["scenario"]
     
     # Retrieve past incidents as evidence
-    async def _fetch():
+    query_text = describe_incident(scenario, scenario.fault_class)
+
+    async def _fetch() -> list[Any]:
         try:
             async with get_db_session() as session:
-                query_text = f"Fault: {scenario.fault_class}\nSymptoms: {scenario.trigger.condition if scenario.trigger else ''}"
                 return await retrieve_similar_incidents(session, query_text)
         except Exception as e:
             import logging
@@ -45,12 +49,25 @@ def diagnose_node(state: IncidentState) -> IncidentState:
         except Exception:
             past_incidents = []
 
+    if past_incidents and scenario.evidence is None:
+        scenario.evidence = []
     for inc in past_incidents:
-        scenario.evidence.append(EvidenceItem(
-            source="kavach_memory",
-            kind="log",
-            content=f"Past Incident {inc.id}: {inc.summary}\nRepair Action: {inc.repair_action}\nOutcome: {inc.outcome}"
-        ))
+        # A cited ID has to resolve to a stored row, so the memory's own id is
+        # carried in the evidence id rather than buried in free text.
+        scenario.evidence.append(  # type: ignore[union-attr]
+            EvidenceItem(
+                id=f"ev-memory-{inc.id}",
+                kind="similar_incident",
+                source="kavach_memory",
+                payload={
+                    "incident_id": inc.id,
+                    "fault_class": inc.fault_class,
+                    "summary": inc.summary,
+                    "repair_action": inc.repair_action,
+                    "outcome": inc.outcome,
+                },
+            )
+        )
 
     if scenario.fault_class in ["F10", "F11"]:
         from kavach.llm.rca import RCAResponse
@@ -554,25 +571,30 @@ def outcome_node(state: IncidentState) -> IncidentState:
                 )
     
     # --- F-MEM: Save Incident Memory ---
-    async def _save():
+    # Built outside the coroutine so a failure here surfaces rather than being
+    # swallowed by the except below, which is what hid this path for so long.
+    symptoms = describe_symptoms(scenario)
+    repair_action_data: dict[str, Any] = {}
+    undo_stack = state.get("undo_stack") or []
+    if passed and undo_stack:
+        record = undo_stack[-1]
+        repair_action_data = {
+            "name": record.original_action.name,
+            "params": record.original_action.params,
+        }
+
+    async def _save() -> None:
         try:
             from kavach.api.db import get_db_session
             from kavach.knowledge.store import save_incident_memory
-            
-            # Determine the repairs taken
-            repair_action_data = {}
-            if passed and state.get("undo_stack"):
-                record = state.get("undo_stack")[-1]
-                if hasattr(record.original_action, "params"):
-                    repair_action_data = {"name": record.original_action.name, "params": record.original_action.params}
-                
+
             async with get_db_session() as session:
                 await save_incident_memory(
                     session=session,
                     incident_id=incident_id,
-                    fault_class=scenario.fault_class,
-                    symptoms=scenario.trigger.condition if scenario.trigger else "",
-                    summary=f"Automated RCA identified {scenario.fault_class}.",
+                    fault_class=fault_class,
+                    symptoms=symptoms,
+                    summary=f"Automated RCA identified {fault_class}. Outcome {outcome_str}.",
                     repair_action=repair_action_data,
                     outcome=outcome_str
                 )
