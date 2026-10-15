@@ -30,13 +30,20 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from kavach.audit.log import AuditLog
 from kavach.detection import retrieval_collapse as rc
-from kavach.executor.config_rollback import (
-    ActionError,
-    ConfigRollback,
-    build_rollback_for_retrieval_collapse,
-)
+from kavach.executor import catalogue  # noqa: F401 - registers the catalogue
+from kavach.executor.base import Action, ActionError, registry
+from kavach.executor.undo_stack import UndoStack
 from kavach.rca.engine import RcaResult
+from kavach.safety.engine import (
+    ActionRequest,
+    Decision,
+    ProjectPolicy,
+    SafetyEngine,
+    Verdict,
+)
+from kavach.safety.writer_lock import LockBusyError, writer_lock
 from kavach.target import TargetClient
 from kavach.verification import fast
 
@@ -83,6 +90,10 @@ class IncidentStatus(StrEnum):
     DETECTED = "DETECTED"
     NO_FAULT = "NO_FAULT"
     HEALING = "HEALING"
+    # The gate permitted the action but not unattended: SIMULATION, APPROVAL,
+    # a HIGH tier, or a sandbox requirement. A plan exists and nothing was
+    # written, which is a different outcome from both success and escalation.
+    AWAITING = "AWAITING_APPROVAL"
     RESOLVED = "RESOLVED"
     ESCALATED = "ESCALATED"
 
@@ -108,7 +119,9 @@ class Incident:
     diagnosed_by: str = ""            # "deterministic" | "llm_rca"
     rca: dict[str, Any] = field(default_factory=dict)
     planned_action: str | None = None
+    decision: dict[str, Any] = field(default_factory=dict)
     action: dict[str, Any] = field(default_factory=dict)
+    unwind: dict[str, Any] = field(default_factory=dict)
     verification: dict[str, Any] = field(default_factory=dict)
     corpus_before: dict[str, Any] = field(default_factory=dict)
     corpus_after: dict[str, Any] = field(default_factory=dict)
@@ -143,6 +156,10 @@ class Incident:
                 f"({self.rca.get('latency_s')}s, {self.rca.get('model')})"
             )
             lines.append(f"  validation {(self.rca.get('validation') or {}).get('outcome')}")
+        if self.decision:
+            lines.append(f"  permit     {self.decision.get('verdict')} "
+                         f"({self.decision.get('risk_tier')}, "
+                         f"{self.decision.get('mode')})")
         if self.planned_action:
             lines.append(f"  action     {self.planned_action} "
                          f"(risk {self.action.get('risk_tier', '?')})")
@@ -174,11 +191,14 @@ def run_once(
     prometheus_url: str,
     fast_set_path: str | Path,
     promql: Callable[[str, str], float | None],
-    baseline_rerank_threshold: float | None,
+    baseline_value: float | None,
     project: str = "simple-rag",
     incident_id: str | None = None,
     rca: RcaStage | None = None,
     on_event: LoopEvent | None = None,
+    safety: SafetyEngine | None = None,
+    policy: ProjectPolicy | None = None,
+    audit: AuditLog | None = None,
 ) -> Incident:
     """One pass of detect -> heal -> verify.
 
@@ -187,6 +207,12 @@ def run_once(
     `on_event` is OPTIONAL and observation-only (see `LoopEvent`). It changes no
     decision and no return value; omitted, this function behaves exactly as it
     did in P2/P3.
+
+    `safety` and `policy` are the P5 gate. Supplied, every mutation passes
+    `permit()` first and the mode decides whether it may run unattended.
+    Omitted, the loop runs with the P2/P3 posture: one known action, invoked
+    explicitly, which is what it did before the gate existed. `audit` records
+    the decision and the outcome to the hash-chained log.
 
     `rca` is OPTIONAL. Omitted, this is the P2 deterministic loop unchanged -
     the reference baseline, and the fallback if RCA is unavailable. Supplied, an
@@ -254,7 +280,7 @@ def run_once(
     if rca is not None:
         _notify(on_event, "diagnose", "started",
                 "collecting evidence and requesting an LLM diagnosis")
-        rca_result = rca(pre_fast, detection, baseline_rerank_threshold)
+        rca_result = rca(pre_fast, detection, baseline_value)
         if rca_result.diagnosis is not None:
             d = rca_result.diagnosis
             _notify(on_event, "diagnose", "ok",
@@ -308,36 +334,125 @@ def run_once(
     _notify(on_event, "plan", "ok",
             f"repair proposed: {inc.planned_action}")
 
-    # Whichever path chose it, the action must be one this slice implements.
-    if inc.planned_action != KNOWN_FAULTS.get(rc.FAULT_CLASS):
+    # Whichever path chose it, the action must be one the registry knows.
+    # Asking the registry rather than comparing against a RAG constant is what
+    # stops this orchestrator being a RAG orchestrator (ARCHITECTURE.md §1.4).
+    if not inc.planned_action or not registry.knows(inc.planned_action):
         _notify(on_event, "plan", "failed",
-                f"planned action {inc.planned_action!r} is not implemented")
+                f"planned action {inc.planned_action!r} is not registered")
         inc.status = IncidentStatus.ESCALATED
         inc.escalation_reason = (
-            f"planned action {inc.planned_action!r} is not implemented"
+            f"planned action {inc.planned_action!r} is not registered; "
+            f"known actions: {registry.names()}"
         )
         return inc
 
-    # --- EXECUTE
+    # --- PREPARE: build the action and capture its pre-state. No writes yet.
     inc.status = IncidentStatus.HEALING
     _notify(on_event, "repair", "started",
-            f"acquiring pre-state and executing {inc.planned_action}")
+            f"capturing pre-state for {inc.planned_action}")
     try:
-        action: ConfigRollback = build_rollback_for_retrieval_collapse(
-            inc.incident_id, client, baseline_rerank_threshold
+        action: Action = registry.build(
+            inc.planned_action, inc.incident_id, client, baseline_value
         )
-        action.execute(client)
+    except ActionError as exc:
+        _notify(on_event, "repair", "failed", f"action could not be prepared: {exc}")
+        inc.status = IncidentStatus.ESCALATED
+        inc.escalation_reason = f"action could not be prepared: {exc}"
+        inc.outcome = "escalated; target left as found"
+        return inc
+
+    # --- GATE: permit() decides. The loop proposes, it does not authorise.
+    if safety is not None and policy is not None:
+        diagnosis = (inc.rca.get("diagnosis") or {}) if inc.rca else {}
+        request = ActionRequest(
+            action=action.name,
+            incident_id=inc.incident_id,
+            service=inc.service or "",
+            fault_class=inc.fault_class or "",
+            params=dict(getattr(action, "target_settings", {}) or {}),
+            compose_project=policy.compose_project,
+            has_inverse=bool(getattr(action, "inverse_settings", None)),
+            confidence=diagnosis.get("confidence"),
+            diagnosis_class=str(diagnosis.get("fault_class") or ""),
+        )
+        decision: Decision = safety.permit(request, policy)
+        inc.decision = decision.to_dict()
+        if audit:
+            audit.append("permit", incident_id=inc.incident_id,
+                         **decision.to_dict())
+
+        if decision.denied:
+            _notify(on_event, "gate", "failed",
+                    f"permit DENIED {action.name}: {'; '.join(decision.reasons)}")
+            inc.status = IncidentStatus.ESCALATED
+            inc.escalation_reason = (
+                f"denied by the safety engine: {'; '.join(decision.reasons)}"
+            )
+            inc.outcome = "escalated without acting; target left as found"
+            inc.corpus_after = inc.corpus_before
+            return inc
+
+        if decision.verdict is not Verdict.ALLOW_AUTO:
+            # SIMULATION, APPROVAL, a HIGH tier, a below-threshold confidence,
+            # or a MEDIUM action needing the sandbox. All of them stop here:
+            # the plan and its dry-run diff are the output, and nothing is
+            # written. This is what makes SIMULATION the safe default rather
+            # than a label (docs/decisions/0006).
+            _notify(on_event, "gate", "ok",
+                    f"permit returned {decision.verdict} for {action.name}; "
+                    f"no write performed")
+            inc.status = IncidentStatus.AWAITING
+            proposal = action.to_dict()
+            inc.outcome = (
+                f"{decision.verdict}: planned {action.name} "
+                f"{proposal.get('inverse_settings', {})} -> "
+                f"{proposal.get('requested_settings', {})}, not executed"
+            )
+            inc.action = action.to_dict()
+            inc.corpus_after = inc.corpus_before
+            return inc
+
+        _notify(on_event, "gate", "ok",
+                f"permit ALLOW_AUTO for {action.name} "
+                f"({decision.risk_tier}, {policy.mode})")
+
+    # --- EXECUTE: one writer, inverse on the stack BEFORE the mutation.
+    stack = UndoStack(inc.incident_id)
+    lock_project = policy.name if policy else project
+    try:
+        with writer_lock.hold(lock_project, inc.incident_id):
+            stack.push(action)
+            if audit:
+                audit.append("execute_start", incident_id=inc.incident_id,
+                             action=action.name, **action.to_dict())
+            action.execute(client)
+    except LockBusyError as exc:
+        _notify(on_event, "repair", "failed", str(exc))
+        inc.status = IncidentStatus.ESCALATED
+        inc.escalation_reason = str(exc)
+        inc.outcome = "escalated without acting; another writer holds the target"
+        inc.corpus_after = inc.corpus_before
+        return inc
     except ActionError as exc:
         _notify(on_event, "repair", "failed", f"action failed: {exc}")
         inc.status = IncidentStatus.ESCALATED
         inc.escalation_reason = f"action failed: {exc}"
         inc.outcome = "escalated; target left as found"
         return inc
+
+    if safety is not None:
+        safety.record_execution(
+            ActionRequest(action=action.name, incident_id=inc.incident_id,
+                          service=inc.service or "",
+                          fault_class=inc.fault_class or "")
+        )
     inc.action = action.to_dict()
+    if audit:
+        audit.append("execute_done", incident_id=inc.incident_id,
+                     action=action.name, **action.to_dict())
     _notify(on_event, "repair", "ok",
-            f"{action.name} executed: rerank_threshold "
-            f"{action.inverse_settings.get('rerank_threshold')} -> "
-            f"{action.target_settings.get('rerank_threshold')}; inverse recorded")
+            f"{action.name} executed; inverse recorded and on the undo stack")
 
     # --- VERIFY: the approved fast path only. Never the 40-case evaluator.
     _notify(on_event, "verify", "started",
@@ -367,11 +482,29 @@ def run_once(
 
     if problems:
         _notify(on_event, "verify", "failed", "; ".join(problems))
-        # The repair ran but did not work. The honest outcome is escalation, and
-        # the inverse is left recorded so the state can be unwound deliberately.
+        # The repair ran and did not work, so the undo stack unwinds in reverse
+        # and every inverse is VERIFIED against its pre-state witness. Applying
+        # an inverse is not the same as the prior state being back, and
+        # reporting a clean rollback over a target left in a third state would
+        # be worse than not rolling back at all.
+        _notify(on_event, "rollback", "started",
+                f"verification failed; unwinding {stack.depth} action(s)")
+        report = stack.unwind(client)
+        inc.unwind = report.to_dict()
+        if audit:
+            audit.append("unwind", incident_id=inc.incident_id, **report.to_dict())
+        _notify(on_event, "rollback", "ok" if report.clean else "failed",
+                f"unwound {report.restored}/{report.attempted}, "
+                f"verified against the pre-state witness"
+                + ("" if report.clean else f"; FAILURES: {'; '.join(report.failures)}"))
+
         inc.status = IncidentStatus.ESCALATED
         inc.escalation_reason = "; ".join(problems)
-        inc.outcome = "NOT resolved - repair executed but verification failed"
+        inc.outcome = (
+            "NOT resolved - repair executed, verification failed, prior state "
+            + ("restored and verified" if report.clean
+               else "NOT fully restored: " + "; ".join(report.failures))
+        )
         return inc
 
     _notify(on_event, "verify", "ok",
@@ -380,10 +513,14 @@ def run_once(
             f"corpus unchanged")
     inc.status = IncidentStatus.RESOLVED
     inc.resolved_at = datetime.now(UTC).isoformat(timespec="seconds")
-    restored = action.target_settings.get("rerank_threshold")
-    was = action.inverse_settings.get("rerank_threshold")
+    if audit:
+        audit.append("resolved", incident_id=inc.incident_id,
+                     action=action.name, verification=inc.verification)
+    record = action.to_dict()
+    requested = record.get("requested_settings") or {}
+    inverse = record.get("inverse_settings") or {}
     inc.outcome = (
-        f"resolved: rerank_threshold {was} -> {restored} (restored from baseline)"
-        if restored is not None else "resolved"
+        f"resolved: {action.name} applied {inverse} -> {requested}"
+        if requested else f"resolved: {action.name} applied"
     )
     return inc
