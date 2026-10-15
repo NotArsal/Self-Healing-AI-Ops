@@ -570,7 +570,9 @@ probe — the one `FR-07` probe still missing.
 - [ ] An `UNKNOWN` failure runs the full hypothesis flow and **always** ends at human escalation, never execution
 - [ ] No route, parameter or adapter accepts an arbitrary command string (`FR-27`) — grep to confirm
 
-**Cut line:** the sandbox is the most likely thing to overrun — ports, volumes and stateful services make it harder than it reads. The approval path works without it; the proposal simply shows "no sandbox result". Drop the sandbox before dropping anything else here.
+**Cut line, revised 2026-10-15: the sandbox is no longer the first thing to cut.** It was, on the reasoning that the approval path works without it. That stopped being true when `apply_patch` was accepted (`ARCHITECTURE.md` §6.2.1): a generated patch must be tried somewhere survivable before a human is asked to approve it, and the sandbox is that somewhere. **If the sandbox is cut, `apply_patch` is cut with it** — they are one decision now, not two. Cut `F02` and `F05` first instead.
+
+The sandbox remains the most likely thing to overrun — ports, volumes and stateful services make it harder than it reads. That is a scheduling risk to plan around, not a licence to drop it and keep the generated repair.
 
 ---
 
@@ -630,6 +632,12 @@ probe — the one `FR-07` probe still missing.
 - The full model in `ARCHITECTURE.md` §13: incident branches derived from `kavach/ops`, pre-state blob witnesses, the complete deny-case suite
 - Deny-case tests for: write while `HEAD` is `main`, any `push`, `commit --amend`, force-push, committing a `.env`-shaped path
 
+*Generated repair (`F-CODE`, `apply_patch`)*
+- `executor/adapters/git.py` extended to apply a unified diff against a known blob SHA on an incident branch, with `git revert` as the recorded inverse
+- The six constraints of `ARCHITECTURE.md` §6.2.1, each as a deterministic check with its own deny-case test
+- A diff-budget setting in `kavach.yaml`, and the `versioned_paths` allow-list enforced on path **and** content
+- **Entry condition: P5 and P6 have both landed.** The action is HIGH-risk and sandbox-mandatory, so it cannot exist before `permit()` and the sandbox do. Building it earlier is the failure mode to refuse
+
 *Knowledge base*
 - `knowledge/` — incident embedding, pgvector similarity retrieval, wired into evidence collection
 
@@ -655,6 +663,12 @@ probe — the one `FR-07` probe still missing.
 - [ ] The research evaluator runs with **no cloud API key** and no monkeypatch, and its scores are reproducible across two runs
 - [ ] `make bench` emits a complete metrics table unattended, with **35** injections and the denominator printed
 - [ ] Every git deny case has a passing test
+- [ ] **`apply_patch` is denied in `AUTONOMOUS` with a LOW-risk allow-listed candidate present** — the tier is fixed by the action, not computed
+- [ ] A patch touching a path outside `versioned_paths` is denied on path, before its content is read
+- [ ] A patch whose diff exceeds the budget is denied
+- [ ] A patch against a stale blob SHA escalates rather than overwriting
+- [ ] A patch reaching a deny-listed target is refused in every mode, on content as well as path
+- [ ] No sandbox result → no proposal
 
 ---
 

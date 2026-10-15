@@ -966,7 +966,7 @@ Every call writes a `risk_decisions` row including a `typed_decision_frame` — 
 
 ### 6.2 Risk tier table (v1, deterministic)
 
-Five actions. Everything else is HIGH by default-deny posture.
+Six actions. Everything else is HIGH by default-deny posture.
 
 | Action | Tier | Reasoning | Inverse |
 |---|---|---|---|
@@ -975,9 +975,50 @@ Five actions. Everything else is HIGH by default-deny posture.
 | `raise_memory_limit` | LOW | Additive, one step, capped | Restore the previous limit from the container spec witness |
 | `rollback_prompt` | MEDIUM | Changes application behaviour; reversible via git | Restore the prompt blob SHA from the witness |
 | `rollback_config` | MEDIUM | Changes application behaviour; reversible via git + the config interface | Restore the previous config values from the witness |
+| `apply_patch` | **HIGH, always** | **Generated content.** The only action whose payload the LLM authors rather than selects. Tier is fixed by the action, not computed — see §6.5 | `git revert` to the pre-state blob SHA on the incident branch |
 | anything else | HIGH | Default-deny posture | — |
 
 **Removed from the previous draft**, with reasons recorded in `PRD.md` §6.2: `flush_cache` (no cache exists; `F04` retired), `rebuild_index` (no vector index and no snapshot mechanism), `scale_replicas_up` (the target binds host port `8000:8000`; a replica cannot start), `retry_request` (no hook in the target's request path). `switch_model` is renamed `switch_llm_endpoint` because it switches an endpoint, not a provider (`PRD.md` §6.3).
+
+### 6.2.1 `apply_patch` — the one generated action
+
+**Decision, 2026-10-15.** Kavach may propose a *written* repair, not only a
+selected one: an LLM-authored patch to a declared file. This is deliberately
+the most constrained action in the catalogue, because it is the only one where
+the model supplies content rather than picking a name.
+
+**Why this does not dissolve the safety argument.** The project's claim is that
+a deterministic layer, not the model, decides whether a write happens. That
+claim survives because the *decision* stays deterministic even though the
+*payload* is generated: every rule below is a plain comparison, evaluated
+before anything is applied, and every one of them can reject.
+
+| # | Constraint | Enforced by |
+|---|---|---|
+| 1 | **Risk tier is HIGH, fixed by the action.** Never auto-executes in any mode, including `AUTONOMOUS` | §6.2 table; `permit()` step 7 reads the tier, it does not compute one for this action |
+| 2 | **Only paths the manifest declares** in `versioned_paths`. Prompts and config files. Not the source tree, not tests, not infrastructure | Path allow-list check before the patch is read |
+| 3 | **Git is the inverse.** The patch commits to an incident branch off `kavach/ops`; the pre-state blob SHA is the witness and `git revert` is the undo | §13, the existing git isolation model |
+| 4 | **Sandbox is mandatory, not routed.** The patch applies to a cloned stack first and fast verification runs there. No sandbox result, no proposal | `permit()` returns `REQUIRE_SANDBOX` unconditionally |
+| 5 | **Diff budget.** Reject above a declared line and file count. A large diff is not a repair | Deterministic size check on the unified diff |
+| 6 | **Deny-list is absolute and checked twice** — once on path, once on content. No patch may reach `embed_model`, a database schema, a migration, or the corpus | §6.1 step 2, before the allow-list, in every mode |
+
+**Two further rules that matter more than they look.**
+
+A patch is proposed as a **unified diff against a known blob SHA**, never as a
+whole file. If the file moved since the witness was taken, the patch no longer
+applies and the incident escalates rather than overwriting someone's work.
+
+The model never executes `git`. It emits diff text; `executor/adapters/git.py`
+is the only thing that touches a repository, under the same deny cases as every
+other git operation (§13). There is no shell, no `exec` adapter, and `FR-27`
+is unchanged: **no route, parameter or adapter accepts an arbitrary command
+string.** A generated *diff* is data the executor applies; a generated
+*command* would be arbitrary execution, and remains forbidden.
+
+**What this is not.** It is not Kavach rewriting its own source, not Kavach
+refactoring the target, and not autonomous development. It is a bounded,
+reviewed, revertible edit to a file the operator declared healable — the same
+shape as `rollback_prompt`, with the content authored instead of recalled.
 
 ### 6.3 Docker safety — project ownership
 
