@@ -1,6 +1,10 @@
 from collections.abc import Callable
 from typing import Any
 
+# Aliased: execute_node and unwind_node both bind a local named `record`
+# (an UndoRecord), and shadowing the audit writer there silently turned every
+# audit call into a TypeError at runtime.
+from kavach.audit.log import record as audit_record
 from kavach.catalogue.schema import EffectDef
 from kavach.graph.state import IncidentState
 from kavach.knowledge.summary import describe_incident, describe_symptoms
@@ -138,31 +142,54 @@ def gate_node(state: IncidentState) -> IncidentState:
 
     scenario = state["scenario"]
     loop_count = state.get("loop_count", 0) + 1
+    incident_id = state.get("incident_id")
+
+    def audited(verdict: IncidentState) -> IncidentState:
+        """Every gate decision lands in the audit log, allow or deny.
+
+        Auditing only the denials would leave the log unable to answer the
+        question it exists for: on whose authority did this run.
+        """
+        audit_record(
+            event="gate_verdict",
+            actor="kavach.gate",
+            incident_id=incident_id,
+            payload={
+                "verdict": verdict.get("gate_verdict"),
+                "reason": verdict.get("gate_reason"),
+                "actions": [a.name for a in verdict.get("approved_actions") or []],
+                "proposed": [a.name for a in state.get("plan") or []],
+                "risk_tier": state.get("risk_tier"),
+                "mode": state.get("mode") or "SIMULATION",
+                "loop_count": loop_count,
+            },
+        )
+        return verdict
 
     if loop_count >= 4:
-        return {
+        return audited({
             "loop_count": loop_count,
             "gate_verdict": "DENY",
             "gate_reason": "CIRCUIT_BREAKER_TRIPPED",
             "approved_actions": [],
-        }
+        })
 
     plan = state.get("plan", [])
     if len(plan) > 2:
-        return {
+        return audited({
             "loop_count": loop_count,
             "gate_verdict": "DENY",
             "gate_reason": "BLAST_RADIUS_EXCEEDED",
             "approved_actions": [],
-        }
+        })
 
     if not plan:
-        return {
+        return audited({
             "loop_count": loop_count,
             "gate_verdict": "DENY",
             "gate_reason": "EMPTY_PLAN",
             "approved_actions": [],
-        }
+        })
 
     incident_history = list(get_all_incidents().values())
 
@@ -180,12 +207,12 @@ def gate_node(state: IncidentState) -> IncidentState:
         if permit_res.is_allowed:
             approved.append(action)
         else:
-            return {
+            return audited({
                 "loop_count": loop_count,
                 "gate_verdict": "DENY",
                 "gate_reason": permit_res.reason,
                 "approved_actions": [],
-            }
+            })
 
     # Mode policy (ARCHITECTURE.md 8, PRD F-MODE). This runs only after the
     # allow-list, forbidden-services, breaker and blast-radius checks above have
@@ -212,18 +239,18 @@ def gate_node(state: IncidentState) -> IncidentState:
     match mode:
         case "SIMULATION":
             # Plans and dry-runs only; execute_node writes nothing in this mode.
-            return allow
+            return audited(allow)
         case "AUTONOMOUS":
             if risk_tier == "LOW":
-                return allow
+                return audited(allow)
             if risk_tier == "MEDIUM":
                 # plan_node set sandbox_required; approval is requested after the
                 # sandbox run proves the repair, in sandbox_verify_node.
-                return allow
-            return deny("HIGH_RISK_REQUIRES_HUMAN")
+                return audited(allow)
+            return audited(deny("HIGH_RISK_REQUIRES_HUMAN"))
         case _:
             # APPROVAL, and any unknown mode, routes everything to a human.
-            return _request_approval(approved, loop_count, allow, deny)
+            return audited(_request_approval(approved, loop_count, allow, deny))
 
 
 def _request_approval(
@@ -394,6 +421,23 @@ def execute_node(state: IncidentState) -> IncidentState:
             record = execute_action(action, sim_state)
             undo_records.append(record)
 
+    audit_record(
+        event="executed",
+        actor="kavach.executor",
+        incident_id=state.get("incident_id"),
+        payload={
+            "mode": mode,
+            "actions": [
+                {
+                    "name": r.original_action.name,
+                    "params": r.original_action.params,
+                    "applied": r.applied,
+                    "inverse": r.inverse_action.name,
+                }
+                for r in undo_records
+            ],
+        },
+    )
     return {"simulation_state": sim_state, "undo_stack": undo_records}
 
 
@@ -471,6 +515,16 @@ def sandbox_verify_node(state: IncidentState) -> IncidentState:
                 "gate_reason": "HUMAN_REJECTED",
             }
 
+    audit_record(
+        event="sandbox_verified",
+        actor="kavach.sandbox",
+        incident_id=state.get("incident_id"),
+        payload={
+            "passed": passed,
+            "deltas": res.get("verification_deltas") or {},
+            "risk_tier": state.get("risk_tier"),
+        },
+    )
     return {"sandbox_passed": passed}
 
 
@@ -525,6 +579,17 @@ def unwind_node(state: IncidentState) -> IncidentState:
     if sim_state.get("_force_undo_failure") == "true":
         unrestored.append("_force_undo_failure")
 
+    audit_record(
+        event="unwound",
+        actor="kavach.executor",
+        incident_id=state.get("incident_id"),
+        payload={
+            "mode": mode,
+            "records": len([r for r in undo_stack if r.applied]),
+            "unrestored": unrestored,
+            "restored": not unrestored,
+        },
+    )
     return {"simulation_state": sim_state, "unwind_unrestored": unrestored}
 
 
@@ -532,9 +597,24 @@ def outcome_node(state: IncidentState) -> IncidentState:
     import asyncio
     
     # Check if we bypassed planning due to low confidence
+    def audited_outcome(outcome: str, **extra: object) -> IncidentState:
+        audit_record(
+            event="outcome",
+            actor="kavach.graph",
+            incident_id=state.get("incident_id"),
+            payload={"outcome": outcome, "mode": state.get("mode") or "SIMULATION", **extra},
+        )
+        return {"outcome": outcome}
+
     diag = state.get("diagnosis")
     if diag and (diag.confidence < 0.8 or diag.fault_class == "INSUFFICIENT_EVIDENCE"):
-        return {"outcome": "ESCALATED"}
+        # No action was taken: the diagnosis never cleared the confidence gate.
+        return audited_outcome(
+            "ESCALATED",
+            reason="LOW_CONFIDENCE_DIAGNOSIS",
+            fault_class=diag.fault_class,
+            confidence=diag.confidence,
+        )
 
     # An unwind that did not put the state back is the one failure this system
     # must never report quietly (ROADMAP P3).
@@ -547,11 +627,11 @@ def outcome_node(state: IncidentState) -> IncidentState:
             unrestored,
             state.get("incident_id", "unknown"),
         )
-        return {"outcome": "UNRECOVERABLE"}
+        return audited_outcome("UNRECOVERABLE", unrestored=unrestored)
 
     # Check if gate blocked execution
     if state.get("gate_verdict") == "DENY":
-        return {"outcome": "ESCALATED"}
+        return audited_outcome("ESCALATED", reason=state.get("gate_reason"))
 
     passed = state.get("verification_passed", False)
 
@@ -633,4 +713,18 @@ def outcome_node(state: IncidentState) -> IncidentState:
         except Exception:
             pass
 
+    audit_record(
+        event="outcome",
+        actor="kavach.graph",
+        incident_id=incident_id,
+        payload={
+            "outcome": outcome_str,
+            "fault_class": fault_class,
+            "confidence": diag.confidence if diag else None,
+            "verification_passed": passed,
+            "deltas": state.get("verification_deltas") or {},
+            "risk_tier": state.get("risk_tier"),
+            "mode": state.get("mode") or "SIMULATION",
+        },
+    )
     return {"outcome": outcome_str}

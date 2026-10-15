@@ -5,7 +5,15 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from kavach.api.routes import alerts, debts, events, health, incidents, scenarios
+from kavach.api.routes import (
+    alerts,
+    audit,
+    debts,
+    events,
+    health,
+    incidents,
+    scenarios,
+)
 from kavach.config import settings
 from kavach.debt.checker import check_debts_loop
 from kavach.detection.loop import detection_loop
@@ -60,3 +68,4 @@ async def root() -> dict[str, str]:
 
 
 app.include_router(debts.router, prefix="/api/v1")
+app.include_router(audit.router, prefix="/api/v1")
