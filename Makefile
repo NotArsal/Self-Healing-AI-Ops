@@ -1,4 +1,4 @@
-.PHONY: setup up down dev-api dev-api-live dev-console check test test-integration lint format types migrate migration scenario bench onboard target-up inject revert
+.PHONY: setup up down dev-api dev-api-live dev-console check test test-integration lint format types migrate migration scenario bench bench-live onboard target-up inject revert
 
 # Default
 all: setup check test
@@ -52,8 +52,16 @@ test-integration:
 scenario:
 	cd apps/control-plane && uv run python -m kavach.scenarios.runner $(NAME)
 
+# Measurements that need no running target: RCA accuracy with the conditional
+# heal metrics, and shadow Laya against the rule engine. Needs Ollama.
 bench:
-	cd apps/control-plane && uv run python scripts/evaluate_laya.py
+	cd apps/control-plane && uv run python -m harness.rca_bench
+	cd apps/control-plane && uv run python -m harness.laya_vs_rules
+
+# The undo ablation measures a live application, so the target must be up:
+#   make target-up ; make onboard APP=targets/proof2 ; make bench-live
+bench-live:
+	cd apps/control-plane && uv run python -m harness.ablation_undo
 
 # Database
 migrate:
