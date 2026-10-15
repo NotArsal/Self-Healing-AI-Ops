@@ -48,6 +48,7 @@ packages = ["kavach"]
 markers = [
     "live: runs the real target application over HTTP; slow (~3 min). Deselect with -m 'not live'.",
     "llm: calls a local model; excluded from CI.",
+    "laya: runs real Laya inference; slow with a model resident. Deselect with -m 'not laya'.",
 ]
 
 [tool.ruff]

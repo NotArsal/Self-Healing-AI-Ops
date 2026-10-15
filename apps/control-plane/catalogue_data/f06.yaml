@@ -15,5 +15,6 @@ actions:
     retriever_count: $target_count
 faults:
 - fault_class: F06
+  name: retrieval collapse
   recommended_actions:
   - scale_retrievers

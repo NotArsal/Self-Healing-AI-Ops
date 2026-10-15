@@ -1,14 +1,32 @@
 from langchain_ollama import ChatOllama
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from kavach.scenarios.schema import Scenario
 
 
 class RCAResponse(BaseModel):
     fault_class: str = Field(
-        description="The classified fault, e.g. F01. Use 'INSUFFICIENT_EVIDENCE' if uncertain."
+        description="The fault class identifier alone, e.g. 'F01'. "
+        "Use 'INSUFFICIENT_EVIDENCE' if the evidence does not distinguish one."
     )
     confidence: float = Field(description="Confidence score between 0.0 and 1.0.")
+
+    @field_validator("confidence")
+    @classmethod
+    def _confidence_is_a_probability(cls, v: float) -> float:
+        """Coerce a percentage, reject anything else out of range.
+
+        The RCA bench observed this field returned as both 1.0 and 100.0 by the
+        same model on the same prompt. The gate compares it against 0.8, so an
+        unbounded value passes trivially while a 0..100 reading of 50 would
+        escalate by accident. A value in (1, 100] is treated as a percentage;
+        beyond that the model's output is not interpretable and is refused.
+        """
+        if 1.0 < v <= 100.0:
+            return v / 100.0
+        if 0.0 <= v <= 1.0:
+            return v
+        raise ValueError(f"confidence {v} is neither a probability nor a percentage")
     evidence_ids: list[str] = Field(
         description="IDs of the evidence items supporting this diagnosis."
     )
@@ -35,32 +53,42 @@ def analyze_root_cause(
     applicable_faults = list(catalogue.faults.keys())
     applicable_faults_str = ", ".join(applicable_faults)
 
+    # Candidates are named, not described by their detection signal. The previous
+    # version of this prompt carried a rule per fault ("if you see
+    # gen_ai_error_ratio -> output F01"), and every scenario's evidence contained
+    # exactly the string its rule named, so the model performed a lookup this
+    # prompt spelled out. It also injected a fabricated past incident stating the
+    # answer outright. Measured accuracy was 100% and meant nothing; see
+    # docs/MEASUREMENTS.md.
+    candidates = "\n".join(
+        f"    - {fc} ({catalogue.faults[fc].name or 'unnamed'})"
+        for fc in applicable_faults
+    )
+
     prompt = f"""
     You are an expert AI operations engineer performing Root Cause Analysis (RCA).
-    Review the following incident scenario evidence and classify the fault STRICTLY based on the rules below.
-    
+
+    Reason from the evidence to the most likely root cause.
+
     SYSTEM TOPOLOGY:
     {topo_text}
-    
-    You may ONLY diagnose one of the following applicable faults (or INSUFFICIENT_EVIDENCE):
-    {applicable_faults_str}
-    
-    CRITICAL RULES - Match the evidence to the EXACT class below:
-    - If you see 'error ratio' or 'gen_ai_error_ratio' -> output F01
-    - If you see 'provider_latency_ms' or '504' or 'timeout' (unless db/search) -> output F02
-    - If you see 'pod_restart_count' or 'panic' -> output F03
-    - If you see 'cache' or 'stale malformed prompt' -> output F04
-    - If you see 'connection from pool' or 'db_connection_timeouts' -> output F05
-    - If you see 'search timeout' or 'missing_contexts' -> output F06
-    - If you see 'hallucination_rate' or 'quality_score' (without cache issues) -> output F07
-    - If you see 'feature toggle flag' or 'config_errors' -> output F08
-    - If you see '429' or 'token_usage' -> output F09
-    - If you see 'db_unreachable' -> output F12 (Cascading Database Failure)
-    
-    If multiple services show errors, use the SYSTEM TOPOLOGY to determine the ROOT CAUSE (the service at the bottom of the dependency chain).
-    
-    If none match, output INSUFFICIENT_EVIDENCE.
-    
+
+    CANDIDATE FAULT CLASSES (diagnose exactly one, or INSUFFICIENT_EVIDENCE):
+{candidates}
+
+    How to answer:
+    - fault_class must be the bare identifier and nothing else, for example
+      F05, not "F05 (connection pool exhaustion)".
+    - Cite in evidence_ids the evidence IDs supporting your conclusion. Cite only
+      IDs that appear below.
+    - List in rejected_alternatives the candidates you considered and ruled out.
+    - confidence is a probability between 0.0 and 1.0.
+    - If several services report errors, use the SYSTEM TOPOLOGY to find the root
+      cause: the service lowest in the dependency chain.
+    - If the evidence is absent, ambiguous between candidates, or matches no
+      candidate, answer INSUFFICIENT_EVIDENCE with low confidence. That is a
+      correct answer, not a failure.
+
     Scenario ID: {scenario.id}
     Evidence:
     """
@@ -70,14 +98,9 @@ def analyze_root_cause(
     else:
         prompt += "- None\n"
 
-    prompt += "\nKNOWLEDGE BASE (Similar Past Incidents):\n"
-    # Mocking knowledge base retrieval - this satisfies "Similar past incidents appear in evidence collection"
-    if "error ratio" in prompt.lower() or "gen_ai_error_ratio" in prompt.lower():
-        prompt += "- [PAST-01] High error ratio observed on primary model. Root cause was F01. Mitigation: switch_model.\n"
-    elif "504" in prompt.lower() or "provider_latency" in prompt.lower():
-        prompt += "- [PAST-02] Provider latency spikes observed. Root cause was F02. Mitigation: increase_timeout.\n"
-    else:
-        prompt += "- No similar past incidents found in the knowledge base.\n"
+    # Past incidents arrive as ev-memory-* evidence items from the knowledge base
+    # (see diagnose_node in graph/nodes.py), so they are already in the block
+    # above. Nothing is synthesised here.
 
     from kavach.knowledge.context7 import query_docs_for_incident
 

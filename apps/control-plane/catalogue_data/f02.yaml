@@ -14,5 +14,6 @@ actions:
     circuit_breaker_status: closed
 faults:
 - fault_class: F02
+  name: provider latency degradation
   recommended_actions:
   - enable_circuit_breaker

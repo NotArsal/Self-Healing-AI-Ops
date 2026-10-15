@@ -15,6 +15,7 @@ actions:
     deployment_version: $version
 faults:
 - fault_class: F03
+  name: container crash-loop or OOM
   repair:
     action: rollback_deployment
     params:

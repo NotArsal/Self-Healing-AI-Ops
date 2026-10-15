@@ -15,5 +15,6 @@ actions:
     db_pool_size: $target_size
 faults:
 - fault_class: F05
+  name: connection pool exhaustion
   recommended_actions:
   - scale_connection_pool

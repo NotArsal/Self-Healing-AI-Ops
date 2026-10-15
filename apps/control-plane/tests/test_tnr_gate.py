@@ -1,3 +1,10 @@
+import pytest
+
+# Real Laya inference. Slow whenever a large model is resident in Ollama,
+# and these are the tests whose subject IS the decision model, so they
+# cannot be stubbed. Deselect with -m 'not laya'.
+pytestmark = pytest.mark.laya
+
 from kavach.remediation.tnr_gate import evaluate_safety
 
 

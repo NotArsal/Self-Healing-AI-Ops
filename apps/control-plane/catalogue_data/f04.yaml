@@ -8,5 +8,6 @@ actions:
       
 faults:
   - fault_class: F04
+    name: cache poisoning
     recommended_actions:
       - flush_cache

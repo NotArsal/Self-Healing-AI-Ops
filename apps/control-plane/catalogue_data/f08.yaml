@@ -15,5 +15,6 @@ actions:
     config_version: $version
 faults:
 - fault_class: F08
+  name: config regression
   recommended_actions:
   - rollback_config

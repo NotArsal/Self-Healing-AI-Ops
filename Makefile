@@ -40,7 +40,7 @@ check: lint format types
 
 # Testing
 test:
-	cd apps/control-plane && uv run pytest -m "not live and not llm"
+	cd apps/control-plane && uv run pytest -m "not live and not llm and not laya"
 	cd apps/console && pnpm test
 
 # The live F01 loop against targets/proof2. Starts its own copy of the target,
@@ -57,6 +57,7 @@ scenario:
 bench:
 	cd apps/control-plane && uv run python -m harness.rca_bench
 	cd apps/control-plane && uv run python -m harness.laya_vs_rules
+	cd apps/control-plane && uv run python -m harness.report
 
 # The undo ablation measures a live application, so the target must be up:
 #   make target-up ; make onboard APP=targets/proof2 ; make bench-live

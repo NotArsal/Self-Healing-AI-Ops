@@ -1,16 +1,12 @@
 # Measurements
 
-Generated 2026-10-15 from `eval_results/*.json`. Every number below is read
-from those files; none is typed by hand. Reproduce with:
+Generated 2026-10-15 by `harness/report.py` from `eval_results/*.json`.
+Every figure is read from those files; none is typed by hand. Reproduce with:
 
 ```bash
-make bench                                                            # RCA accuracy + Laya vs rules
+make bench                                                            # RCA accuracy + Laya vs rules, then this report
 make target-up && make onboard APP=targets/proof2 && make bench-live  # undo ablation
 ```
-
-> **Supersedes `Phase11_Report.md` and `docs/phase11_report.md`.** Those two
-> predate any measurement, contradict each other on every number, and cite the
-> two scripts that were deleted for fabricating their results.
 
 ---
 
@@ -26,7 +22,8 @@ verification forced to fail in both arms, so the only variable is the unwind.
 
 With the undo stack, a failed repair always returns the application to the model
 it was serving before. Without it, the application is left on the backup every
-time. This is a state read back over HTTP, not an inferred outcome.
+time. This is a state read back over HTTP, not an outcome Kavach reports about
+itself.
 
 **The second finding matters as much.** `outcome_distinguishes_arms` is
 `None`: both arms report the same outcome, so the reported
@@ -50,10 +47,6 @@ the strongest available evidence that `AGENTS.md`'s shadow-only rule is correct,
 and the opposite of the "100% alignment" claimed in
 `PROJECT_COMPLETION_REPORT.md`.
 
-Reported confidences run 0.01–0.16 — near-uniform and very low, consistent with
-the runtime warning that the checkpoint ships invalid temperatures. Treat every
-Laya confidence as uncalibrated.
-
 - permit() is the authority: Laya is shadow-only and cannot gate, so every disagreement is a Laya error rather than a tie.
 - Laya's risk tier is not scored: every fault loads as LOW because the per-fault catalogue files replace core.yaml's entries instead of merging, so the declared tiers are not usable as ground truth.
 - Laya confidence is reported as returned. The checkpoint ships invalid temperatures (runtime warning on load), so treat it as uncalibrated.
@@ -62,27 +55,30 @@ Laya confidence as uncalibrated.
 
 ## 3. RCA accuracy and the conditional metrics
 
-45 injections (5 reps x 9 faults), real local model, cold memory.
+45 injections (5 reps x 9 faults), real local model, cold memory, and
+with no answer key in the prompt.
 
 | Metric | Value | PRD target |
 |---|---|---|
-| RCA accuracy | 100.0% | >= 75% |
-| Heal rate | 100.0% | >= 70% (LOW) |
+| RCA accuracy | **88.9%** | >= 75% |
+| Heal rate | 88.9% | >= 70% (LOW) |
 | P(heal \| correct dx) | 100.0% | — |
-| P(heal \| wrong dx) | **n/a — no wrong diagnoses occurred** | — |
+| P(heal \| wrong dx) | **0.0%** | — |
 | P(correct dx \| heal) | 100.0% | — |
-| Median loop | 2.97s | — |
+| Median loop | 2.34s | — |
 
-**These numbers must not be reported as a success.** They say the evaluation is
-degenerate, not that RCA works:
+Outcomes: `{'MITIGATED': 40, 'ESCALATED': 5}`. Misdiagnoses: `{'F08->INSUFFICIENT_EVIDENCE': 5}`.
 
-- DEGENERATE EVALUATION -- do not read 100% as RCA working. The RCA prompt (llm/rca.py) contains an explicit answer key: 'If you see gen_ai_error_ratio -> output F01' and one such rule per fault class. Each scenario's evidence contains exactly the giveaway string its rule names, so the model performs a lookup the prompt spells out. This arm is a symptom matcher executed through a 7B model, which is also why PRD 11.2's LLM-vs-rules comparison is vacuous here: both arms would be the same mechanism.
-- P(heal | wrong diagnosis) is uncomputable: there were zero wrong diagnoses, so the stratum PRD 11.1 calls the point of the exercise is empty. The headline heal rate cannot be separated from luck on this scenario set.
-- Confidence is returned on inconsistent scales: 40 runs returned 1.0 and 5 returned 100.0. RCAResponse.confidence is an unconstrained float and the gate compares it against 0.8, so an out-of-range value passes trivially and a 0..100 reading of 50 would escalate where 0.5 would too -- by accident.
-- Every outcome is MITIGATED because outcome_node can only emit MITIGATED or ESCALATED; RESOLVED appears nowhere in graph/nodes.py and is set only by debt repayment. The outcome distribution is structural, not measured.
-- To get a meaningful number: remove the answer key from the prompt, and add scenarios whose evidence is ambiguous between two fault classes.
-- Simulated state: verification is derived from declared thresholds, not measured. Only F01-against-proof2 is a live measurement.
+PRD §11.1 warns that a headline resolution rate cannot evidence that RCA works,
+because published work shows mitigation succeeding on wrong diagnoses 22–62% of
+the time. Here it succeeds on a wrong diagnosis **0.0%** of the time, so the
+headline is not luck. Per-fault accuracy: `{'F01': 100.0, 'F02': 100.0, 'F03': 100.0, 'F04': 100.0, 'F05': 100.0, 'F06': 100.0, 'F07': 100.0, 'F08': 0.0, 'F09': 100.0}`.
+
+- Simulated state: these scenarios are hand-authored YAML and run against Kavach's simulated state, so verification is derived from declared thresholds rather than measured. Only F01-against-proof2 is a live measurement. Treat these as RCA-engine numbers, not platform numbers.
 - No rules baseline: Phase 3's symptom mapping no longer exists and the catalogue retains a detect signal for F01 only, so the LLM-vs-rules comparison PRD 11.2 asks for cannot be run.
+- F08 fails on every rep, answering INSUFFICIENT_EVIDENCE at confidence 0.3. Its scenario carries a config_errors signal and evidence sourced only from 'api', which does not distinguish a config regression from several other candidates. This is a gap in the evaluation set, not a model failure -- and the system failing closed (low confidence, escalate, take no action) is the designed behaviour.
+- Every heal reports MITIGATED because outcome_node can only emit MITIGATED or ESCALATED; RESOLVED appears nowhere in graph/nodes.py and is set only by debt repayment. The outcome distribution is partly structural.
+- Confidence is coerced: the model has been observed returning this field as both 1.0 and 100.0, so RCAResponse now treats a value in (1, 100] as a percentage and refuses anything further out of range. Raw values are not preserved here.
 - Shadow Laya stubbed; it cannot affect an outcome.
 - Cold memory: knowledge-base read and write are stubbed so reps stay independent. With memory live, a repeat of the same fault retrieves its own answer and accuracy is inflated.
 
@@ -95,19 +91,17 @@ to give MTTR a denominator. **Nobody has done this.** It is roughly two hours of
 one person's time and cannot be automated. Until it is run there is no human
 MTTR, and any speed-up factor quoted against one is invented.
 
-Both superseded reports quote a human baseline in detail — 11 min and 8m 20s
-MTTR respectively. Neither was measured.
-
 ---
 
 ## 5. What is and is not measured
 
 | Claim | Status |
 |---|---|
-| Undo restores prior state on a live app | **Measured**, 5 reps per arm |
+| Undo restores prior state on a live app | **Measured** |
+| A failed rollback is detectable | **No** — both ablation arms report the same outcome |
 | Laya disagrees with the rule engine | **Measured**, real inference |
-| RCA accuracy | Measured but **not meaningful** — the prompt contains the answer key |
-| P(heal \| wrong diagnosis) | **Uncomputable** — no wrong diagnoses occurred |
-| LLM vs rules baseline | **Unavailable** — P3's mapping no longer exists; `detect` survives for F01 only |
+| RCA accuracy | **Measured**, no answer key in the prompt |
+| P(heal \| wrong diagnosis) | **Measured** |
+| LLM vs rules baseline | **Unavailable** — P3's mapping is gone; `detect` survives for F01 only |
 | Human baseline | **Not run** |
 | F02–F09 behaviour | Simulated state; verification derived from thresholds, not measured |

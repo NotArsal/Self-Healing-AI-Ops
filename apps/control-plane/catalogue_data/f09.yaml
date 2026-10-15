@@ -14,5 +14,6 @@ actions:
     token_limiter: disabled
 faults:
 - fault_class: F09
+  name: token and cost blowout
   recommended_actions:
   - enable_token_limiter

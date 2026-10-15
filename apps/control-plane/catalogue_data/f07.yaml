@@ -15,5 +15,6 @@ actions:
     prompt_version: $version
 faults:
 - fault_class: F07
+  name: prompt regression
   recommended_actions:
   - rollback_prompt

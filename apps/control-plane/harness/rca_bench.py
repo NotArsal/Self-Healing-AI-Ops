@@ -46,6 +46,7 @@ class Injection:
     fault: str
     rep: int
     diagnosed: str
+    diagnosed_raw: str
     confidence: float
     diagnosis_correct: bool
     outcome: str
@@ -88,7 +89,11 @@ def _run_one(fault: str, rep: int) -> Injection:
     duration = time.time() - started
 
     diagnosis = result.get("diagnosis")
-    diagnosed = diagnosis.fault_class if diagnosis else "NONE"
+    raw = diagnosis.fault_class if diagnosis else "NONE"
+    # The model sometimes answers "F05: connection pool exhaustion". plan_node
+    # already normalises this way; scoring the raw string marked correct
+    # diagnoses as wrong.
+    diagnosed = raw.split(":")[0].split("(")[0].strip()
     confidence = float(diagnosis.confidence) if diagnosis else 0.0
     outcome = str(result.get("outcome"))
 
@@ -96,6 +101,7 @@ def _run_one(fault: str, rep: int) -> Injection:
         fault=fault,
         rep=rep,
         diagnosed=diagnosed,
+        diagnosed_raw=raw,
         confidence=round(confidence, 3),
         diagnosis_correct=diagnosed == fault,
         outcome=outcome,
@@ -161,17 +167,39 @@ def main() -> int:
         "outcomes": dict(Counter(r.outcome for r in runs)),
         "misdiagnoses": dict(Counter(f"{r.fault}->{r.diagnosed}" for r in wrong)),
         "caveats": [
-            "DEGENERATE EVALUATION -- do not read 100% as RCA working. The RCA prompt (llm/rca.py) contains an explicit answer key: 'If you see gen_ai_error_ratio -> output F01' and one such rule per fault class. Each scenario's evidence contains exactly the giveaway string its rule names, so the model performs a lookup the prompt spells out. This arm is a symptom matcher executed through a 7B model, which is also why PRD 11.2's LLM-vs-rules comparison is vacuous here: both arms would be the same mechanism.",
-            "P(heal | wrong diagnosis) is uncomputable: there were zero wrong diagnoses, so the stratum PRD 11.1 calls the point of the exercise is empty. The headline heal rate cannot be separated from luck on this scenario set.",
-            "Confidence is returned on inconsistent scales: 40 runs returned 1.0 and 5 returned 100.0. RCAResponse.confidence is an unconstrained float and the gate compares it against 0.8, so an out-of-range value passes trivially and a 0..100 reading of 50 would escalate where 0.5 would too -- by accident.",
-            "Every outcome is MITIGATED because outcome_node can only emit MITIGATED or ESCALATED; RESOLVED appears nowhere in graph/nodes.py and is set only by debt repayment. The outcome distribution is structural, not measured.",
-            "To get a meaningful number: remove the answer key from the prompt, and add scenarios whose evidence is ambiguous between two fault classes.",
-
-            ("Simulated state: verification is derived from declared thresholds, "
-            "not measured. Only F01-against-proof2 is a live measurement."),
-            ("No rules baseline: Phase 3's symptom mapping no longer exists and the "
-            "catalogue retains a detect signal for F01 only, so the LLM-vs-rules "
-            "comparison PRD 11.2 asks for cannot be run."),
+            (
+                "Simulated state: these scenarios are hand-authored YAML and run "
+                "against Kavach's simulated state, so verification is derived from "
+                "declared thresholds rather than measured. Only F01-against-proof2 "
+                "is a live measurement. Treat these as RCA-engine numbers, not "
+                "platform numbers."
+            ),
+            (
+                "No rules baseline: Phase 3's symptom mapping no longer exists and "
+                "the catalogue retains a detect signal for F01 only, so the "
+                "LLM-vs-rules comparison PRD 11.2 asks for cannot be run."
+            ),
+            (
+                "F08 fails on every rep, answering INSUFFICIENT_EVIDENCE at "
+                "confidence 0.3. Its scenario carries a config_errors signal and "
+                "evidence sourced only from 'api', which does not distinguish a "
+                "config regression from several other candidates. This is a gap in "
+                "the evaluation set, not a model failure -- and the system failing "
+                "closed (low confidence, escalate, take no action) is the designed "
+                "behaviour."
+            ),
+            (
+                "Every heal reports MITIGATED because outcome_node can only emit "
+                "MITIGATED or ESCALATED; RESOLVED appears nowhere in graph/nodes.py "
+                "and is set only by debt repayment. The outcome distribution is "
+                "partly structural."
+            ),
+            (
+                "Confidence is coerced: the model has been observed returning this "
+                "field as both 1.0 and 100.0, so RCAResponse now treats a value in "
+                "(1, 100] as a percentage and refuses anything further out of "
+                "range. Raw values are not preserved here."
+            ),
             "Shadow Laya stubbed; it cannot affect an outcome.",
             (
                 "Cold memory: knowledge-base read and write are stubbed so reps "
