@@ -54,27 +54,54 @@ These are recorded here because they were discovered by the same exercise and ea
 
 ### Found by the measurement work (2026-10-15)
 
-- **The catalogue loader overwrites instead of merging.** `load_catalogue` does
-  `catalogue.faults[id] = fault` per file, so a per-fault YAML replaces
+All but the last two are **closed**; see the commits on `feat/f01-live-target`.
+
+- **The catalogue loader overwrote instead of merging.** `load_catalogue` did
+  `catalogue.faults[id] = fault` per file, so a per-fault YAML replaced
   `core.yaml`'s entry wholesale. `core.yaml` declares F03 as MEDIUM risk with a
   `detect` signal, and F07 likewise; `f03.yaml` and `f07.yaml` redefine those
-  faults without either field, so both are silently dropped. Consequences:
-  every fault now loads as `risk=LOW`, and only F01 retains a `detect` signal.
-- **The risk tier table is therefore flat.** Because nothing loads as MEDIUM,
-  `plan_node` never sets `sandbox_required`, so the F-SBX sandbox branch is
+  faults without either field, so both were silently dropped — every fault
+  loaded as `risk=LOW` and only F01 kept a `detect` signal.
+  **Closed:** the loader overlays declared fields onto the earlier definition
+  and reads files in sorted order. `tests/test_catalogue_merge.py`.
+- **The risk tier table was therefore flat.** With nothing loading as MEDIUM,
+  `plan_node` never set `sandbox_required`, so the F-SBX sandbox branch was
   unreachable for every real fault — its test passes only because it mocks
-  `load_catalogue` with a MEDIUM fault. Under `AUTONOMOUS`, every repair
-  auto-executes with neither a sandbox nor an approval.
+  `load_catalogue` with a MEDIUM fault. Under `AUTONOMOUS` every repair
+  auto-executed with neither a sandbox nor an approval.
+  **Closed with the loader.** F03 and F07 now load MEDIUM and route through the
+  sandbox; making that branch reachable immediately exposed the next two entries.
+- **The sandbox leaked its mutations into the incident.** `sandbox_execute_node`
+  returned its dry-run state as `simulation_state`, so an incident whose sandbox
+  *failed* still carried a half-repaired state — with no undo record, because
+  nothing had been applied. It was unreachable only because no fault loaded as
+  MEDIUM. **Closed:** the dry run lives in `sandbox_state`, and
+  `sandbox_verify_node` no longer publishes `verification_passed`, because a
+  repair that passed a dry run has not been verified.
+- **The simulated undo ran the inverse *after* restoring the witness**, so the
+  inverse overwrote the restored value — with `"unknown"` or with the forward
+  target — for five of the nine faults. The witness overlay then made it
+  unfalsifiable: nothing compared the result to anything. Separately, every
+  inverse whose `params_mapping` named a prior value read it from the forward
+  action's params, where it does not exist, and silently resolved `"unknown"`.
+  **Closed:** the inverse runs first and the witness has the last word;
+  `params_mapping` resolves from the witness when the params do not carry the
+  key; `tests/test_unwind.py` asserts the restoration per fault.
+- **The unwind was never verified.** The undo ablation showed a no-undo run and
+  a working run reporting the same outcome (`ESCALATED`); only inspecting the
+  application revealed that one had been left mutated. `UNRECOVERABLE` was
+  raised solely by the `_force_undo_failure` test flag.
+  **Closed for the failure that matters:** `revert_effect` reads the value back
+  after writing it and `outcome_node` reports `UNRECOVERABLE` on a mismatch. The
+  ablation now has a third arm for it and measures 5/5 detected. An unwind step
+  that never executes at all still reports nothing, which is inherent — a step
+  that does not run cannot report.
 - **No rules baseline exists.** PRD §11.2 asks for Phase 3's symptom mapping
   against the LLM on identical injections. That mapping was replaced by the
-  catalogue, and with `detect` surviving for F01 only there is nothing to run it
-  from. The comparison is unavailable rather than unfavourable.
-- **The unwind is never verified.** The undo ablation showed a no-undo run and a
-  working run reporting the same outcome (`ESCALATED`); only inspecting the
-  application revealed that one had been left mutated. `UNRECOVERABLE` is raised
-  solely by the `_force_undo_failure` test flag, so Kavach does not check that
-  its own rollback achieved anything. ROADMAP P3 requires a forced-undo-failure
-  path to report `UNRECOVERABLE` with a loud alert; it currently cannot.
+  catalogue. With the loader fixed, `detect` survives for F01, F03 and F07 —
+  three of nine — so a rules arm would answer INSUFFICIENT_EVIDENCE for two
+  thirds of the set by construction. The comparison is unavailable rather than
+  unfavourable.
 - **`PROJECT_COMPLETION_REPORT.md` is contradicted by measurement.** It claims
   shadow Laya "correctly aligns with the rule engine 100% of the time". Measured
   agreement is 2/9 (22%).

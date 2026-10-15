@@ -16,10 +16,12 @@ RCA-engine numbers, not platform numbers.
 
 NO RULES BASELINE. PRD 11.2 asks for Phase 3's symptom mapping against the LLM
 on identical injections. That mapping no longer exists: it was replaced by the
-declarative catalogue, and the catalogue retains a `detect` signal for F01 only
-(the per-fault YAML files replace core.yaml's entries instead of merging). A
-baseline invented here would be one this harness authored, which is worth less
-than saying plainly that the comparison is unavailable.
+declarative catalogue, which carries a `detect` signal for F01, F03 and F07 only
+-- three of nine, so a rules arm would have to answer INSUFFICIENT_EVIDENCE for
+two thirds of the set by construction. (Until the loader was fixed to overlay
+per-fault files onto core.yaml rather than replace its entries, only F01's
+survived.) A baseline invented here would be one this harness authored, which is
+worth less than saying plainly that the comparison is unavailable.
 """
 
 import argparse
@@ -176,8 +178,8 @@ def main() -> int:
             ),
             (
                 "No rules baseline: Phase 3's symptom mapping no longer exists and "
-                "the catalogue retains a detect signal for F01 only, so the "
-                "LLM-vs-rules comparison PRD 11.2 asks for cannot be run."
+                "the catalogue carries a detect signal for F01, F03 and F07 only, "
+                "so the LLM-vs-rules comparison PRD 11.2 asks for cannot be run."
             ),
             (
                 "F08 fails on every rep, answering INSUFFICIENT_EVIDENCE at "

@@ -96,9 +96,9 @@ def main() -> int:
         "caveats": [
             ("permit() is the authority: Laya is shadow-only and cannot gate, so "
             "every disagreement is a Laya error rather than a tie."),
-            ("Laya's risk tier is not scored: every fault loads as LOW because the "
-            "per-fault catalogue files replace core.yaml's entries instead of "
-            "merging, so the declared tiers are not usable as ground truth."),
+            ("Laya's risk tier is reported, not scored. The declared tiers are "
+            "LOW for seven faults and MEDIUM for two, and nine cases over two "
+            "classes is too thin to call it agreement or disagreement."),
             ("Laya confidence is reported as returned. The checkpoint ships "
             "invalid temperatures (runtime warning on load), so treat it as "
             "uncalibrated."),

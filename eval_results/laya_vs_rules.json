@@ -8,7 +8,8 @@
       "LOW": 2
     },
     "declared_risk_distribution": {
-      "LOW": 9
+      "LOW": 7,
+      "MEDIUM": 2
     },
     "disagreements": [
       {
@@ -38,7 +39,7 @@
       {
         "fault": "F03",
         "action": "rollback_deployment",
-        "declared_risk": "LOW",
+        "declared_risk": "MEDIUM",
         "rule_allowed": true,
         "rule_reason": "PASSED",
         "laya_is_safe": false,
@@ -74,7 +75,7 @@
       {
         "fault": "F07",
         "action": "rollback_prompt",
-        "declared_risk": "LOW",
+        "declared_risk": "MEDIUM",
         "rule_allowed": true,
         "rule_reason": "PASSED",
         "laya_is_safe": false,
@@ -98,7 +99,7 @@
     ],
     "caveats": [
       "permit() is the authority: Laya is shadow-only and cannot gate, so every disagreement is a Laya error rather than a tie.",
-      "Laya's risk tier is not scored: every fault loads as LOW because the per-fault catalogue files replace core.yaml's entries instead of merging, so the declared tiers are not usable as ground truth.",
+      "Laya's risk tier is reported, not scored. The declared tiers are LOW for seven faults and MEDIUM for two, and nine cases over two classes is too thin to call it agreement or disagreement.",
       "Laya confidence is reported as returned. The checkpoint ships invalid temperatures (runtime warning on load), so treat it as uncalibrated."
     ]
   },
@@ -130,7 +131,7 @@
     {
       "fault": "F03",
       "action": "rollback_deployment",
-      "declared_risk": "LOW",
+      "declared_risk": "MEDIUM",
       "rule_allowed": true,
       "rule_reason": "PASSED",
       "laya_is_safe": false,
@@ -178,7 +179,7 @@
     {
       "fault": "F07",
       "action": "rollback_prompt",
-      "declared_risk": "LOW",
+      "declared_risk": "MEDIUM",
       "rule_allowed": true,
       "rule_reason": "PASSED",
       "laya_is_safe": false,

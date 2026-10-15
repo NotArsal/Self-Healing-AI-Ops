@@ -59,10 +59,12 @@ Honest summary, because the distinction matters for how results are read:
 | `F01` against a live app | **Real** — detection, repair, verification, undo, and the full debt lifecycle through to `RESOLVED` |
 | `F02`–`F09` | Simulated: the loop runs against an in-memory state dict, and `verification/probes.py` derives metrics from thresholds rather than measuring |
 | Contract (`CONTRACT.md` v1.1) | Proof #2 onboarded; six defects found and closed (`docs/decisions/proof2_defects.md`) |
-| Measurements | **Real** — see `docs/MEASUREMENTS.md`, generated from `eval_results/*.json`. Undo ablation 100% vs 0% state restoration; RCA accuracy 88.9% with no answer key in the prompt; P(heal \| wrong diagnosis) 0%. Human baseline **not run** |
+| Measurements | **Real** — see `docs/MEASUREMENTS.md`, generated from `eval_results/*.json`. Undo ablation 100% vs 0% state restoration across three arms, and an ineffective rollback is now detected 5/5 as `UNRECOVERABLE`; RCA accuracy 88.9% with no answer key in the prompt; P(heal \| wrong diagnosis) 0%. Human baseline **not run** |
 | Audit log | **Not built.** `AGENTS.md` names it a core guarantee; no table, module or route exists |
 | Knowledge base (F-MEM) | **Real** — incidents are embedded and stored, and recalled by similarity into the diagnosis evidence. Needs `make up` plus Ollama for `nomic-embed-text` |
 | Incident persistence | In-memory only; no `PostgresSaver` checkpointer, so approvals and the debt dwell clock do not survive a restart |
+| Risk tiers and the sandbox | **Real** — F03 and F07 load MEDIUM and prove the repair in an isolated dry run before it is executed; a failed dry run stops the repair and leaves the application untouched |
+| Undo | **Real** — the live adapter reads the state back after restoring it and reports `UNRECOVERABLE` on a mismatch; `tests/test_unwind.py` asserts the restoration per fault |
 | Preflight P01–P13 | Structure present, most individual checks still report `(Simulated)` |
 | `make check` | Red: 79 mypy errors, 48 ruff errors, all outside the modules listed above |
 
