@@ -9,6 +9,7 @@ the distinction the rollback guarantee rests on (AGENTS.md 4a).
 import httpx
 
 from kavach.catalogue.schema import EffectDef
+from kavach.httpclient import shared_client
 from kavach.preflight.schema import ReversibleStateDef
 from kavach.tnr.models import Action, UndoRecord
 
@@ -27,10 +28,9 @@ def read_value(rs_def: ReversibleStateDef) -> str:
         raise RuntimeConfigError("reversible_state declares no field")
 
     try:
-        with httpx.Client(timeout=TIMEOUT_S) as client:
-            res = client.get(rs_def.read)
-            res.raise_for_status()
-            body = res.json()
+        res = shared_client().get(rs_def.read, timeout=TIMEOUT_S)
+        res.raise_for_status()
+        body = res.json()
     except (httpx.HTTPError, ValueError) as e:
         raise RuntimeConfigError(f"read from {rs_def.read} failed: {e}") from e
 
@@ -49,9 +49,10 @@ def write_value(rs_def: ReversibleStateDef, app_value: str) -> None:
         raise RuntimeConfigError("reversible_state declares no field")
 
     try:
-        with httpx.Client(timeout=TIMEOUT_S) as client:
-            res = client.post(rs_def.write, json={rs_def.field: app_value})
-            res.raise_for_status()
+        res = shared_client().post(
+            rs_def.write, json={rs_def.field: app_value}, timeout=TIMEOUT_S
+        )
+        res.raise_for_status()
     except httpx.HTTPError as e:
         raise RuntimeConfigError(f"write to {rs_def.write} failed: {e}") from e
 

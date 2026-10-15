@@ -15,6 +15,7 @@ from pathlib import Path
 import httpx
 import yaml
 
+from kavach.httpclient import shared_client
 from kavach.preflight.schema import KavachManifest
 from kavach.scenarios.schema import Scenario, TargetBinding
 from kavach.verification.baseline import load_baseline
@@ -39,8 +40,9 @@ def probe_health(target: TargetBinding) -> dict[str, str]:
             results[name] = "unknown"
             continue
         try:
-            with httpx.Client(timeout=svc.health.timeout_s or TIMEOUT_S) as client:
-                res = client.get(svc.health.target)
+            res = shared_client().get(
+                svc.health.target, timeout=svc.health.timeout_s or TIMEOUT_S
+            )
             expected = svc.health.expect_status or 200
             results[name] = "healthy" if res.status_code == expected else "unhealthy"
         except httpx.HTTPError:
@@ -57,15 +59,17 @@ def _query_runner_target(manifest: KavachManifest) -> str:
 def measure_error_ratio(target: TargetBinding) -> float:
     """Fraction of sampled requests that did not succeed."""
     url = _query_runner_target(target.manifest)
+    client = shared_client()
     failures = 0
-    with httpx.Client(timeout=TIMEOUT_S) as client:
-        for i in range(AVAILABILITY_SAMPLES):
-            try:
-                res = client.post(url, json={"question": f"availability probe {i}"})
-                if not res.is_success:
-                    failures += 1
-            except httpx.HTTPError:
+    for i in range(AVAILABILITY_SAMPLES):
+        try:
+            res = client.post(
+                url, json={"question": f"availability probe {i}"}, timeout=TIMEOUT_S
+            )
+            if not res.is_success:
                 failures += 1
+        except httpx.HTTPError:
+            failures += 1
     return failures / AVAILABILITY_SAMPLES
 
 
@@ -90,19 +94,21 @@ def measure_eval_pass_rate(target: TargetBinding) -> float:
         )
 
     url = _query_runner_target(manifest)
+    client = shared_client()
     passed = 0
-    with httpx.Client(timeout=TIMEOUT_S) as client:
-        for case in cases:
-            try:
-                res = client.post(url, json={"question": case.get("question", "")})
-                if not res.is_success:
-                    continue
-                answer = str(res.json().get("answer", ""))
-            except (httpx.HTTPError, ValueError):
+    for case in cases:
+        try:
+            res = client.post(
+                url, json={"question": case.get("question", "")}, timeout=TIMEOUT_S
+            )
+            if not res.is_success:
                 continue
-            expected = case.get("expect_contains") or []
-            if all(fragment in answer for fragment in expected):
-                passed += 1
+            answer = str(res.json().get("answer", ""))
+        except (httpx.HTTPError, ValueError):
+            continue
+        expected = case.get("expect_contains") or []
+        if all(fragment in answer for fragment in expected):
+            passed += 1
 
     return passed / len(cases)
 

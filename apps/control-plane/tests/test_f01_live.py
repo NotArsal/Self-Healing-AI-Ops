@@ -341,6 +341,11 @@ def test_debt_repayment_writes_to_the_live_app(healthy_baseline, proof2_app):
 
     target = healthy_baseline
     scenario = build_incident_scenario(target, _breach_for(target), scenario_id="inc-repay")
+    # outcome_node stamps the diagnosed class onto the scenario before debt is
+    # recorded, so the checker only ever repays a classified incident. Detection
+    # leaves it UNKNOWN, and repaying an unclassified incident is refused -- see
+    # test_repayment_of_an_unclassified_incident_is_refused.
+    scenario.fault_class = "F01"
     rs_def = (target.manifest.reversible_state or {})["model_selection"]
 
     # Mitigate: move onto the backup, as the F01 repair does.
@@ -366,6 +371,37 @@ def test_debt_repayment_writes_to_the_live_app(healthy_baseline, proof2_app):
 
     assert ok is True
     assert read_value(rs_def) == "primary", "repayment must return the live app to primary"
+
+
+def test_repayment_of_an_unclassified_incident_is_refused(healthy_baseline, proof2_app):
+    """The deny case: no known risk tier means no autonomous repayment.
+
+    An unclassified incident has no catalogue entry, so its risk tier is unknown.
+    Absent information is not permission: the repayment is refused and the
+    application is left where it was rather than written to on a guess.
+    """
+    from kavach.debt.repayment import repay_debt
+
+    target = healthy_baseline
+    scenario = build_incident_scenario(target, _breach_for(target), scenario_id="inc-unk")
+    assert scenario.fault_class == "UNKNOWN"
+    rs_def = (target.manifest.reversible_state or {})["model_selection"]
+
+    # Put it in the mitigated position first, so "nothing moved" is a real
+    # assertion rather than the state it already happened to be in.
+    httpx.post(f"{BASE}/v1/admin/model", json={"model": "backup"}, timeout=5)
+    httpx.post(f"{BASE}/revert/F01", timeout=5)
+
+    ok = repay_debt(
+        scenario,
+        {},
+        "switch_model",
+        {"target": "model_primary", "fallback": "model_backup"},
+        mode="AUTONOMOUS",
+    )
+
+    assert ok is False
+    assert read_value(rs_def) == "backup", "a refused repayment must write nothing"
 
 
 # --- the detection tick, which is what makes a heal start with no human ---
