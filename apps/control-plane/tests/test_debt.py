@@ -18,8 +18,9 @@ from kavach.scenarios.schema import DebtDef, TriggerDef
 _MOCK_LEDGER = []
 
 async def fake_record_debt_async(incident_id, action_name, action_params, debt_def):
-    from kavach.debt.ledger import ActiveDebt
     import time
+
+    from kavach.debt.ledger import ActiveDebt
     trigger_cond = debt_def.trigger.condition
     trigger_value = float(debt_def.trigger.value)
     max_age_s = debt_def.max_age_s
@@ -63,7 +64,6 @@ def mock_ledger(monkeypatch):
     monkeypatch.setattr("kavach.debt.checker.escalate_debt_async", fake_escalate_debt_async)
 
 # Use the real functions for imports but they will be mocked at runtime
-from kavach.debt.ledger import clear_debt_async, get_active_debts_async, record_debt_async
 
 
 @pytest.mark.anyio
@@ -79,7 +79,7 @@ async def test_ledger_record_and_clear():
     )
 
     # Run
-    import kavach.debt.ledger as ledger
+    from kavach.debt import ledger
     await ledger.record_debt_async(incident_id, action_name, action_params, debt_def)
     debts = await ledger.get_active_debts_async()
 
@@ -97,7 +97,7 @@ async def test_ledger_record_and_clear():
     assert not any(d.incident_id == incident_id for d in new_debts)
 
 
-def test_trigger_healthy_for_s():
+def test_trigger_healthy_for_s() -> None:
     sim_state = {"llm_proxy_health": "healthy"}
     assert evaluate_trigger("healthy_for_s", 600, sim_state) == True
 
@@ -105,7 +105,7 @@ def test_trigger_healthy_for_s():
     assert evaluate_trigger("healthy_for_s", 600, sim_state) == False
 
 
-def test_trigger_primary_healthy_for_s():
+def test_trigger_primary_healthy_for_s() -> None:
     sim_state = {"model_primary": "healthy"}
     assert evaluate_trigger("primary_healthy_for_s", 600, sim_state) == True
     assert (
@@ -126,7 +126,7 @@ async def test_evaluate_all_debts_escalation():
         trigger=TriggerDef(condition="primary_healthy_for_s", value=600),
         max_age_s=0,  # force immediate escalation
     )
-    import kavach.debt.ledger as ledger
+    from kavach.debt import ledger
     await ledger.record_debt_async(incident_id, "switch_model", {"fallback": "model_primary"}, debt_def)
 
     # In database, the age is compared to created_at
@@ -165,7 +165,7 @@ async def test_evaluate_all_debts_repayment(monkeypatch):
         trigger=TriggerDef(condition="primary_healthy_for_s", value=600),
         max_age_s=86400,
     )
-    import kavach.debt.ledger as ledger
+    from kavach.debt import ledger
     await ledger.record_debt_async(incident_id, "switch_model", {"fallback": "model_primary"}, debt_def)
     from kavach.tnr.models import Action, UndoRecord
 

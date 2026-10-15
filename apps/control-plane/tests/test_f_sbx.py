@@ -1,14 +1,15 @@
-import pytest
-from kavach.scenarios.schema import Scenario, TriggerDef, ServiceDef
+from unittest.mock import patch
+
+from kavach.catalogue.schema import Catalogue, FaultDef, RepairDef
 from kavach.graph.state import IncidentState
 from kavach.graph.workflow import build_workflow
 from kavach.llm.rca import RCAResponse
-from kavach.catalogue.schema import Catalogue, FaultDef, RepairDef
-from unittest.mock import patch
+from kavach.scenarios.schema import Scenario, ServiceDef
+
 
 @patch("kavach.graph.nodes.load_catalogue")
 @patch("kavach.graph.nodes.analyze_root_cause")
-def test_sandbox_medium_risk(mock_rca, mock_loader):
+def test_sandbox_medium_risk(mock_rca, mock_loader) -> None:
     mock_rca.return_value = RCAResponse(
         fault_class="F03",
         confidence=0.9,

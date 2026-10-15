@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -21,7 +23,7 @@ class CaseResult(BaseModel):
     passed: bool
     latency_ms: float
     is_unmapped: bool
-    scenario_dump: dict
+    scenario_dump: dict[str, Any]
 
 
 class EvaluationReport(BaseModel):
@@ -34,5 +36,5 @@ class EvaluationReport(BaseModel):
     avg_latency_ms: float
     median_latency_ms: float
     p95_latency_ms: float
-    confusion_matrix: dict
+    confusion_matrix: dict[str, dict[str, int]]
     results: list[CaseResult]

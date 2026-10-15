@@ -67,7 +67,7 @@ telemetry:
 """
 
 
-def test_a_manifest_that_only_parses_is_not_healable():
+def test_a_manifest_that_only_parses_is_not_healable() -> None:
     """This test used to assert L3 - Healable for exactly this input.
 
     It could, because every check from P02 to P13 reported `PASS (Simulated)` on
@@ -89,7 +89,7 @@ def test_a_manifest_that_only_parses_is_not_healable():
     assert by_code["P09"].status == "PASS", by_code["P09"].message
 
 
-def test_checks_needing_a_path_report_unverified_rather_than_passing():
+def test_checks_needing_a_path_report_unverified_rather_than_passing() -> None:
     """A result the platform could not establish must not look like a pass."""
     report = PreflightChecker(VALID_YAML).run_all()
     by_code = {c.code: c for c in report.checks}
@@ -105,7 +105,7 @@ def test_checks_needing_a_path_report_unverified_rather_than_passing():
     assert report.level_capped_by(), "a capped level with no explanation"
 
 
-def test_preflight_invalid_yaml():
+def test_preflight_invalid_yaml() -> None:
     checker = PreflightChecker("foo: [unclosed")
     report = checker.run_all()
 
@@ -114,7 +114,7 @@ def test_preflight_invalid_yaml():
     assert report.conformance_level == "UNARMED"
 
 
-def test_preflight_missing_liveness_drops_l0():
+def test_preflight_missing_liveness_drops_l0() -> None:
     import yaml
 
     data = yaml.safe_load(VALID_YAML)
@@ -130,7 +130,7 @@ def test_preflight_missing_liveness_drops_l0():
     assert report.conformance_level == "UNARMED"
 
 
-def test_preflight_missing_quality_drops_l1():
+def test_preflight_missing_quality_drops_l1() -> None:
     # Quality config missing drops it below L1 (so it's L0)
     no_qual = (
         VALID_YAML.split("quality:")[0]

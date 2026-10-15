@@ -21,7 +21,7 @@ def _fresh_catalogue():
     reset_catalogue()
 
 
-def test_per_fault_file_does_not_drop_core_fields():
+def test_per_fault_file_does_not_drop_core_fields() -> None:
     f03 = load_catalogue().faults["F03"]
     # Declared only in core.yaml.
     assert f03.risk == "MEDIUM"
@@ -31,21 +31,21 @@ def test_per_fault_file_does_not_drop_core_fields():
     assert f03.name == "container crash-loop or OOM"
 
 
-def test_risk_tiers_are_not_flat():
+def test_risk_tiers_are_not_flat() -> None:
     risks = {fc: f.risk for fc, f in load_catalogue().faults.items()}
     assert risks["F03"] == "MEDIUM"
     assert risks["F07"] == "MEDIUM"
     assert risks["F01"] == "LOW"
 
 
-def test_action_overlay_keeps_an_effect_binding():
+def test_action_overlay_keeps_an_effect_binding() -> None:
     # switch_model's live binding lives in core.yaml only; an overlay of the same
     # action name elsewhere must not be able to silently un-bind it.
     assert load_catalogue().actions["switch_model"].effect is not None
 
 
 @pytest.mark.parametrize("fault,expected_tier", [("F01", "LOW"), ("F03", "MEDIUM")])
-def test_plan_node_reaches_the_sandbox_branch(fault, expected_tier):
+def test_plan_node_reaches_the_sandbox_branch(fault, expected_tier) -> None:
     result = plan_node(
         IncidentState(scenario=load_scenario(fault), fault_class=fault)
     )
@@ -54,7 +54,7 @@ def test_plan_node_reaches_the_sandbox_branch(fault, expected_tier):
     assert result["plan"], "a declared repair must still produce a plan"
 
 
-def test_declared_repair_params_resolve():
+def test_declared_repair_params_resolve() -> None:
     """A repair must supply what its action's templates read.
 
     Forward mutations resolve from the repair's own params. An inverse mapping may

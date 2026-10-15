@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 
 class HealthDef(BaseModel):
@@ -117,16 +117,11 @@ class KavachManifest(BaseModel):
     dependencies: list[DependencyDef] = Field(default_factory=list)
     debt: dict[str, DebtItemDef] | None = None
 
-    @model_validator(mode="after")
-    def validate_objectives(self) -> "KavachManifest":
-        if self.objectives:
-            if not self.objectives.availability and not self.objectives.quality:
-                # Actually, CONTRACT C4 says: "At least one objective in availability and one in quality.
-                # An application declaring only availability objectives is conformant but cannot be protected
-                # against silent degradation, and the platform must say so at onboarding."
-                # So we won't error here, but the checker will handle level assignment.
-                pass
-        return self
+    # CONTRACT C4: an application declaring only availability objectives is
+    # conformant but cannot be protected against silent degradation, and the
+    # platform must say so at onboarding -- so this is not a schema error.
+    # Preflight P07 is where it is said; a validator that only passed used to
+    # stand here carrying the explanation.
 
     @property
     def active_roles(self) -> set[str]:

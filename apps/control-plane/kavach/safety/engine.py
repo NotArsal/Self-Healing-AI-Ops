@@ -1,3 +1,4 @@
+import logging
 import re
 import shlex
 from datetime import UTC, datetime, timedelta
@@ -131,11 +132,19 @@ def permit(
             ts_str = inc.get("timestamp")
             if ts_str:
                 try:
-                    ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                    ts = datetime.fromisoformat(ts_str)
+                except ValueError:
+                    # An unparseable timestamp silently lowered the count the
+                    # circuit breaker compares against, which makes the breaker
+                    # harder to trip rather than easier.
+                    logging.getLogger(__name__).warning(
+                        "incident timestamp %r is unparseable; it is not counted "
+                        "towards the circuit breaker",
+                        ts_str,
+                    )
+                else:
                     if ts >= thirty_mins_ago:
                         recent_identical_faults += 1
-                except Exception:
-                    pass
 
     if recent_identical_faults >= 4:
         return PermitResult(False, "CIRCUIT_BREAKER_TRIPPED")

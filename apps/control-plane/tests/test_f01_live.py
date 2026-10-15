@@ -135,7 +135,7 @@ def _switch_to_backup_binding(target):
 # --- the adapter's inverse, which the whole rollback guarantee rests on ---
 
 
-def test_inverse_restores_prior_state(target):
+def test_inverse_restores_prior_state(target) -> None:
     effect, rs_def = _switch_to_backup_binding(target)
     action = Action(name="switch_model", params={"target": "model_backup"})
 
@@ -152,7 +152,7 @@ def test_inverse_restores_prior_state(target):
     assert read_value(rs_def) == "primary", "the inverse must restore the prior state"
 
 
-def test_inverse_is_built_from_the_witness_not_the_declared_fallback(target):
+def test_inverse_is_built_from_the_witness_not_the_declared_fallback(target) -> None:
     """If the app was somewhere unexpected, the undo goes back to where it was."""
     effect, rs_def = _switch_to_backup_binding(target)
     # Arrive to find the app already on backup, contradicting the declared fallback.
@@ -168,7 +168,7 @@ def test_inverse_is_built_from_the_witness_not_the_declared_fallback(target):
     assert record.inverse_action.params["target"] == "model_backup"
 
 
-def test_simulation_mode_writes_nothing(target):
+def test_simulation_mode_writes_nothing(target) -> None:
     effect, rs_def = _switch_to_backup_binding(target)
     action = Action(name="switch_model", params={"target": "model_backup"})
 
@@ -182,7 +182,7 @@ def test_simulation_mode_writes_nothing(target):
 # --- measurement is real ---
 
 
-def test_golden_set_measures_real_degradation(target):
+def test_golden_set_measures_real_degradation(target) -> None:
     assert measure_eval_pass_rate(target) == 1.0
 
     httpx.post(f"{BASE}/v1/admin/model", json={"model": "backup"}, timeout=5)
@@ -194,7 +194,7 @@ def test_golden_set_measures_real_degradation(target):
     )
 
 
-def test_detect_breach_sees_the_injected_outage(target, proof2_app):
+def test_detect_breach_sees_the_injected_outage(target, proof2_app) -> None:
     assert detect_breach(target) is None, "a healthy app must not raise an incident"
 
     httpx.post(f"{BASE}/inject/F01", timeout=5)
@@ -207,7 +207,7 @@ def test_detect_breach_sees_the_injected_outage(target, proof2_app):
     assert breach.health["api"] == "healthy"
 
 
-def test_detection_evidence_cites_what_was_measured(target):
+def test_detection_evidence_cites_what_was_measured(target) -> None:
     httpx.post(f"{BASE}/inject/F01", timeout=5)
     breach = detect_breach(target)
     assert breach is not None
@@ -226,7 +226,7 @@ def test_detection_evidence_cites_what_was_measured(target):
 
 
 @patch("kavach.graph.nodes.analyze_root_cause")
-def test_f01_heals_end_to_end_with_real_deltas(mock_rca, healthy_baseline, proof2_app):
+def test_f01_heals_end_to_end_with_real_deltas(mock_rca, healthy_baseline, proof2_app) -> None:
     """Inject, detect, diagnose, repair, verify -- with no human and no fiction."""
     mock_rca.return_value = RCAResponse(
         fault_class="F01",
@@ -272,7 +272,7 @@ def test_f01_heals_end_to_end_with_real_deltas(mock_rca, healthy_baseline, proof
 @patch("kavach.graph.nodes.analyze_root_cause")
 def test_verification_failure_unwinds_the_live_app(
     mock_rca, mock_verify, healthy_baseline, proof2_app
-):
+) -> None:
     """A failed repair must put the real application back where it was."""
     mock_rca.return_value = RCAResponse(
         fault_class="F01", confidence=0.95, evidence_ids=[], rejected_alternatives=[]
@@ -300,7 +300,7 @@ def test_verification_failure_unwinds_the_live_app(
     ) == "primary", "unwind must restore the witnessed prior model"
 
 
-def test_unwind_restores_after_direct_execute(target):
+def test_unwind_restores_after_direct_execute(target) -> None:
     """The executor's undo stack, exercised without the graph around it."""
     action = Action(
         name="switch_model",
@@ -335,7 +335,7 @@ def _breach_for(target):
 # --- remediation debt against the live application ---
 
 
-def test_debt_repayment_writes_to_the_live_app(healthy_baseline, proof2_app):
+def test_debt_repayment_writes_to_the_live_app(healthy_baseline, proof2_app) -> None:
     """Repayment must move the real application, not a simulated dict."""
     from kavach.debt.repayment import repay_debt
 
@@ -373,7 +373,7 @@ def test_debt_repayment_writes_to_the_live_app(healthy_baseline, proof2_app):
     assert read_value(rs_def) == "primary", "repayment must return the live app to primary"
 
 
-def test_repayment_of_an_unclassified_incident_is_refused(healthy_baseline, proof2_app):
+def test_repayment_of_an_unclassified_incident_is_refused(healthy_baseline, proof2_app) -> None:
     """The deny case: no known risk tier means no autonomous repayment.
 
     An unclassified incident has no catalogue entry, so its risk tier is unknown.
@@ -407,7 +407,7 @@ def test_repayment_of_an_unclassified_incident_is_refused(healthy_baseline, proo
 # --- the detection tick, which is what makes a heal start with no human ---
 
 
-def test_detection_tick_opens_one_incident_per_breach(proof2_app):
+def test_detection_tick_opens_one_incident_per_breach(proof2_app) -> None:
     """The tick decides whether to open an incident; the graph is covered above."""
     from kavach.api.store import INCIDENTS_STORE
     from kavach.config import settings

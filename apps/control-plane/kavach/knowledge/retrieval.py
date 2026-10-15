@@ -1,8 +1,10 @@
-from sqlalchemy.ext.asyncio import AsyncSession
+import logging
+
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from kavach.api.models import IncidentMemory
 from kavach.knowledge.embeddings import generate_embedding
-import logging
 
 logger = logging.getLogger(__name__)
 

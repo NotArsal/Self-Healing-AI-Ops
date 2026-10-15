@@ -52,12 +52,12 @@ def _trigger(scenario: Scenario, value: float) -> bool:
     return evaluate_trigger("healthy_for_s", value, {}, scenario, INCIDENT)
 
 
-def test_unhealthy_never_triggers(scenario, health):
+def test_unhealthy_never_triggers(scenario, health) -> None:
     health["health"] = {"api": "unhealthy"}
     assert _trigger(scenario, 0) is False
 
 
-def test_dwell_must_elapse(scenario, health):
+def test_dwell_must_elapse(scenario, health) -> None:
     assert _trigger(scenario, 30) is False, "first healthy observation starts the clock"
 
     health["now"] += 29
@@ -67,7 +67,7 @@ def test_dwell_must_elapse(scenario, health):
     assert _trigger(scenario, 30) is True, "30s elapsed, repayable"
 
 
-def test_a_dip_restarts_the_clock(scenario, health):
+def test_a_dip_restarts_the_clock(scenario, health) -> None:
     assert _trigger(scenario, 30) is False
     health["now"] += 29
 
@@ -84,11 +84,11 @@ def test_a_dip_restarts_the_clock(scenario, health):
     assert _trigger(scenario, 30) is True
 
 
-def test_unknown_health_is_not_healthy(scenario, health):
+def test_unknown_health_is_not_healthy(scenario, health) -> None:
     """A service we cannot probe must not satisfy the precondition."""
     health["health"] = {"api": "unknown"}
     assert _trigger(scenario, 0) is False
 
 
-def test_unsupported_condition_denies(scenario, health):
+def test_unsupported_condition_denies(scenario, health) -> None:
     assert evaluate_trigger("some_future_condition", 0, {}, scenario, INCIDENT) is False

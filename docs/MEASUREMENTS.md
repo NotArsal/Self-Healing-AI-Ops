@@ -139,9 +139,15 @@ mistake as the prompt that handed over its own answer.
 ## 4. Human baseline — NOT RUN
 
 PRD §11.2 requires the same injections resolved by hand in `SIMULATION`, timed,
-to give MTTR a denominator. **Nobody has done this.** It is roughly two hours of
-one person's time and cannot be automated. Until it is run there is no human
-MTTR, and any speed-up factor quoted against one is invented.
+to give MTTR a denominator. **Nobody has done this.** It needs a person and
+roughly two hours; the harness is ready and waiting:
+
+```bash
+cd apps/control-plane && uv run python -m harness.human_baseline
+```
+
+Until it is run there is no human MTTR, and any speed-up factor quoted against
+one is invented.
 
 ---
 
@@ -157,5 +163,5 @@ MTTR, and any speed-up factor quoted against one is invented.
 | P(heal \| wrong diagnosis) | **Measured** |
 | Declines to act on ambiguous evidence | **No** — measured 0/5; see §3.1 |
 | LLM vs rules baseline | **Unavailable** — P3's mapping is gone; `detect` survives for F01, F03, F07 only |
-| Human baseline | **Not run** |
+| Human baseline | **Not run** — `harness/human_baseline.py` is ready; it needs a person |
 | F02–F09 behaviour | Simulated state; verification derived from thresholds, not measured |

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from typing import Any
 
 import httpx
 
@@ -12,17 +13,18 @@ CACHE_FILE = ".context7_cache.json"
 CONTEXT7_API_URL = os.environ.get("CONTEXT7_API_URL", "http://context7.example.com")
 
 
-def _load_cache() -> dict:
+def _load_cache() -> dict[str, Any]:
     if os.path.exists(CACHE_FILE):
         try:
             with open(CACHE_FILE, "r") as f:
-                return json.load(f)
+                loaded: dict[str, Any] = json.load(f)
+                return loaded
         except Exception:
             return {}
     return {}
 
 
-def _save_cache(cache: dict) -> None:
+def _save_cache(cache: dict[str, Any]) -> None:
     try:
         with open(CACHE_FILE, "w") as f:
             json.dump(cache, f)

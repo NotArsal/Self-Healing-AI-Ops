@@ -188,6 +188,40 @@ mistake as the prompt that handed over its own answer.
 """
 
 
+def _human(s: dict[str, Any] | None) -> str:
+    if s is None:
+        return """## 4. Human baseline — NOT RUN
+
+PRD §11.2 requires the same injections resolved by hand in `SIMULATION`, timed,
+to give MTTR a denominator. **Nobody has done this.** It needs a person and
+roughly two hours; the harness is ready and waiting:
+
+```bash
+cd apps/control-plane && uv run python -m harness.human_baseline
+```
+
+Until it is run there is no human MTTR, and any speed-up factor quoted against
+one is invented."""
+    machine = "2.3–4.3s per loop"
+    return f"""## 4. Human baseline
+
+Measured with `harness/human_baseline.py`: the same nine scenarios, the same
+evidence, the same SIMULATION mode and the same catalogue of repairs, answered
+by a person against a stopwatch.
+
+| Metric | Human | Machine |
+|---|---|---|
+| Cases | {s['cases']} | 45 (5 reps x 9) |
+| Diagnosis accuracy | **{s['diagnosis_accuracy_pct']}%** | see §3 |
+| Repair chosen correctly | {s['repair_accuracy_pct']}% | — |
+| Declined to diagnose | {s['declined_pct']}% | 0% (§3.1) |
+| Median time to a diagnosis | **{s['median_seconds']}s** | {machine} |
+| Fastest / slowest | {s['fastest_seconds']}s / {s['slowest_seconds']}s | — |
+
+{_bullets(s.get('caveats', []))}
+"""
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out", type=Path, default=REPO_ROOT / "docs" / "MEASUREMENTS.md")
@@ -196,6 +230,7 @@ def main() -> int:
     abl = _load("ablation_undo.json")
     laya = _load("laya_vs_rules.json")
     rca = _load("rca_bench.json")
+    human = _load("human_baseline.json")
     if not any((abl, laya, rca)):
         print("no artifacts in eval_results/; run `make bench` first", file=sys.stderr)
         return 1
@@ -224,12 +259,7 @@ make target-up && make onboard APP=targets/proof2 && make bench-live  # undo abl
 {_fails_closed(rca)}
 ---
 
-## 4. Human baseline — NOT RUN
-
-PRD §11.2 requires the same injections resolved by hand in `SIMULATION`, timed,
-to give MTTR a denominator. **Nobody has done this.** It is roughly two hours of
-one person's time and cannot be automated. Until it is run there is no human
-MTTR, and any speed-up factor quoted against one is invented.
+{_human(human)}
 
 ---
 
@@ -245,7 +275,7 @@ MTTR, and any speed-up factor quoted against one is invented.
 | P(heal {PIPE} wrong diagnosis) | **Measured** |
 | Declines to act on ambiguous evidence | **No** — measured 0/5; see §3.1 |
 | LLM vs rules baseline | **Unavailable** — P3's mapping is gone; `detect` survives for F01, F03, F07 only |
-| Human baseline | **Not run** |
+| Human baseline | **Not run** — `harness/human_baseline.py` is ready; it needs a person |
 | F02–F09 behaviour | Simulated state; verification derived from thresholds, not measured |
 """
 

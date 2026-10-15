@@ -15,7 +15,7 @@ def evaluate_cases(cases: list[EvaluationCase], output_file: str) -> EvaluationR
     unmapped_count = 0
     mapped_correct = 0
     latencies = []
-    confusion_matrix = {}
+    confusion_matrix: dict[str, dict[str, int]] = {}
 
     audit_log = []
 

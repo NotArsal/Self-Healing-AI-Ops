@@ -8,7 +8,7 @@ class TopologyGraph:
         self.edges = {name: (srv.depends_on or []) for name, srv in services.items()}
 
         # Map of service -> list of services that depend on IT
-        self.reverse_edges = {name: [] for name in services}
+        self.reverse_edges: dict[str, list[str]] = {name: [] for name in services}
         for src, dests in self.edges.items():
             for dest in dests:
                 if dest in self.reverse_edges:

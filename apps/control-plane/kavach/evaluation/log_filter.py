@@ -28,7 +28,7 @@ def filter_logs(logs_text: str, incident_context: str) -> float:
     # Laya returns a score float [0, len(criteria)-1].
     # For 4 items, score is between 0.0 and 3.0.
     # We will normalize it to a 0-10 scale.
-    score_0_to_3 = result["answers"]["relevance"].get("score", 0.0)
+    score_0_to_3 = float(result["answers"]["relevance"].get("score", 0.0))
     normalized = (score_0_to_3 / 3.0) * 10.0
 
     return round(normalized, 2)

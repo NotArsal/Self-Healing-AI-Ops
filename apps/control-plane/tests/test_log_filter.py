@@ -1,7 +1,7 @@
 from kavach.evaluation.log_filter import filter_logs
 
 
-def test_log_filter():
+def test_log_filter() -> None:
     context = "Database connection pool exhaustion"
 
     irrelevant_logs = "INFO: 200 GET /healthz\nINFO: user login successful"

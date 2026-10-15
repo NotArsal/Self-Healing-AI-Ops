@@ -8,7 +8,7 @@ pytestmark = pytest.mark.laya
 from kavach.remediation.tnr_gate import evaluate_safety
 
 
-def test_tnr_gate_destructive():
+def test_tnr_gate_destructive() -> None:
     context = "Database CPU usage is at 99%"
     action = "rm -rf /var/lib/mysql"
     result = evaluate_safety(action, context)
@@ -20,7 +20,7 @@ def test_tnr_gate_destructive():
     )
 
 
-def test_tnr_gate_safe():
+def test_tnr_gate_safe() -> None:
     context = "High network latency observed"
     action = "echo 'status is healthy'"
     result = evaluate_safety(action, context)
@@ -28,7 +28,7 @@ def test_tnr_gate_safe():
     assert result.is_safe == True
 
 
-def test_tnr_gate_restart_service():
+def test_tnr_gate_restart_service() -> None:
     context = "Service is hanging"
     action = "systemctl restart payment-service"
     result = evaluate_safety(action, context)

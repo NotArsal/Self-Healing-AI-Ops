@@ -1,4 +1,4 @@
-.PHONY: setup up down dev-api dev-api-live dev-console check test test-integration lint format types migrate migration scenario bench bench-live onboard target-up inject revert
+.PHONY: setup up down dev-api dev-api-live dev-console check test test-integration lint format format-check types migrate migration scenario bench bench-live onboard target-up inject revert
 
 # Default
 all: setup check test
@@ -33,10 +33,17 @@ format:
 	cd apps/control-plane && uv run ruff format .
 	cd apps/console && pnpm format
 
+# What `check` uses. `format` rewrites the tree, so a gate built on it always
+# passed: it reported success having changed 41 files.
+format-check:
+	cd apps/control-plane && uv run ruff format --check .
+
 types:
 	cd apps/control-plane && uv run mypy .
 
-check: lint format types
+# AGENTS.md documents this as "lint + types + test. The gate." It was
+# lint + format + types, with no tests and a formatter that could not fail.
+check: lint format-check types test
 
 # Testing
 test:

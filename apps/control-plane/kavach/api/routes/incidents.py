@@ -1,4 +1,6 @@
 import asyncio
+import logging
+from datetime import UTC
 from typing import Any
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
@@ -27,9 +29,9 @@ async def execute_graph_background(
     app = build_workflow()
 
     import time
-    from datetime import datetime, timezone
-    
-    started_at = datetime.now(timezone.utc)
+    from datetime import datetime
+
+    started_at = datetime.now(UTC)
     start_t = time.time()
 
     # Broadcast incident start
@@ -70,36 +72,49 @@ async def execute_graph_background(
         outcome = final_state.get("outcome", "UNKNOWN")
         fault_class = final_state.get("fault_class", "UNKNOWN")
         duration_ms = int((time.time() - start_t) * 1000)
-        resolved_at = datetime.now(timezone.utc)
-        
+        resolved_at = datetime.now(UTC)
+
         # Check if we need to record debt
         scenario_after = final_state.get("scenario")
-        if scenario_after and hasattr(scenario_after, "active_debt_def") and scenario_after.active_debt_def:
+        if (
+            scenario_after
+            and hasattr(scenario_after, "active_debt_def")
+            and scenario_after.active_debt_def
+        ):
             from kavach.debt.ledger import record_debt_async
-            
+
             # Find the params from active_debt (undo_stack inverse)
-            action_params = {}
+            action_params: dict[str, Any] = {}
             if scenario_after.active_debt:
-                for a_name, record in scenario_after.active_debt.items():
-                    action_params = record.inverse_action.params if hasattr(record, "inverse_action") else {}
-                    break
-            
+                record = next(iter(scenario_after.active_debt.values()))
+                action_params = (
+                    record.inverse_action.params
+                    if hasattr(record, "inverse_action")
+                    else {}
+                )
+
             # Use the repayment action from the debt definition
             debt_def = scenario_after.active_debt_def
-            action_name = debt_def.repayment_action if hasattr(debt_def, "repayment_action") else "unknown"
-            
+            action_name = (
+                debt_def.repayment_action
+                if hasattr(debt_def, "repayment_action")
+                else "unknown"
+            )
+
             try:
                 await record_debt_async(
                     incident_id, action_name, action_params, debt_def
                 )
             except Exception as e:
-                import logging
-                logging.warning(f"Failed to record debt for {incident_id}: {e}")
+                logging.getLogger(__name__).warning(
+                    "Failed to record debt for %s: %s", incident_id, e
+                )
 
         try:
             from sqlalchemy import text
+
             from kavach.api.db import get_db_session
-            
+
             async with get_db_session() as session:
                 await session.execute(
                     text(
@@ -116,10 +131,10 @@ async def execute_graph_background(
                     },
                 )
                 await session.commit()
-        except Exception as e:  # noqa: BLE001
-            import logging
-            logging.warning(f"Failed to record incident metrics to database: {e}")
-
+        except Exception as e:
+            logging.getLogger(__name__).warning(
+                "Failed to record incident metrics to database: %s", e
+            )
 
 
 @router.post("/run")
@@ -217,19 +232,20 @@ async def repay_debt_endpoint(incident_id: str) -> dict[str, Any]:
     debt_def = (
         scenario.debt_config.get(scenario.fault_class) if scenario.debt_config else None
     )
-    repayment_action = (
-        debt_def.get("repayment_action")
-        if isinstance(debt_def, dict)
-        else (
-            debt_def.repayment_action
-            if hasattr(debt_def, "repayment_action")
-            else "restore_model"
-        )
-    )
+    # The hasattr chain here is what silently substituted "unknown" when the debt
+    # arrived as a plain dict; outcome_node now parses it into DebtItemDef, so the
+    # typed attribute is the normal path and the dict is the compatibility one.
+    if isinstance(debt_def, dict):
+        repayment_action = str(debt_def.get("repayment_action") or "restore_model")
+    elif debt_def is not None and hasattr(debt_def, "repayment_action"):
+        repayment_action = str(debt_def.repayment_action)
+    else:
+        repayment_action = "restore_model"
 
     success = repay_debt(scenario, sim_state, repayment_action)
     if success:
         from kavach.debt.ledger import clear_debt_async
+
         await clear_debt_async(incident_id)
         update_incident(
             incident_id, {"simulation_state": sim_state, "outcome": "RESOLVED"}

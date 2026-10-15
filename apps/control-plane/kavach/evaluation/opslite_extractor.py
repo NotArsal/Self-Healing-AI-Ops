@@ -3,10 +3,10 @@ from pathlib import Path
 import pandas as pd
 
 from kavach.evaluation.schema import EvaluationCase
-from kavach.scenarios.schema import EvidenceItem, Scenario
+from kavach.scenarios.schema import EvidenceItem, Scenario, ServiceDef
 
 
-def extract_trace_metrics(df_traces: pd.DataFrame) -> dict:
+def extract_trace_metrics(df_traces: pd.DataFrame) -> dict[str, float]:
     if df_traces.empty:
         return {}
 
@@ -124,16 +124,16 @@ def build_scenario_from_opslite(case: EvaluationCase) -> Scenario:
             )
 
     # Contextual services
-    services = {}
+    services: dict[str, ServiceDef] = {}
     for ev in evidence_list:
         if ev.kind == "metric":
             parts = ev.source.split("_")
             svc = parts[0]
             if svc not in services:
-                services[svc] = {"role": "service"}
+                services[svc] = ServiceDef(role="service")
 
     if not services:
-        services["unknown"] = {"role": "service"}
+        services["unknown"] = ServiceDef(role="service")
 
     return Scenario(
         id=f"eval-{case.case_id}",
@@ -145,7 +145,11 @@ def build_scenario_from_opslite(case: EvaluationCase) -> Scenario:
         tolerance=None,
         reversible_state={},
         permissions=None,
-        signals={ev.source: ev.value for ev in evidence_list if ev.kind == "metric"},
+        signals={
+            ev.source: ev.value
+            for ev in evidence_list
+            if ev.kind == "metric" and ev.value is not None
+        },
         evidence=evidence_list,
         state={},
     )

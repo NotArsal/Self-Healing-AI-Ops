@@ -20,7 +20,7 @@ def setup_teardown():
     del os.environ["KAVACH_CATALOGUE_DIR"]
 
 
-def test_loader_parses_builtin_and_fixtures():
+def test_loader_parses_builtin_and_fixtures() -> None:
     # Test loader successfully loads builtin and test fixtures
     cat = load_catalogue()
     
@@ -34,7 +34,7 @@ def test_loader_parses_builtin_and_fixtures():
     assert f01.repair.params["target"] == "model_backup"
 
 
-def test_loader_maps_id_to_fault_class():
+def test_loader_maps_id_to_fault_class() -> None:
     cat = load_catalogue()
     assert "F10" in cat.faults
     f10 = cat.faults["F10"]
@@ -42,7 +42,7 @@ def test_loader_maps_id_to_fault_class():
     assert f10.repair.action == "shell_command"
 
 
-def test_plan_node_extracts_declarative_repair():
+def test_plan_node_extracts_declarative_repair() -> None:
     state = IncidentState(fault_class="F01", scenario=None)
     new_state = plan_node(state)
     
@@ -52,7 +52,7 @@ def test_plan_node_extracts_declarative_repair():
     assert plan[0].params["target"] == "model_backup"
 
 
-def test_plan_node_extracts_destructive_repair_from_fixture():
+def test_plan_node_extracts_destructive_repair_from_fixture() -> None:
     # F11 is a destructive command, but plan_node just plans it.
     # The safety engine (gate_node) is what blocks it in production.
     state = IncidentState(fault_class="F11", scenario=None)
@@ -64,7 +64,7 @@ def test_plan_node_extracts_destructive_repair_from_fixture():
     assert plan[0].params["cmd"] == "rm -rf /var/lib/mysql"
 
 
-def test_invalid_yaml_fails_fast():
+def test_invalid_yaml_fails_fast() -> None:
     # We can test validation error directly
     with pytest.raises(ValidationError):
         FaultDef(
@@ -75,7 +75,7 @@ def test_invalid_yaml_fails_fast():
         )
 
 
-def test_gate_node_blocks_f11_destructive_command():
+def test_gate_node_blocks_f11_destructive_command() -> None:
     """The command is refused, and for the reason it should be.
 
     This used to build the scenario with a MagicMock, whose `permissions

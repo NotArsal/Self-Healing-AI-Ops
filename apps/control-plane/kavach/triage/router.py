@@ -29,4 +29,4 @@ def classify_alert(alert_text: str) -> str:
     result = router.predict(f"Alert: {alert_text}", questions)
 
     # Using Laya's returned choice key (e.g. 'database', 'network')
-    return result["answers"]["domain"].get("choice", "unknown")
+    return str(result["answers"]["domain"].get("choice", "unknown"))

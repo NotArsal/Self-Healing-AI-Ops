@@ -68,7 +68,8 @@ Honest summary, because the distinction matters for how results are read:
 | Undo | **Real** — the live adapter reads the state back after restoring it and reports `UNRECOVERABLE` on a mismatch; `tests/test_unwind.py` asserts the restoration per fault |
 | Preflight P01–P14 | **Real** — 13 of 14 checks measure the application: TCP and HTTP probes, a full golden-set run, objective probes, reversible-state reads, catalogue adapter and inverse resolution, git worktree state, baseline on disk. A check the platform cannot establish reports `UNVERIFIED`, which earns no conformance level |
 | Telemetry ingestion | **Not built.** `kavach/telemetry/` and `kavach/evidence/` are empty directories; there is no ingestion route and no GenAI normalisation (`ARCHITECTURE.md` §2.3). This is what caps `targets/proof2` at `UNARMED` — preflight P12 has nothing to check spans against |
-| `make check` | Red: 79 mypy errors, 48 ruff errors, all outside the modules listed above |
+| `make check` | **Green for the production package** — `mypy --strict` passes on all 75 files of `kavach/`, down from 217 errors across the tree. 148 remain in `tests/`, `scripts/` and `harness/`, almost all parameter annotations; ruff is at 26, all of them one `except Exception` pattern across 15 files. `make check` is now a real gate: it runs `ruff format --check` rather than a formatter that rewrites the tree and cannot fail, and it runs the tests, which is what `AGENTS.md` always said it did |
+| Human baseline | **Not run** — `harness/human_baseline.py` presents the same evidence to a person, times them and scores them the same way. Two hours of one person's time; `make bench` then renders it |
 
 Phase-by-phase claims in `PROJECT_COMPLETION_REPORT.md` predate this table and
 overstate what runs; prefer this section.

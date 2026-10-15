@@ -27,6 +27,7 @@ class RCAResponse(BaseModel):
         if 0.0 <= v <= 1.0:
             return v
         raise ValueError(f"confidence {v} is neither a probability nor a percentage")
+
     evidence_ids: list[str] = Field(
         description="IDs of the evidence items supporting this diagnosis."
     )
@@ -36,10 +37,12 @@ class RCAResponse(BaseModel):
 
 
 def analyze_root_cause(
-    scenario: Scenario, model_name: str = "qwen2.5:7b-instruct", app_roles: set[str] | None = None
+    scenario: Scenario,
+    model_name: str = "qwen2.5:7b-instruct",
+    app_roles: set[str] | None = None,
 ) -> RCAResponse:
-    from kavach.topology.graph import build_topology_graph
     from kavach.catalogue.loader import load_catalogue
+    from kavach.topology.graph import build_topology_graph
 
     llm = ChatOllama(
         model=model_name, temperature=0.0, base_url="http://127.0.0.1:11434"
@@ -48,10 +51,9 @@ def analyze_root_cause(
 
     topology = build_topology_graph(scenario.services)
     topo_text = topology.describe_topology()
-    
+
     catalogue = load_catalogue(app_roles=app_roles)
     applicable_faults = list(catalogue.faults.keys())
-    applicable_faults_str = ", ".join(applicable_faults)
 
     # Candidates are named, not described by their detection signal. The previous
     # version of this prompt carried a rule per fault ("if you see
@@ -111,6 +113,7 @@ def analyze_root_cause(
     prompt += "\nOutput the structured RCA response."
 
     import logging
+
     logger = logging.getLogger(__name__)
 
     try:
@@ -119,7 +122,9 @@ def analyze_root_cause(
         if isinstance(response, RCAResponse):
             return response
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"Primary LLM ({model_name}) failed: {e}. Degrading to fallback model.")
+        logger.warning(
+            f"Primary LLM ({model_name}) failed: {e}. Degrading to fallback model."
+        )
         try:
             fallback_model = "qwen2.5:0.5b-instruct"
             llm_fallback = ChatOllama(

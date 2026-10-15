@@ -1,7 +1,10 @@
+import logging
+from typing import Any
+
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from kavach.api.models import IncidentMemory
 from kavach.knowledge.embeddings import generate_embedding
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +14,7 @@ async def save_incident_memory(
     fault_class: str,
     symptoms: str,
     summary: str,
-    repair_action: dict,
+    repair_action: dict[str, Any],
     outcome: str
 ) -> IncidentMemory | None:
     """Embeds the incident context and saves it to the knowledge base."""

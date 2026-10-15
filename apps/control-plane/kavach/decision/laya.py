@@ -42,7 +42,7 @@ def refit_temperature(
     temp = calibration_map.get((question_type, option_count), 1.0)
     # Calibrated confidence is raw confidence scaled by temperature
     calibrated = min(1.0, raw_confidence ** (1.0 / temp))
-    return calibrated
+    return float(calibrated)
 
 
 @lru_cache(maxsize=1)

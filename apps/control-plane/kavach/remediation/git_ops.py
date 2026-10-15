@@ -1,5 +1,6 @@
-import subprocess
 import os
+import subprocess
+
 
 class GitOpsAdapter:
     def __init__(self, repo_path: str | None = None):

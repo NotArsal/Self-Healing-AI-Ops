@@ -1,9 +1,9 @@
-import pytest
-from kavach.scenarios.schema import Scenario, TriggerDef, ServiceDef
 from kavach.graph.state import IncidentState
 from kavach.graph.workflow import build_workflow
+from kavach.scenarios.schema import Scenario, ServiceDef
 
-def test_unknown_failure_loop():
+
+def test_unknown_failure_loop() -> None:
     workflow = build_workflow()
     
     scenario = Scenario(

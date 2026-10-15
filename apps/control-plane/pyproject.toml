@@ -57,3 +57,11 @@ target-version = "py312"
 
 [tool.mypy]
 strict = true
+
+# Neither ships type information: laya has no py.typed marker, and pandas-stubs
+# is a separate package this project does not depend on. Everything these two
+# return is treated as Any, so call sites that cross a module boundary with it
+# annotate explicitly.
+[[tool.mypy.overrides]]
+module = ["laya", "laya.*", "pandas", "pandas.*"]
+ignore_missing_imports = true

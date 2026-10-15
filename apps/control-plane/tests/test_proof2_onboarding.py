@@ -14,7 +14,7 @@ from kavach.scenarios.schema import (
 )
 
 
-def test_proof2_preflight_and_heal(monkeypatch: pytest.MonkeyPatch):
+def test_proof2_preflight_and_heal(monkeypatch: pytest.MonkeyPatch) -> None:
     # 1. Read kavach.yaml
     kavach_path = os.path.join(
         os.path.dirname(__file__), "../../../targets/proof2/kavach.yaml"

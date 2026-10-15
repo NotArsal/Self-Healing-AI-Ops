@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+
 import httpx
 from pydantic_settings import BaseSettings
 
@@ -14,7 +14,7 @@ class EmbeddingSettings(BaseSettings):
 
 settings = EmbeddingSettings()
 
-async def generate_embedding(text: str) -> Optional[list[float]]:
+async def generate_embedding(text: str) -> list[float] | None:
     """Generates a vector embedding for the given text using Ollama."""
     url = f"{settings.ollama_base_url}/api/embeddings"
     payload = {
@@ -27,7 +27,8 @@ async def generate_embedding(text: str) -> Optional[list[float]]:
             response = await client.post(url, json=payload)
             response.raise_for_status()
             data = response.json()
-            return data.get("embedding")
+            embedding = data.get("embedding")
+            return list(embedding) if embedding is not None else None
     except Exception as e:
         logger.error(f"Failed to generate embedding: {e}")
         return None

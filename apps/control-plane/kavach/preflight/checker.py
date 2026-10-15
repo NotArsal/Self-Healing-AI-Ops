@@ -17,6 +17,7 @@ Checks needing the filesystem or the network require `manifest_path`. Without it
 rather than inventing a result.
 """
 
+import logging
 import socket
 import subprocess
 from pathlib import Path
@@ -209,8 +210,11 @@ class PreflightChecker:
             if self.manifest and self.manifest.dependencies:
                 dependencies = [d.name for d in self.manifest.dependencies]
             resolve_dependencies_at_onboarding(dependencies)
-        except Exception:
-            pass  # Non-fatal
+        except Exception as e:
+            # Non-fatal: a documentation lookup must never block onboarding.
+            logging.getLogger(__name__).warning(
+                "Context7 dependency resolution skipped: %s", e
+            )
 
         self.report.determine_level()
         return self.report
@@ -274,7 +278,9 @@ class PreflightChecker:
             if not repo.exists():
                 self.report.add(
                     CheckResult(
-                        "P02", False, f"reversible_state '{name}' path missing: {repo}",
+                        "P02",
+                        False,
+                        f"reversible_state '{name}' path missing: {repo}",
                         "Create the declared path or correct it in kavach.yaml.",
                     )
                 )
@@ -284,7 +290,9 @@ class PreflightChecker:
                 if rev.returncode != 0:
                     self.report.add(
                         CheckResult(
-                            "P02", False, f"{repo} is not inside a git worktree",
+                            "P02",
+                            False,
+                            f"{repo} is not inside a git worktree",
                             "Run `git init` in the declared reversible_state path.",
                         )
                     )
@@ -297,7 +305,9 @@ class PreflightChecker:
                 n = len(dirty.stdout.strip().splitlines())
                 self.report.add(
                     CheckResult(
-                        "P02", False, f"{repo} has {n} uncommitted change(s)",
+                        "P02",
+                        False,
+                        f"{repo} has {n} uncommitted change(s)",
                         "Commit or stash the worktree; Kavach will not write over "
                         "uncommitted work.",
                     )
@@ -311,7 +321,9 @@ class PreflightChecker:
         """P03: kavach/ops branch creatable"""
         states = self._git_states()
         if not states:
-            self.report.add(CheckResult("P03", True, "No git reversible states declared."))
+            self.report.add(
+                CheckResult("P03", True, "No git reversible states declared.")
+            )
             return
         if self.manifest_path is None:
             self._unverified("P03")
@@ -327,7 +339,9 @@ class PreflightChecker:
             if head.returncode != 0:
                 self.report.add(
                     CheckResult(
-                        "P03", False, f"{repo} has no commits to branch from",
+                        "P03",
+                        False,
+                        f"{repo} has no commits to branch from",
                         "Make an initial commit so kavach/ops can be created.",
                     )
                 )
@@ -359,7 +373,9 @@ class PreflightChecker:
         if unreachable:
             self.report.add(
                 CheckResult(
-                    "P04", False, f"Services not reachable: {', '.join(unreachable)}",
+                    "P04",
+                    False,
+                    f"Services not reachable: {', '.join(unreachable)}",
                     "Start the application before onboarding; Kavach cannot "
                     "baseline or protect what it cannot reach.",
                 )
@@ -374,7 +390,8 @@ class PreflightChecker:
             return
         self.report.add(
             CheckResult(
-                "P04", True,
+                "P04",
+                True,
                 f"All {len(self.manifest.services)} declared service(s) accepted a "
                 "connection.",
             )
@@ -387,7 +404,8 @@ class PreflightChecker:
         if missing:
             self.report.add(
                 CheckResult(
-                    "P05", False,
+                    "P05",
+                    False,
                     f"Services missing health endpoints: {', '.join(missing)}",
                     "Add health endpoints to all declared services.",
                 )
@@ -407,7 +425,8 @@ class PreflightChecker:
         if unhealthy:
             self.report.add(
                 CheckResult(
-                    "P05", False,
+                    "P05",
+                    False,
                     f"Health endpoints did not respond as declared: "
                     f"{', '.join(unhealthy)}",
                     "Fix the service or correct expect_status in kavach.yaml.",
@@ -422,8 +441,12 @@ class PreflightChecker:
             )
             return
         self.report.add(
-            CheckResult("P05", True, f"All {len(results)} health endpoint(s) responded "
-                                     "with their declared status.")
+            CheckResult(
+                "P05",
+                True,
+                f"All {len(results)} health endpoint(s) responded "
+                "with their declared status.",
+            )
         )
 
     def _check_p06(self) -> None:
@@ -432,7 +455,9 @@ class PreflightChecker:
         if not self.manifest.quality:
             self.report.add(
                 CheckResult(
-                    "P06", False, "Quality configuration missing.",
+                    "P06",
+                    False,
+                    "Quality configuration missing.",
                     "Add a quality section to kavach.yaml",
                 )
             )
@@ -440,7 +465,9 @@ class PreflightChecker:
         if self.manifest.quality.min_cases < 20:
             self.report.add(
                 CheckResult(
-                    "P06", False, f"min_cases {self.manifest.quality.min_cases} < 20",
+                    "P06",
+                    False,
+                    f"min_cases {self.manifest.quality.min_cases} < 20",
                     "Increase min_cases in golden_set to at least 20 to reduce noise.",
                 )
             )
@@ -462,14 +489,17 @@ class PreflightChecker:
         except LiveProbeError as e:
             self.report.add(
                 CheckResult(
-                    "P06", False, f"Golden set did not run: {e}",
+                    "P06",
+                    False,
+                    f"Golden set did not run: {e}",
                     "Fix the golden_set path, min_cases or the runner target.",
                 )
             )
             return
         self.report.add(
             CheckResult(
-                "P06", True,
+                "P06",
+                True,
                 f"Golden set ran against the application; pass rate {rate:.3f}.",
             )
         )
@@ -480,7 +510,9 @@ class PreflightChecker:
         if not self.manifest.objectives:
             self.report.add(
                 CheckResult(
-                    "P07", False, "Objectives missing.",
+                    "P07",
+                    False,
+                    "Objectives missing.",
                     "Declare at least one availability and one quality objective.",
                 )
             )
@@ -491,7 +523,8 @@ class PreflightChecker:
         if not has_avail or not has_qual:
             self.report.add(
                 CheckResult(
-                    "P07", False,
+                    "P07",
+                    False,
                     f"Missing required objectives: Availability={has_avail}, "
                     f"Quality={has_qual}",
                     "Declare at least one availability and one quality objective to "
@@ -517,7 +550,9 @@ class PreflightChecker:
         except LiveProbeError as e:
             self.report.add(
                 CheckResult(
-                    "P07", False, f"Declared objectives could not be measured: {e}",
+                    "P07",
+                    False,
+                    f"Declared objectives could not be measured: {e}",
                     "Fix the runner or health targets the objectives are probed "
                     "through.",
                 )
@@ -537,7 +572,9 @@ class PreflightChecker:
             return
         pretty = ", ".join(f"{k}={v:.3f}" for k, v in sorted(measured.items()))
         self.report.add(
-            CheckResult("P07", True, f"Every declared objective returned a value ({pretty}).")
+            CheckResult(
+                "P07", True, f"Every declared objective returned a value ({pretty})."
+            )
         )
 
     def _check_p08(self) -> None:
@@ -546,7 +583,9 @@ class PreflightChecker:
         if not self.manifest.reversible_state:
             self.report.add(
                 CheckResult(
-                    "P08", False, "No reversible state declared.",
+                    "P08",
+                    False,
+                    "No reversible state declared.",
                     "Declare at least one reversible state path.",
                 )
             )
@@ -571,7 +610,8 @@ class PreflightChecker:
         if failures:
             self.report.add(
                 CheckResult(
-                    "P08", False,
+                    "P08",
+                    False,
                     "Reversible state could not be read: " + "; ".join(failures),
                     "Fix the read endpoint and field, per CONTRACT.md 6.1.",
                 )
@@ -580,24 +620,35 @@ class PreflightChecker:
         if unprobeable:
             self._unverified(
                 "P08",
-                (f"not verified: read {', '.join(read_ok)}; " if read_ok else
-                 "not verified: ")
+                (
+                    f"not verified: read {', '.join(read_ok)}; "
+                    if read_ok
+                    else "not verified: "
+                )
                 + f"these kinds are not probed at onboarding because doing so "
                 f"would mutate the application: {', '.join(unprobeable)}",
             )
             return
         self.report.add(
-            CheckResult("P08", True, f"Reversible state readable: {', '.join(read_ok)}.")
+            CheckResult(
+                "P08", True, f"Reversible state readable: {', '.join(read_ok)}."
+            )
         )
 
     def _check_p09(self) -> None:
         """P09: Every allowed action has an adapter and a working inverse"""
         assert self.manifest is not None
-        allowed = self.manifest.permissions.allowed_actions if self.manifest.permissions else []
+        allowed = (
+            self.manifest.permissions.allowed_actions
+            if self.manifest.permissions
+            else []
+        )
         if not allowed:
             self.report.add(
                 CheckResult(
-                    "P09", False, "No allowed actions declared.",
+                    "P09",
+                    False,
+                    "No allowed actions declared.",
                     "Add allowed_actions to permissions.",
                 )
             )
@@ -611,7 +662,9 @@ class PreflightChecker:
             act = catalogue.actions.get(name)
             if act is None:
                 unknown.append(name)
-            elif act.inverse.name != "noop" and act.inverse.name not in catalogue.actions:
+            elif (
+                act.inverse.name != "noop" and act.inverse.name not in catalogue.actions
+            ):
                 no_inverse.append(f"{name} -> {act.inverse.name}")
 
         if unknown or no_inverse:
@@ -622,7 +675,9 @@ class PreflightChecker:
                 parts.append(f"inverse not registered: {', '.join(no_inverse)}")
             self.report.add(
                 CheckResult(
-                    "P09", False, "; ".join(parts),
+                    "P09",
+                    False,
+                    "; ".join(parts),
                     "Remove the action from allowed_actions, or add it to the "
                     "catalogue with a working inverse.",
                 )
@@ -630,7 +685,8 @@ class PreflightChecker:
             return
         self.report.add(
             CheckResult(
-                "P09", True,
+                "P09",
+                True,
                 f"All {len(allowed)} allowed action(s) resolve to a catalogue adapter "
                 "with a registered inverse.",
             )
@@ -640,7 +696,9 @@ class PreflightChecker:
         """P10: No allowed action targets a forbidden_services entry"""
         assert self.manifest is not None
         forbidden = (
-            self.manifest.permissions.forbidden_services if self.manifest.permissions else []
+            self.manifest.permissions.forbidden_services
+            if self.manifest.permissions
+            else []
         )
         if not forbidden:
             self.report.add(CheckResult("P10", True, "No forbidden services declared."))
@@ -661,7 +719,9 @@ class PreflightChecker:
         if not self.manifest.telemetry:
             self.report.add(
                 CheckResult(
-                    "P11", False, "Telemetry configuration missing.",
+                    "P11",
+                    False,
+                    "Telemetry configuration missing.",
                     "Declare telemetry configuration with otlp_endpoint.",
                 )
             )
@@ -670,7 +730,8 @@ class PreflightChecker:
         if not host:
             self.report.add(
                 CheckResult(
-                    "P11", False,
+                    "P11",
+                    False,
                     f"otlp_endpoint has no host: {self.manifest.telemetry.otlp_endpoint}",
                     "Give otlp_endpoint a host:port or a URL.",
                 )
@@ -679,22 +740,31 @@ class PreflightChecker:
         if not _tcp_reachable(host, port):
             self.report.add(
                 CheckResult(
-                    "P11", False, f"OTLP endpoint {host}:{port} refused a connection",
+                    "P11",
+                    False,
+                    f"OTLP endpoint {host}:{port} refused a connection",
                     "Start the collector, or correct otlp_endpoint.",
                 )
             )
             return
         self.report.add(
-            CheckResult("P11", True, f"OTLP endpoint {host}:{port} accepted a connection.")
+            CheckResult(
+                "P11", True, f"OTLP endpoint {host}:{port} accepted a connection."
+            )
         )
 
     def _check_p12(self) -> None:
         """P12: Required GenAI attributes present on a real span"""
         assert self.manifest is not None
-        if not self.manifest.telemetry or not self.manifest.telemetry.genai_instrumented:
+        if (
+            not self.manifest.telemetry
+            or not self.manifest.telemetry.genai_instrumented
+        ):
             self.report.add(
                 CheckResult(
-                    "P12", False, "genai_instrumented is false or missing.",
+                    "P12",
+                    False,
+                    "genai_instrumented is false or missing.",
                     "Ensure the application has GenAI-level OTLP instrumentation.",
                 )
             )
@@ -704,7 +774,9 @@ class PreflightChecker:
         # there is no ingestion route, and ARCHITECTURE.md 2.3's GenAI
         # normalisation is unbuilt. This check cannot pass until it exists, and
         # saying so is the only honest outcome.
-        required = ", ".join(self.manifest.telemetry.required_attributes) or "none declared"
+        required = (
+            ", ".join(self.manifest.telemetry.required_attributes) or "none declared"
+        )
         self._unverified(
             "P12",
             "not verified: the manifest declares genai_instrumented with required "
@@ -720,7 +792,8 @@ class PreflightChecker:
         if not (self.manifest.objectives and self.manifest.reversible_state):
             self.report.add(
                 CheckResult(
-                    "P13", False,
+                    "P13",
+                    False,
                     "Cannot capture baseline without objectives and reversible_state.",
                     "Ensure objectives and reversible_state are defined.",
                 )
@@ -736,7 +809,9 @@ class PreflightChecker:
         if not baseline:
             self.report.add(
                 CheckResult(
-                    "P13", False, "No healthy baseline has been captured.",
+                    "P13",
+                    False,
+                    "No healthy baseline has been captured.",
                     "Run `make onboard APP=<app>` with the application healthy; "
                     "without a baseline a degraded repair is scored against the "
                     "outage it replaced and looks like an improvement.",
@@ -744,7 +819,9 @@ class PreflightChecker:
             )
             return
         pretty = ", ".join(f"{k}={v:.3f}" for k, v in sorted(baseline.items()))
-        self.report.add(CheckResult("P13", True, f"Healthy baseline on file ({pretty})."))
+        self.report.add(
+            CheckResult("P13", True, f"Healthy baseline on file ({pretty}).")
+        )
 
     def _check_p14(self) -> None:
         """P14: Exclude unsupported faults based on application roles"""
@@ -758,7 +835,9 @@ class PreflightChecker:
 
         excluded_faults = []
         for f_class, f_def in full_catalogue.faults.items():
-            if f_def.applies_to_roles and not set(f_def.applies_to_roles).intersection(app_roles):
+            if f_def.applies_to_roles and not set(f_def.applies_to_roles).intersection(
+                app_roles
+            ):
                 req_roles = ", ".join(f_def.applies_to_roles)
                 excluded_faults.append(f"{f_class} (requires {req_roles})")
 

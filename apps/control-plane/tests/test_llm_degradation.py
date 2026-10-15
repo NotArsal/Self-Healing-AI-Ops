@@ -2,7 +2,7 @@ from kavach.llm.rca import RCAResponse, analyze_root_cause
 from kavach.scenarios.loader import load_scenario
 
 
-def test_llm_degradation(monkeypatch):
+def test_llm_degradation(monkeypatch) -> None:
     scenario = load_scenario("F01")
     call_counts = {"primary": 0, "fallback": 0}
     

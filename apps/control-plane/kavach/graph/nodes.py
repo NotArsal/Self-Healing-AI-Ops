@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Callable
 from typing import Any
 
@@ -31,7 +32,7 @@ def diagnose_node(state: IncidentState) -> IncidentState:
     from kavach.scenarios.schema import EvidenceItem
 
     scenario = state["scenario"]
-    
+
     # Retrieve past incidents as evidence
     query_text = describe_incident(scenario, scenario.fault_class)
 
@@ -40,8 +41,7 @@ def diagnose_node(state: IncidentState) -> IncidentState:
             async with get_db_session() as session:
                 return await retrieve_similar_incidents(session, query_text)
         except Exception as e:
-            import logging
-            logging.warning(f"Failed to query knowledge base: {e}")
+            logging.getLogger(__name__).warning("Failed to query knowledge base: %s", e)
             return []
 
     try:
@@ -87,7 +87,7 @@ def diagnose_node(state: IncidentState) -> IncidentState:
         if scenario.services:
             app_roles = {s.role for s in scenario.services.values()}
         diagnosis = analyze_root_cause(scenario, app_roles=app_roles)
-        
+
     return {"diagnosis": diagnosis, "fault_class": diagnosis.fault_class}
 
 
@@ -167,29 +167,35 @@ def gate_node(state: IncidentState) -> IncidentState:
         return verdict
 
     if loop_count >= 4:
-        return audited({
-            "loop_count": loop_count,
-            "gate_verdict": "DENY",
-            "gate_reason": "CIRCUIT_BREAKER_TRIPPED",
-            "approved_actions": [],
-        })
+        return audited(
+            {
+                "loop_count": loop_count,
+                "gate_verdict": "DENY",
+                "gate_reason": "CIRCUIT_BREAKER_TRIPPED",
+                "approved_actions": [],
+            }
+        )
 
     plan = state.get("plan", [])
     if len(plan) > 2:
-        return audited({
-            "loop_count": loop_count,
-            "gate_verdict": "DENY",
-            "gate_reason": "BLAST_RADIUS_EXCEEDED",
-            "approved_actions": [],
-        })
+        return audited(
+            {
+                "loop_count": loop_count,
+                "gate_verdict": "DENY",
+                "gate_reason": "BLAST_RADIUS_EXCEEDED",
+                "approved_actions": [],
+            }
+        )
 
     if not plan:
-        return audited({
-            "loop_count": loop_count,
-            "gate_verdict": "DENY",
-            "gate_reason": "EMPTY_PLAN",
-            "approved_actions": [],
-        })
+        return audited(
+            {
+                "loop_count": loop_count,
+                "gate_verdict": "DENY",
+                "gate_reason": "EMPTY_PLAN",
+                "approved_actions": [],
+            }
+        )
 
     incident_history = list(get_all_incidents().values())
 
@@ -207,12 +213,14 @@ def gate_node(state: IncidentState) -> IncidentState:
         if permit_res.is_allowed:
             approved.append(action)
         else:
-            return audited({
-                "loop_count": loop_count,
-                "gate_verdict": "DENY",
-                "gate_reason": permit_res.reason,
-                "approved_actions": [],
-            })
+            return audited(
+                {
+                    "loop_count": loop_count,
+                    "gate_verdict": "DENY",
+                    "gate_reason": permit_res.reason,
+                    "approved_actions": [],
+                }
+            )
 
     # Mode policy (ARCHITECTURE.md 8, PRD F-MODE). This runs only after the
     # allow-list, forbidden-services, breaker and blast-radius checks above have
@@ -406,18 +414,24 @@ def execute_node(state: IncidentState) -> IncidentState:
             undo_records.append(record)
         elif action.name in ["rollback_prompt", "rollforward_prompt"]:
             from kavach.remediation.git_ops import GitOpsAdapter
-            
+
             git_adapter = GitOpsAdapter()
             if mode != "SIMULATION":
                 git_adapter.checkout_ops_branch()
-                
+
                 # Mock file modification for F07
                 prompt_file = "prompts.yaml"
-                version = action.params.get("target_version") or action.params.get("version") or "unknown"
+                version = (
+                    action.params.get("target_version")
+                    or action.params.get("version")
+                    or "unknown"
+                )
                 with open(prompt_file, "w") as f:
                     f.write(f"version: {version}\n")
-                    
-                git_adapter.commit_changes(prompt_file, f"Execute {action.name} to {version}")
+
+                git_adapter.commit_changes(
+                    prompt_file, f"Execute {action.name} to {version}"
+                )
 
             # Still mutate simulation state
             record = execute_action(action, sim_state)
@@ -546,19 +560,26 @@ def unwind_node(state: IncidentState) -> IncidentState:
                 if not revert_effect(effect, record, rs_def, mode):
                     unrestored.append(effect.key)
                 continue
-            
-            if record.original_action.name in ["rollback_prompt", "rollforward_prompt"] and mode != "SIMULATION":
+
+            if (
+                record.original_action.name in ["rollback_prompt", "rollforward_prompt"]
+                and mode != "SIMULATION"
+            ):
                 from kavach.remediation.git_ops import GitOpsAdapter
+
                 git_adapter = GitOpsAdapter()
                 git_adapter.checkout_ops_branch()
-                
+
                 # Undo file modification
                 prompt_file = "prompts.yaml"
                 version = record.pre_state_witness.get("prompt_version", "unknown")
                 with open(prompt_file, "w") as f:
                     f.write(f"version: {version}\n")
-                    
-                git_adapter.commit_changes(prompt_file, f"Undo {record.original_action.name} (Restored to {version})")
+
+                git_adapter.commit_changes(
+                    prompt_file,
+                    f"Undo {record.original_action.name} (Restored to {version})",
+                )
 
             # The inverse runs first and the witness goes on top of it. The
             # witness is the prior state captured as data, so it has the last
@@ -596,14 +617,18 @@ def unwind_node(state: IncidentState) -> IncidentState:
 
 def outcome_node(state: IncidentState) -> IncidentState:
     import asyncio
-    
+
     # Check if we bypassed planning due to low confidence
     def audited_outcome(outcome: str, **extra: object) -> IncidentState:
         audit_record(
             event="outcome",
             actor="kavach.graph",
             incident_id=state.get("incident_id"),
-            payload={"outcome": outcome, "mode": state.get("mode") or "SIMULATION", **extra},
+            payload={
+                "outcome": outcome,
+                "mode": state.get("mode") or "SIMULATION",
+                **extra,
+            },
         )
         return {"outcome": outcome}
 
@@ -672,7 +697,7 @@ def outcome_node(state: IncidentState) -> IncidentState:
                     if isinstance(raw_debt, DebtItemDef)
                     else DebtItemDef(**raw_debt)
                 )
-    
+
     # --- F-MEM: Save Incident Memory ---
     # Built outside the coroutine so a failure here surfaces rather than being
     # swallowed by the except below, which is what hid this path for so long.
@@ -699,20 +724,26 @@ def outcome_node(state: IncidentState) -> IncidentState:
                     symptoms=symptoms,
                     summary=f"Automated RCA identified {fault_class}. Outcome {outcome_str}.",
                     repair_action=repair_action_data,
-                    outcome=outcome_str
+                    outcome=outcome_str,
                 )
         except Exception as e:
-            import logging
-            logging.warning(f"Failed to save incident to knowledge base: {e}")
+            logging.getLogger(__name__).warning(
+                "Failed to save incident to knowledge base: %s", e
+            )
 
     try:
         asyncio.run(_save())
     except RuntimeError:
+        # Already inside a loop. The fallback can fail too, and a knowledge-base
+        # write that vanishes with no line in the log is how this path stayed
+        # broken for as long as it did.
         try:
             loop = asyncio.get_event_loop()
             loop.run_until_complete(_save())
-        except Exception:
-            pass
+        except Exception as e:
+            logging.getLogger(__name__).warning(
+                "incident memory not saved for %s: %s", incident_id, e
+            )
 
     audit_record(
         event="outcome",

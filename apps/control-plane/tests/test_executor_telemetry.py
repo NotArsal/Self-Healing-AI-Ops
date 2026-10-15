@@ -1,7 +1,7 @@
 from kavach.remediation.executor import execute_http
 
 
-def test_execute_http_injects_trace_headers(monkeypatch):
+def test_execute_http_injects_trace_headers(monkeypatch) -> None:
     # No safety stub: the executor no longer consults shadow Laya before acting.
     # permit() decided in gate_node, and Laya may not gate (AGENTS.md).
     captured_headers = {}

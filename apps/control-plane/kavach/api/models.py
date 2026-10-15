@@ -1,8 +1,15 @@
 from sqlalchemy import Column, DateTime, Integer, String, func
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import DeclarativeBase
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    """SQLAlchemy 2.0's declarative base.
+
+    `declarative_base()` returns a value, and mypy cannot use a value as a base
+    class, so every model here was an `Invalid base class` error. Same metadata,
+    same mapping; alembic reads Base.metadata either way.
+    """
 
 class RemediationDebt(Base):
     __tablename__ = "remediation_debt"
@@ -19,6 +26,7 @@ class RemediationDebt(Base):
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Text
+
 
 class IncidentMemory(Base):
     __tablename__ = "incident_memory"
