@@ -55,7 +55,7 @@ and the opposite of the "100% alignment" claimed in
 `PROJECT_COMPLETION_REPORT.md`.
 
 - permit() is the authority: Laya is shadow-only and cannot gate, so every disagreement is a Laya error rather than a tie.
-- Laya's risk tier is not scored: every fault loads as LOW because the per-fault catalogue files replace core.yaml's entries instead of merging, so the declared tiers are not usable as ground truth.
+- Laya's risk tier is reported, not scored. The declared tiers are LOW for seven faults and MEDIUM for two, and nine cases over two classes is too thin to call it agreement or disagreement.
 - Laya confidence is reported as returned. The checkpoint ships invalid temperatures (runtime warning on load), so treat it as uncalibrated.
 
 ---
@@ -67,27 +67,72 @@ with no answer key in the prompt.
 
 | Metric | Value | PRD target |
 |---|---|---|
-| RCA accuracy | **88.9%** | >= 75% |
-| Heal rate | 88.9% | >= 70% (LOW) |
+| RCA accuracy | **100.0%** | >= 75% |
+| Heal rate | 100.0% | >= 70% (LOW) |
 | P(heal \| correct dx) | 100.0% | — |
-| P(heal \| wrong dx) | **0.0%** | — |
+| P(heal \| wrong dx) | n/a — no wrong diagnoses occurred | — |
 | P(correct dx \| heal) | 100.0% | — |
-| Median loop | 2.23s | — |
+| Median loop | 3.58s | — |
 
-Outcomes: `{'MITIGATED': 40, 'ESCALATED': 5}`. Misdiagnoses: `{'F08->INSUFFICIENT_EVIDENCE': 5}`.
+Outcomes: `{'MITIGATED': 45}`. Misdiagnoses: `none`.
 
 PRD §11.1 warns that a headline resolution rate cannot evidence that RCA works,
 because published work shows mitigation succeeding on wrong diagnoses 22–62% of
-the time. Here it succeeds on a wrong diagnosis **0.0%** of the time, so the
-headline is not luck. Per-fault accuracy: `{'F01': 100.0, 'F02': 100.0, 'F03': 100.0, 'F04': 100.0, 'F05': 100.0, 'F06': 100.0, 'F07': 100.0, 'F08': 0.0, 'F09': 100.0}`.
+the time. Here it succeeds on a wrong diagnosis **n/a%** of the time. Per-fault
+accuracy: `{'F01': 100.0, 'F02': 100.0, 'F03': 100.0, 'F04': 100.0, 'F05': 100.0, 'F06': 100.0, 'F07': 100.0, 'F08': 100.0, 'F09': 100.0}`.
+
+**Read §3.1 before this table.** These nine scenarios each carry evidence that
+points at one catalogue entry, so they measure whether the model can read
+evidence that is there. They say nothing about what it does when the evidence
+does not identify a fault, and that turns out to be the more important question.
 
 - Simulated state: these scenarios are hand-authored YAML and run against Kavach's simulated state, so verification is derived from declared thresholds rather than measured. Only F01-against-proof2 is a live measurement. Treat these as RCA-engine numbers, not platform numbers.
 - No rules baseline: Phase 3's symptom mapping no longer exists and the catalogue carries a detect signal for F01, F03 and F07 only, so the LLM-vs-rules comparison PRD 11.2 asks for cannot be run.
-- F08 fails on every rep, answering INSUFFICIENT_EVIDENCE at confidence 0.3. Its scenario carries a config_errors signal and evidence sourced only from 'api', which does not distinguish a config regression from several other candidates. This is a gap in the evaluation set, not a model failure -- and the system failing closed (low confidence, escalate, take no action) is the designed behaviour.
+- F08's evidence was changed between runs. It previously carried one log line and no indication that the configuration had changed, so every rep answered INSUFFICIENT_EVIDENCE -- correctly, on evidence that distinguished nothing. It now surfaces the config_errors signal it already declared and the version change that preceded the errors. The instrument changed, so this run is not directly comparable with the 88.9% recorded before it; both are in git.
+- The fails-closed block is scored separately, against a scenario built to be undiagnosable. It is not in the accuracy denominator: a case whose correct answer is INSUFFICIENT_EVIDENCE would reward a model for refusing to answer anywhere.
 - Every heal reports MITIGATED because outcome_node can only emit MITIGATED or ESCALATED; RESOLVED appears nowhere in graph/nodes.py and is set only by debt repayment. The outcome distribution is partly structural.
 - Confidence is coerced: the model has been observed returning this field as both 1.0 and 100.0, so RCAResponse now treats a value in (1, 100] as a percentage and refuses anything further out of range. Raw values are not preserved here.
 - Shadow Laya stubbed; it cannot affect an outcome.
 - Cold memory: knowledge-base read and write are stubbed so reps stay independent. With memory live, a repeat of the same fault retrieves its own answer and accuracy is inflated.
+
+---
+
+## 3.1 Failing closed on ambiguous evidence — the finding that matters
+
+One scenario (`scenarios/FAMB.yaml`) is built so that no catalogue entry is
+identifiable: a degraded service, an 8% error ratio, raised latency, and a
+provider that is healthy. The correct answer is `INSUFFICIENT_EVIDENCE` and the
+correct action is none. It is scored separately and is not in the accuracy
+denominator above, because a case whose right answer is "I cannot tell" would
+reward a model for refusing everywhere.
+
+| Measured over 5 reps | Result |
+|---|---|
+| Answered `INSUFFICIENT_EVIDENCE` | **0/5** |
+| Took no action | **0/5** |
+| Guessed instead | `{'F02': 5}` |
+| Outcomes | `{'MITIGATED': 5}` |
+
+With 0/5 declining and 0/5 staying out of the
+application, the accuracy figure above does not transfer to ambiguity. The model
+answers with high confidence on evidence that does not support an answer, the
+confidence gate at 0.8 does not catch it because the confidence is not low, and
+the repair executes.
+
+The gate is not a substitute. An earlier run of this study used a narrower
+`allowed_actions` and the guessed repair was refused by the allow-list, which
+reads from the outside exactly like a system that declined to act. The
+permissions were widened to the repairs for the fault classes whose symptoms
+overlap, so that what is measured is the diagnosis rather than the allow-list.
+
+What would fix it is not a prompt change. The catalogue declares a `detect`
+signal per fault, and a diagnosis whose fault class has no corresponding signal
+in the incident's evidence is unsupported by construction -- a rules check the
+platform could apply to the model's answer before trusting it. That needs
+`detect` restored for all nine fault classes, which is the same work PRD §11.2's
+LLM-vs-rules baseline needs. One change, two open items; it is not attempted
+here because inventing those signals to make a check pass would be the same
+mistake as the prompt that handed over its own answer.
 
 ---
 
@@ -110,6 +155,7 @@ MTTR, and any speed-up factor quoted against one is invented.
 | Laya disagrees with the rule engine | **Measured**, real inference |
 | RCA accuracy | **Measured**, no answer key in the prompt |
 | P(heal \| wrong diagnosis) | **Measured** |
+| Declines to act on ambiguous evidence | **No** — measured 0/5; see §3.1 |
 | LLM vs rules baseline | **Unavailable** — P3's mapping is gone; `detect` survives for F01, F03, F07 only |
 | Human baseline | **Not run** |
 | F02–F09 behaviour | Simulated state; verification derived from thresholds, not measured |

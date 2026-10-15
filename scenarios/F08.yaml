@@ -27,12 +27,30 @@ permissions:
   max_risk_tier: MEDIUM
 signals:
   config_errors: 100
+# The config_errors signal below was declared but never surfaced as evidence,
+# and nothing recorded that the configuration had just changed -- which is the
+# one fact that separates a config regression from a prompt regression, a code
+# regression or a dependency fault presenting the same way. Every rep answered
+# INSUFFICIENT_EVIDENCE, correctly, on evidence that distinguished nothing.
+# These are the facts a real config regression produces; the diagnosis still
+# has to be inferred from them.
 evidence:
   - id: ev-001
     kind: log
     source: api
     payload:
       message: "KeyError: missing feature toggle flag"
+  - id: ev-002
+    kind: metric
+    source: config_errors
+    value: 100
+  - id: ev-003
+    kind: state
+    source: api
+    payload:
+      config_version: v3.1
+      previous_config_version: v3.0
+      applied_s_before_first_error: 45
 state:
   config_health: regressed
   config_version: v3.1

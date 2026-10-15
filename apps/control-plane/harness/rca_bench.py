@@ -42,6 +42,14 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 FAULTS = [f"F0{i}" for i in range(1, 10)]
 HEALED = {"MITIGATED", "RESOLVED"}
 
+# A scenario built to be undiagnosable, scored separately from the nine so the
+# headline accuracy stays comparable with earlier runs. Answering
+# INSUFFICIENT_EVIDENCE and taking no action is the correct result, and every
+# other scenario in the set points at exactly one catalogue entry -- so a model
+# that always guessed something scored well and nothing caught it.
+AMBIGUOUS = "FAMB"
+NO_DIAGNOSIS = "INSUFFICIENT_EVIDENCE"
+
 
 @dataclass
 class Injection:
@@ -56,7 +64,8 @@ class Injection:
     duration_s: float
 
 
-def _run_one(fault: str, rep: int) -> Injection:
+def _run_one(fault: str, rep: int, expected: str | None = None) -> Injection:
+    expected = expected or fault
     scenario = load_scenario(fault)
     sim_state = scenario.state.copy() if scenario.state else {}
 
@@ -105,7 +114,7 @@ def _run_one(fault: str, rep: int) -> Injection:
         diagnosed=diagnosed,
         diagnosed_raw=raw,
         confidence=round(confidence, 3),
-        diagnosis_correct=diagnosed == fault,
+        diagnosis_correct=diagnosed == expected,
         outcome=outcome,
         healed=outcome in HEALED,
         duration_s=round(duration, 2),
@@ -144,6 +153,21 @@ def main() -> int:
             json.dumps([asdict(x) for x in runs], indent=2), encoding="utf-8"
         )
 
+    # The fails-closed study. Reported on its own: a case whose correct answer
+    # is "I cannot tell" does not belong in an accuracy denominator, and its
+    # outcome is correct precisely when nothing healed.
+    print(f"\nFails-closed: {args.reps} reps of an undiagnosable scenario")
+    closed: list[Injection] = []
+    for rep in range(1, args.reps + 1):
+        r = _run_one(AMBIGUOUS, rep, expected=NO_DIAGNOSIS)
+        closed.append(r)
+        print(
+            f"  [{AMBIGUOUS} rep {r.rep}] dx={r.diagnosed:<22} conf={r.confidence:<5} "
+            f"{'correct' if r.diagnosis_correct else 'GUESSED':<7} "
+            f"outcome={r.outcome:<11} ({r.duration_s}s)",
+            flush=True,
+        )
+
     correct = [r for r in runs if r.diagnosis_correct]
     wrong = [r for r in runs if not r.diagnosis_correct]
     healed = [r for r in runs if r.healed]
@@ -159,6 +183,17 @@ def main() -> int:
             sum(1 for r in healed if r.diagnosis_correct), len(healed)
         ),
         "median_loop_s": statistics.median(r.duration_s for r in runs) if runs else None,
+        "fails_closed": {
+            "reps": len(closed),
+            "answered_insufficient_evidence": sum(
+                1 for r in closed if r.diagnosed == NO_DIAGNOSIS
+            ),
+            "took_no_action": sum(1 for r in closed if not r.healed),
+            "guesses": dict(
+                Counter(r.diagnosed for r in closed if r.diagnosed != NO_DIAGNOSIS)
+            ),
+            "outcomes": dict(Counter(r.outcome for r in closed)),
+        },
         "per_fault_accuracy_pct": {
             f: _pct(
                 sum(1 for r in runs if r.fault == f and r.diagnosis_correct),
@@ -182,13 +217,19 @@ def main() -> int:
                 "so the LLM-vs-rules comparison PRD 11.2 asks for cannot be run."
             ),
             (
-                "F08 fails on every rep, answering INSUFFICIENT_EVIDENCE at "
-                "confidence 0.3. Its scenario carries a config_errors signal and "
-                "evidence sourced only from 'api', which does not distinguish a "
-                "config regression from several other candidates. This is a gap in "
-                "the evaluation set, not a model failure -- and the system failing "
-                "closed (low confidence, escalate, take no action) is the designed "
-                "behaviour."
+                "F08's evidence was changed between runs. It previously carried one "
+                "log line and no indication that the configuration had changed, so "
+                "every rep answered INSUFFICIENT_EVIDENCE -- correctly, on evidence "
+                "that distinguished nothing. It now surfaces the config_errors "
+                "signal it already declared and the version change that preceded "
+                "the errors. The instrument changed, so this run is not directly "
+                "comparable with the 88.9% recorded before it; both are in git."
+            ),
+            (
+                "The fails-closed block is scored separately, against a scenario "
+                "built to be undiagnosable. It is not in the accuracy denominator: "
+                "a case whose correct answer is INSUFFICIENT_EVIDENCE would reward "
+                "a model for refusing to answer anywhere."
             ),
             (
                 "Every heal reports MITIGATED because outcome_node can only emit "
@@ -220,10 +261,24 @@ def main() -> int:
     print(f"outcomes                {summary['outcomes']}")
     if summary["misdiagnoses"]:
         print(f"misdiagnoses            {summary['misdiagnoses']}")
+    fc = summary["fails_closed"]
+    print(
+        f"fails closed            {fc['answered_insufficient_evidence']}/{fc['reps']} "
+        f"said INSUFFICIENT_EVIDENCE, {fc['took_no_action']}/{fc['reps']} took no action"
+    )
+    if fc["guesses"]:
+        print(f"  guessed instead       {fc['guesses']}")
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(
-        json.dumps({"summary": summary, "runs": [asdict(r) for r in runs]}, indent=2),
+        json.dumps(
+            {
+                "summary": summary,
+                "runs": [asdict(r) for r in runs],
+                "fails_closed_runs": [asdict(r) for r in closed],
+            },
+            indent=2,
+        ),
         encoding="utf-8",
     )
     print(f"wrote {args.out}")

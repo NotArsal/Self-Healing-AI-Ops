@@ -1,12 +1,23 @@
 {
   "summary": {
     "injections": 45,
-    "rca_accuracy_pct": 88.9,
-    "heal_rate_pct": 88.9,
+    "rca_accuracy_pct": 100.0,
+    "heal_rate_pct": 100.0,
     "p_heal_given_correct_dx_pct": 100.0,
-    "p_heal_given_wrong_dx_pct": 0.0,
+    "p_heal_given_wrong_dx_pct": null,
     "p_correct_dx_given_heal_pct": 100.0,
-    "median_loop_s": 2.23,
+    "median_loop_s": 3.58,
+    "fails_closed": {
+      "reps": 5,
+      "answered_insufficient_evidence": 0,
+      "took_no_action": 0,
+      "guesses": {
+        "F02": 5
+      },
+      "outcomes": {
+        "MITIGATED": 5
+      }
+    },
     "per_fault_accuracy_pct": {
       "F01": 100.0,
       "F02": 100.0,
@@ -15,20 +26,18 @@
       "F05": 100.0,
       "F06": 100.0,
       "F07": 100.0,
-      "F08": 0.0,
+      "F08": 100.0,
       "F09": 100.0
     },
     "outcomes": {
-      "MITIGATED": 40,
-      "ESCALATED": 5
+      "MITIGATED": 45
     },
-    "misdiagnoses": {
-      "F08->INSUFFICIENT_EVIDENCE": 5
-    },
+    "misdiagnoses": {},
     "caveats": [
       "Simulated state: these scenarios are hand-authored YAML and run against Kavach's simulated state, so verification is derived from declared thresholds rather than measured. Only F01-against-proof2 is a live measurement. Treat these as RCA-engine numbers, not platform numbers.",
       "No rules baseline: Phase 3's symptom mapping no longer exists and the catalogue carries a detect signal for F01, F03 and F07 only, so the LLM-vs-rules comparison PRD 11.2 asks for cannot be run.",
-      "F08 fails on every rep, answering INSUFFICIENT_EVIDENCE at confidence 0.3. Its scenario carries a config_errors signal and evidence sourced only from 'api', which does not distinguish a config regression from several other candidates. This is a gap in the evaluation set, not a model failure -- and the system failing closed (low confidence, escalate, take no action) is the designed behaviour.",
+      "F08's evidence was changed between runs. It previously carried one log line and no indication that the configuration had changed, so every rep answered INSUFFICIENT_EVIDENCE -- correctly, on evidence that distinguished nothing. It now surfaces the config_errors signal it already declared and the version change that preceded the errors. The instrument changed, so this run is not directly comparable with the 88.9% recorded before it; both are in git.",
+      "The fails-closed block is scored separately, against a scenario built to be undiagnosable. It is not in the accuracy denominator: a case whose correct answer is INSUFFICIENT_EVIDENCE would reward a model for refusing to answer anywhere.",
       "Every heal reports MITIGATED because outcome_node can only emit MITIGATED or ESCALATED; RESOLVED appears nowhere in graph/nodes.py and is set only by debt repayment. The outcome distribution is partly structural.",
       "Confidence is coerced: the model has been observed returning this field as both 1.0 and 100.0, so RCAResponse now treats a value in (1, 100] as a percentage and refuses anything further out of range. Raw values are not preserved here.",
       "Shadow Laya stubbed; it cannot affect an outcome.",
@@ -41,55 +50,55 @@
       "rep": 1,
       "diagnosed": "F01",
       "diagnosed_raw": "F01",
-      "confidence": 0.95,
+      "confidence": 1.0,
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 22.86
+      "duration_s": 6.36
     },
     {
       "fault": "F01",
       "rep": 2,
       "diagnosed": "F01",
       "diagnosed_raw": "F01",
-      "confidence": 0.95,
+      "confidence": 1.0,
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.2
+      "duration_s": 3.4
     },
     {
       "fault": "F01",
       "rep": 3,
       "diagnosed": "F01",
       "diagnosed_raw": "F01",
-      "confidence": 0.95,
+      "confidence": 1.0,
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.24
+      "duration_s": 3.26
     },
     {
       "fault": "F01",
       "rep": 4,
       "diagnosed": "F01",
       "diagnosed_raw": "F01",
-      "confidence": 0.95,
+      "confidence": 1.0,
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.15
+      "duration_s": 2.85
     },
     {
       "fault": "F01",
       "rep": 5,
       "diagnosed": "F01",
       "diagnosed_raw": "F01",
-      "confidence": 0.95,
+      "confidence": 1.0,
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.16
+      "duration_s": 3.45
     },
     {
       "fault": "F02",
@@ -100,7 +109,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.5
+      "duration_s": 3.6
     },
     {
       "fault": "F02",
@@ -111,7 +120,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.2
+      "duration_s": 3.02
     },
     {
       "fault": "F02",
@@ -122,7 +131,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.26
+      "duration_s": 2.97
     },
     {
       "fault": "F02",
@@ -133,7 +142,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.23
+      "duration_s": 3.12
     },
     {
       "fault": "F02",
@@ -144,7 +153,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.21
+      "duration_s": 3.03
     },
     {
       "fault": "F03",
@@ -155,7 +164,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.71
+      "duration_s": 3.61
     },
     {
       "fault": "F03",
@@ -166,7 +175,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.35
+      "duration_s": 3.92
     },
     {
       "fault": "F03",
@@ -177,7 +186,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.38
+      "duration_s": 4.54
     },
     {
       "fault": "F03",
@@ -188,7 +197,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.37
+      "duration_s": 3.34
     },
     {
       "fault": "F03",
@@ -199,7 +208,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.39
+      "duration_s": 3.56
     },
     {
       "fault": "F04",
@@ -210,7 +219,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.43
+      "duration_s": 2.91
     },
     {
       "fault": "F04",
@@ -221,7 +230,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.19
+      "duration_s": 3.08
     },
     {
       "fault": "F04",
@@ -232,7 +241,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.21
+      "duration_s": 3.46
     },
     {
       "fault": "F04",
@@ -243,7 +252,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.25
+      "duration_s": 3.37
     },
     {
       "fault": "F04",
@@ -254,7 +263,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.2
+      "duration_s": 2.85
     },
     {
       "fault": "F05",
@@ -265,7 +274,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.54
+      "duration_s": 3.82
     },
     {
       "fault": "F05",
@@ -276,7 +285,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.25
+      "duration_s": 3.59
     },
     {
       "fault": "F05",
@@ -287,7 +296,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.25
+      "duration_s": 2.94
     },
     {
       "fault": "F05",
@@ -298,7 +307,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.51
+      "duration_s": 3.5
     },
     {
       "fault": "F05",
@@ -309,7 +318,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.37
+      "duration_s": 3.06
     },
     {
       "fault": "F06",
@@ -320,7 +329,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.36
+      "duration_s": 3.56
     },
     {
       "fault": "F06",
@@ -331,7 +340,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.0
+      "duration_s": 3.71
     },
     {
       "fault": "F06",
@@ -342,7 +351,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.0
+      "duration_s": 3.91
     },
     {
       "fault": "F06",
@@ -353,7 +362,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.03
+      "duration_s": 4.51
     },
     {
       "fault": "F06",
@@ -364,7 +373,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.21
+      "duration_s": 3.74
     },
     {
       "fault": "F07",
@@ -375,7 +384,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.21
+      "duration_s": 3.78
     },
     {
       "fault": "F07",
@@ -386,7 +395,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.23
+      "duration_s": 3.6
     },
     {
       "fault": "F07",
@@ -397,7 +406,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.21
+      "duration_s": 3.4
     },
     {
       "fault": "F07",
@@ -408,7 +417,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.2
+      "duration_s": 3.65
     },
     {
       "fault": "F07",
@@ -419,62 +428,62 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.23
+      "duration_s": 4.11
     },
     {
       "fault": "F08",
       "rep": 1,
-      "diagnosed": "INSUFFICIENT_EVIDENCE",
-      "diagnosed_raw": "INSUFFICIENT_EVIDENCE",
-      "confidence": 0.3,
-      "diagnosis_correct": false,
-      "outcome": "ESCALATED",
-      "healed": false,
-      "duration_s": 1.45
+      "diagnosed": "F08",
+      "diagnosed_raw": "F08",
+      "confidence": 0.95,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.73
     },
     {
       "fault": "F08",
       "rep": 2,
-      "diagnosed": "INSUFFICIENT_EVIDENCE",
-      "diagnosed_raw": "INSUFFICIENT_EVIDENCE",
-      "confidence": 0.3,
-      "diagnosis_correct": false,
-      "outcome": "ESCALATED",
-      "healed": false,
-      "duration_s": 1.56
+      "diagnosed": "F08",
+      "diagnosed_raw": "F08",
+      "confidence": 0.95,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 4.37
     },
     {
       "fault": "F08",
       "rep": 3,
-      "diagnosed": "INSUFFICIENT_EVIDENCE",
-      "diagnosed_raw": "INSUFFICIENT_EVIDENCE",
-      "confidence": 0.3,
-      "diagnosis_correct": false,
-      "outcome": "ESCALATED",
-      "healed": false,
-      "duration_s": 1.41
+      "diagnosed": "F08",
+      "diagnosed_raw": "F08",
+      "confidence": 0.95,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 4.0
     },
     {
       "fault": "F08",
       "rep": 4,
-      "diagnosed": "INSUFFICIENT_EVIDENCE",
-      "diagnosed_raw": "INSUFFICIENT_EVIDENCE",
-      "confidence": 0.3,
-      "diagnosis_correct": false,
-      "outcome": "ESCALATED",
-      "healed": false,
-      "duration_s": 1.44
+      "diagnosed": "F08",
+      "diagnosed_raw": "F08",
+      "confidence": 0.95,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 4.26
     },
     {
       "fault": "F08",
       "rep": 5,
-      "diagnosed": "INSUFFICIENT_EVIDENCE",
-      "diagnosed_raw": "INSUFFICIENT_EVIDENCE",
-      "confidence": 0.3,
-      "diagnosis_correct": false,
-      "outcome": "ESCALATED",
-      "healed": false,
-      "duration_s": 1.44
+      "diagnosed": "F08",
+      "diagnosed_raw": "F08",
+      "confidence": 0.95,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 4.19
     },
     {
       "fault": "F09",
@@ -485,7 +494,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 4.79
+      "duration_s": 3.7
     },
     {
       "fault": "F09",
@@ -496,7 +505,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 4.76
+      "duration_s": 3.03
     },
     {
       "fault": "F09",
@@ -507,7 +516,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.64
+      "duration_s": 3.69
     },
     {
       "fault": "F09",
@@ -518,7 +527,7 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 2.24
+      "duration_s": 3.17
     },
     {
       "fault": "F09",
@@ -529,7 +538,64 @@
       "diagnosis_correct": true,
       "outcome": "MITIGATED",
       "healed": true,
-      "duration_s": 4.44
+      "duration_s": 3.58
+    }
+  ],
+  "fails_closed_runs": [
+    {
+      "fault": "FAMB",
+      "rep": 1,
+      "diagnosed": "F02",
+      "diagnosed_raw": "F02",
+      "confidence": 0.85,
+      "diagnosis_correct": false,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.38
+    },
+    {
+      "fault": "FAMB",
+      "rep": 2,
+      "diagnosed": "F02",
+      "diagnosed_raw": "F02",
+      "confidence": 0.85,
+      "diagnosis_correct": false,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 4.17
+    },
+    {
+      "fault": "FAMB",
+      "rep": 3,
+      "diagnosed": "F02",
+      "diagnosed_raw": "F02",
+      "confidence": 0.85,
+      "diagnosis_correct": false,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.84
+    },
+    {
+      "fault": "FAMB",
+      "rep": 4,
+      "diagnosed": "F02",
+      "diagnosed_raw": "F02",
+      "confidence": 0.85,
+      "diagnosis_correct": false,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.98
+    },
+    {
+      "fault": "FAMB",
+      "rep": 5,
+      "diagnosed": "F02",
+      "diagnosed_raw": "F02",
+      "confidence": 0.85,
+      "diagnosis_correct": false,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 4.24
     }
   ]
 }

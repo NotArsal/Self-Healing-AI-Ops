@@ -127,10 +127,64 @@ Outcomes: `{s['outcomes']}`. Misdiagnoses: `{s['misdiagnoses'] or 'none'}`.
 
 PRD §11.1 warns that a headline resolution rate cannot evidence that RCA works,
 because published work shows mitigation succeeding on wrong diagnoses 22–62% of
-the time. Here it succeeds on a wrong diagnosis **{p_wrong if p_wrong is not None else 'n/a'}%** of the time, so the
-headline is not luck. Per-fault accuracy: `{s['per_fault_accuracy_pct']}`.
+the time. Here it succeeds on a wrong diagnosis **{p_wrong if p_wrong is not None else 'n/a'}%** of the time. Per-fault
+accuracy: `{s['per_fault_accuracy_pct']}`.
+
+**Read §3.1 before this table.** These nine scenarios each carry evidence that
+points at one catalogue entry, so they measure whether the model can read
+evidence that is there. They say nothing about what it does when the evidence
+does not identify a fault, and that turns out to be the more important question.
 
 {_bullets(s.get('caveats', []))}
+"""
+
+
+def _fails_closed(s: dict[str, Any] | None) -> str:
+    if s is None or not s.get("fails_closed"):
+        return (
+            "## 3.1 Failing closed — NOT RUN\n\n`make bench` with a bench that "
+            "includes the ambiguous scenario.\n"
+        )
+    fc = s["fails_closed"]
+    reps = fc["reps"]
+    declined = fc["answered_insufficient_evidence"]
+    no_action = fc["took_no_action"]
+    return f"""## 3.1 Failing closed on ambiguous evidence — the finding that matters
+
+One scenario (`scenarios/FAMB.yaml`) is built so that no catalogue entry is
+identifiable: a degraded service, an 8% error ratio, raised latency, and a
+provider that is healthy. The correct answer is `INSUFFICIENT_EVIDENCE` and the
+correct action is none. It is scored separately and is not in the accuracy
+denominator above, because a case whose right answer is "I cannot tell" would
+reward a model for refusing everywhere.
+
+| Measured over {reps} reps | Result |
+|---|---|
+| Answered `INSUFFICIENT_EVIDENCE` | **{declined}/{reps}** |
+| Took no action | **{no_action}/{reps}** |
+| Guessed instead | `{fc['guesses'] or 'none'}` |
+| Outcomes | `{fc['outcomes']}` |
+
+With {declined}/{reps} declining and {no_action}/{reps} staying out of the
+application, the accuracy figure above does not transfer to ambiguity. The model
+answers with high confidence on evidence that does not support an answer, the
+confidence gate at 0.8 does not catch it because the confidence is not low, and
+the repair executes.
+
+The gate is not a substitute. An earlier run of this study used a narrower
+`allowed_actions` and the guessed repair was refused by the allow-list, which
+reads from the outside exactly like a system that declined to act. The
+permissions were widened to the repairs for the fault classes whose symptoms
+overlap, so that what is measured is the diagnosis rather than the allow-list.
+
+What would fix it is not a prompt change. The catalogue declares a `detect`
+signal per fault, and a diagnosis whose fault class has no corresponding signal
+in the incident's evidence is unsupported by construction -- a rules check the
+platform could apply to the model's answer before trusting it. That needs
+`detect` restored for all nine fault classes, which is the same work PRD §11.2's
+LLM-vs-rules baseline needs. One change, two open items; it is not attempted
+here because inventing those signals to make a check pass would be the same
+mistake as the prompt that handed over its own answer.
 """
 
 
@@ -167,6 +221,9 @@ make target-up && make onboard APP=targets/proof2 && make bench-live  # undo abl
 {_rca(rca)}
 ---
 
+{_fails_closed(rca)}
+---
+
 ## 4. Human baseline — NOT RUN
 
 PRD §11.2 requires the same injections resolved by hand in `SIMULATION`, timed,
@@ -186,6 +243,7 @@ MTTR, and any speed-up factor quoted against one is invented.
 | Laya disagrees with the rule engine | **Measured**, real inference |
 | RCA accuracy | **Measured**, no answer key in the prompt |
 | P(heal {PIPE} wrong diagnosis) | **Measured** |
+| Declines to act on ambiguous evidence | **No** — measured 0/5; see §3.1 |
 | LLM vs rules baseline | **Unavailable** — P3's mapping is gone; `detect` survives for F01, F03, F07 only |
 | Human baseline | **Not run** |
 | F02–F09 behaviour | Simulated state; verification derived from thresholds, not measured |

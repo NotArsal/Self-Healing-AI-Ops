@@ -59,7 +59,8 @@ Honest summary, because the distinction matters for how results are read:
 | `F01` against a live app | **Real** — detection, repair, verification, undo, and the full debt lifecycle through to `RESOLVED` |
 | `F02`–`F09` | Simulated: the loop runs against an in-memory state dict, and `verification/probes.py` derives metrics from thresholds rather than measuring |
 | Contract (`CONTRACT.md` v1.1) | Proof #2 onboarded; six defects found and closed (`docs/decisions/proof2_defects.md`) |
-| Measurements | **Real** — see `docs/MEASUREMENTS.md`, generated from `eval_results/*.json`. Undo ablation 100% vs 0% state restoration across three arms, and an ineffective rollback is now detected 5/5 as `UNRECOVERABLE`; RCA accuracy 88.9% with no answer key in the prompt; P(heal \| wrong diagnosis) 0%. Human baseline **not run** |
+| Measurements | **Real** — see `docs/MEASUREMENTS.md`, generated from `eval_results/*.json`. Undo ablation 100% vs 0% state restoration across three arms, with an ineffective rollback detected 5/5 as `UNRECOVERABLE`; RCA accuracy 100% over 45 injections with no answer key in the prompt. Human baseline **not run** |
+| Failing closed | **No** — on a scenario built to be undiagnosable, the model answers a fault class at confidence 0.85 on 5/5 reps and the repair executes. `docs/MEASUREMENTS.md` §3.1. The accuracy figure above does not transfer to ambiguous evidence |
 | Audit log | **Real** — append-only `audit_log` with a hash chain, enforced by a database trigger that refuses UPDATE, DELETE and TRUNCATE. Five events per incident; read at `/api/v1/audit/`, integrity at `/api/v1/audit/integrity` |
 | Knowledge base (F-MEM) | **Real** — incidents are embedded and stored, and recalled by similarity into the diagnosis evidence. Needs `make up` plus Ollama for `nomic-embed-text` |
 | Incident persistence | In-memory only; no `PostgresSaver` checkpointer, so approvals and the debt dwell clock do not survive a restart |
