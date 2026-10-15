@@ -430,25 +430,28 @@ def verify_node(state: IncidentState) -> IncidentState:
 
 
 def sandbox_execute_node(state: IncidentState) -> IncidentState:
-    # Run a dry-run/simulated execution for sandbox verification
-    sim_state = state.get("simulation_state", {}).copy()
-    
-    # We do not append to undo_stack here because it's just a sandbox
-    # and we won't unwind it in the same way. We just want to see if it passes verification.
+    # A dry run, published under its own key. Returning it as simulation_state
+    # merged the sandbox's mutations into the incident, so an incident whose
+    # sandbox *failed* still carried a half-repaired state -- with no undo record
+    # for it, because nothing had been applied.
+    sandbox_state = state.get("simulation_state", {}).copy()
+
     for action in state.get("approved_actions", []):
         if action.name == "shell_command":
-            sim_state["last_shell_output"] = "Simulated success"
+            sandbox_state["last_shell_output"] = "Simulated success"
         elif action.name == "http_request":
-            sim_state["last_http_output"] = "Simulated success"
+            sandbox_state["last_http_output"] = "Simulated success"
         else:
-            execute_action(action, sim_state)
+            execute_action(action, sandbox_state)
 
-    return {"simulation_state": sim_state}
+    return {"sandbox_state": sandbox_state}
 
 
 def sandbox_verify_node(state: IncidentState) -> IncidentState:
-    # Use the same verify logic but output to sandbox_passed
-    res = verify_node(state)
+    # Verifies the sandbox's state, never the incident's, and deliberately does
+    # not publish verification_passed: a repair that passed a dry run has not
+    # been verified.
+    res = verify_node({**state, "simulation_state": state.get("sandbox_state", {})})
     passed = res.get("verification_passed", False)
 
     # MEDIUM risk under AUTONOMOUS is "sandbox, then approval": a human approves

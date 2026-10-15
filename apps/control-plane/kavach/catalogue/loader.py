@@ -1,13 +1,28 @@
 import os
 from pathlib import Path
+from typing import Any
 
 import yaml
+from pydantic import BaseModel
 
 from kavach.catalogue.schema import ActionDef, Catalogue, FaultDef
 
 
 class CatalogueValidationError(Exception):
     pass
+
+
+def _merged(existing: BaseModel | None, data: dict[str, Any]) -> dict[str, Any]:
+    """Overlay a later definition on an earlier one, field by field.
+
+    Assignment replaced the whole entry, so a per-fault file that redefined F03
+    without a `risk` or a `detect` silently dropped core.yaml's. Every fault then
+    loaded as LOW, which made `sandbox_required` unreachable for every real
+    fault. Only fields the later file actually declares override.
+    """
+    if existing is None:
+        return data
+    return {**existing.model_dump(), **data}
 
 
 _CATALOGUE_CACHE: Catalogue | None = None
@@ -30,18 +45,30 @@ def load_catalogue(base_dir: str | None = None, app_roles: set[str] | None = Non
             if not root_dir.exists():
                 continue
     
-            for filepath in root_dir.glob("**/*.yaml"):
+            # Sorted, because the overlay order below is the file order and
+            # glob's is the filesystem's: core.yaml must be read before f03.yaml.
+            for filepath in sorted(root_dir.glob("**/*.yaml")):
                 with open(filepath, "r", encoding="utf-8") as f:
                     data = yaml.safe_load(f) or {}
         
                     for act_data in data.get("actions", []):
-                        act = ActionDef(**act_data)
+                        act = ActionDef(
+                            **_merged(
+                                catalogue.actions.get(act_data.get("name", "")),
+                                act_data,
+                            )
+                        )
                         catalogue.actions[act.name] = act
         
                     for f_data in data.get("faults", []):
                         if "id" in f_data and "fault_class" not in f_data:
                             f_data["fault_class"] = f_data.pop("id")
-                        fault = FaultDef(**f_data)
+                        fault = FaultDef(
+                            **_merged(
+                                catalogue.faults.get(f_data.get("fault_class", "")),
+                                f_data,
+                            )
+                        )
                         catalogue.faults[fault.fault_class] = fault
     
         # Validate inverses exist

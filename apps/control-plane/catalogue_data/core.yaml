@@ -95,7 +95,9 @@ faults:
     evidence: [eval_history, git_diff:prompts, spans:gen_ai]
     repair:
       action: rollback_prompt
-      params: 
-        to: last_known_good
+      params:
+        # The action's mutation template reads $target_version; `to` was a key
+        # nothing consumed, so the repair resolved prompt_version to "unknown".
+        target_version: last_known_good
     verify: [health, objectives, golden_eval]
     risk: MEDIUM

@@ -43,6 +43,10 @@ class IncidentState(TypedDict, total=False):
     # Sandbox Execution (F-SBX)
     sandbox_required: bool | None
     sandbox_passed: bool | None
+    # The sandbox's own scratch state. Kept apart from simulation_state so a
+    # sandbox run cannot leave a mutation behind in the incident it was meant to
+    # protect -- it has no undo record, because nothing was applied.
+    sandbox_state: dict[str, str]
 
     # Risk tier of the diagnosed fault, from the catalogue. Drives the mode policy.
     risk_tier: str | None

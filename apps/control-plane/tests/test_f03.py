@@ -33,9 +33,21 @@ def test_f03_loop() -> None:
     assert len(result["approved_actions"]) == 1
     assert result["approved_actions"][0].name == "rollback_deployment"
     assert result["approved_actions"][0].params["target_version"] == "last_known_good"
+    # F03 is MEDIUM risk, so the repair is proved in a sandbox before it is run.
+    assert result["sandbox_required"] is True
+    assert result["sandbox_passed"] is True
 
 
-def test_f03_forced_verification_failure_triggers_unwind() -> None:
+def test_f03_sandbox_failure_stops_before_execution() -> None:
+    """A MEDIUM-risk repair that fails its dry run is never executed.
+
+    This test used to assert that forcing verification to fail triggered an
+    unwind. It could only do that because the catalogue loader dropped
+    core.yaml's `risk: MEDIUM` for F03, so the sandbox branch was unreachable and
+    the repair went straight to live execution. With the tier restored the
+    sandbox catches it first: nothing is applied, so there is nothing to unwind,
+    and the incident's own state is never touched.
+    """
     scenario = load_scenario("F03")
     app = build_workflow()
 
@@ -45,7 +57,11 @@ def test_f03_forced_verification_failure_triggers_unwind() -> None:
     initial_state = {"scenario": scenario, "simulation_state": sim_state}
     result = app.invoke(initial_state)
 
-    assert result["verification_passed"] is False
+    assert result["sandbox_passed"] is False
     assert result["outcome"] == "ESCALATED"
-    # Unwind should have run, so state should be back to crash-loop
+    # Not verified, because nothing ran: a dry run is not a verification.
+    assert "verification_passed" not in result
+    assert result.get("undo_stack", []) == []
+    # The sandbox's mutations must not leak into the incident.
     assert result["simulation_state"]["api_health"] == "crash-loop"
+    assert result["sandbox_state"]["api_health"] == "healthy"
