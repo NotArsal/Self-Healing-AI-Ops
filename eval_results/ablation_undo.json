@@ -1,0 +1,106 @@
+{
+  "summary": {
+    "undo_enabled": {
+      "reps": 5,
+      "prior_state_restored": 5,
+      "prior_state_restored_pct": 100.0,
+      "left_in_mutated_state": 0,
+      "outcomes": [
+        "ESCALATED"
+      ],
+      "median_duration_s": 0.32
+    },
+    "undo_disabled": {
+      "reps": 5,
+      "prior_state_restored": 0,
+      "prior_state_restored_pct": 0.0,
+      "left_in_mutated_state": 5,
+      "outcomes": [
+        "ESCALATED"
+      ],
+      "median_duration_s": 0.3
+    }
+  },
+  "runs": [
+    {
+      "arm": "undo_enabled",
+      "rep": 1,
+      "outcome": "ESCALATED",
+      "final_model": "primary",
+      "prior_state_restored": true,
+      "duration_s": 9.23
+    },
+    {
+      "arm": "undo_enabled",
+      "rep": 2,
+      "outcome": "ESCALATED",
+      "final_model": "primary",
+      "prior_state_restored": true,
+      "duration_s": 0.24
+    },
+    {
+      "arm": "undo_enabled",
+      "rep": 3,
+      "outcome": "ESCALATED",
+      "final_model": "primary",
+      "prior_state_restored": true,
+      "duration_s": 0.34
+    },
+    {
+      "arm": "undo_enabled",
+      "rep": 4,
+      "outcome": "ESCALATED",
+      "final_model": "primary",
+      "prior_state_restored": true,
+      "duration_s": 0.32
+    },
+    {
+      "arm": "undo_enabled",
+      "rep": 5,
+      "outcome": "ESCALATED",
+      "final_model": "primary",
+      "prior_state_restored": true,
+      "duration_s": 0.23
+    },
+    {
+      "arm": "undo_disabled",
+      "rep": 1,
+      "outcome": "ESCALATED",
+      "final_model": "backup",
+      "prior_state_restored": false,
+      "duration_s": 0.24
+    },
+    {
+      "arm": "undo_disabled",
+      "rep": 2,
+      "outcome": "ESCALATED",
+      "final_model": "backup",
+      "prior_state_restored": false,
+      "duration_s": 0.47
+    },
+    {
+      "arm": "undo_disabled",
+      "rep": 3,
+      "outcome": "ESCALATED",
+      "final_model": "backup",
+      "prior_state_restored": false,
+      "duration_s": 0.3
+    },
+    {
+      "arm": "undo_disabled",
+      "rep": 4,
+      "outcome": "ESCALATED",
+      "final_model": "backup",
+      "prior_state_restored": false,
+      "duration_s": 0.31
+    },
+    {
+      "arm": "undo_disabled",
+      "rep": 5,
+      "outcome": "ESCALATED",
+      "final_model": "backup",
+      "prior_state_restored": false,
+      "duration_s": 0.28
+    }
+  ]
+}

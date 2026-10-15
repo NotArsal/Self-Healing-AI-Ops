@@ -1,0 +1,489 @@
+{
+  "summary": {
+    "injections": 45,
+    "rca_accuracy_pct": 100.0,
+    "heal_rate_pct": 100.0,
+    "p_heal_given_correct_dx_pct": 100.0,
+    "p_heal_given_wrong_dx_pct": null,
+    "p_correct_dx_given_heal_pct": 100.0,
+    "median_loop_s": 2.97,
+    "per_fault_accuracy_pct": {
+      "F01": 100.0,
+      "F02": 100.0,
+      "F03": 100.0,
+      "F04": 100.0,
+      "F05": 100.0,
+      "F06": 100.0,
+      "F07": 100.0,
+      "F08": 100.0,
+      "F09": 100.0
+    },
+    "outcomes": {
+      "MITIGATED": 45
+    },
+    "misdiagnoses": {},
+    "caveats": [
+      "DEGENERATE EVALUATION -- do not read 100% as RCA working. The RCA prompt (llm/rca.py) contains an explicit answer key: 'If you see gen_ai_error_ratio -> output F01' and one such rule per fault class. Each scenario's evidence contains exactly the giveaway string its rule names, so the model performs a lookup the prompt spells out. This arm is a symptom matcher executed through a 7B model, which is also why PRD 11.2's LLM-vs-rules comparison is vacuous here: both arms would be the same mechanism.",
+      "P(heal | wrong diagnosis) is uncomputable: there were zero wrong diagnoses, so the stratum PRD 11.1 calls the point of the exercise is empty. The headline heal rate cannot be separated from luck on this scenario set.",
+      "Confidence is returned on inconsistent scales: 40 runs returned 1.0 and 5 returned 100.0. RCAResponse.confidence is an unconstrained float and the gate compares it against 0.8, so an out-of-range value passes trivially and a 0..100 reading of 50 would escalate where 0.5 would too -- by accident.",
+      "Every outcome is MITIGATED because outcome_node can only emit MITIGATED or ESCALATED; RESOLVED appears nowhere in graph/nodes.py and is set only by debt repayment. The outcome distribution is structural, not measured.",
+      "To get a meaningful number: remove the answer key from the prompt, and add scenarios whose evidence is ambiguous between two fault classes.",
+      "Simulated state: verification is derived from declared thresholds, not measured. Only F01-against-proof2 is a live measurement.",
+      "No rules baseline: Phase 3's symptom mapping no longer exists and the catalogue retains a detect signal for F01 only, so the LLM-vs-rules comparison PRD 11.2 asks for cannot be run.",
+      "Shadow Laya stubbed; it cannot affect an outcome.",
+      "Cold memory: knowledge-base read and write are stubbed so reps stay independent. With memory live, a repeat of the same fault retrieves its own answer and accuracy is inflated."
+    ]
+  },
+  "runs": [
+    {
+      "fault": "F01",
+      "rep": 1,
+      "diagnosed": "F01",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 19.48
+    },
+    {
+      "fault": "F01",
+      "rep": 2,
+      "diagnosed": "F01",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.74
+    },
+    {
+      "fault": "F01",
+      "rep": 3,
+      "diagnosed": "F01",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.82
+    },
+    {
+      "fault": "F01",
+      "rep": 4,
+      "diagnosed": "F01",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.73
+    },
+    {
+      "fault": "F01",
+      "rep": 5,
+      "diagnosed": "F01",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.73
+    },
+    {
+      "fault": "F02",
+      "rep": 1,
+      "diagnosed": "F02",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.41
+    },
+    {
+      "fault": "F02",
+      "rep": 2,
+      "diagnosed": "F02",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.0
+    },
+    {
+      "fault": "F02",
+      "rep": 3,
+      "diagnosed": "F02",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.95
+    },
+    {
+      "fault": "F02",
+      "rep": 4,
+      "diagnosed": "F02",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.04
+    },
+    {
+      "fault": "F02",
+      "rep": 5,
+      "diagnosed": "F02",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.92
+    },
+    {
+      "fault": "F03",
+      "rep": 1,
+      "diagnosed": "F03",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.97
+    },
+    {
+      "fault": "F03",
+      "rep": 2,
+      "diagnosed": "F03",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.03
+    },
+    {
+      "fault": "F03",
+      "rep": 3,
+      "diagnosed": "F03",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.21
+    },
+    {
+      "fault": "F03",
+      "rep": 4,
+      "diagnosed": "F03",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.13
+    },
+    {
+      "fault": "F03",
+      "rep": 5,
+      "diagnosed": "F03",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.99
+    },
+    {
+      "fault": "F04",
+      "rep": 1,
+      "diagnosed": "F04",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.0
+    },
+    {
+      "fault": "F04",
+      "rep": 2,
+      "diagnosed": "F04",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.72
+    },
+    {
+      "fault": "F04",
+      "rep": 3,
+      "diagnosed": "F04",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.83
+    },
+    {
+      "fault": "F04",
+      "rep": 4,
+      "diagnosed": "F04",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.77
+    },
+    {
+      "fault": "F04",
+      "rep": 5,
+      "diagnosed": "F04",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.74
+    },
+    {
+      "fault": "F05",
+      "rep": 1,
+      "diagnosed": "F05",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.06
+    },
+    {
+      "fault": "F05",
+      "rep": 2,
+      "diagnosed": "F05",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.95
+    },
+    {
+      "fault": "F05",
+      "rep": 3,
+      "diagnosed": "F05",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.05
+    },
+    {
+      "fault": "F05",
+      "rep": 4,
+      "diagnosed": "F05",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.0
+    },
+    {
+      "fault": "F05",
+      "rep": 5,
+      "diagnosed": "F05",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 103.22
+    },
+    {
+      "fault": "F06",
+      "rep": 1,
+      "diagnosed": "F06",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 4.15
+    },
+    {
+      "fault": "F06",
+      "rep": 2,
+      "diagnosed": "F06",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.86
+    },
+    {
+      "fault": "F06",
+      "rep": 3,
+      "diagnosed": "F06",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.77
+    },
+    {
+      "fault": "F06",
+      "rep": 4,
+      "diagnosed": "F06",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.85
+    },
+    {
+      "fault": "F06",
+      "rep": 5,
+      "diagnosed": "F06",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.75
+    },
+    {
+      "fault": "F07",
+      "rep": 1,
+      "diagnosed": "F07",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.98
+    },
+    {
+      "fault": "F07",
+      "rep": 2,
+      "diagnosed": "F07",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.78
+    },
+    {
+      "fault": "F07",
+      "rep": 3,
+      "diagnosed": "F07",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.92
+    },
+    {
+      "fault": "F07",
+      "rep": 4,
+      "diagnosed": "F07",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.97
+    },
+    {
+      "fault": "F07",
+      "rep": 5,
+      "diagnosed": "F07",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.88
+    },
+    {
+      "fault": "F08",
+      "rep": 1,
+      "diagnosed": "F08",
+      "confidence": 100.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.1
+    },
+    {
+      "fault": "F08",
+      "rep": 2,
+      "diagnosed": "F08",
+      "confidence": 100.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.93
+    },
+    {
+      "fault": "F08",
+      "rep": 3,
+      "diagnosed": "F08",
+      "confidence": 100.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.96
+    },
+    {
+      "fault": "F08",
+      "rep": 4,
+      "diagnosed": "F08",
+      "confidence": 100.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 2.95
+    },
+    {
+      "fault": "F08",
+      "rep": 5,
+      "diagnosed": "F08",
+      "confidence": 100.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.01
+    },
+    {
+      "fault": "F09",
+      "rep": 1,
+      "diagnosed": "F09",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.59
+    },
+    {
+      "fault": "F09",
+      "rep": 2,
+      "diagnosed": "F09",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.52
+    },
+    {
+      "fault": "F09",
+      "rep": 3,
+      "diagnosed": "F09",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.44
+    },
+    {
+      "fault": "F09",
+      "rep": 4,
+      "diagnosed": "F09",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 3.55
+    },
+    {
+      "fault": "F09",
+      "rep": 5,
+      "diagnosed": "F09",
+      "confidence": 1.0,
+      "diagnosis_correct": true,
+      "outcome": "MITIGATED",
+      "healed": true,
+      "duration_s": 6.75
+    }
+  ]
+}

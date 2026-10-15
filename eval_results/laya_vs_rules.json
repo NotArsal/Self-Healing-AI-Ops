@@ -1,0 +1,215 @@
+{
+  "summary": {
+    "cases": 9,
+    "agreements": 2,
+    "agreement_rate_pct": 22.2,
+    "laya_tier_distribution": {
+      "MEDIUM": 7,
+      "LOW": 2
+    },
+    "declared_risk_distribution": {
+      "LOW": 9
+    },
+    "disagreements": [
+      {
+        "fault": "F01",
+        "action": "switch_model",
+        "declared_risk": "LOW",
+        "rule_allowed": true,
+        "rule_reason": "PASSED",
+        "laya_is_safe": false,
+        "laya_risk_tier": "MEDIUM",
+        "laya_reason": "Risk tier MEDIUM",
+        "laya_confidence": 0.055,
+        "agree": false
+      },
+      {
+        "fault": "F02",
+        "action": "enable_circuit_breaker",
+        "declared_risk": "LOW",
+        "rule_allowed": true,
+        "rule_reason": "PASSED",
+        "laya_is_safe": false,
+        "laya_risk_tier": "MEDIUM",
+        "laya_reason": "Risk tier MEDIUM",
+        "laya_confidence": 0.0239,
+        "agree": false
+      },
+      {
+        "fault": "F03",
+        "action": "rollback_deployment",
+        "declared_risk": "LOW",
+        "rule_allowed": true,
+        "rule_reason": "PASSED",
+        "laya_is_safe": false,
+        "laya_risk_tier": "MEDIUM",
+        "laya_reason": "Risk tier MEDIUM",
+        "laya_confidence": 0.0316,
+        "agree": false
+      },
+      {
+        "fault": "F05",
+        "action": "scale_connection_pool",
+        "declared_risk": "LOW",
+        "rule_allowed": true,
+        "rule_reason": "PASSED",
+        "laya_is_safe": false,
+        "laya_risk_tier": "MEDIUM",
+        "laya_reason": "Risk tier MEDIUM",
+        "laya_confidence": 0.1582,
+        "agree": false
+      },
+      {
+        "fault": "F06",
+        "action": "scale_retrievers",
+        "declared_risk": "LOW",
+        "rule_allowed": true,
+        "rule_reason": "PASSED",
+        "laya_is_safe": false,
+        "laya_risk_tier": "MEDIUM",
+        "laya_reason": "Risk tier MEDIUM",
+        "laya_confidence": 0.0523,
+        "agree": false
+      },
+      {
+        "fault": "F07",
+        "action": "rollback_prompt",
+        "declared_risk": "LOW",
+        "rule_allowed": true,
+        "rule_reason": "PASSED",
+        "laya_is_safe": false,
+        "laya_risk_tier": "MEDIUM",
+        "laya_reason": "Risk tier MEDIUM",
+        "laya_confidence": 0.0067,
+        "agree": false
+      },
+      {
+        "fault": "F08",
+        "action": "rollback_config",
+        "declared_risk": "LOW",
+        "rule_allowed": true,
+        "rule_reason": "PASSED",
+        "laya_is_safe": false,
+        "laya_risk_tier": "MEDIUM",
+        "laya_reason": "Risk tier MEDIUM",
+        "laya_confidence": 0.0528,
+        "agree": false
+      }
+    ],
+    "caveats": [
+      "permit() is the authority: Laya is shadow-only and cannot gate, so every disagreement is a Laya error rather than a tie.",
+      "Laya's risk tier is not scored: every fault loads as LOW because the per-fault catalogue files replace core.yaml's entries instead of merging, so the declared tiers are not usable as ground truth.",
+      "Laya confidence is reported as returned. The checkpoint ships invalid temperatures (runtime warning on load), so treat it as uncalibrated."
+    ]
+  },
+  "rows": [
+    {
+      "fault": "F01",
+      "action": "switch_model",
+      "declared_risk": "LOW",
+      "rule_allowed": true,
+      "rule_reason": "PASSED",
+      "laya_is_safe": false,
+      "laya_risk_tier": "MEDIUM",
+      "laya_reason": "Risk tier MEDIUM",
+      "laya_confidence": 0.055,
+      "agree": false
+    },
+    {
+      "fault": "F02",
+      "action": "enable_circuit_breaker",
+      "declared_risk": "LOW",
+      "rule_allowed": true,
+      "rule_reason": "PASSED",
+      "laya_is_safe": false,
+      "laya_risk_tier": "MEDIUM",
+      "laya_reason": "Risk tier MEDIUM",
+      "laya_confidence": 0.0239,
+      "agree": false
+    },
+    {
+      "fault": "F03",
+      "action": "rollback_deployment",
+      "declared_risk": "LOW",
+      "rule_allowed": true,
+      "rule_reason": "PASSED",
+      "laya_is_safe": false,
+      "laya_risk_tier": "MEDIUM",
+      "laya_reason": "Risk tier MEDIUM",
+      "laya_confidence": 0.0316,
+      "agree": false
+    },
+    {
+      "fault": "F04",
+      "action": "flush_cache",
+      "declared_risk": "LOW",
+      "rule_allowed": true,
+      "rule_reason": "PASSED",
+      "laya_is_safe": true,
+      "laya_risk_tier": "LOW",
+      "laya_reason": "Safe",
+      "laya_confidence": 0.0836,
+      "agree": true
+    },
+    {
+      "fault": "F05",
+      "action": "scale_connection_pool",
+      "declared_risk": "LOW",
+      "rule_allowed": true,
+      "rule_reason": "PASSED",
+      "laya_is_safe": false,
+      "laya_risk_tier": "MEDIUM",
+      "laya_reason": "Risk tier MEDIUM",
+      "laya_confidence": 0.1582,
+      "agree": false
+    },
+    {
+      "fault": "F06",
+      "action": "scale_retrievers",
+      "declared_risk": "LOW",
+      "rule_allowed": true,
+      "rule_reason": "PASSED",
+      "laya_is_safe": false,
+      "laya_risk_tier": "MEDIUM",
+      "laya_reason": "Risk tier MEDIUM",
+      "laya_confidence": 0.0523,
+      "agree": false
+    },
+    {
+      "fault": "F07",
+      "action": "rollback_prompt",
+      "declared_risk": "LOW",
+      "rule_allowed": true,
+      "rule_reason": "PASSED",
+      "laya_is_safe": false,
+      "laya_risk_tier": "MEDIUM",
+      "laya_reason": "Risk tier MEDIUM",
+      "laya_confidence": 0.0067,
+      "agree": false
+    },
+    {
+      "fault": "F08",
+      "action": "rollback_config",
+      "declared_risk": "LOW",
+      "rule_allowed": true,
+      "rule_reason": "PASSED",
+      "laya_is_safe": false,
+      "laya_risk_tier": "MEDIUM",
+      "laya_reason": "Risk tier MEDIUM",
+      "laya_confidence": 0.0528,
+      "agree": false
+    },
+    {
+      "fault": "F09",
+      "action": "enable_token_limiter",
+      "declared_risk": "LOW",
+      "rule_allowed": true,
+      "rule_reason": "PASSED",
+      "laya_is_safe": true,
+      "laya_risk_tier": "LOW",
+      "laya_reason": "Safe",
+      "laya_confidence": 0.0921,
+      "agree": true
+    }
+  ]
+}

@@ -52,3 +52,30 @@ These are recorded here because they were discovered by the same exercise and ea
 - `scenario.active_debt_def` was assigned to a Pydantic model that did not declare the field, which raises. It was unreachable only because the key lookup above it already failed.
 - `repay_debt` called `.clear()` on `active_debt` without a None guard, raising *after* the live write had landed — repaid application, outstanding debt.
 
+### Found by the measurement work (2026-10-15)
+
+- **The catalogue loader overwrites instead of merging.** `load_catalogue` does
+  `catalogue.faults[id] = fault` per file, so a per-fault YAML replaces
+  `core.yaml`'s entry wholesale. `core.yaml` declares F03 as MEDIUM risk with a
+  `detect` signal, and F07 likewise; `f03.yaml` and `f07.yaml` redefine those
+  faults without either field, so both are silently dropped. Consequences:
+  every fault now loads as `risk=LOW`, and only F01 retains a `detect` signal.
+- **The risk tier table is therefore flat.** Because nothing loads as MEDIUM,
+  `plan_node` never sets `sandbox_required`, so the F-SBX sandbox branch is
+  unreachable for every real fault — its test passes only because it mocks
+  `load_catalogue` with a MEDIUM fault. Under `AUTONOMOUS`, every repair
+  auto-executes with neither a sandbox nor an approval.
+- **No rules baseline exists.** PRD §11.2 asks for Phase 3's symptom mapping
+  against the LLM on identical injections. That mapping was replaced by the
+  catalogue, and with `detect` surviving for F01 only there is nothing to run it
+  from. The comparison is unavailable rather than unfavourable.
+- **The unwind is never verified.** The undo ablation showed a no-undo run and a
+  working run reporting the same outcome (`ESCALATED`); only inspecting the
+  application revealed that one had been left mutated. `UNRECOVERABLE` is raised
+  solely by the `_force_undo_failure` test flag, so Kavach does not check that
+  its own rollback achieved anything. ROADMAP P3 requires a forced-undo-failure
+  path to report `UNRECOVERABLE` with a loud alert; it currently cannot.
+- **`PROJECT_COMPLETION_REPORT.md` is contradicted by measurement.** It claims
+  shadow Laya "correctly aligns with the rule engine 100% of the time". Measured
+  agreement is 2/9 (22%).
+
