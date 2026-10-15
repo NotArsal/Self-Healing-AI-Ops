@@ -480,6 +480,7 @@ def unwind_node(state: IncidentState) -> IncidentState:
     mode = state.get("mode") or "SIMULATION"
 
     scenario = state.get("scenario")
+    unrestored: list[str] = []
 
     # Process LIFO
     for record in reversed(undo_stack):
@@ -487,14 +488,9 @@ def unwind_node(state: IncidentState) -> IncidentState:
             binding = _live_effect_binding(record.original_action, scenario)
             if binding is not None:
                 effect, rs_def = binding
-                revert_effect(effect, record, rs_def, mode)
+                if not revert_effect(effect, record, rs_def, mode):
+                    unrestored.append(effect.key)
                 continue
-
-            # Restore state from witness for faithful undo
-            for k, v in record.pre_state_witness.items():
-                sim_state[k] = v
-            # If it's a real shell command, we would execute the inverse action
-            # For simulation, updating from witness is sufficient to restore state.
             
             if record.original_action.name in ["rollback_prompt", "rollforward_prompt"] and mode != "SIMULATION":
                 from kavach.remediation.git_ops import GitOpsAdapter
@@ -509,11 +505,27 @@ def unwind_node(state: IncidentState) -> IncidentState:
                     
                 git_adapter.commit_changes(prompt_file, f"Undo {record.original_action.name} (Restored to {version})")
 
+            # The inverse runs first and the witness goes on top of it. The
+            # witness is the prior state captured as data, so it has the last
+            # word (AGENTS.md 4a). The previous order -- witness first, inverse
+            # second -- let the inverse overwrite the restored value with
+            # "unknown" or with the forward target for five of the nine faults.
+            #
+            # Nothing is read back here: this state is Kavach's own dict, so a
+            # readback would compare the witness against a copy of itself. The
+            # live path does read back (remediation/runtime_config.revert_effect)
+            # and the catalogue's inverses are covered by tests/test_unwind.py.
             if record.original_action.name != "shell_command":
                 execute_action(record.inverse_action, sim_state)
+            for k, v in record.pre_state_witness.items():
+                sim_state[k] = v
 
-    # Clear the stack since it's unwound (in real system we append to audit, here we just return state change)
-    return {"simulation_state": sim_state}
+    # A deliberately broken undo, routed through the same reporting path as a real
+    # one so the test exercises the mechanism rather than a shortcut in outcome.
+    if sim_state.get("_force_undo_failure") == "true":
+        unrestored.append("_force_undo_failure")
+
+    return {"simulation_state": sim_state, "unwind_unrestored": unrestored}
 
 
 def outcome_node(state: IncidentState) -> IncidentState:
@@ -524,10 +536,17 @@ def outcome_node(state: IncidentState) -> IncidentState:
     if diag and (diag.confidence < 0.8 or diag.fault_class == "INSUFFICIENT_EVIDENCE"):
         return {"outcome": "ESCALATED"}
 
-    force_undo_fail = (
-        state.get("simulation_state", {}).get("_force_undo_failure") == "true"
-    )
-    if force_undo_fail:
+    # An unwind that did not put the state back is the one failure this system
+    # must never report quietly (ROADMAP P3).
+    unrestored = state.get("unwind_unrestored") or []
+    if unrestored:
+        import logging
+
+        logging.getLogger(__name__).error(
+            "unwind did not restore %s for incident %s; state left mutated",
+            unrestored,
+            state.get("incident_id", "unknown"),
+        )
         return {"outcome": "UNRECOVERABLE"}
 
     # Check if gate blocked execution

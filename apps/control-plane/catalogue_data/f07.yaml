@@ -3,7 +3,7 @@ actions:
   inverse:
     name: rollforward_prompt
     params_mapping:
-      version: $target_version
+      version: $prompt_version
   mutations:
     prompt_version: $target_version
     prompt_health: healthy

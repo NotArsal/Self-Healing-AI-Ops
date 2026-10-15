@@ -3,7 +3,7 @@ actions:
   inverse:
     name: scale_down_connection_pool
     params_mapping:
-      target_size: $original_size
+      target_size: $db_pool_size
   mutations:
     db_pool_size: $target_size
     db_health: healthy

@@ -9,8 +9,20 @@ comment, so its result was asserted rather than measured.
 Design. The measured variable is whether the application is returned to the
 state it was in before the repair. That is purely executor and TNR behaviour, so
 the diagnosis is held fixed and verification is forced to fail -- the point is
-what happens *after* a repair is judged bad, not whether it is judged bad. Both
-arms get identical treatment; only the unwind step differs.
+what happens *after* a repair is judged bad, not whether it is judged bad. Every
+arm gets identical treatment; only the unwind step differs.
+
+Three arms, because the first run of this study showed that "undo removed" and
+"undo working" reported the same outcome, and the fix for that distinguishes two
+different failures:
+
+  undo_enabled      the unwind runs and the application is restored
+  undo_ineffective  the unwind runs, the write is lost, the readback catches it
+  undo_disabled     the unwind step never executes at all
+
+undo_ineffective is the operational failure: an application, proxy or sidecar
+that accepts a write and does not apply it. undo_disabled is a missing code
+path, kept as the control because it is what the previous version measured.
 
 Shadow Laya is stubbed. It cannot affect an outcome by construction (it is
 advisory), and leaving it in costs a local model inference per gate call.
@@ -34,6 +46,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 MANIFEST = REPO_ROOT / "targets" / "proof2" / "kavach.yaml"
 BASE = "http://127.0.0.1:8080"
 PRE_INCIDENT_MODEL = "primary"
+ARMS = ("undo_enabled", "undo_ineffective", "undo_disabled")
 
 
 @dataclass
@@ -80,6 +93,15 @@ def _one_run(arm: str, rep: int) -> Run:
     def _noop_unwind(state: IncidentState) -> IncidentState:
         return {}
 
+    def _ineffective_revert(
+        effect: Any, record: Any, rs_def: Any, mode: str
+    ) -> bool:
+        """The unwind runs, the write is lost, the readback is real."""
+        from kavach.remediation.runtime_config import read_value
+
+        witnessed = record.pre_state_witness.get(effect.key)
+        return read_value(rs_def) == str(witnessed)
+
     patches = [
         patch("kavach.graph.nodes.analyze_root_cause", return_value=fixed_diagnosis),
         # The repair is judged bad in both arms. Only the response differs.
@@ -91,6 +113,8 @@ def _one_run(arm: str, rep: int) -> Run:
     ]
     if arm == "undo_disabled":
         patches.append(patch("kavach.graph.workflow.unwind_node", _noop_unwind))
+    elif arm == "undo_ineffective":
+        patches.append(patch("kavach.graph.nodes.revert_effect", _ineffective_revert))
 
     started = time.time()
     with _nested(patches):
@@ -134,7 +158,7 @@ class _nested:
 
 def _summarise(runs: list[Run]) -> dict[str, Any]:
     out: dict[str, Any] = {}
-    for arm in ("undo_enabled", "undo_disabled"):
+    for arm in ARMS:
         arm_runs = [r for r in runs if r.arm == arm]
         if not arm_runs:
             continue
@@ -148,21 +172,24 @@ def _summarise(runs: list[Run]) -> dict[str, Any]:
             "median_duration_s": statistics.median(r.duration_s for r in arm_runs),
         }
 
-    # The finding that matters as much as the headline: if both arms report the
-    # same outcome, the reported outcome cannot tell an operator whether the
-    # application was left in a mutated state. Kavach never verifies that its own
-    # unwind restored the prior state -- UNRECOVERABLE is raised only by a
-    # hardcoded test flag -- so a no-undo system and a working one are
-    # indistinguishable from the outside.
-    enabled = {r.outcome for r in runs if r.arm == "undo_enabled"}
-    disabled = {r.outcome for r in runs if r.arm == "undo_disabled"}
-    if enabled and disabled:
-        out["outcome_distinguishes_arms"] = enabled != disabled
-        out["note"] = (
-            "outcome is identical in both arms; only direct inspection of the "
-            "application revealed the difference"
-            if enabled == disabled
-            else "outcome differs between arms"
+    # The finding that matters as much as the headline: can an operator tell from
+    # the reported outcome that the application was left mutated? The first run of
+    # this study answered no for every arm, because the unwind was never checked.
+    outcomes = {
+        arm: {r.outcome for r in runs if r.arm == arm} for arm in ARMS
+    }
+    good = outcomes.get("undo_enabled") or set()
+    for arm in ("undo_ineffective", "undo_disabled"):
+        seen = outcomes.get(arm) or set()
+        if not (good and seen):
+            continue
+        out[f"outcome_distinguishes_{arm}"] = good != seen
+        out[f"note_{arm}"] = (
+            f"{','.join(sorted(seen))} vs {','.join(sorted(good))} when the undo "
+            "works: the reported outcome exposes the difference"
+            if good != seen
+            else "outcome is identical to a working undo; only direct inspection "
+            "of the application reveals the difference"
         )
     return out
 
@@ -179,11 +206,14 @@ def main() -> int:
         print(f"target not reachable at {BASE}. Run `make target-up` first.", file=sys.stderr)
         return 1
 
-    print(f"Undo ablation: F01 against the live target, {args.reps} reps per arm")
+    print(
+        f"Undo ablation: F01 against the live target, {args.reps} reps x "
+        f"{len(ARMS)} arms"
+    )
     print("Diagnosis fixed, verification forced to fail; only the unwind differs.\n")
 
     runs: list[Run] = []
-    for arm in ("undo_enabled", "undo_disabled"):
+    for arm in ARMS:
         for rep in range(1, args.reps + 1):
             run = _one_run(arm, rep)
             runs.append(run)
@@ -195,9 +225,12 @@ def main() -> int:
 
     summary = _summarise(runs)
     print("\n--- Undo ablation ---")
-    for arm, s in summary.items():
+    for arm in ARMS:
+        s = summary.get(arm)
+        if not s:
+            continue
         print(
-            f"{arm:<14} prior state restored {s['prior_state_restored']}/{s['reps']} "
+            f"{arm:<17} prior state restored {s['prior_state_restored']}/{s['reps']} "
             f"({s['prior_state_restored_pct']}%)  outcomes={','.join(s['outcomes'])}"
         )
 

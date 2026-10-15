@@ -3,7 +3,7 @@ actions:
   inverse:
     name: scale_down_retrievers
     params_mapping:
-      target_count: $original_count
+      target_count: $retriever_count
   mutations:
     retriever_count: $target_count
     retriever_health: healthy

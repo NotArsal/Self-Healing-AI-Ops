@@ -3,7 +3,7 @@ actions:
   inverse:
     name: rollforward_deployment
     params_mapping:
-      version: $target_version
+      version: $deployment_version
   mutations:
     deployment_version: $target_version
     api_health: healthy

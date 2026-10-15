@@ -3,7 +3,7 @@ actions:
   inverse:
     name: rollforward_config
     params_mapping:
-      version: $target_version
+      version: $config_version
   mutations:
     config_version: $target_version
     config_health: healthy

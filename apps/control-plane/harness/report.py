@@ -37,28 +37,45 @@ def _ablation(s: dict[str, Any] | None) -> str:
             "## 1. Undo ablation\n\n**NOT RUN.** `make target-up && make onboard "
             "APP=targets/proof2 && make bench-live`\n"
         )
-    on, off = s["undo_enabled"], s["undo_disabled"]
+    labels = {
+        "undo_enabled": "undo works",
+        "undo_ineffective": "undo runs, write is lost",
+        "undo_disabled": "unwind step removed",
+    }
+    rows = "\n".join(
+        f"| {labels.get(arm, arm)} | **{a['prior_state_restored']}/{a['reps']} "
+        f"({a['prior_state_restored_pct']}%)** | {', '.join(a['outcomes'])} | "
+        f"{a['median_duration_s']}s |"
+        for arm, a in ((k, s[k]) for k in labels if k in s)
+    )
+    ineffective_detected = s.get("outcome_distinguishes_undo_ineffective")
+    disabled_detected = s.get("outcome_distinguishes_undo_disabled")
     return f"""## 1. Undo ablation — the headline result
 
 F01 against the live `targets/proof2` application. Diagnosis held fixed and
-verification forced to fail in both arms, so the only variable is the unwind.
+verification forced to fail in every arm, so the only variable is the unwind.
 
 | Arm | Prior state restored | Outcome reported | Median |
 |---|---|---|---|
-| undo enabled | **{on['prior_state_restored']}/{on['reps']} ({on['prior_state_restored_pct']}%)** | {', '.join(on['outcomes'])} | {on['median_duration_s']}s |
-| undo disabled | **{off['prior_state_restored']}/{off['reps']} ({off['prior_state_restored_pct']}%)** | {', '.join(off['outcomes'])} | {off['median_duration_s']}s |
+{rows}
 
 With the undo stack, a failed repair always returns the application to the model
 it was serving before. Without it, the application is left on the backup every
 time. This is a state read back over HTTP, not an outcome Kavach reports about
 itself.
 
-**The second finding matters as much.** `outcome_distinguishes_arms` is
-`{s.get('outcome_distinguishes_arms')}`: both arms report the same outcome, so the reported
-outcome cannot tell an operator whether the application was left in a mutated
-state. Kavach never verifies that its own rollback achieved anything —
-`UNRECOVERABLE` is raised only by the `_force_undo_failure` test flag. ROADMAP P3
-requires a forced-undo-failure path to report `UNRECOVERABLE` loudly; it cannot.
+**Is a failed rollback detectable?** `revert_effect` now writes the witnessed
+value and reads it back; a mismatch appends to `unwind_unrestored`, and
+`outcome_node` reports `UNRECOVERABLE`. Measured:
+
+- undo runs but the write is lost — detected: `{ineffective_detected}`
+- unwind step never runs at all — detected: `{disabled_detected}`
+
+The first is the operational failure: an application, proxy or sidecar that
+accepts a write and does not apply it. The second is a missing code path, and it
+stays invisible by construction — a step that does not execute reports nothing.
+Before this, neither was detectable and ROADMAP P3's loud `UNRECOVERABLE` was
+raised only by the `_force_undo_failure` test flag.
 """
 
 
@@ -164,11 +181,12 @@ MTTR, and any speed-up factor quoted against one is invented.
 | Claim | Status |
 |---|---|
 | Undo restores prior state on a live app | **Measured** |
-| A failed rollback is detectable | **No** — both ablation arms report the same outcome |
+| An ineffective rollback is detectable | **Measured** — readback mismatch reports `UNRECOVERABLE` |
+| An unwind that never runs is detectable | **No** — a step that does not execute reports nothing |
 | Laya disagrees with the rule engine | **Measured**, real inference |
 | RCA accuracy | **Measured**, no answer key in the prompt |
 | P(heal {PIPE} wrong diagnosis) | **Measured** |
-| LLM vs rules baseline | **Unavailable** — P3's mapping is gone; `detect` survives for F01 only |
+| LLM vs rules baseline | **Unavailable** — P3's mapping is gone; `detect` survives for F01, F03, F07 only |
 | Human baseline | **Not run** |
 | F02–F09 behaviour | Simulated state; verification derived from thresholds, not measured |
 """

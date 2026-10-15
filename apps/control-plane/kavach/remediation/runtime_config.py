@@ -109,10 +109,19 @@ def revert_effect(
     record: UndoRecord,
     rs_def: ReversibleStateDef,
     mode: str,
-) -> None:
-    """Restore the witnessed prior value. Idempotent: writing it twice is a no-op."""
+) -> bool:
+    """Restore the witnessed prior value and read it back to confirm.
+
+    Returns True when the application reports the witnessed value afterwards. A
+    2xx on the write is not evidence the state moved: the undo ablation measured
+    a working rollback and no rollback reporting the same outcome, because
+    nothing ever checked (docs/MEASUREMENTS.md). A readback that fails counts as
+    unconfirmed, and unconfirmed is not restored.
+
+    Idempotent: writing the witnessed value twice is a no-op.
+    """
     if mode == "SIMULATION" or not record.applied:
-        return
+        return True
 
     witnessed = record.pre_state_witness.get(effect.key)
     if witnessed is None:
@@ -120,3 +129,8 @@ def revert_effect(
             f"undo record carries no witness for '{effect.key}'; cannot restore"
         )
     write_value(rs_def, str(witnessed))
+
+    try:
+        return read_value(rs_def) == str(witnessed)
+    except RuntimeConfigError:
+        return False

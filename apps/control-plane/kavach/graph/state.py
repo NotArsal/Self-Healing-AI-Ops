@@ -48,6 +48,12 @@ class IncidentState(TypedDict, total=False):
     # protect -- it has no undo record, because nothing was applied.
     sandbox_state: dict[str, str]
 
+    # State keys an unwind did not put back at their witnessed value. Appended to,
+    # so a later successful unwind cannot erase an earlier failure. Non-empty means
+    # UNRECOVERABLE: the undo stack is the core guarantee (AGENTS.md 4a) and an
+    # unwind nobody checks is indistinguishable from no unwind at all.
+    unwind_unrestored: Annotated[list[str], operator.add]
+
     # Risk tier of the diagnosed fault, from the catalogue. Drives the mode policy.
     risk_tier: str | None
 

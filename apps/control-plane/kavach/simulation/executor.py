@@ -47,7 +47,15 @@ def execute_action(action: Action, state: dict[str, str]) -> UndoRecord:
     for k, v in act_def.inverse.params_mapping.items():
         if v.startswith("$"):
             param_name = v[1:]
-            inverse_params[k] = action.params.get(param_name, "unknown")
+            # The forward action's params first, then the witness. An inverse that
+            # restores a prior value cannot read it from the params -- those say
+            # where the action was going, not where it came from -- so every
+            # mapping naming a mutated state key resolved to "unknown" and the
+            # undo silently wrote that instead. The witness is the prior state as
+            # data, which is the whole point of capturing it (AGENTS.md 4a).
+            inverse_params[k] = action.params.get(
+                param_name, pre_state.get(param_name, "unknown")
+            )
         else:
             inverse_params[k] = v
 
