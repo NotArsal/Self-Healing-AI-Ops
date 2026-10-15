@@ -348,13 +348,18 @@ def execute_node(state: IncidentState) -> IncidentState:
 
             if mode == "SIMULATION":
                 # Do not write anything/execute shell commands in SIMULATION
-                _success = True
+                success = True
                 output = "Simulated success"
             else:
-                _success, output = execute_command(cmd, context)
+                success, output = execute_command(cmd, context)
 
             last_output = output
             sim_state["last_shell_output"] = last_output
+            # The process's own exit status. verify_node used to ask Laya to read
+            # the output text and say whether it had worked, which put a model
+            # with no access to the exit code in charge of whether the system
+            # unwinds. The answer was already here and was being discarded.
+            sim_state["last_shell_success"] = "true" if success else "false"
 
             from kavach.tnr.models import UndoRecord
 
@@ -442,8 +447,6 @@ def execute_node(state: IncidentState) -> IncidentState:
 
 
 def verify_node(state: IncidentState) -> IncidentState:
-    from kavach.remediation.executor import verify_execution
-
     sim_state = state.get("simulation_state", {})
     approved_actions = state.get("approved_actions", [])
 
@@ -460,13 +463,11 @@ def verify_node(state: IncidentState) -> IncidentState:
     )
 
     if shell_action:
-        output = sim_state.get("last_shell_output", "")
-        cmd = shell_action.params.get("cmd", "")
-        status = verify_execution(output, cmd)
-        passed = status == "success"
+        # The exit status, not a model's reading of stdout.
+        passed = sim_state.get("last_shell_success") == "true"
         return {
             "verification_passed": passed,
-            "verification_deltas": {"laya_status": status},
+            "verification_deltas": {"exit_ok": 1.0 if passed else 0.0},
         }
     else:
         passed, deltas = verify_state(state["scenario"], sim_state)

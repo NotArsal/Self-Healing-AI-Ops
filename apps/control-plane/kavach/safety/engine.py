@@ -1,3 +1,5 @@
+import re
+import shlex
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -9,6 +11,73 @@ class PermitResult:
     def __init__(self, is_allowed: bool, reason: str):
         self.is_allowed = is_allowed
         self.reason = reason
+
+
+# AGENTS.md rule 7: no action may delete data, drop a database, scale to zero or
+# run a migration, and these "must not become reachable". An action carrying a
+# free-text command makes every one of them reachable, because the allow-list
+# matches the action's *name*: a scenario permitting `shell_command` permitted
+# `rm -rf /var/lib/mysql` with it.
+#
+# A deny-list is the weaker half of a security model and is deliberately second
+# best here. The structural fix is for a manifest to declare which commands it
+# permits, so the gate can require a positive match instead of guessing at
+# negatives -- that needs a `kavach.yaml` schema change, which is not a decision
+# to take unilaterally. Until then this is the floor, not the ceiling.
+FORBIDDEN_COMMAND_PATTERNS: tuple[tuple[str, str], ...] = (
+    (r"\brm\s+(-\w+\s+)*-?\w*[rf]", "DELETES_DATA"),
+    (r"\b(drop|truncate)\s+(database|schema|table)\b", "DROPS_DATABASE"),
+    (r"\bdelete\s+from\b", "DELETES_DATA"),
+    (r"\bmkfs(\.\w+)?\b", "FORMATS_FILESYSTEM"),
+    (r"\bdd\s+.*\bof=", "OVERWRITES_DEVICE"),
+    (r"\b(shutdown|reboot|halt|poweroff)\b", "HALTS_HOST"),
+    (r"\bdocker\s+(rm|rmi|volume\s+rm|system\s+prune)\b", "DESTROYS_CONTAINER_STATE"),
+    (r"\bkubectl\s+delete\b", "DELETES_WORKLOAD"),
+    (r"--replicas[= ]+0\b", "SCALES_TO_ZERO"),
+    (r"\bscale\b.*\b(--replicas[= ]+)?0\b", "SCALES_TO_ZERO"),
+    (r"\b(alembic|flyway|liquibase)\b|\bmanage\.py\s+migrate\b", "RUNS_MIGRATION"),
+    (r"\bgit\s+push\b", "WRITES_TO_A_REMOTE"),
+    (r":\s*\(\s*\)\s*\{.*\};\s*:", "FORK_BOMB"),
+)
+
+# Anything that lets one approved command become two. The command is executed
+# without a shell, so these cannot chain -- but a value carrying them is not
+# the command the gate was shown, and it is refused rather than silently split.
+SHELL_METACHARACTERS = (";", "&&", "||", "|", "`", "$(", ">", ">>", "\n")
+
+# Params whose value is executed rather than compared.
+COMMAND_PARAMS = ("cmd", "command", "script")
+
+
+def _command_values(action: Action) -> list[str]:
+    return [
+        v
+        for k, v in action.params.items()
+        if k in COMMAND_PARAMS and isinstance(v, str) and v.strip()
+    ]
+
+
+def forbidden_operation(action: Action) -> str | None:
+    """The rule-7 reason this action must not run, or None.
+
+    Returns a verdict's reason, never a score: `permit()` decides, and nothing
+    about a confidence or a risk tier may reach past this (AGENTS.md 4b).
+    """
+    for command in _command_values(action):
+        lowered = command.lower()
+        for meta in SHELL_METACHARACTERS:
+            if meta in command:
+                return "SHELL_METACHARACTER"
+        for pattern, reason in FORBIDDEN_COMMAND_PATTERNS:
+            if re.search(pattern, lowered):
+                return reason
+        try:
+            if not shlex.split(command):
+                return "EMPTY_COMMAND"
+        except ValueError:
+            # Unbalanced quoting. The gate cannot read what it is approving.
+            return "UNPARSEABLE_COMMAND"
+    return None
 
 
 def permit(
@@ -33,6 +102,13 @@ def permit(
                 return PermitResult(
                     False, f"FORBIDDEN_SERVICE_TARGETED_{f_service.upper()}"
                 )
+
+    # 1b. Forbidden operations, by what the action actually does. The allow-list
+    # below matches an action's name, so without this a scenario that permits
+    # `shell_command` permits every command string anyone can put in its params.
+    operation = forbidden_operation(action)
+    if operation is not None:
+        return PermitResult(False, f"FORBIDDEN_OPERATION_{operation}")
 
     # 2. Allow-list check (empty by default)
     allowed = scenario.permissions.allowed_actions if scenario.permissions else []

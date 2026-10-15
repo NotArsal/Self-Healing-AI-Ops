@@ -1,13 +1,9 @@
 from kavach.remediation.executor import execute_http
-from kavach.remediation.tnr_gate import SafetyAssessment
 
 
 def test_execute_http_injects_trace_headers(monkeypatch):
-    monkeypatch.setattr(
-        "kavach.remediation.executor.evaluate_safety",
-        lambda *args, **kwargs: SafetyAssessment(is_safe=True, reason="Mock safe")
-    )
-    
+    # No safety stub: the executor no longer consults shadow Laya before acting.
+    # permit() decided in gate_node, and Laya may not gate (AGENTS.md).
     captured_headers = {}
     
     class MockClient:

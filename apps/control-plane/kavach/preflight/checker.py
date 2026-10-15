@@ -20,13 +20,19 @@ rather than inventing a result.
 import socket
 import subprocess
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 import yaml
 from pydantic import ValidationError
 
 from kavach.preflight.schema import KavachManifest
-from kavach.scenarios.schema import TargetBinding
+
+if TYPE_CHECKING:
+    # Imported for typing only: scenarios.schema imports preflight.schema, and
+    # preflight/__init__ imports this module, so a real import here is a cycle
+    # that resolves or not depending on which package is imported first.
+    from kavach.scenarios.schema import TargetBinding
 
 TIMEOUT_S = 5.0
 NO_PATH = (
@@ -146,6 +152,8 @@ class PreflightChecker:
         """A TargetBinding for the live probes, or None if we have no path."""
         if self.manifest_path is None or self.manifest is None:
             return None
+        from kavach.scenarios.schema import TargetBinding
+
         return TargetBinding(
             manifest=self.manifest, manifest_path=str(self.manifest_path)
         )

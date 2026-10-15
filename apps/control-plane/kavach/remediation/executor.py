@@ -1,11 +1,29 @@
+"""Side-effecting adapters. Permission is decided before anything gets here.
+
+`safety.engine.permit()` is the only authority, and it has already run in
+`gate_node` by the time these are called. Both functions used to call
+`evaluate_safety` -- shadow Laya -- and raise if it disapproved, which made the
+decision model a gate in everything but name. AGENTS.md is explicit that Laya is
+shadow-only in v1 and must not gate an action, and the measurement says why:
+Laya judges 7 of 9 legitimate repairs unsafe at confidence 0.01-0.16
+(docs/MEASUREMENTS.md), so it would have blocked 78% of correct repairs while
+offering no evidence it blocks the dangerous ones.
+"""
+
+import shlex
 import subprocess
 
 import httpx
 
-from kavach.remediation.tnr_gate import evaluate_safety
-
 
 class RequiresHumanApprovalError(Exception):
+    """Kept for callers that still catch it; nothing in this module raises it.
+
+    Approval is requested by the graph (`_request_approval` interrupts in
+    `gate_node`), not by an adapter discovering mid-execution that it should not
+    have been called.
+    """
+
     def __init__(self, reason: str, command: str):
         self.reason = reason
         self.command = command
@@ -13,33 +31,41 @@ class RequiresHumanApprovalError(Exception):
 
 
 def execute_command(command: str, incident_context: str = "") -> tuple[bool, str]:
-    safety_assessment = evaluate_safety(command, incident_context)
-    if not safety_assessment.is_safe:
-        raise RequiresHumanApprovalError(
-            reason=safety_assessment.reason, command=command
-        )
+    """Run a command the gate has already permitted.
+
+    No shell. `shell=True` handed an uninspected string to a shell, so a command
+    the gate approved could carry a second one after a `;` -- and the gate was
+    only ever shown the action's *name*. permit() now reads the command and
+    refuses shell metacharacters outright, and this runs the argv it parsed.
+
+    ponytail: shlex.split is POSIX, so a Windows path with backslashes needs
+    quoting. The catalogue's commands are container and process operations, so
+    that has not bitten; a manifest-declared command allow-list is the real fix.
+    """
+    try:
+        argv = shlex.split(command)
+    except ValueError as e:
+        return False, f"Command could not be parsed: {e}"
+    if not argv:
+        return False, "Empty command."
 
     try:
         result = subprocess.run(
-            command, shell=True, check=False, capture_output=True, text=True, timeout=30
+            argv, shell=False, check=False, capture_output=True, text=True, timeout=30
         )
         output = result.stdout + "\n" + result.stderr
         success = result.returncode == 0
         return success, output.strip()
     except subprocess.TimeoutExpired:
         return False, "Command timed out after 30 seconds."
-    except Exception as e:
+    except OSError as e:
         return False, f"Execution failed: {e!s}"
 
 
 def execute_http(
     method: str, url: str, payload: dict[str, str], incident_context: str = ""
 ) -> tuple[bool, str]:
-    # Very basic HTTP executor for Proof2
-    safety_assessment = evaluate_safety(url, incident_context)
-    if not safety_assessment.is_safe:
-        raise RequiresHumanApprovalError(reason=safety_assessment.reason, command=url)
-
+    """Issue a request the gate has already permitted."""
     try:
         from opentelemetry import propagate
 
@@ -55,31 +81,8 @@ def execute_http(
         return False, f"HTTP Execution failed: {e!s}"
 
 
-def verify_execution(output_text: str, command: str) -> str:
-    try:
-        from laya import Router
-    except ImportError:
-        Router = None
-
-    if not Router:
-        # Fallback heuristic if Laya is not installed
-        lower_out = output_text.lower()
-        if "error" in lower_out or "exception" in lower_out or "fatal" in lower_out:
-            return "failure"
-        return "success" if output_text.strip() else "unknown"
-
-    router = Router()
-    questions = {
-        "status": {
-            "type": "choice",
-            "instructions": "Did this terminal command succeed or fail based on the output?",
-            "criteria": {
-                "success": "Output indicates success, completion, running state, or OK",
-                "failure": "Output contains error, fatal, denied, not found, or exception tracebacks",
-                "unknown": "Output is empty or ambiguous",
-            },
-        }
-    }
-    prompt = f"Command: {command}\nOutput: {output_text}"
-    result = router.predict(prompt, questions)
-    return str(result["answers"]["status"].get("choice", "unknown"))
+# verify_execution() lived here: a Laya choice question over a command's stdout,
+# asked by verify_node to decide whether a shell repair had worked, and from
+# there whether to unwind. It had no access to the exit status, which
+# execute_command returns and execute_node was discarding. Removed along with
+# its only caller; the exit status is the verdict.

@@ -1,5 +1,4 @@
 import os
-from unittest.mock import MagicMock
 
 import pytest
 from pydantic import ValidationError
@@ -77,17 +76,35 @@ def test_invalid_yaml_fails_fast():
 
 
 def test_gate_node_blocks_f11_destructive_command():
-    scenario = MagicMock()
-    scenario.id = "test_scen"
-    scenario.fault_class = "F11"
-    
+    """The command is refused, and for the reason it should be.
+
+    This used to build the scenario with a MagicMock, whose `permissions
+    .allowed_actions` contains nothing, so the gate denied with
+    UNAPPROVED_ACTION and the command string was never examined. It passed
+    without testing anything about destructiveness. The scenario below permits
+    `shell_command` explicitly, which is the case that matters: permitting the
+    action must not permit everything the action can carry.
+    """
+    from kavach.scenarios.schema import PermissionDef, Scenario, ServiceDef
+
+    scenario = Scenario(
+        id="test_scen",
+        fault_class="F11",
+        services={"api": ServiceDef(role="application")},
+        health={"api": "unhealthy"},
+        permissions=PermissionDef(
+            allowed_actions=["shell_command"], max_risk_tier="HIGH"
+        ),
+    )
+
     state = IncidentState(
         incident_id="inc_test",
         fault_class="F11",
         scenario=scenario,
         plan=[Action(name="shell_command", params={"cmd": "rm -rf /var/lib/mysql"})]
     )
-    
-    # We expect gate to deny destructive shell commands
+
     new_state = gate_node(state)
     assert new_state.get("gate_verdict") == "DENY"
+    assert new_state.get("gate_reason") == "FORBIDDEN_OPERATION_DELETES_DATA"
+    assert new_state.get("approved_actions") == []
