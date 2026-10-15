@@ -18,7 +18,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { api, type Incident, type LoopEvent, type System, wsUrl } from "./api";
+import {
+  api,
+  type FleetMetrics,
+  type Incident,
+  type LoopEvent,
+  type ModeState,
+  type System,
+  wsUrl,
+} from "./api";
 
 const HEALTH_INTERVAL_MS = 5000;
 const RECONNECT_MS = 2000;
@@ -158,5 +166,41 @@ export function useIncidents(selectedId: string): {
       void load();
       void loadOne(selectedId);
     },
+  };
+}
+
+/**
+ * Operating mode and fleet metrics.
+ *
+ * Both are cheap and change rarely, so they load once and refresh when the
+ * caller says something happened. Polling them would be noise.
+ */
+export function useSafetyState(): {
+  mode: ModeState | null;
+  metrics: FleetMetrics | null;
+  setMode: (next: ModeState) => void;
+  refresh: () => void;
+} {
+  const [mode, setModeState] = useState<ModeState | null>(null);
+  const [metrics, setMetrics] = useState<FleetMetrics | null>(null);
+
+  const load = useCallback(async () => {
+    const [m, f] = await Promise.all([
+      api.GET("/v1/mode"),
+      api.GET("/v1/metrics"),
+    ]);
+    if (m.data) setModeState(m.data);
+    if (f.data) setMetrics(f.data);
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return {
+    mode,
+    metrics,
+    setMode: setModeState,
+    refresh: () => void load(),
   };
 }

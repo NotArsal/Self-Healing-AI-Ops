@@ -40,12 +40,18 @@ import structlog
 
 from kavach import loop
 from kavach.api.events import bus
-from kavach.config import Settings
+from kavach.audit.log import AuditLog
+from kavach.config import Mode, Settings
+from kavach.db.store import IncidentStore
 from kavach.detection import retrieval_collapse as rc
+from kavach.executor import catalogue  # noqa: F401 - registers the catalogue
+from kavach.executor.base import registry
 from kavach.llm.client import OllamaClient
 from kavach.onboarding.baseline import _promql
+from kavach.onboarding.manifest import Manifest, load
 from kavach.rca import evidence as ev
 from kavach.rca.engine import diagnose
+from kavach.safety.engine import ProjectPolicy, SafetyEngine
 from kavach.target import TargetClient, TargetEndpoints
 from kavach.verification import fast
 
@@ -61,6 +67,29 @@ class LoopBusyError(RuntimeError):
 
 class NoBaselineError(RuntimeError):
     """No captured known-good value, so there is nothing to roll back to."""
+
+
+class NotAwaitingError(RuntimeError):
+    """The incident is not waiting for a human."""
+
+
+def policy_from_manifest(m: Manifest, mode_override: Mode | None = None) -> ProjectPolicy:
+    """The manifest IS the safety posture. `permit()` reads nothing else.
+
+    A mode set from the console overrides the file for this process, because an
+    operator flipping to AUTONOMOUS on stage should not require a file edit and
+    a restart. The manifest stays the durable default; the override is explicit
+    and visible in every decision record.
+    """
+    return ProjectPolicy(
+        name=m.project.name,
+        compose_project=m.project.compose_project,
+        services=frozenset(m.services),
+        allowed_actions=frozenset(m.allowed_actions),
+        denied_mutations=frozenset(m.denied_mutations),
+        mode=mode_override or m.mode,
+        confidence_threshold=m.confidence_threshold,
+    )
 
 
 def newest_baseline(baselines: Path, project: str) -> tuple[float | None, str]:
@@ -89,6 +118,62 @@ class LoopRunner:
         self._order: list[str] = []
         self._lock = threading.Lock()
         self._running: str = ""
+
+        self.safety = SafetyEngine(registry)
+        self.audit = AuditLog(settings.root() / "harness" / "audit" / "kavach.jsonl")
+        # NOT connected here. A constructor that opens a socket makes every
+        # test that builds a runner wait on a database, which is how this
+        # hung the suite the first time. `init_store()` is called from the
+        # app's startup, where connecting is the point.
+        self.store = IncidentStore(settings.database_url)
+
+        # An operator's mode change for the life of this process. None means
+        # "whatever the manifest says", which is the durable answer.
+        self._mode_override: Mode | None = None
+
+        # Incidents parked at the gate, with the evidence a human needs to
+        # approve them. Kept in memory because the prepared action cannot be
+        # pickled; the incident itself is persisted, so a restart loses the
+        # pending approval and the operator re-runs. That is the honest
+        # behaviour until the action's parameters are persisted too.
+        self._awaiting: dict[str, dict[str, Any]] = {}
+
+    def init_store(self) -> bool:
+        """Connect and create tables. Safe to call twice; never raises."""
+        if self.store.available():
+            return True
+        connected = self.store.init()
+        self.audit.append(
+            "store_init",
+            available=connected,
+            detail=self.store.unavailable_reason or "connected",
+        )
+        return connected
+
+    # --- policy -------------------------------------------------------------
+
+    def manifest(self) -> Manifest:
+        return load(Path(self.settings.target_path) / "kavach.yaml")
+
+    def policy(self) -> ProjectPolicy:
+        return policy_from_manifest(self.manifest(), self._mode_override)
+
+    @property
+    def mode(self) -> Mode:
+        return self.policy().mode
+
+    def set_mode(self, mode: Mode) -> ProjectPolicy:
+        """Change the operating mode for this process.
+
+        Audited, because moving a project to AUTONOMOUS is the single most
+        consequential configuration act available and an unrecorded one is
+        indistinguishable from a compromise.
+        """
+        previous = self.mode
+        self._mode_override = mode
+        self.audit.append("mode_change", actor="operator",
+                          previous=str(previous), mode=str(mode))
+        return self.policy()
 
     # --- target wiring ------------------------------------------------------
 
@@ -136,8 +221,18 @@ class LoopRunner:
         return bool(self._running)
 
     def incidents(self) -> list[loop.Incident]:
-        """Newest first."""
+        """Newest first, from memory."""
         return [self._incidents[i] for i in reversed(self._order)]
+
+    def persisted(self, limit: int = HISTORY_MAX) -> list[dict[str, Any]]:
+        """Newest first, from the database. Survives a restart."""
+        return self.store.recent(limit)
+
+    def fleet_metrics(self) -> dict[str, Any]:
+        return self.store.fleet_metrics()
+
+    def awaiting(self) -> list[str]:
+        return sorted(self._awaiting)
 
     def incident(self, incident_id: str) -> loop.Incident | None:
         return self._incidents.get(incident_id)
@@ -148,6 +243,8 @@ class LoopRunner:
         self._incidents[inc.incident_id] = inc
         while len(self._order) > HISTORY_MAX:
             self._incidents.pop(self._order.pop(0), None)
+        # Best-effort. An unreachable database must never stop a heal.
+        self.store.save(inc.to_dict())
 
     # --- running ------------------------------------------------------------
 
@@ -182,7 +279,9 @@ class LoopRunner:
 
         return stage
 
-    async def start(self, use_rca: bool = True) -> loop.Incident:
+    async def start(
+        self, use_rca: bool = True, approved_from: str = ""
+    ) -> loop.Incident:
         """Begin a run. Returns as soon as the incident exists, not when it ends."""
         with self._lock:
             if self._running:
@@ -207,10 +306,24 @@ class LoopRunner:
                 event_loop, stage, status, message, incident_id=incident_id
             )
 
+        # Resolved before the first event, so a manifest that will not parse is
+        # reported to the caller rather than surfacing inside a worker thread.
+        try:
+            policy = self.policy()
+        except Exception as exc:
+            # A missing safety policy is the same class of refusal as a missing
+            # baseline: there is nothing safe to run under.
+            raise NoBaselineError(
+                f"the manifest could not be read, so there is no safety policy "
+                f"to run under: {exc}"
+            ) from exc
+
         publish("run", "started",
-                f"operator started a loop run; baseline rerank_threshold "
-                f"{baseline_value} from {source}; "
-                f"{'LLM RCA enabled' if use_rca else 'deterministic only'}")
+                (f"operator APPROVED {approved_from}; re-detecting and "
+                 f"re-preparing against the target as it is now. "
+                 if approved_from else "operator started a loop run ")
+                + f"mode {policy.mode}; baseline {baseline_value} from {source}; "
+                + ("LLM RCA enabled" if use_rca else "deterministic only"))
 
         client = self.client()
         rca_stage = self._rca_stage(client, publish) if use_rca else None
@@ -234,8 +347,22 @@ class LoopRunner:
                     incident_id=incident_id,
                     rca=rca_stage,
                     on_event=publish,
+                    safety=self.safety,
+                    policy=policy,
+                    audit=self.audit,
                 )
                 self._remember(result)
+                if result.decision:
+                    self.store.save_decision(incident_id, result.decision)
+                if result.status is loop.IncidentStatus.AWAITING:
+                    # Park it. The human now has the plan, the risk tier, the
+                    # pre-state and the inverse, which is everything the
+                    # approval dialog needs (DESIGN_SYSTEM §7.7).
+                    self._awaiting[incident_id] = {
+                        "baseline_value": baseline_value,
+                        "policy": policy,
+                        "at": datetime.now(UTC).isoformat(timespec="seconds"),
+                    }
                 ok = result.status is loop.IncidentStatus.RESOLVED
                 quiet = result.status is loop.IncidentStatus.NO_FAULT
                 publish(
@@ -260,3 +387,66 @@ class LoopRunner:
             target=work, name=f"kavach-loop-{incident_id}", daemon=True
         ).start()
         return inc
+
+    # --- approval -----------------------------------------------------------
+
+    async def approve(self, incident_id: str) -> loop.Incident:
+        """A human authorised the parked plan. Re-run it as AUTONOMOUS.
+
+        Re-running rather than resuming a stored plan is deliberate. The world
+        may have moved since the operator looked: the fault may have cleared,
+        the pre-state may be stale, another writer may have touched the target.
+        Re-detecting and re-preparing means the action that executes is built
+        against the target as it is NOW, and the pre-state witness it records
+        is the real one. A resumed plan would restore a value that was true
+        when the dialog opened.
+
+        What the approval authorises is therefore the DECISION, not a frozen
+        payload - which is also why the re-run still passes `permit()`: every
+        other rule, including the deny-list and the breaker, is evaluated
+        again.
+        """
+        with self._lock:
+            if incident_id not in self._awaiting:
+                raise NotAwaitingError(
+                    f"{incident_id} is not awaiting approval; "
+                    f"waiting: {sorted(self._awaiting) or 'none'}"
+                )
+            if self._running:
+                raise LoopBusyError(
+                    f"a loop run is already in flight ({self._running})"
+                )
+            self._awaiting.pop(incident_id)
+
+        self.audit.append("approved", incident_id=incident_id, actor="operator",
+                          note="re-detected and re-prepared; the decision was "
+                               "approved, not a frozen payload")
+        # The operator IS the approval, so this one run executes under
+        # AUTONOMOUS. The mode on the project is untouched.
+        previous = self._mode_override
+        self._mode_override = "AUTONOMOUS"
+        try:
+            return await self.start(use_rca=True, approved_from=incident_id)
+        finally:
+            self._mode_override = previous
+
+    def reject(self, incident_id: str, reason: str) -> None:
+        """A human refused the plan. The reason is required, and recorded.
+
+        Required because a rejection without one teaches nobody anything, and
+        the knowledge base (P7) is built from exactly these.
+        """
+        with self._lock:
+            if incident_id not in self._awaiting:
+                raise NotAwaitingError(f"{incident_id} is not awaiting approval")
+            self._awaiting.pop(incident_id)
+        if not reason.strip():
+            raise ValueError("a rejection needs a reason")
+        self.audit.append("rejected", incident_id=incident_id,
+                          actor="operator", reason=reason)
+        inc = self._incidents.get(incident_id)
+        if inc is not None:
+            inc.status = loop.IncidentStatus.ESCALATED
+            inc.escalation_reason = f"rejected by operator: {reason}"
+            inc.outcome = "not executed; the operator refused the plan"
+            self._remember(inc)

@@ -11,14 +11,28 @@
 
 import { Icon } from "../ui/Icon";
 import { OkText } from "../ui/pills";
-import type { System } from "@/lib/api";
+import type { FleetMetrics, System } from "@/lib/api";
+
+/** A rate the backend reports as null has no data behind it. Rendering it as
+ *  0 would claim "instant" where the truth is "never measured", which is the
+ *  one number this project must not fabricate. */
+function Readout({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div>
+      <div className="k-mono-metric">{value ?? "—"}</div>
+      <div className="k-xs k-faint">{label}</div>
+    </div>
+  );
+}
 
 export function SystemHealth({
   system,
   error,
+  metrics = null,
 }: {
   system: System | null;
   error: string;
+  metrics?: FleetMetrics | null;
 }) {
   if (error) {
     return (
@@ -90,6 +104,46 @@ export function SystemHealth({
         </dl>
       </div>
 
+      {metrics && (
+        <div>
+          <h3 style={{ marginBottom: "var(--k-space-2)" }}>Fleet</h3>
+          {metrics.available ? (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "var(--k-space-3)",
+              }}
+            >
+              <Readout
+                label="MTTR"
+                value={
+                  metrics.mttr_seconds === null || metrics.mttr_seconds === undefined
+                    ? null
+                    : `${metrics.mttr_seconds}s`
+                }
+              />
+              <Readout
+                label="Repair success"
+                value={
+                  metrics.repair_success_rate === null ||
+                  metrics.repair_success_rate === undefined
+                    ? null
+                    : `${Math.round(metrics.repair_success_rate * 100)}%`
+                }
+              />
+              <Readout label="Auto-healed" value={String(metrics.auto_healed)} />
+              <Readout label="Awaiting" value={String(metrics.awaiting)} />
+            </div>
+          ) : (
+            <p className="k-sm k-muted" style={{ margin: 0 }}>
+              No incident store, so there is nothing to average. MTTR and repair
+              success need persisted history.
+            </p>
+          )}
+        </div>
+      )}
+
       <div>
         <h3 style={{ marginBottom: "var(--k-space-2)" }}>
           Dependencies{" "}
@@ -144,9 +198,8 @@ export function SystemHealth({
       >
         <Icon name="info" />
         <span>
-          Mode {system.mode} is a configured value. It does not gate any action
-          yet — the safety engine is not implemented, and the loop runs only when
-          an operator starts it.
+          Mode {system.mode} is enforced: every repair passes `permit()` before
+          anything is written, and the deny-list is refused in every mode.
         </span>
       </p>
     </section>

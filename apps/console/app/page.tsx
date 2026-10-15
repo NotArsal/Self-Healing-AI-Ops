@@ -28,18 +28,21 @@ import {
 } from "@/components/incident/IncidentStream";
 import { LoopRing } from "@/components/incident/LoopRing";
 import { Timeline } from "@/components/incident/Timeline";
+import { ApprovalPanel } from "@/components/safety/ApprovalPanel";
+import { ModeSwitch } from "@/components/safety/ModeSwitch";
 import { SystemHealth } from "@/components/safety/SystemHealth";
 import { Icon } from "@/components/ui/Icon";
 import { Rail } from "@/components/ui/Rail";
 import { StatePill } from "@/components/ui/pills";
 import { VerificationStrip } from "@/components/incident/VerificationStrip";
 import { api } from "@/lib/api";
-import { useEvents, useIncidents, useSystem } from "@/lib/live";
+import { useEvents, useIncidents, useSafetyState, useSystem } from "@/lib/live";
 
 const TERMINAL = new Set(["RESOLVED", "ESCALATED", "NO_FAULT"]);
 
 export default function OperationsPage() {
   const { system, error, refresh: refreshSystem } = useSystem();
+  const { mode, metrics, setMode, refresh: refreshSafety } = useSafetyState();
   const { events, connected } = useEvents();
   const [selectedId, setSelectedId] = useState("");
   const { incidents, selected, refresh } = useIncidents(selectedId);
@@ -67,6 +70,7 @@ export default function OperationsPage() {
     if (lastSeq > 0) {
       refresh();
       refreshSystem();
+      refreshSafety();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastSeq]);
@@ -124,7 +128,16 @@ export default function OperationsPage() {
           aria-label="System health"
           style={{ minWidth: 0 }}
         >
-          <SystemHealth system={system} error={error} />
+          <SystemHealth system={system} error={error} metrics={metrics} />
+          <div style={{ marginTop: "var(--k-space-4)" }}>
+            <ModeSwitch
+              state={mode}
+              onChanged={(next) => {
+                setMode(next);
+                refreshSystem();
+              }}
+            />
+          </div>
         </aside>
 
         {/* centre: what */}
@@ -266,6 +279,16 @@ export default function OperationsPage() {
             minWidth: 0,
           }}
         >
+          {selected?.awaiting_approval && (
+            <ApprovalPanel
+              incident={selected}
+              onDecided={() => {
+                refresh();
+                refreshSystem();
+                refreshSafety();
+              }}
+            />
+          )}
           <EvidenceList
             items={evidence}
             citedIds={cited}

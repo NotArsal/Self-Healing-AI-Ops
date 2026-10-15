@@ -57,9 +57,13 @@ describe("system health", () => {
     expect(screen.getByText("30 chunks / 2 files")).toBeInTheDocument();
   });
 
-  it("states that the mode is not an enforced gate", () => {
+  it("states that the mode is now an enforced gate", () => {
+    // Inverted in P5: permit() exists and the loop reads the mode, so the
+    // honest sentence changed. A console that still said "not gated" would be
+    // describing the previous phase.
     render(<SystemHealth system={fx.system} error="" />);
-    expect(screen.getByText(/does not gate any action yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/is enforced/i)).toBeInTheDocument();
+    expect(screen.queryByText(/does not gate any action/i)).not.toBeInTheDocument();
   });
 
   it("explains how to fix an unreachable control plane instead of apologising", () => {

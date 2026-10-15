@@ -27,7 +27,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSock
 from kavach import __version__, loop
 from kavach.api import schemas as s
 from kavach.api.events import bus
-from kavach.api.runner import LoopBusyError, LoopRunner, NoBaselineError
+from kavach.api.runner import (
+    LoopBusyError,
+    LoopRunner,
+    NoBaselineError,
+    NotAwaitingError,
+)
 from kavach.config import Settings, get_settings
 from kavach.llm.client import OllamaClient
 from kavach.onboarding import preflight
@@ -122,6 +127,10 @@ def _rca(d: dict[str, Any] | None) -> s.RcaOut | None:
     )
 
 
+def _decision(d: dict[str, Any] | None) -> s.DecisionOut | None:
+    return s.DecisionOut.model_validate(d) if d else None
+
+
 def incident_out(inc: loop.Incident) -> s.IncidentOut:
     before = inc.corpus_before or None
     after = inc.corpus_after or None
@@ -140,7 +149,10 @@ def incident_out(inc: loop.Incident) -> s.IncidentOut:
         planned_action=inc.planned_action,
         detection=_detection(inc.detection),
         rca=_rca(inc.rca),
+        decision=_decision(inc.decision),
         action=s.ActionOut.model_validate(inc.action) if inc.action else None,
+        unwind=s.UnwindOut.model_validate(inc.unwind) if inc.unwind else None,
+        awaiting_approval=inc.status is loop.IncidentStatus.AWAITING,
         verification=_verification(inc.verification),
         corpus_before=s.CorpusOut.model_validate(before) if before else None,
         corpus_after=s.CorpusOut.model_validate(after) if after else None,
@@ -354,6 +366,121 @@ async def run_loop(
 
 
 # --- events -----------------------------------------------------------------
+
+
+@router.get("/mode", response_model=s.ModeOut)
+async def get_mode(
+    runner: Annotated[LoopRunner, Depends(get_runner)],
+) -> s.ModeOut:
+    policy = runner.policy()
+    manifest = runner.manifest()
+    return s.ModeOut(
+        mode=policy.mode,
+        # The mode is now READ by permit(), so it genuinely gates. Before P5
+        # this was a configured value nothing consulted.
+        enforced=True,
+        manifest_mode=manifest.mode,
+        overridden=policy.mode != manifest.mode,
+        allowed_actions=sorted(policy.allowed_actions),
+        denied_mutations=sorted(policy.denied_mutations),
+        confidence_threshold=policy.confidence_threshold,
+    )
+
+
+@router.put("/mode", response_model=s.ModeOut)
+async def set_mode(
+    body: s.ModeChange,
+    runner: Annotated[LoopRunner, Depends(get_runner)],
+) -> s.ModeOut:
+    """Change the operating mode for this process.
+
+    Audited. Moving a project to AUTONOMOUS is the most consequential
+    configuration act available, and an unrecorded one is indistinguishable
+    from a compromise. The manifest remains the durable default.
+    """
+    runner.set_mode(body.mode)
+    return await get_mode(runner)
+
+
+@router.post("/incidents/{incident_id}/approve", response_model=s.RunStarted,
+             status_code=202)
+async def approve(
+    incident_id: str,
+    runner: Annotated[LoopRunner, Depends(get_runner)],
+) -> s.RunStarted:
+    """Authorise a parked plan.
+
+    This re-detects and re-prepares rather than replaying a stored payload: the
+    world may have moved since the operator looked, and the action that runs
+    must be built against the target as it is now. What was approved is the
+    decision, not a frozen diff — so `permit()` runs again, deny-list and
+    breaker included.
+    """
+    try:
+        inc = await runner.approve(incident_id)
+    except NotAwaitingError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except LoopBusyError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except NoBaselineError as exc:
+        raise HTTPException(status_code=412, detail=str(exc)) from exc
+    return s.RunStarted(
+        incident_id=inc.incident_id, started_at=inc.detected_at,
+        mode=runner.mode, rca_enabled=True, approved_from=incident_id,
+    )
+
+
+@router.post("/incidents/{incident_id}/reject", status_code=204)
+async def reject(
+    incident_id: str,
+    body: s.RejectRequest,
+    runner: Annotated[LoopRunner, Depends(get_runner)],
+) -> None:
+    try:
+        runner.reject(incident_id, body.reason)
+    except NotAwaitingError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/metrics", response_model=s.FleetMetrics)
+async def fleet_metrics(
+    runner: Annotated[LoopRunner, Depends(get_runner)],
+) -> s.FleetMetrics:
+    """MTTR and repair success over the persisted series.
+
+    Null rather than zero when there is nothing to measure: a dashboard that
+    cannot tell "no data" from "instant" will publish a fabricated number.
+    """
+    data = await asyncio.to_thread(runner.fleet_metrics)
+    return s.FleetMetrics(
+        **{k: v for k, v in data.items() if k != "available"},
+        available=bool(data.get("available")),
+        unavailable_reason=runner.store.unavailable_reason,
+    )
+
+
+@router.get("/audit", response_model=s.AuditOut)
+async def audit_trail(
+    runner: Annotated[LoopRunner, Depends(get_runner)],
+    limit: int = 200,
+) -> s.AuditOut:
+    """The hash-chained trail, with the chain verified on every read.
+
+    There is no write route here, and there never will be.
+    """
+    rows = await asyncio.to_thread(runner.audit.rows, limit)
+    check = await asyncio.to_thread(runner.audit.verify)
+    return s.AuditOut(
+        rows=[s.AuditRow.model_validate(
+            {k: str(r.get(k, "")) for k in
+             ("at", "incident_id", "actor", "event", "hash", "prev")}
+        ) for r in rows],
+        chain_intact=check.intact,
+        broken_at=check.broken_at,
+        detail=check.detail,
+    )
 
 
 @router.get("/events", response_model=list[s.EventOut])

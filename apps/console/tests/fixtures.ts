@@ -9,9 +9,11 @@
  */
 
 import type {
+  FleetMetrics,
   Incident,
   IncidentSummary,
   LoopEvent,
+  ModeState,
   Preflight,
   System,
 } from "@/lib/api";
@@ -51,6 +53,22 @@ export const resolvedIncident: Incident = {
   diagnosed_by: "llm_rca",
   outcome: "resolved: rerank_threshold 0.999 -> 0.35 (restored from baseline)",
   escalation_reason: "",
+  awaiting_approval: false,
+  decision: {
+    verdict: "ALLOW_AUTO",
+    action: "rollback_config",
+    risk_tier: "MEDIUM",
+    mode: "AUTONOMOUS",
+    reasons: [],
+    checks: [
+      { name: "project_ownership", passed: true, detail: "backend in target_rag-app" },
+      { name: "deny_list", passed: true, detail: "no denied mutation or parameter" },
+      { name: "allow_list", passed: true, detail: "rollback_config" },
+      { name: "inverse_recorded", passed: true, detail: "pre-state witness captured" },
+    ],
+    at: "2026-10-16T10:45:44+00:00",
+  },
+  unwind: null,
   planned_action: "rollback_config",
   corpus_before: { chunks: 30, files: 2 },
   corpus_after: { chunks: 30, files: 2 },
@@ -180,4 +198,65 @@ export const preflight: Preflight = {
     { name: "git branch is kavach/ops", passed: true, skipped: false, status: "PASS", detail: "on kavach/ops", remediation: "" },
     { name: "ollama reachable", passed: false, skipped: true, status: "SKIP", detail: "could not probe", remediation: "Start Ollama on port 11434" },
   ],
+};
+
+export const awaitingIncident: Incident = {
+  ...resolvedIncident,
+  incident_id: "INC-110233",
+  status: "AWAITING_APPROVAL",
+  resolved_at: "",
+  awaiting_approval: true,
+  outcome: "REQUIRE_APPROVAL: planned rollback_config, not executed",
+  verification: null,
+  decision: {
+    verdict: "REQUIRE_APPROVAL",
+    action: "rollback_config",
+    risk_tier: "MEDIUM",
+    mode: "APPROVAL",
+    reasons: ["mode_policy: REQUIRE_APPROVAL under APPROVAL for a MEDIUM-risk action"],
+    checks: [
+      { name: "project_ownership", passed: true, detail: "backend in target_rag-app" },
+      { name: "deny_list", passed: true, detail: "no denied mutation or parameter" },
+      { name: "allow_list", passed: true, detail: "rollback_config" },
+      { name: "inverse_recorded", passed: true, detail: "pre-state witness captured" },
+      { name: "mode_policy", passed: true, detail: "APPROVAL + MEDIUM -> REQUIRE_APPROVAL" },
+    ],
+    at: "2026-10-16T11:02:33+00:00",
+  },
+};
+
+export const modeState: ModeState = {
+  mode: "APPROVAL",
+  enforced: true,
+  manifest_mode: "APPROVAL",
+  overridden: false,
+  allowed_actions: ["rollback_config"],
+  denied_mutations: ["data_delete", "database_drop", "embed_model_change",
+                     "migration", "scale_to_zero"],
+  confidence_threshold: 0.75,
+};
+
+export const metrics: FleetMetrics = {
+  available: true,
+  incidents: 12,
+  resolved: 9,
+  escalated: 2,
+  awaiting: 1,
+  auto_healed: 9,
+  mttr_seconds: 58.4,
+  repair_success_rate: 0.818,
+  unavailable_reason: "",
+};
+
+/** No database: every rate must be null, never zero. */
+export const emptyMetrics: FleetMetrics = {
+  available: false,
+  incidents: 0,
+  resolved: 0,
+  escalated: 0,
+  awaiting: 0,
+  auto_healed: 0,
+  mttr_seconds: null,
+  repair_success_rate: null,
+  unavailable_reason: "could not connect",
 };

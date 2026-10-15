@@ -11,10 +11,24 @@ dependencies = [
     "structlog>=25.1",
     "pyyaml>=6.0",
     "docker>=7.1",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.2",
 ]
 
-# Still deliberately absent: sqlalchemy, alembic, asyncpg, redis, langgraph,
-# opentelemetry-*. Each arrives with the phase that first uses it (ROADMAP.md).
+# sqlalchemy and psycopg arrive in P5 with incident persistence: approval has
+# to survive a control-plane restart, and MTTR over a series needs a series.
+# psycopg3 sync rather than asyncpg because the loop is synchronous and runs in
+# a worker thread; an async driver would need the whole executor path rewritten
+# for no behaviour gain.
+#
+# Still deliberately absent: alembic, redis, langgraph, opentelemetry-*.
+#
+# LANGGRAPH, SPECIFICALLY: ARCHITECTURE 3 reserves `graph/` for it, and P5
+# listed it. It is not here because the thing it would buy - resumable state
+# across an approval interrupt - is delivered by persisting the incident and
+# rebuilding the action on resume. Adding a graph framework to replace a
+# validated `run_once()` would be a rewrite with no behaviour change. It earns
+# its place when a repair needs genuinely multi-step checkpointing.
 #
 # docker moved from a dev extra to a runtime dependency in P1: the preflight
 # ownership check needs the SDK, and preflight is shipped code, not a test.

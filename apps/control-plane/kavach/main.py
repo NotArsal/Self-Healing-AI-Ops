@@ -10,6 +10,8 @@ parameterless route that asks the control plane to run the loop it already
 runs — see that module for what the browser deliberately cannot say.
 """
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Annotated, Literal
 
 import structlog
@@ -32,8 +34,24 @@ class HealthResponse(BaseModel):
     default_mode: Mode
 
 
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """Connect the incident store once, at startup.
+
+    Connecting belongs here and not in a constructor: a runner built in a test
+    must never wait on a database. Unavailable is a state rather than a
+    failure, so a store that cannot connect is logged and the loop heals
+    without it.
+    """
+    from kavach.api.routes import get_runner
+
+    get_runner(get_settings()).init_store()
+    yield
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
+        lifespan=lifespan,
         title="Kavach control plane",
         version=__version__,
         description=(

@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from kavach.config import Mode
 
@@ -192,6 +192,34 @@ class IncidentSummary(BaseModel):
     outcome: str = ""
 
 
+class SafetyCheckOut(BaseModel):
+    name: str
+    passed: bool
+    detail: str = ""
+
+
+class DecisionOut(BaseModel):
+    """What `permit()` decided, and why. The approval dialog reads this."""
+
+    verdict: str
+    action: str = ""
+    risk_tier: str = ""
+    mode: str = ""
+    reasons: list[str]
+    checks: list[SafetyCheckOut]
+    at: str = ""
+
+
+class UnwindOut(BaseModel):
+    """What happened when the undo stack unwound. `clean` is the one that
+    matters: an inverse that ran is not the same as prior state restored."""
+
+    attempted: int
+    restored: int
+    clean: bool
+    failures: list[str]
+
+
 class IncidentOut(IncidentSummary):
     model_config = ConfigDict(extra="ignore")
 
@@ -199,7 +227,10 @@ class IncidentOut(IncidentSummary):
     planned_action: str | None = None
     detection: DetectionOut | None = None
     rca: RcaOut | None = None
+    decision: DecisionOut | None = None
     action: ActionOut | None = None
+    unwind: UnwindOut | None = None
+    awaiting_approval: bool = False
     verification: VerificationOut | None = None
     corpus_before: CorpusOut | None = None
     corpus_after: CorpusOut | None = None
@@ -274,6 +305,63 @@ class RunStarted(BaseModel):
     started_at: str
     mode: Mode
     rca_enabled: bool
+    approved_from: str = ""
+
+
+class ModeOut(BaseModel):
+    """The operating mode, and whether it is now actually enforced."""
+
+    mode: Mode
+    enforced: bool
+    manifest_mode: Mode
+    overridden: bool
+    allowed_actions: list[str]
+    denied_mutations: list[str]
+    confidence_threshold: float
+
+
+class ModeChange(BaseModel):
+    mode: Mode
+
+
+class RejectRequest(BaseModel):
+    # Required, and non-empty: a rejection without a reason teaches nobody
+    # anything, and the knowledge base is built from exactly these.
+    reason: str = Field(min_length=3, max_length=2000)
+
+
+class FleetMetrics(BaseModel):
+    """The aggregates the console cannot compute from memory.
+
+    Every rate is nullable on purpose. A zero MTTR reads as "instant", which is
+    the opposite of "no data", and a dashboard must be able to tell them apart.
+    """
+
+    available: bool
+    incidents: int
+    resolved: int
+    escalated: int
+    awaiting: int
+    auto_healed: int
+    mttr_seconds: float | None = None
+    repair_success_rate: float | None = None
+    unavailable_reason: str = ""
+
+
+class AuditRow(BaseModel):
+    at: str = ""
+    incident_id: str = ""
+    actor: str = ""
+    event: str = ""
+    hash: str = ""
+    prev: str = ""
+
+
+class AuditOut(BaseModel):
+    rows: list[AuditRow]
+    chain_intact: bool
+    broken_at: int | None = None
+    detail: str = ""
 
 
 def to_evidence_value(value: Any) -> str:

@@ -151,13 +151,44 @@ def test_real_target_manifest_validates() -> None:
     assert m.project.compose_project == "target_rag-app"
     assert m.project.git.base_branch == "modernize-stack"
     assert m.project.git.push is False
-    assert m.mode == "SIMULATION"
-    assert m.allowed_actions == [], "allow-list must ship empty"
+    # The posture is now a real gate, so these assert the INVARIANTS rather
+    # than the values. `allowed_actions` shipped empty until P5 because no
+    # action had a tested inverse; asserting it stays empty forever would make
+    # the manifest untouchable rather than safe.
+    assert m.mode in ("SIMULATION", "APPROVAL", "AUTONOMOUS")
+    assert "rollback_config" in m.allowed_actions, (
+        "rollback_config is the one action with a verified inverse"
+    )
+    # Nothing may be allow-listed that the deny-list forbids. Deny wins, and a
+    # manifest that contradicts itself must fail here rather than at permit().
+    assert not (set(m.allowed_actions) & set(m.denied_mutations))
+    assert "embed_model_change" in m.denied_mutations
     assert m.verification.fast.max_duration_s == 120
     assert len(m.slo) >= 1
     # Every expression must look like PromQL, not a bare metric name.
     for slo in m.slo:
         assert any(c in slo.expression for c in "()[]"), slo.name
+
+
+@pytest.mark.skipif(not TARGET_MANIFEST.is_file(), reason="target repo not present")
+def test_omitting_mode_still_means_simulation() -> None:
+    """The safety property the previous assertion was really protecting.
+
+    What matters is not that this particular project is in SIMULATION, but
+    that a project which says nothing is - so onboarding a new workload can
+    never silently enable writes.
+    """
+    raw = yaml.safe_load(TARGET_MANIFEST.read_text(encoding="utf-8"))
+    raw.pop("mode", None)
+    assert Manifest.model_validate(raw).mode == "SIMULATION"
+
+
+@pytest.mark.skipif(not TARGET_MANIFEST.is_file(), reason="target repo not present")
+def test_an_empty_allow_list_is_still_valid() -> None:
+    """A project that lists nothing can do nothing, and that must stay legal."""
+    raw = yaml.safe_load(TARGET_MANIFEST.read_text(encoding="utf-8"))
+    raw["allowed_actions"] = []
+    assert Manifest.model_validate(raw).allowed_actions == []
 
 
 @pytest.mark.skipif(not TARGET_MANIFEST.is_file(), reason="target repo not present")

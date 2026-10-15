@@ -40,6 +40,11 @@ export type LoopEvent = components["schemas"]["EventOut"];
 export type Preflight = components["schemas"]["PreflightOut"];
 export type PreflightCheck = components["schemas"]["PreflightCheckOut"];
 export type Mode = System["mode"];
+export type ModeState = components["schemas"]["ModeOut"];
+export type Decision = NonNullable<Incident["decision"]>;
+export type Unwind = NonNullable<Incident["unwind"]>;
+export type FleetMetrics = components["schemas"]["FleetMetrics"];
+export type AuditTrail = components["schemas"]["AuditOut"];
 
 /** The live event socket. Derived from API_BASE so there is one place to point. */
 export const wsUrl = (): string =>
