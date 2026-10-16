@@ -47,6 +47,9 @@ from harness.faults.f06_retrieval_collapse import (  # noqa: E402
     F06RetrievalCollapse,
 )
 from kavach.target import TargetClient, TargetEndpoints  # noqa: E402
+from kavach.verification import fast  # noqa: E402
+
+FAST_SET = ROOT / "apps" / "control-plane" / "kavach" / "verification" / "fast_set.yaml"
 
 API = "http://127.0.0.1:8080"
 # 127.0.0.1 throughout: `localhost` resolves to ::1 first on this host and the
@@ -113,6 +116,50 @@ def corpus() -> dict[str, float | None]:
             "files": promql("ragapp_corpus_files")}
 
 
+# The detector's own grounding signal and floor, so this waits on exactly what
+# `permit()`'s upstream will read rather than on a guessed sleep.
+KEPT_CHUNKS_MEAN = (
+    "rate(ragapp_retrieval_kept_chunks_sum[10m]) "
+    "/ clamp_min(rate(ragapp_retrieval_kept_chunks_count[10m]), 1e-9)"
+)
+KEPT_CHUNKS_FLOOR = 1.0
+
+
+def drive_until_detectable(
+    client: TargetClient, fast_set: Path, max_rounds: int = 8
+) -> tuple[bool, float | None]:
+    """Put load on the faulted system until its 10m grounding average collapses.
+
+    A FIXED SLEEP IS NOT ENOUGH, AND FINDING THAT OUT COST A RUN.
+    Detection reads `rate(...[10m])`, so it reports on the last ten minutes,
+    not on the last ten seconds. Three collapsed queries arriving after a
+    healthy baseline run leave the average at roughly
+    `(9 x 2.7 + 3 x 0) / 12 = 2.0` - comfortably above the 1.0 floor - and the
+    detector correctly answers INSUFFICIENT_EVIDENCE: on a ten-minute average,
+    grounding really was healthy. It is not a false negative, it is the window
+    being honest.
+
+    So the fault has to DOMINATE the window before the loop is asked to
+    diagnose, which it does either by taking traffic or by the healthy samples
+    ageing out. This drives real fast-set traffic through the faulted system -
+    every request returning the silent 200 that is the fault - and watches the
+    detector's own signal until it crosses, which is also what a real outage
+    would look like.
+
+    It is a precondition for the test, never part of the claim: nothing here
+    touches Kavach, and the loop still has to detect, diagnose and repair on
+    its own.
+    """
+    for round_no in range(1, max_rounds + 1):
+        r = fast.run(client, fast_set, check_health=False)
+        mean = promql(KEPT_CHUNKS_MEAN)
+        say(f"    round {round_no}: fast set {r.pass_rate:.0%} in {r.total_s:.1f}s, "
+            f"kept_chunks 10m mean = {mean}")
+        if mean is not None and mean < KEPT_CHUNKS_FLOOR:
+            return True, mean
+    return False, promql(KEPT_CHUNKS_MEAN)
+
+
 def main() -> int:
     client = TargetClient(TargetEndpoints(
         health=TARGET + "/healthz", chat=TARGET + "/v1/chat",
@@ -148,8 +195,16 @@ def main() -> int:
         live = fault.current_threshold()
         say(f"  live threshold          {live}")
         results["injected"] = live == BAD_THRESHOLD
-        say("  waiting 25s for the metric windows to reflect the collapse")
-        time.sleep(25)
+        say("  driving load until the 10m grounding average crosses the floor")
+        ready, mean = drive_until_detectable(client, FAST_SET)
+        say(f"  detectable              {ready} (kept_chunks 10m mean = {mean})")
+        results["fault_is_detectable"] = ready
+        assert ready, (
+            f"the 10m grounding average is still {mean}, above the {KEPT_CHUNKS_FLOOR} "
+            f"floor, so the detector would correctly answer INSUFFICIENT_EVIDENCE. "
+            f"This is the window being honest, not a Kavach defect - see "
+            f"drive_until_detectable()."
+        )
 
         # --- 2. the gate ----------------------------------------------------
         say("")
