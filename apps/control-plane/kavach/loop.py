@@ -199,6 +199,7 @@ def run_once(
     safety: SafetyEngine | None = None,
     policy: ProjectPolicy | None = None,
     audit: AuditLog | None = None,
+    approved_from: str = "",
 ) -> Incident:
     """One pass of detect -> heal -> verify.
 
@@ -213,6 +214,11 @@ def run_once(
     Omitted, the loop runs with the P2/P3 posture: one known action, invoked
     explicitly, which is what it did before the gate existed. `audit` records
     the decision and the outcome to the hash-chained log.
+
+    `approved_from` is the incident a human approved. It re-detects and
+    re-prepares from scratch — the world may have moved — and the approval
+    travels into `permit()` as evidence, not as a mode override. Everything
+    except the mode and confidence gates is therefore evaluated again.
 
     `rca` is OPTIONAL. Omitted, this is the P2 deterministic loop unchanged -
     the reference baseline, and the fallback if RCA is unavailable. Supplied, an
@@ -375,6 +381,7 @@ def run_once(
             has_inverse=bool(getattr(action, "inverse_settings", None)),
             confidence=diagnosis.get("confidence"),
             diagnosis_class=str(diagnosis.get("fault_class") or ""),
+            operator_approved=approved_from,
         )
         decision: Decision = safety.permit(request, policy)
         inc.decision = decision.to_dict()
@@ -424,8 +431,12 @@ def run_once(
         with writer_lock.hold(lock_project, inc.incident_id):
             stack.push(action)
             if audit:
-                audit.append("execute_start", incident_id=inc.incident_id,
-                             action=action.name, **action.to_dict())
+                # The payload ALREADY carries incident_id and action - the
+                # protocol calls to_dict() "the audit record", so it is the
+                # whole row. Naming them again collided on both keys and raised
+                # TypeError, and it went unnoticed because nothing reached this
+                # line until permit() first returned ALLOW_AUTO.
+                audit.append("execute_start", **action.to_dict())
             action.execute(client)
     except LockBusyError as exc:
         _notify(on_event, "repair", "failed", str(exc))
@@ -449,8 +460,7 @@ def run_once(
         )
     inc.action = action.to_dict()
     if audit:
-        audit.append("execute_done", incident_id=inc.incident_id,
-                     action=action.name, **action.to_dict())
+        audit.append("execute_done", **action.to_dict())
     _notify(on_event, "repair", "ok",
             f"{action.name} executed; inverse recorded and on the undo stack")
 

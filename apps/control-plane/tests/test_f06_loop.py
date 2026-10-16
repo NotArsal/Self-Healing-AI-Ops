@@ -14,7 +14,10 @@ from typing import Any
 
 import pytest
 
+from kavach.audit.log import AuditLog
 from kavach.detection import retrieval_collapse as rc
+from kavach.executor import catalogue  # noqa: F401 - registers the catalogue
+from kavach.executor.base import registry
 from kavach.executor.config_rollback import (
     ActionError,
     ConfigRollback,
@@ -481,3 +484,23 @@ def test_rca_failed_verification_does_not_resolve(fast_set: Path) -> None:
     assert inc.status is IncidentStatus.ESCALATED
     assert not inc.resolved
     assert "fast verification did not pass" in inc.escalation_reason
+
+
+def test_an_action_record_can_be_splatted_into_the_audit_log(tmp_path: Path) -> None:
+    """The second bug the live run found, and the reason it hid for a phase.
+
+    `loop.py` hands `audit.append()` a whole `to_dict()` record, because the
+    Action protocol calls that method "the audit record". Those records carry
+    `incident_id` and `action`, and `append()` names `incident_id` as a
+    parameter, so naming it again raised TypeError at call time. Nothing
+    reached that line during P5 development because no verdict had yet been
+    ALLOW_AUTO, so it surfaced the first time a human approved a real repair.
+    """
+    action = registry.build("rollback_config", "INC-1", FakeTarget(0.999), 0.35)
+
+    log = AuditLog(tmp_path / "audit.jsonl")
+    row = log.append("execute_start", **action.to_dict())
+    assert row["incident_id"] == "INC-1"
+    assert row["event"] == "execute_start"
+    assert row["action"] == "rollback_config"
+    assert log.verify().intact is True

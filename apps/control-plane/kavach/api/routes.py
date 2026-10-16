@@ -268,9 +268,28 @@ async def system(
         endpoint="harness/baselines/",
     ))
 
+    # The manifest is a dependency, not a config detail: it IS the safety
+    # policy, and an unreadable one means nothing may run. Reported as its own
+    # row so a fallback mode can never be mistaken for a real one - which is
+    # exactly what happened while this returned `settings.default_mode`.
+    try:
+        mode = runner.mode
+        policy_ok, policy_detail = True, f"mode {mode}, enforced by permit()"
+    except Exception as exc:
+        mode = settings.default_mode
+        policy_ok = False
+        policy_detail = (f"unreadable, so there is no policy to run under and "
+                         f"every run is refused; showing the {mode} default "
+                         f"instead: {type(exc).__name__}")
+    deps.append(s.Dependency(
+        name="Safety policy", ok=policy_ok, detail=policy_detail,
+        endpoint=f"{settings.target_path}/kavach.yaml",
+    ))
+
     return s.SystemOut(
         kavach_version=__version__,
-        mode=settings.default_mode,
+        mode=mode,
+        mode_is_enforced=policy_ok,
         project=settings.target_project,
         target_path=settings.target_path,
         compose_project=settings.target_compose_project,
@@ -342,7 +361,6 @@ async def get_incident(
 
 @router.post("/loop/run", response_model=s.RunStarted, status_code=202)
 async def run_loop(
-    settings: Annotated[Settings, Depends(get_settings)],
     runner: Annotated[LoopRunner, Depends(get_runner)],
     rca: Annotated[bool, Query(description="Run the LLM RCA stage")] = True,
 ) -> s.RunStarted:
@@ -360,7 +378,9 @@ async def run_loop(
     return s.RunStarted(
         incident_id=inc.incident_id,
         started_at=inc.detected_at,
-        mode=settings.default_mode,
+        # The mode this run is actually gated by. `start()` has already read
+        # the policy, so this cannot raise here.
+        mode=runner.mode,
         rca_enabled=rca,
     )
 

@@ -131,10 +131,23 @@ def test_rca_out_states_confidence_is_not_calibrated() -> None:
     assert "confidence_is_calibrated" in schemas.RcaOut.model_fields
 
 
-def test_system_out_states_the_mode_is_not_enforced() -> None:
+def test_system_out_defaults_to_the_mode_being_enforced() -> None:
+    """Inverted at P5, not deleted: before the safety engine existed the mode
+    was a label, and this asserted so. `permit()` now reads it, so the honest
+    default is True - and the route still sends False when the manifest that
+    carries the mode cannot be read, which the next test covers."""
     out = schemas.SystemOut(
         kavach_version="0.1.0", mode="SIMULATION", project="simple-rag",
         dependencies=[],
+    )
+    assert out.mode_is_enforced is True
+
+
+def test_system_out_can_report_an_unenforced_mode() -> None:
+    """No manifest means no policy, and the console must be able to say it."""
+    out = schemas.SystemOut(
+        kavach_version="0.1.0", mode="SIMULATION", project="simple-rag",
+        mode_is_enforced=False, dependencies=[],
     )
     assert out.mode_is_enforced is False
 

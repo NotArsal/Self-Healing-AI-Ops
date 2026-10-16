@@ -113,6 +113,13 @@ services:
       # on a host checkout - deriving it is what used to make this container's
       # first P4 request fail with IndexError.
       KAVACH_KAVACH_ROOT: /app
+      # The target's manifest IS the safety policy permit() reads, and it lives
+      # in the TARGET's repository, which is deliberately not part of this one.
+      # The host path in .env cannot be opened from inside the image, so the
+      # file is mounted below and this points at the mount - the same split
+      # KAVACH_KAVACH_ROOT makes, and the same bug class as the P4 IndexError:
+      # a path that only ever resolved on a host checkout.
+      KAVACH_TARGET_PATH: /app/target
       # The target runs in its OWN compose project on the host network, so
       # `localhost` here would be this container. These are the host-visible
       # ports, reached through the gateway.
@@ -137,6 +144,10 @@ services:
       # TO, and `make onboard` writes those on the host. Read-only because
       # capture is an onboarding operation, never something the API does.
       - ../harness/baselines:/app/harness/baselines:ro
+      # Read-only, and one file rather than the repository: Kavach reads the
+      # target's safety policy and must never be able to widen it. TARGET_REPO
+      # is relative to THIS directory (infra/), not the repository root.
+      - ${TARGET_REPO:-../../Target_RAG-App}/kavach.yaml:/app/target/kavach.yaml:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:

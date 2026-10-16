@@ -303,6 +303,20 @@ describe("fleet metrics", () => {
     expect(screen.getByText(/is enforced/)).toBeInTheDocument();
     expect(screen.queryByText(/does not gate any action/i)).not.toBeInTheDocument();
   });
+
+  it("does not claim enforcement when the backend says there is none", () => {
+    // An unreadable manifest means no policy, so nothing may run. Saying
+    // "enforced" there would describe a gate that has no rules behind it.
+    render(
+      <SystemHealth
+        system={{ ...fx.system, mode_is_enforced: false }}
+        error=""
+        metrics={fx.metrics}
+      />,
+    );
+    expect(screen.getByText(/could not be read/)).toBeInTheDocument();
+    expect(screen.queryByText(/is enforced/)).not.toBeInTheDocument();
+  });
 });
 
 // --- accessibility ----------------------------------------------------------

@@ -252,10 +252,15 @@ class Dependency(BaseModel):
 
 class SystemOut(BaseModel):
     kavach_version: str
-    # Configuration, not an enforced gate. The console must say so, because
-    # `permit()` does not exist until P6 (`docs/decisions/0006`, amendment).
+    # The mode `permit()` will actually apply, read from the target's manifest
+    # - NOT `settings.default_mode`, which is only the fallback for a project
+    # with no readable manifest. Reporting the default here was a P4 leftover
+    # that showed SIMULATION on a project whose manifest says APPROVAL.
     mode: Mode
-    mode_is_enforced: Literal[False] = False
+    # True since P5: `permit()` exists and reads the mode before anything is
+    # written. The dependency row below says so when the manifest is readable,
+    # and says the opposite when it is not.
+    mode_is_enforced: bool = True
     project: str
     target_path: str = ""
     compose_project: str = ""

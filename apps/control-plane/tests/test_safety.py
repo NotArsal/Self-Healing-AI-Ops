@@ -328,6 +328,53 @@ def test_simulation_is_the_default_and_never_executes() -> None:
     assert d.verdict is Verdict.REQUIRE_APPROVAL
 
 
+def test_an_approval_executes_the_action_it_approved() -> None:
+    """The hole the first live P5 run fell into.
+
+    Approval used to be implemented by flipping the project to AUTONOMOUS for
+    one run. AUTONOMOUS routes a MEDIUM action to the sandbox, and the sandbox
+    does not exist until P7, so the approved re-run parked a second time and
+    the operator's yes healed nothing. An approval is evidence on the request,
+    not a mode.
+    """
+    d = engine().permit(
+        a_request(action="rollback_config", operator_approved="INC-1"),
+        a_policy(mode="APPROVAL"),
+    )
+    assert d.verdict is Verdict.ALLOW_AUTO
+    assert d.allowed
+    assert any("approved on INC-1" in c.detail for c in d.checks)
+
+
+def test_an_approval_does_not_reopen_the_deny_list() -> None:
+    """Approval satisfies step 11. Steps 1-10 already ran and still bind."""
+    d = engine().permit(
+        a_request(action="rollback_config", operator_approved="INC-1",
+                  params={"embed_model": "nomic-embed-text"}),
+        a_policy(mode="APPROVAL"),
+    )
+    assert d.verdict is Verdict.DENY
+
+
+def test_an_approval_does_not_widen_the_allow_list() -> None:
+    d = engine().permit(
+        a_request(action="restart_container", operator_approved="INC-1"),
+        a_policy(mode="APPROVAL", allowed_actions=frozenset({"rollback_config"})),
+    )
+    assert d.verdict is Verdict.DENY
+
+
+def test_an_approved_high_action_still_requires_the_sandbox() -> None:
+    """A fixed-HIGH action's sandbox is mandatory, not routed (ARCH §6.2.1), so
+    an approval moves `apply_patch` to the sandbox and no further."""
+    d = engine().permit(
+        a_request(action="apply_patch", operator_approved="INC-1"),
+        a_policy(mode="APPROVAL"),
+    )
+    assert d.verdict is Verdict.REQUIRE_SANDBOX
+    assert not d.allowed
+
+
 def test_apply_patch_is_high_even_in_autonomous_with_a_low_candidate_present() -> None:
     """The fixed tier is the whole defence for a model-authored payload."""
     e = engine()

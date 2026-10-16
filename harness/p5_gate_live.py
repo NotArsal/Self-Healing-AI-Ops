@@ -1,0 +1,308 @@
+"""P5 LIVE: does the safety gate actually park a real repair, and heal on approve?
+
+Drives the HTTP API, not the library, because the API is the demo path and the
+API is where the container bugs live. Injects a real F06, asserts the loop
+parks at AWAITING_APPROVAL having written NOTHING, approves, and asserts the
+repair then executed against the captured pre-state value.
+
+WHAT IT DOES NOT ASSERT, AND WHY
+It does not require the incident to end RESOLVED. The fast-verification set is
+bound to a corpus that no longer exists - `fv-01` reads from `1662.pdf`, which
+is absent from the target database - so post-repair verification fails for a
+reason that has nothing to do with the repair, and the loop correctly unwinds.
+`PRD.md` §12 carries that as an unresolved reproducibility issue. The gate
+claim is independent of it: park, write nothing, execute on approve, and
+restore the pre-state witness when verification says no.
+
+It also does not read the live threshold to decide whether the repair ran. If
+verification fails the loop unwinds, so that read reports "never executed" for
+a run that executed and then correctly rolled back. The action record and the
+audit chain are the witnesses.
+
+Requires both stacks up and the real admin token in the environment:
+    KAVACH_TARGET_ADMIN_TOKEN=...
+    uv run --project apps/control-plane python -I harness/p5_gate_live.py
+
+The injector reverts in a finally block, so the target is healthy however this
+exits.
+"""
+from __future__ import annotations
+
+import json
+import os
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path[:0] = [str(ROOT), str(ROOT / "apps" / "control-plane")]
+
+from harness.faults.f06_retrieval_collapse import (  # noqa: E402
+    BAD_THRESHOLD,
+    F06RetrievalCollapse,
+)
+from kavach.target import TargetClient, TargetEndpoints  # noqa: E402
+
+API = "http://127.0.0.1:8080"
+# 127.0.0.1 throughout: `localhost` resolves to ::1 first on this host and the
+# published ports are IPv4, so urlopen times out instead of refusing.
+TARGET = "http://127.0.0.1:8000"
+PROM = "http://127.0.0.1:9091"
+
+
+def api(
+    path: str,
+    method: str = "GET",
+    body: dict[str, Any] | None = None,
+    timeout: int = 60,
+) -> tuple[int, Any]:
+    data = json.dumps(body).encode() if body is not None else None
+    req = urllib.request.Request(
+        API + path, data=data, method=method,
+        headers={"Content-Type": "application/json"} if data else {},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status, json.loads(r.read() or b"null")
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode()[:400]
+
+
+def promql(query: str) -> float | None:
+    url = PROM + "/api/v1/query?query=" + urllib.parse.quote(query)
+    try:
+        with urllib.request.urlopen(url, timeout=10) as r:
+            res = json.loads(r.read())["data"]["result"]
+        return float(res[0]["value"][1]) if res else None
+    except Exception:
+        return None
+
+
+def say(m: str = "") -> None:
+    print(m, flush=True)
+
+
+def wait_terminal(incident_id: str, limit_s: int = 900) -> dict[str, Any]:
+    """Poll until the incident leaves the in-flight states."""
+    terminal = {"NO_FAULT", "AWAITING_APPROVAL", "RESOLVED", "ESCALATED"}
+    t0 = time.time()
+    last = ""
+    while time.time() - t0 < limit_s:
+        code, inc = api("/v1/incidents/" + incident_id)
+        if code != 200:
+            say(f"    [poll {code}] {inc}")
+            time.sleep(5)
+            continue
+        status = inc.get("status", "")
+        if status != last:
+            say(f"    [{time.time() - t0:6.1f}s] {status}")
+            last = status
+        if status in terminal:
+            return dict(inc)
+        time.sleep(5)
+    raise TimeoutError(incident_id + " never reached a terminal status")
+
+
+def corpus() -> dict[str, float | None]:
+    return {"chunks": promql("ragapp_corpus_chunks"),
+            "files": promql("ragapp_corpus_files")}
+
+
+def main() -> int:
+    client = TargetClient(TargetEndpoints(
+        health=TARGET + "/healthz", chat=TARGET + "/v1/chat",
+        config=TARGET + "/v1/admin/config",
+        admin_token=os.environ.get("KAVACH_TARGET_ADMIN_TOKEN", "")))
+
+    say("=" * 74)
+    say("P5 LIVE: the safety gate on a real F06, through the HTTP API")
+    say("=" * 74)
+
+    code, mode = api("/v1/mode")
+    say(f"  GET /v1/mode            {code}  {mode}")
+    assert code == 200, "the mode route must answer before anything is injected"
+    assert mode["mode"] == "APPROVAL", "expected APPROVAL, got {}".format(mode["mode"])
+    assert mode["enforced"] is True
+    assert mode["allowed_actions"] == ["rollback_config"]
+
+    pre_threshold = float(client.settings()["rerank_threshold"])
+    pre_hash = client.config_hash()
+    pre_corpus = corpus()
+    say(f"  pre-state               threshold={pre_threshold} hash={pre_hash}")
+    say(f"  pre-state corpus        {pre_corpus}")
+    say("")
+
+    results: dict[str, bool] = {}
+    fault = F06RetrievalCollapse(client, corpus_probe=corpus)
+    try:
+        # --- 1. inject ------------------------------------------------------
+        say("-" * 74)
+        say(f"1. INJECT F06: rerank_threshold -> {BAD_THRESHOLD}")
+        say("-" * 74)
+        fault.inject()
+        live = fault.current_threshold()
+        say(f"  live threshold          {live}")
+        results["injected"] = live == BAD_THRESHOLD
+        say("  waiting 25s for the metric windows to reflect the collapse")
+        time.sleep(25)
+
+        # --- 2. the gate ----------------------------------------------------
+        say("")
+        say("-" * 74)
+        say("2. RUN THE LOOP IN APPROVAL MODE: it must PARK and write NOTHING")
+        say("-" * 74)
+        code, started = api("/v1/loop/run?rca=true", "POST", timeout=120)
+        say(f"  POST /v1/loop/run       {code}  {started}")
+        assert code == 202, f"the run was refused: {started}"
+        first_id = started["incident_id"]
+        results["run_reports_approval_mode"] = started.get("mode") == "APPROVAL"
+
+        parked = wait_terminal(first_id)
+        say("  status                  {}".format(parked["status"]))
+        say(f"  fault_class / service   {parked.get('fault_class')} / "
+            f"{parked.get('service')}")
+        say("  outcome                 {}".format((parked.get("outcome") or "")[:250]))
+        say("  escalation_reason       {}".format((parked.get("escalation_reason") or "")[:250]))
+        if parked.get("decision"):
+            say("  decision                {}".format(json.dumps(parked["decision"])[:500]))
+        if parked.get("action"):
+            say("  prepared action         {}".format(json.dumps(parked["action"])[:300]))
+        if parked.get("unwind"):
+            say("  inverse                 {}".format(json.dumps(parked["unwind"])[:300]))
+
+        results["parked_at_awaiting"] = parked["status"] == "AWAITING_APPROVAL"
+
+        # THE claim: parking writes nothing.
+        after_gate = fault.current_threshold()
+        say(f"  live threshold after    {after_gate}  (must still be {BAD_THRESHOLD})")
+        results["gate_wrote_nothing"] = after_gate == BAD_THRESHOLD
+
+        # --- 3. approve -----------------------------------------------------
+        say("")
+        say("-" * 74)
+        say("3. APPROVE: it must now execute and restore the captured value")
+        say("-" * 74)
+        code, second = api(f"/v1/incidents/{first_id}/approve", "POST", timeout=120)
+        say(f"  POST .../approve        {code}  {second}")
+        assert code == 202, f"approval was refused: {second}"
+        results["approve_accepted"] = True
+        results["approve_cites_source"] = second.get("approved_from") == first_id
+
+        healed = wait_terminal(second["incident_id"])
+        say("  status                  {}".format(healed["status"]))
+        say("  outcome                 {}".format((healed.get("outcome") or "")[:350]))
+        say("  escalation_reason       {}".format((healed.get("escalation_reason") or "")[:350]))
+        if healed.get("verification_after"):
+            after = json.dumps(healed["verification_after"])[:300]
+            say(f"  verification after      {after}")
+
+        # DO NOT read the live threshold to decide whether the repair ran.
+        # If post-repair verification fails the loop unwinds, so the live value
+        # is back to the faulty one by design and a threshold read here reports
+        # "never executed" for a run that executed and then correctly rolled
+        # back. The action record and the audit chain are the witnesses.
+        act = healed.get("action") or {}
+        say("  action executed flag    {}".format(act.get("executed")))
+        say(f"  wrote                   {act.get('inverse_settings')} -> "
+            f"{act.get('requested_settings')}")
+        say(f"  config hash             {act.get('config_hash_before')} -> "
+            f"{act.get('config_hash_after')}")
+        results["executed_the_repair"] = (
+            act.get("executed") is True
+            and act.get("requested_settings") == {"rerank_threshold": pre_threshold}
+        )
+
+        unwound = healed.get("unwind") or {}
+        if unwound:
+            say(f"  unwind                  "
+                f"attempted={unwound.get('attempted')} "
+                f"restored={unwound.get('restored')} "
+                f"clean={unwound.get('clean')} {unwound.get('failures')}")
+        results["resolved"] = healed["status"] == "RESOLVED"
+        # Verification failed on fv-01 for a corpus reason, so the ONLY correct
+        # behaviour left is to put the target back exactly as it was found.
+        results["unwound_cleanly_when_verification_failed"] = (
+            True if healed["status"] == "RESOLVED"
+            else bool(unwound.get("clean"))
+        )
+        say(f"  live threshold now      {fault.current_threshold()}")
+
+        # --- 4. a used approval cannot be replayed --------------------------
+        code, again = api(f"/v1/incidents/{first_id}/approve", "POST", timeout=60)
+        say(f"  re-approve same id      {code} (want 409)  {str(again)[:120]}")
+        results["approval_is_single_use"] = code == 409
+
+    finally:
+        say("")
+        fault.revert()
+        say(f"  reverted; live threshold {fault.current_threshold()}")
+
+    # --- 5. the audit chain -------------------------------------------------
+    say("")
+    say("-" * 74)
+    say("5. AUDIT CHAIN")
+    say("-" * 74)
+    code, audit = api("/v1/audit?limit=60")
+    if code == 200:
+        rows = audit.get("rows", [])
+        say(f"  rows                    {len(rows)}  "
+            f"chain_intact={audit.get('chain_intact')}")
+        for row in rows[-20:]:
+            rest = {k: v for k, v in row.items()
+                    if k not in ("at", "event", "hash", "prev_hash", "prev")}
+            at = str(row.get("at", ""))[-8:]
+            event = str(row.get("event", "?"))
+            say(f"    {at} {event:<22} {json.dumps(rest, default=str)[:130]}")
+        results["audit_chain_intact"] = bool(audit.get("chain_intact"))
+        events = [r.get("event") for r in rows]
+        say(f"  events                  {events}")
+        results["audit_records_the_execution"] = (
+            "execute_start" in events and "execute_done" in events)
+    else:
+        say(f"  GET /v1/audit           {code} {audit}")
+        results["audit_chain_intact"] = False
+
+    post_corpus = corpus()
+    say("")
+    say("=" * 74)
+    say("SUMMARY")
+    say("=" * 74)
+    for k, v in results.items():
+        say("  {}  {}".format("PASS" if v else "FAIL", k))
+    say("  corpus {} -> {}  {}".format(pre_corpus, post_corpus,
+           "unchanged" if pre_corpus == post_corpus else "MUTATED"))
+    say(f"  final threshold {fault.current_threshold()}")
+
+    gate = all(results.get(k) for k in (
+        "injected", "parked_at_awaiting", "gate_wrote_nothing",
+        "approve_accepted", "executed_the_repair", "approval_is_single_use",
+        "unwound_cleanly_when_verification_failed", "audit_chain_intact"))
+    say("")
+    say("  GATE CLAIM (park, write nothing, execute on approve): %s"
+        % ("PROVEN" if gate else "NOT PROVEN"))
+    say(f"  RESOLVED verdict: {results.get('resolved')}  "
+        f"(expected False while 1662.pdf is missing)")
+
+    out = ROOT / "harness" / "reports" / "p5-gate-live.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({
+        "at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "mode": mode,
+        "results": results,
+        "gate_proven": gate,
+        "corpus_before": pre_corpus,
+        "corpus_after": post_corpus,
+        "pre_threshold": pre_threshold,
+        "pre_config_hash": pre_hash,
+    }, indent=2, default=str) + "\n", encoding="utf-8")
+    say(f"  artifact {out}")
+    return 0 if gate else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

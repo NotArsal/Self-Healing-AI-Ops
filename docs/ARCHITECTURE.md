@@ -954,7 +954,7 @@ def permit(action: Action, project: Project, incident: Incident) -> Verdict
 
 `Verdict` is `ALLOW_AUTO | REQUIRE_SANDBOX | REQUIRE_APPROVAL | DENY`, always with a list of reasons.
 
-Evaluation order — **every check must pass; the first failure short-circuits to DENY or escalation.** None of these ten steps is implemented yet; see the note at the head of §6.
+Evaluation order — **every check must pass; the first failure short-circuits to DENY or escalation.** Steps 1-4 and 6-10 are implemented in `safety/engine.py` as of P5; step 5 (`F-UNK`) is P6. See the note at the head of §6.
 
 
 1. **Project ownership.** Does the action's target resolve to a container belonging to this project's compose project and to a declared service? No → `DENY`. See §6.3. This check runs first because it is the one that prevents Kavach touching something it was never onboarded against.
@@ -962,11 +962,15 @@ Evaluation order — **every check must pass; the first failure short-circuits t
 3. **Allow-list.** Is `action.name` in `allowed_actions` for this project? Not listed → `DENY`. The default allow-list is empty and code must not add defaults.
 4. **Inverse exists.** Does the action declare a working inverse? No → `REQUIRE_APPROVAL` at best, never auto.
 5. **Unknown-failure gate.** Is the driving diagnosis `UNKNOWN`? Yes → never auto, never sandbox-and-execute; route to the unknown flow (`FR-29`, `PRD.md` §8.4).
-6. **Confidence.** Is the driving diagnosis above the project threshold? No → `REQUIRE_APPROVAL`. *Implemented today in the RCA gate instead (§6.4, rule 4), because `permit()` does not exist; it moves here when it does. Note the current semantics are stricter than this step: a below-threshold diagnosis is rejected outright rather than routed to approval, since there is no approval path yet.*
+6. **Confidence.** Is the driving diagnosis above the project threshold? No → `REQUIRE_APPROVAL`. *Implemented in `permit()` as of P5, and ALSO still enforced earlier by the RCA validator (§6.4, rule 4), which rejects a below-threshold diagnosis outright. The two are not redundant: the validator stops a low-confidence diagnosis becoming a plan at all, while this step covers a plan that reached the gate with a weak diagnosis attached. The validator is the stricter of the two and runs first, so in practice this step is reached only when confidence is absent rather than low.*
 7. **Risk tier.** From the deterministic rule table (§6.2), keyed on `(action_name, target_kind, reversibility, data_touching)`.
 8. **Blast radius.** ≤ 3 actions this incident, ≤ 5 incidents this hour → else `DENY` and halt automation.
 9. **Circuit breaker.** `(service, fault_class)` healed ≤ 3 times in 30 min → else `DENY` and halt automation for that pair.
 10. **Mode policy.** `SIMULATION` → never execute, always produce a plan and a dry-run diff. `APPROVAL` → everything to a human. `AUTONOMOUS` → LOW auto, MEDIUM to sandbox-then-approval, HIGH to human (`PRD.md` §5.4).
+
+    **An operator approval is a third input to this step, and only to this step.** When the request carries `operator_approved` — set by `LoopRunner.approve()` to the incident whose plan a human read and accepted — this step returns `ALLOW_AUTO` for a LOW or MEDIUM action, and `REQUIRE_SANDBOX` for a HIGH one, because a fixed-HIGH action's sandbox is mandatory rather than routed (§6.5). Steps 1-9 have already run when this is reached, so an approval can never widen the allow-list, revive a denied mutation, reopen the breaker, or raise the blast-radius ceiling; what it satisfies is the mode gate and the confidence floor, the two whose entire content is *a human should look at this*.
+
+    This was got wrong first and the live run caught it. Approval was initially implemented by flipping the project to `AUTONOMOUS` for one run, on the reasoning that an operator's yes is equivalent to standing permission. It is not: `AUTONOMOUS` routes a MEDIUM action to the sandbox, the sandbox does not exist until P7, and so the approved re-run of a real F06 parked at `AWAITING_APPROVAL` a second time — the operator's approval healed nothing, and approving again returned 409. An approval is evidence about one plan, not a mode, and modelling it as a mode produced an approval loop.
 
 Every call writes a `risk_decisions` row including a `typed_decision_frame` — the compressed, Laya-shaped version of the decision (`which repair`, `what risk`, `execute automatically?`). When the Laya shadow engine is running (P7), its independent answer and the agreement flag land in the same row. **The shadow answer is never read by this function.**
 

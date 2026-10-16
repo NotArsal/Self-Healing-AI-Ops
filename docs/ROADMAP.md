@@ -569,18 +569,29 @@ probe — the one `FR-07` probe still missing.
 - `F-UNK` — the unknown-failure flow, which **always** reaches human escalation (`PRD.md` §8.4)
 - Sandbox (`F-SBX`, priority P1 — see cut line)
 
-**Acceptance**
-- [ ] **Every rule has a passing deny-case test** — this is the phase's real deliverable
-- [ ] `SIMULATION` produces a full plan and writes nothing, verified by filesystem **and** docker state diff
-- [ ] An action not on the allow-list is denied regardless of mode or risk tier
-- [ ] An `embed_model` change is denied even if someone adds it to the allow-list — the deny-list wins
-- [ ] A container outside the compose project is denied even with a matching service name
-- [ ] Circuit breaker: inject the same fault 4× in 30 min → the 4th escalates instead of healing
-- [ ] Blast radius halts automation at the limit
-- [ ] Approval flow: proposal → interrupt → human approves → resume → execute. Graph state survives a control-plane restart mid-interrupt
-- [ ] Duplicate idempotency key is a no-op
-- [ ] An `UNKNOWN` failure runs the full hypothesis flow and **always** ends at human escalation, never execution
-- [ ] No route, parameter or adapter accepts an arbitrary command string (`FR-27`) — grep to confirm
+**Acceptance** — reviewed against the suite and a live run on 2026-10-16.
+
+- [x] **Every rule has a passing deny-case test** — this is the phase's real deliverable. `tests/test_safety.py`, 52 tests
+- [x] A gated mode produces a full plan and writes nothing — **verified live, not just in a test:** with `mode: APPROVAL` and a real `F06` injected, the loop reached `AWAITING_APPROVAL` carrying the prepared `rollback_config`, its inverse and its pre-state witness, and the target's live `rerank_threshold` was still the faulty `0.999` afterwards. *The docker-state half of this box is vacuous rather than passed: no registered action touches a container, so there is no container state to diff. It becomes meaningful in P6, when `restart_container` lands*
+- [x] An action not on the allow-list is denied regardless of mode or risk tier
+- [x] An `embed_model` change is denied even if someone adds it to the allow-list — the deny-list wins, and is also checked against the action's *parameters* so a permitted action cannot smuggle one through
+- [x] A container outside the compose project is denied even with a matching service name
+- [x] Circuit breaker: the 4th heal of the same `(service, fault_class)` inside 30 min escalates instead of healing. *Unit-level; not yet driven by four live injections*
+- [x] Blast radius halts automation at the limit
+- [x] Approval flow: proposal → park → human approves → re-prepare → **execute**. Verified live: the audit chain records `permit → approved → permit → execute_start → execute_done`. **Not via a LangGraph `interrupt()`/`Command` resume** — there is no graph; approval re-detects and re-prepares, because what a human approves is the decision, not a frozen payload
+- [ ] **Graph state survives a control-plane restart mid-interrupt.** Split out of the line above because it does not hold. The incident is persisted, but the parked approval lives in `LoopRunner._awaiting` in memory, so a restart loses it and the operator re-runs. Carried to P6 with the rest of the graph question
+- [x] Duplicate idempotency key is a no-op
+- [ ] An `UNKNOWN` failure runs the full hypothesis flow and **always** ends at human escalation, never execution. The `hypotheses` table exists; the flow does not. Carried to P6
+- [x] No route, parameter or adapter accepts an arbitrary command string (`FR-27`) — grep confirms
+
+**What the live run cost, and why it was worth more than the tests.** Four defects survived the whole of P5 development and every one of them needed a real container and a real target to surface:
+
+1. **`/v1/mode`, `/v1/loop/run` and the approve route all failed inside the container**, because the target's `kavach.yaml` — which *is* the safety policy — was read from a host Windows path that is not mounted. The same bug class as P4's `parents[4]` IndexError: a path that only ever resolved on a host checkout. Fixed by mounting the one file read-only and pointing `KAVACH_TARGET_PATH` at the mount
+2. **`/v1/system` reported `mode: SIMULATION, mode_is_enforced: false`** on a project whose manifest says `APPROVAL`, because it still returned the global default. The console showed the one field an operator must be able to trust, wrong
+3. **An approval could never execute anything.** Approval was implemented as a one-run flip to `AUTONOMOUS`, and `AUTONOMOUS` routes a MEDIUM action to a sandbox that does not exist until P7 — so approving a real repair parked it a second time. An approval is now evidence on the request, satisfying the mode and confidence gates and nothing else
+4. **`audit.append("execute_start", incident_id=…, action=…, **action.to_dict())` raised `TypeError`** on duplicate keywords, because the action record already carries both keys. It had never run: no verdict had ever been `ALLOW_AUTO`, so the entire execute-and-audit path was dead code
+
+Defects 3 and 4 are the instructive pair. Both sat behind a gate that nothing had yet opened, so a suite that only ever exercised refusals could not see them — and P5's suite is, by design, mostly refusals.
 
 **Cut line, revised 2026-10-15: the sandbox is no longer the first thing to cut.** It was, on the reasoning that the approval path works without it. That stopped being true when `apply_patch` was accepted (`ARCHITECTURE.md` §6.2.1): a generated patch must be tried somewhere survivable before a human is asked to approve it, and the sandbox is that somewhere. **If the sandbox is cut, `apply_patch` is cut with it** — they are one decision now, not two. Cut `F02` and `F05` first instead.
 

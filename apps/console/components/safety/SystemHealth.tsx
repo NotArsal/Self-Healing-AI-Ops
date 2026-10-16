@@ -198,8 +198,19 @@ export function SystemHealth({
       >
         <Icon name="info" />
         <span>
-          Mode {system.mode} is enforced: every repair passes `permit()` before
-          anything is written, and the deny-list is refused in every mode.
+          {system.mode_is_enforced ? (
+            <>
+              Mode {system.mode} is enforced: every repair passes `permit()`
+              before anything is written, and the deny-list is refused in every
+              mode.
+            </>
+          ) : (
+            <>
+              Mode {system.mode} is a fallback, not this project&rsquo;s policy:
+              the target manifest could not be read, so there is nothing to run
+              under and every repair is refused. See the Safety policy row.
+            </>
+          )}
         </span>
       </p>
     </section>

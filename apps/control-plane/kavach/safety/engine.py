@@ -127,6 +127,14 @@ class ActionRequest:
     has_inverse: bool = False
     confidence: float | None = None
     diagnosis_class: str = ""
+    # The incident whose plan a human approved, or empty. This is NOT the same
+    # as running under AUTONOMOUS and must not be modelled as it: AUTONOMOUS is
+    # a standing permission to act on a class of faults, an approval is a
+    # person having read THIS plan and said yes. Impersonating AUTONOMOUS on
+    # approval is what made the approved path a dead end - the mode gate let it
+    # through and the tier router then sent the same MEDIUM action to a sandbox
+    # that does not exist until P7, so approving a repair healed nothing.
+    operator_approved: str = ""
 
 
 @dataclass
@@ -274,11 +282,15 @@ class SafetyEngine:
         ok("circuit_breaker", breaker_detail)
 
         # --- 11. mode policy. Last, because it routes rather than decides.
-        decision.verdict = self._route(policy.mode, tier, below_confidence)
+        decision.verdict = self._route(
+            policy.mode, tier, below_confidence, request.operator_approved
+        )
         checks.append(Check(
             "mode_policy", True,
             f"{policy.mode} + {tier}"
             + (" + below-threshold confidence" if below_confidence else "")
+            + (f" + approved on {request.operator_approved}"
+               if request.operator_approved else "")
             + f" -> {decision.verdict}"
         ))
         if decision.verdict is not Verdict.ALLOW_AUTO:
@@ -289,14 +301,35 @@ class SafetyEngine:
         return decision
 
     @staticmethod
-    def _route(mode: Mode, tier: RiskTier, below_confidence: bool) -> Verdict:
+    def _route(
+        mode: Mode,
+        tier: RiskTier,
+        below_confidence: bool,
+        approved: str = "",
+    ) -> Verdict:
         """Mode and tier to a verdict. `PRD.md` §5.4.
 
         `SIMULATION` never executes — it is the default, and the default must
         be the one that cannot do damage. A below-threshold confidence always
         reaches a human, whatever the tier, because an action chosen by a model
         that is unsure is exactly the case approval exists for.
+
+        AN APPROVAL SATISFIES THIS STEP AND ONLY THIS STEP.
+        Steps 1-10 have already run when this is reached, so an approval can
+        never widen the allow-list, revive a denied mutation, reopen the
+        breaker or raise the blast-radius ceiling. What it does satisfy is the
+        two gates whose whole content is "a human should look at this": the
+        mode and the confidence floor. A human read this plan and said yes, so
+        asking again is not caution, it is a loop — which is literally what the
+        first live run did, parking the approved re-run a second time.
+
+        HIGH is the exception and stays one. A fixed-HIGH action's sandbox is
+        mandatory rather than routed (`ARCHITECTURE.md` §6.2.1), so an approval
+        moves it to the sandbox and no further. `apply_patch` is the action
+        this protects, and it is deliberately not registered yet.
         """
+        if approved:
+            return Verdict.REQUIRE_SANDBOX if tier == HIGH else Verdict.ALLOW_AUTO
         if mode == "SIMULATION":
             return Verdict.REQUIRE_APPROVAL
         if below_confidence:

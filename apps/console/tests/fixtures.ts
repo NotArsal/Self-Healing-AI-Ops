@@ -20,8 +20,11 @@ import type {
 
 export const system: System = {
   kavach_version: "0.1.0",
-  mode: "SIMULATION",
-  mode_is_enforced: false,
+  mode: "APPROVAL",
+  // True since P5. The reference workload's manifest says APPROVAL, and the
+  // backend reports the manifest's mode rather than the global default - the
+  // fixture holding SIMULATION/false described the phase before the gate.
+  mode_is_enforced: true,
   project: "simple-rag",
   target_path: "D:/Target_RAG-App",
   compose_project: "target_rag-app",

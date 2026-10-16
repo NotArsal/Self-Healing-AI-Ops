@@ -350,6 +350,7 @@ class LoopRunner:
                     safety=self.safety,
                     policy=policy,
                     audit=self.audit,
+                    approved_from=approved_from,
                 )
                 self._remember(result)
                 if result.decision:
@@ -421,14 +422,13 @@ class LoopRunner:
         self.audit.append("approved", incident_id=incident_id, actor="operator",
                           note="re-detected and re-prepared; the decision was "
                                "approved, not a frozen payload")
-        # The operator IS the approval, so this one run executes under
-        # AUTONOMOUS. The mode on the project is untouched.
-        previous = self._mode_override
-        self._mode_override = "AUTONOMOUS"
-        try:
-            return await self.start(use_rca=True, approved_from=incident_id)
-        finally:
-            self._mode_override = previous
+        # The approval travels as evidence on the request, NOT as a mode
+        # override. Flipping the project to AUTONOMOUS for the duration was the
+        # first implementation and it did not work: AUTONOMOUS routes a MEDIUM
+        # action to the sandbox, which does not exist until P7, so the approved
+        # re-run parked at AWAITING_APPROVAL a second time and the operator's
+        # yes healed nothing. The mode on the project stays exactly as it is.
+        return await self.start(use_rca=True, approved_from=incident_id)
 
     def reject(self, incident_id: str, reason: str) -> None:
         """A human refused the plan. The reason is required, and recorded.
