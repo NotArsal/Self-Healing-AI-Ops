@@ -548,7 +548,15 @@ kavach/
 
 ---
 
-### 3.1 What exists today (P0–P3), and where it deviates from the tree above
+### 3.1 What existed at P0–P3, and where it deviated from the tree above
+
+> **Superseded by P5, and kept as a snapshot rather than updated in place.**
+> P5 added `safety/{engine,limits,writer_lock}.py`, `audit/log.py`,
+> `db/{models,store}.py`, `executor/{base,catalogue,undo_stack}.py` and
+> `harness/p5_gate_live.py`, so the "not present at all" list below is no
+> longer accurate for those four packages. §6 is the current account of what
+> the safety engine contains; this tree records what the F06 slice looked
+> like before it, which is what makes the P2-vs-P5 comparison legible.
 
 **The tree above is the target structure, not the current one.** As of
 2026-10-04 the implemented slice is `F06` only — detect, diagnose, repair,

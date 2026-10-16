@@ -584,6 +584,10 @@ probe — the one `FR-07` probe still missing.
 - [ ] An `UNKNOWN` failure runs the full hypothesis flow and **always** ends at human escalation, never execution. The `hypotheses` table exists; the flow does not. Carried to P6
 - [x] No route, parameter or adapter accepts an arbitrary command string (`FR-27`) — grep confirms
 
+**Artifacts**
+- `harness/p5_gate_live.py` — the live gate run, driving the HTTP API end to end: inject a real `F06`, assert the loop parks and writes nothing, approve, assert it executed against the captured pre-state. Writes `harness/reports/p5-gate-live.json`. Deliberately does **not** require `RESOLVED`; see `PRD.md` §12 and the script's own docstring
+- `harness/stability_f06.py`, `harness/rca_f06_live.py` — unchanged from P2/P3
+
 **What the live run cost, and why it was worth more than the tests.** Four defects survived the whole of P5 development and every one of them needed a real container and a real target to surface:
 
 1. **`/v1/mode`, `/v1/loop/run` and the approve route all failed inside the container**, because the target's `kavach.yaml` — which *is* the safety policy — was read from a host Windows path that is not mounted. The same bug class as P4's `parents[4]` IndexError: a path that only ever resolved on a host checkout. Fixed by mounting the one file read-only and pointing `KAVACH_TARGET_PATH` at the mount
