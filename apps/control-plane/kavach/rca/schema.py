@@ -29,7 +29,23 @@ FaultClass = Literal[
 
 # Repairs Kavach can actually perform today. The model may not propose anything
 # else, so it cannot ask for an action with no implementation or no inverse.
-CandidateRepair = Literal["rollback_config", "none"]
+#
+# THIS IS THE OUTPUT VOCABULARY, SO AN OMISSION HERE IS A GAG, NOT A TYPO.
+# Ollama's structured-output schema is generated from this model, so a repair
+# missing from this list is one the model is PHYSICALLY UNABLE to name. When
+# F01 landed, `switch_llm_endpoint` was registered in the executor, allowed in
+# the manifest, and named in the prompt's repair table - but absent here. Over
+# ten live runs the model diagnosed F01 correctly every time, cited real
+# evidence, and proposed "none" in all ten, because "none" was the only legal
+# value left to it. 0 of 10 usable diagnoses, and nothing in the prompt could
+# have fixed it.
+#
+# Kept as an explicit Literal rather than generated from the registry so that
+# mypy and the published JSON schema stay readable. `tests/test_rca.py`
+# asserts it equals the executor registry plus "none", so adding an action
+# without widening this fails the suite loudly instead of silently gagging the
+# model.
+CandidateRepair = Literal["rollback_config", "switch_llm_endpoint", "none"]
 
 
 class RejectedAlternative(BaseModel):
@@ -88,15 +104,40 @@ class Diagnosis(BaseModel):
         return self.fault_class not in ("UNKNOWN", "INSUFFICIENT_EVIDENCE")
 
 
-def ollama_schema() -> dict[str, Any]:
+def ollama_schema(declared_services: set[str] | None = None) -> dict[str, Any]:
     """JSON Schema for Ollama's `format`, generated from the model itself.
 
     Generated rather than hand-written so the decoder constraint and the
     validation constraint cannot diverge.
+
+    `declared_services` narrows the `service` property to an enum of the names
+    this project actually declares. The field stays a plain `str` on the model
+    because the valid set is runtime data from the manifest, not something a
+    static type can know - but the DECODER can be told, and telling it is the
+    difference between refusing a bad answer and preventing one.
+
+    This was learned the hard way twice. `candidate_repair` was a Literal
+    missing `switch_llm_endpoint`, so the model was unable to name F01's repair
+    and proposed "none" in ten of ten runs. Then with that fixed it returned
+    `service: "application_service"` in ten of ten - an invented name that
+    rule 2 of the prompt explicitly forbids and that the validator duly
+    rejected, for 0 usable diagnoses out of 10. Asking a 3B model nicely does
+    not work; constraining the decoder does.
     """
     schema = Diagnosis.model_json_schema()
     # Ollama wants a self-contained schema; Pydantic emits $defs references,
     # which it handles, but required/additionalProperties must be explicit for
     # the constraint to actually bind.
     schema["additionalProperties"] = False
+    if declared_services:
+        props = schema.get("properties", {})
+        if "service" in props:
+            # Replace rather than add: a string with both maxLength and enum
+            # is satisfiable, but the enum alone is the whole constraint.
+            props["service"] = {
+                "type": "string",
+                "enum": sorted(declared_services),
+                "description": "The service that owns the fault. Must be one "
+                               "of these exact names.",
+            }
     return schema

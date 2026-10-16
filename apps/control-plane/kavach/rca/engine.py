@@ -105,10 +105,36 @@ class RcaResult:
 
 
 def build_prompt(frame: EvidenceFrame, prompt_path: Path | None = None) -> str:
+    """Render the prompt, with the repair table injected from the registry.
+
+    `{repairs}` is filled from the detector catalogue rather than written into
+    the prompt file, because a hand-maintained list there drifts the moment a
+    fault class is added - and it did. The prompt's rule 3 named only
+    `rollback_config`, so when F01 landed the model had no way to know its
+    repair was `switch_llm_endpoint`, and a correct F01 diagnosis would still
+    have been rejected for naming the wrong repair.
+    """
     template = (prompt_path or PROMPT_PATH).read_text(encoding="utf-8")
     if "{evidence}" not in template:
         raise RuntimeError("prompt template is missing the {evidence} slot")
-    return template.replace("{evidence}", frame.render())
+    rendered = template.replace("{evidence}", frame.render())
+    if "{repairs}" in rendered:
+        rendered = rendered.replace("{repairs}", _repair_table())
+    return rendered
+
+
+def _repair_table() -> str:
+    """The fault-class -> repair mapping, as the registry knows it."""
+    from kavach.detection import base as det
+    from kavach.detection import catalogue  # noqa: F401 - registers detectors
+
+    rows = sorted(det.registry.known_faults().items())
+    if not rows:
+        return '  (no repair is implemented; use "none")'
+    width = max(len(k) for k, _ in rows)
+    lines = [f'  {k:<{width}}  ->  "{v}"' for k, v in rows]
+    lines.append('  anything else     ->  "none"')
+    return "\n".join(lines)
 
 
 LlmCall = Callable[[str, str, dict[str, Any]], LlmResponse]
@@ -142,7 +168,7 @@ def diagnose(
         llm_call = llm.structured
 
     prompt = build_prompt(frame, prompt_path)
-    schema = ollama_schema()
+    schema = ollama_schema(declared_services)
 
     # --- the model call. Any failure becomes a rejection, never an exception.
     try:

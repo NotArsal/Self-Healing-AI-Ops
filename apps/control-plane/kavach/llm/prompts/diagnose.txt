@@ -54,6 +54,30 @@ reranking. The rerank filter runs after it.
   corpus_chunks ZERO
       There is nothing to retrieve. Not F06.
 
+## An endpoint outage looks like a retrieval failure. Check this first.
+
+Before using the rules above at all, read `llm_error_ratio`. The query is
+EMBEDDED by the same endpoint that generates the answer, so when that endpoint
+is refusing, nothing is retrieved either - and the retrieval metrics then look
+exactly like F06:
+
+  llm_error_ratio HIGH (roughly 0.5 or more)
+      The model was never reached. Nothing was embedded, so nothing was
+      retrieved, so `kept_chunks` near zero and a high `empty_context_ratio`
+      say NOTHING about the rerank filter. This is F01.
+
+      `retrieval_top_similarity` will often still look healthy here, because
+      it is a ten-minute quantile still holding observations from before the
+      outage. A healthy similarity reading during a high error ratio is STALE,
+      not evidence that retrieval works. Do not use it to argue for F06.
+
+  llm_error_ratio NEAR ZERO
+      The endpoint answered every call, so the retrieval rules above apply and
+      F01 is ruled out.
+
+This pair has been confused in practice, in both directions. Decide the
+endpoint question first, then the retrieval question.
+
 ## Rules
 
 1. `evidence_ids` is a JSON ARRAY OF ID STRINGS, and it must contain at least
@@ -63,10 +87,15 @@ reranking. The rerank filter runs after it.
 2. `service` must be copied EXACTLY from the evidence. The valid values are
    listed in EV-S02, and EV-S01 names the service that owns retrieval. Do not
    invent a name, do not use the product's name, do not abbreviate.
-3. `candidate_repair` must be "rollback_config" when the fault is a
-   configuration value that should be restored to its recorded known-good
-   value — which is the case for a rerank threshold that has moved away from
-   its baseline. Use "none" only when no repair in the list applies.
+3. `candidate_repair` must be the repair this system has actually implemented
+   for the class you chose. There is exactly one per class and it is not
+   negotiable:
+
+{repairs}
+
+   Naming any other repair, or the right repair for the wrong class, is a
+   rejected answer. Use "none" when your class has no implemented repair, and
+   for UNKNOWN or INSUFFICIENT_EVIDENCE.
 4. `confidence` is your genuine probability that `fault_class` is correct. Do
    not inflate it, and 1.0 is almost never honest — some evidence is always
    ambiguous. A confidence below the operator's threshold prevents any repair,
@@ -77,21 +106,44 @@ reranking. The rerank filter runs after it.
 
 ## Required output shape
 
-Respond with exactly one JSON object in this shape. The example below shows
-the SHAPE, not the answer — diagnose from the evidence you were given.
+Respond with exactly one JSON object in this shape.
+
+THE SKELETON BELOW IS NOT AN ANSWER. Every angle-bracketed part is a slot you
+must replace with what the evidence actually says. It is deliberately not a
+valid diagnosis: the ids are not real ids, the confidence is zero and the
+repair is "none", so if you return it unchanged it will be rejected. That is
+intended. An earlier version of this prompt carried a complete, plausible,
+fully-formatted F06 diagnosis here as an illustration, and a model copied it
+word for word onto an endpoint-outage incident - the class, the confidence,
+the cited ids and both sentences of reasoning - producing a confident
+diagnosis of a fault that was not happening.
 
 {
-  "fault_class": "F06",
-  "fault_name": "retrieval_collapse",
-  "service": "backend",
-  "confidence": 0.9,
-  "evidence_ids": ["EV-M01", "EV-M02", "EV-C01"],
-  "reasoning": "EV-M01 shows similarity at 0.658 which is healthy, while EV-M02 shows zero chunks kept, so retrieval works and the filter is discarding everything. EV-C01 shows the threshold at 0.999 against a baseline of 0.35.",
-  "candidate_repair": "rollback_config",
+  "fault_class": "<one id from the list above, exactly as written>",
+  "fault_name": "<the short name from the list above>",
+  "service": "<copied exactly from EV-S01 or EV-S02>",
+  "confidence": <your genuine probability as a number between 0.0 and 1.0>,
+  "evidence_ids": ["<EV id you used>", "<another EV id you used>"],
+  "reasoning": "<name each EV id you cited and the value you read from it, then say what that rules in and what it rules out>",
+  "candidate_repair": "<the repair rule 3 gives for the class you chose, or none>",
   "rejected_alternatives": [
-    {"fault_class": "F01", "reason": "EV-M06 shows llm_error_ratio 0.0, the endpoint is serving"}
+    {"fault_class": "<a class you seriously considered>", "reason": "<the EV id and value that rules it out>"}
   ]
 }
+
+NOTE THAT THE SKELETON ABOVE IS NOT ITSELF VALID JSON - the angle brackets are
+slots, including the one where a number goes. Your reply must be valid JSON
+with every slot filled from the evidence. There is deliberately no literal
+value left in it to copy: an earlier version left `0.0` in the confidence slot
+and `"none"` in the repair slot, and a model reasoned correctly about the
+evidence while returning both of those unchanged - producing a sound diagnosis
+that could never authorise a repair, because a zero confidence is below every
+operator threshold.
+
+Read every value from the evidence block below. Do not carry a number from
+this skeleton, from the rules above, or from anything you remember about this
+system into your answer. If a signal you want to cite reads `None`, say it is
+missing - do not supply a value for it.
 
 ## Evidence
 

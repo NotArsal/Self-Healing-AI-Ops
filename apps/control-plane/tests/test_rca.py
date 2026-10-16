@@ -21,7 +21,7 @@ import pytest
 
 from kavach.detection import retrieval_collapse as rc
 from kavach.llm.client import LlmError, LlmResponse, assert_not_proxied
-from kavach.rca.engine import RcaResult, build_prompt, diagnose
+from kavach.rca.engine import PROMPT_PATH, RcaResult, build_prompt, diagnose
 from kavach.rca.evidence import EvidenceFrame, reading
 from kavach.rca.schema import Diagnosis, ollama_schema
 from kavach.rca.validate import Outcome, supported_fault_classes, validate
@@ -474,3 +474,134 @@ def test_zero_is_a_real_reading_and_must_not_be_treated_as_missing() -> None:
     value, note = reading(0.0)
     assert value == 0.0
     assert note == ""
+
+
+# --- the prompt must not hand the model an answer -------------------------
+
+
+def test_the_prompt_skeleton_cannot_be_returned_as_a_valid_answer() -> None:
+    """A model copied the old worked example verbatim onto the wrong incident.
+
+    The example was a complete, plausible, correctly-formatted F06 diagnosis.
+    Given a real F01, llama3.2 returned its class, its 0.9 confidence, its
+    three evidence ids and both of its reasoning sentences unchanged - and the
+    F01 rejection string "EV-M06 shows llm_error_ratio 0.0, the endpoint is
+    serving" while EV-M06 actually read 1.0.
+
+    The skeleton must therefore be rejected BY CONSTRUCTION if copied, rather
+    than relying on the model to read a disclaimer: fake ids fail the cited-
+    evidence rule, 0.0 fails the confidence floor, and "none" fails the repair
+    match.
+    """
+    text = PROMPT_PATH.read_text(encoding="utf-8")
+
+    # The exact strings that were copied must be gone.
+    assert "0.658" not in text, "a real similarity value is still in the prompt"
+    assert "0.999" not in text, "a real threshold value is still in the prompt"
+    assert "the endpoint is serving" not in text
+    assert '"confidence": 0.9' not in text
+
+    assert "NOT AN ANSWER" in text
+
+    # NO LITERAL VALUE MAY REMAIN IN THE SKELETON AT ALL.
+    # The first attempt at this fix left `0.0` in the confidence slot and
+    # "none" in the repair slot as fail-safe defaults. Measured over ten live
+    # runs, llama3.2 then reasoned CORRECTLY about the evidence - citing six
+    # real ids, using the MISSING note to rule out F06 - while returning both
+    # of those literals unchanged in all ten. The class was right and the
+    # diagnosis was unusable, because a zero confidence is below every
+    # operator threshold. Fail-safe defaults are still copyable defaults.
+    assert '"confidence": 0.0' not in text
+    assert '"candidate_repair": "none"' not in text
+    for slot in ('"confidence": <', '"candidate_repair": "<'):
+        assert slot in text, f"{slot} must be a slot, not a value"
+
+
+def test_the_prompt_tells_the_model_to_check_the_endpoint_before_retrieval() -> None:
+    """An outage collapses grounding too, so F01 has to be ruled out first.
+    Measured live: kept_chunks 0.4, empty_context 0.85, similarity 0.675 -
+    F06's signature - with llm_error_ratio at 1.0."""
+    text = PROMPT_PATH.read_text(encoding="utf-8")
+    assert "llm_error_ratio" in text
+    assert "STALE" in text, "the stale-quantile trap must be named"
+    assert "This is F01." in text
+
+
+def test_the_prompt_repair_table_comes_from_the_registry() -> None:
+    """Rule 3 named only rollback_config and went stale the moment F01 landed,
+    so a correct F01 diagnosis would still have been rejected for naming the
+    wrong repair. The table is injected now, so it cannot drift again."""
+    from kavach.detection import base as det
+    from kavach.detection import catalogue  # noqa: F401
+    from kavach.rca.engine import _repair_table
+
+    raw = PROMPT_PATH.read_text(encoding="utf-8")
+    assert "{repairs}" in raw, "the slot must exist for the table to be injected"
+
+    table = _repair_table()
+    for fault_class, action in det.registry.known_faults().items():
+        assert fault_class in table
+        assert action in table
+
+
+def test_the_repair_vocabulary_covers_every_registered_action() -> None:
+    """An omission here is a gag, not a typo.
+
+    Ollama's structured output is generated from `Diagnosis`, so a repair
+    missing from `CandidateRepair` is one the model cannot name at all. When
+    F01 landed, `switch_llm_endpoint` was registered, allowed in the manifest
+    and named in the prompt - but absent from this Literal. Ten live runs
+    diagnosed F01 correctly and proposed "none" in all ten, because "none" was
+    the only legal value left. Nothing in the prompt could have fixed that.
+    """
+    from typing import get_args
+
+    from kavach.executor import catalogue  # noqa: F401 - registers the actions
+    from kavach.executor.base import registry as actions
+    from kavach.rca.schema import CandidateRepair
+
+    vocabulary = set(get_args(CandidateRepair))
+    assert "none" in vocabulary, '"none" must remain available for no-repair'
+
+    buildable = set(actions.names())
+    missing = buildable - vocabulary
+    assert not missing, (
+        f"registered but unnameable by the model: {sorted(missing)}. The model "
+        f"cannot propose a repair that is not in CandidateRepair, so it would "
+        f"diagnose correctly and propose nothing"
+    )
+
+    invented = vocabulary - buildable - {"none"}
+    assert not invented, (
+        f"nameable but not registered: {sorted(invented)}. The model could "
+        f"propose a repair the executor cannot build"
+    )
+
+
+def test_the_decoder_is_told_the_declared_services() -> None:
+    """Prevent the bad answer rather than reject it.
+
+    With the repair vocabulary fixed, llama3.2 returned
+    `service: "application_service"` in ten of ten live runs - an invented name
+    that rule 2 of the prompt explicitly forbids. The validator rejected all
+    ten, so the class was right, the repair was right, the reasoning cited six
+    real evidence ids, and the diagnosis was still unusable. Asking a 3B model
+    nicely does not work.
+    """
+    from kavach.rca.schema import ollama_schema
+
+    services = {"backend", "db", "frontend"}
+    schema = ollama_schema(services)
+    prop = schema["properties"]["service"]
+    assert prop.get("enum") == sorted(services), (
+        "the decoder must be unable to emit an undeclared service"
+    )
+    assert "application_service" not in prop.get("enum", [])
+
+
+def test_the_schema_still_works_without_declared_services() -> None:
+    """The parameter is optional, and the offline tests pass nothing."""
+    schema = ollama_schema()
+    assert schema["properties"]["service"]["type"] == "string"
+    assert "enum" not in schema["properties"]["service"]
+    assert schema["additionalProperties"] is False
