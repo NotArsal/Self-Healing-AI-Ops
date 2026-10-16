@@ -619,9 +619,9 @@ The sandbox remains the most likely thing to overrun — ports, volumes and stat
 
 `F06` shipped in P2. Seven remain. One complete vertical slice each: injector → detection signal → RCA path → repair action + inverse → verification probe → integration test. **Never start the next until the previous passes.**
 
-**Each new fault also needs the `harness/inject.py` CLI that P2 skipped** — a second caller finally justifies it.
+**Each new fault also needs the `harness/inject.py` CLI that P2 skipped** — a second caller finally justifies it. **Written 2026-10-16 with F01**, now that there are two injectors of the same shape: `list` / `status` / `inject <class>` / `revert --all`, with a registry so a third fault is a line rather than a branch in every subcommand. It deliberately **cannot heal** — a CLI that could repair would make it possible to demonstrate a heal that never happened — and it is explicit that a fresh process holds no captured witness, so `revert` undoes the documented change and prints what it restored instead of pretending to replay a pre-state.
 
-### F01 — what landed, and the one thing holding it open
+### F01 — what landed, and what it cost to get there
 
 **The detector seam had to be built first, which is exactly what this phase's
 entry note predicted.** `loop.py` imported a detector by name and
@@ -685,15 +685,32 @@ prompt itself says 1.0 is almost never honest — so the 0.75 gate is doing no
 filtering work on F01. `PRD.md` §12 carries that and the remaining gap that no
 validator rule re-reads a cited numeric claim against the frame.
 
-**F01 acceptance: 5 of 8.** Met: detection within 30s (15.1s), diagnosis ≥8/10
-(10/10), repair executes with an exact inverse, all three fast probes, ownership
-and deny-list. Remaining: the 20-cycle stability run, a
-forced-verification-failure test, an F01 integration test in the suite — and
-`harness/inject.py`, still unwritten.
+### F01 acceptance: 8 of 8 ✅ — the first fault class closed to this phase's own bar
+
+| | Criterion | Evidence |
+|---|---|---|
+| ✅ | Injector deterministic, reverts cleanly, 20 cycles stable | `harness/stability_f01.py`: **20/20**, min 30.3s / mean 31.2s / max 32.0s, settings identical, corpus `30/2` unchanged, **stack identical `True`** |
+| ✅ | Detection fires within 30s | **15.1s** |
+| ✅ | Diagnosis names the right class in ≥8 of 10 | **10/10**, and **10/10 validator-approved**, 8.4s mean against the 45s PF-02 budget |
+| ✅ | Repair executes; inverse restores prior state exactly | Live, plus **20 further times** in the stability run — see below |
+| ✅ | All three fast verification probes pass | `quality_ok: true, pass_rate 1.0` |
+| ✅ | Integration test green in CI | `tests/test_f01_loop.py`, 9 tests, offline |
+| ✅ | Forced-verification-failure test green | Same file: the failover lands, answers stay wrong, the loop unwinds (`clean: true, restored: 1`) and escalates |
+| ✅ | Ownership and deny-list still pass for this action | `tests/test_safety.py` |
+
+**The F01 stability run tests something the F06 one structurally cannot.** F06's
+repair writes the baseline value, so each cycle ends where it started and
+`invert()` never runs — twenty cycles exercise the inverse zero times. A
+failover ends on the **backup**, which is the correct healed state but not the
+starting state, so each cycle applies the recorded inverse and verifies it
+against the pre-state witness. It is not optional bookkeeping either:
+`build_switch_for_endpoint_outage` refuses to prepare a failover when the
+application is already on the backup, so without the inverse cycle 2 would
+refuse to build. Twenty cycles, twenty inverses, each verified.
 
 | Order | Fault | Note |
 |---|---|---|
-| 1 | `F01` primary LLM endpoint outage | **Mostly done, 2026-10-16** — see below. Gives the LOW-risk autonomous demo path of `PRD.md` §8.2, and it ran |
+| 1 | `F01` primary LLM endpoint outage | **DONE 2026-10-16, 8 of 8 acceptance criteria** — see below. Gives the LOW-risk autonomous demo path of `PRD.md` §8.2, and it healed unattended |
 | 2 | `F08` config regression | Reuses the config interface already built for `F06` |
 | 3 | **`F07` prompt regression** | **Needs the git adapter extended to prompt blobs.** Prompts were externalised in P1, so this is the git work, not the extraction |
 | 4 | **`F09` token blowout** | Reuses `F07`'s machinery; token capture landed in P1 |
