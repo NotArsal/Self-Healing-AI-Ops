@@ -789,8 +789,50 @@ F08's signal is read at the instant the loop runs. That makes it the best demo
 candidate in the catalogue, which is worth stating precisely because it is
 **not** the fault carrying the research claim.
 
-**Remaining for F08:** the 20-cycle stability run and the `≥8 of 10` RCA
-measurement. The vertical is proven; the acceptance table is not yet complete.
+### F08 acceptance: 7 of 8 — criterion 1 FAILS, and the cause is structural
+
+**20-cycle stability: 18/20, FAIL.** `harness/stability_f08.py`, mean 37.8s per
+cycle, settings identical, **stack identical `True`**. Cycles 15 and 18 failed
+on one check only — `broke` — reporting `33% pass under fault`: one of the three
+fast-set cases still passed under the clamp. Inject, heal, restore, config
+hash, scope, corpus and the action record were clean in every one of the 20.
+
+**This is the same mistake one layer down, and it is mine.** The sweep found
+`max_tokens=4` non-deterministic with three repetitions and then chose 2
+because three repetitions showed 2 clean. **Three repetitions cannot establish
+determinism for a stochastic generator.** Twenty cycles found at roughly a 10%
+rate what three reps missed entirely.
+
+**Not fixed by tuning, deliberately.** Lowering to `max_tokens=1` would pass
+and is refused: it is the degenerate boundary the sweep already rejected (the
+model emits a bare `"The"`), and tuning a constant until the test goes green is
+what the sweep exists to prevent. Weakening `broke` to "≥2 of 3 fail" is
+refused for the same reason — `AGENTS.md` forbids lowering a bar to reach it.
+
+**The cause looks inherent rather than incidental.** F08's symptom is
+*generated token count*, which is stochastic on this model. The other two
+injectors do not have this exposure: `F01` disables a listener, which is
+binary, and `F06` sets a threshold the reranker applies deterministically. A
+token clamp may simply be unable to meet a strict 20/20 determinism bar.
+
+| | Criterion | F08 |
+|---|---|---|
+| ❌ | Injector deterministic, 20 cycles stable | **18/20** — see above |
+| ✅ | Detection fires within 30s | No warm-up needed at all; read at run time |
+| ⏳ | Diagnosis ≥8 of 10 | `harness/rca_f08_live.py` written, not yet run |
+| ✅ | Repair executes; inverse restores prior state exactly | Live, plus 20 further times |
+| ✅ | All three fast verification probes pass | After the rollback, in all 20 cycles |
+| ✅ | Integration test green in CI | `tests/test_f08_config.py`, 15 tests |
+| ✅ | Forced-verification-failure test green | Same file |
+| ✅ | Ownership and deny-list still pass | `tests/test_safety.py`; needed no new allow-list entry |
+
+**Open decision, recorded in `PRD.md` §12 rather than resolved here:** accept a
+documented ~90% injection rate for F08, find a deterministic F08 injection (the
+obvious candidates collide — `llm_timeout_s` is latency-shaped and belongs to
+`F02`, `llm_model=nomic-embed-text` would spike the error ratio and collide with
+`F01`), or keep the clamp and report the measured rate as a property of the
+fault class rather than a pass/fail. The last is the most honest; pretending a
+stochastic symptom is binary is how an unreproducible number reaches a report.
 
 | Order | Fault | Note |
 |---|---|---|
