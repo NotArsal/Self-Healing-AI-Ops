@@ -178,7 +178,10 @@ def main() -> int:
                 "approved": rca.approved,
                 "latency_s": latency,
                 "cited": list(d.evidence_ids) if d else [],
-                "reasoning": (d.reasoning[:160] if d else (rca.error or "")[:160]),
+                # 1200, not 160: the first version cut the reasoning before
+                # its conclusion, so a transposed-evidence diagnosis had to be
+                # re-run to be read. The artifact is the audit trail.
+                "reasoning": (d.reasoning[:1200] if d else (rca.error or "")[:1200]),
             }
             results.append(row)
             say(f"  rep {i:2}  {row['fault_class']!s:<22} "

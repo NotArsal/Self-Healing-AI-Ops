@@ -789,7 +789,7 @@ F08's signal is read at the instant the loop runs. That makes it the best demo
 candidate in the catalogue, which is worth stating precisely because it is
 **not** the fault carrying the research claim.
 
-### F08 acceptance: 7 of 8 — criterion 1 FAILS, and the cause is structural
+### F08 acceptance: 6 of 8 — criteria 1 and 3 FAIL, and both causes are structural
 
 **20-cycle stability: 18/20, FAIL.** `harness/stability_f08.py`, mean 37.8s per
 cycle, settings identical, **stack identical `True`**. Cycles 15 and 18 failed
@@ -819,7 +819,7 @@ token clamp may simply be unable to meet a strict 20/20 determinism bar.
 |---|---|---|
 | ❌ | Injector deterministic, 20 cycles stable | **18/20** — see above |
 | ✅ | Detection fires within 30s | No warm-up needed at all; read at run time |
-| ⏳ | Diagnosis ≥8 of 10 | `harness/rca_f08_live.py` written, not yet run |
+| ❌ | Diagnosis ≥8 of 10 | **0 of 10** — the model said `F01` every time, at confidence 1.0, with F01's repair. See below |
 | ✅ | Repair executes; inverse restores prior state exactly | Live, plus 20 further times |
 | ✅ | All three fast verification probes pass | After the rollback, in all 20 cycles |
 | ✅ | Integration test green in CI | `tests/test_f08_config.py`, 15 tests |
@@ -833,6 +833,40 @@ obvious candidates collide — `llm_timeout_s` is latency-shaped and belongs to
 `F01`), or keep the clamp and report the measured rate as a property of the
 fault class rather than a pass/fail. The last is the most honest; pretending a
 stochastic symptom is binary is how an unreproducible number reaches a report.
+
+**F08 RCA: 0 of 10, and prompt-stuffing has stopped scaling.** The model
+returned `F01` in all ten repetitions, at confidence 1.0, proposing
+`switch_llm_endpoint`. The deterministic cross-check rejected all ten on
+`deterministic_agreement`, so nothing was written — the architecture worked.
+The diagnosis did not, and the reason is instructive:
+
+> `EV-M01 shows llm_error_ratio = 0.0 (healthy: < 0.20), and EV-M06 shows
+> retrieval_top_similarity_p50 = 0.6636 (healthy: >= 0.50)`
+
+**Both values are correct and both labels are wrong.** `EV-M01` is
+`retrieval_top_similarity_p50` and `EV-M06` is `llm_error_ratio` — verified
+unchanged, the ids are stable. The model read the frame correctly, transposed
+the two labels, and then concluded `F01` from two readings that both *rule
+F01 out*. Nothing in the validator catches a transposition, because no rule
+re-reads a cited value against the frame; only the class disagreement saved it.
+
+**The bias is mine, and it moved.** Before F01's RCA work the model reached
+for `F06` on everything, because the prompt's discrimination section was
+entirely about retrieval. Adding a prominent *"An endpoint outage looks like a
+retrieval failure. Check this first… This is F01."* section fixed F01 and
+created an `F01` bias. The prompt has **no discrimination guidance for F08 at
+all**.
+
+That is a scaling problem, not a wording problem. Pairwise prose
+discrimination for a nine-class catalogue is 36 pairs, and each section added
+so far has biased the model toward the class it describes. **The obvious fix —
+showing the model the deterministic verdict — destroys the thing that makes
+RCA worth having:** `deterministic_agreement` is only a check because the two
+answers are reached independently. Feed one into the other and the agreement
+becomes circular.
+
+So F08's RCA number is recorded as a measurement, not patched. `PRD.md` §12
+carries it with the options.
 
 | Order | Fault | Note |
 |---|---|---|
