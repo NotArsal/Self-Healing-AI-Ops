@@ -635,7 +635,8 @@ module body, so F01 could not be added as an adapter until that was fixed.
 | `kavach/detection/endpoint_outage.py` | F01's detector. Discriminator is the LLM error ratio: high means the model was never reached, ~0 with grounding lost is F06 |
 | `kavach/executor/endpoint_switch.py` | `switch_llm_endpoint`, LOW. A **builder** over `ConfigRollback`, not a second action class |
 | `harness/faults/f01_endpoint_outage.py` | Disables the `ollama-primary` Toxiproxy listener. Surfaced on `/healthz` in **0.034s** as a 503, recovered in 0.075s |
-| `harness/p6_f01_live.py` | The live run, APPROVAL then AUTONOMOUS. `--rca` reproduces the LLM refusal rather than hiding it |
+| `harness/p6_f01_live.py` | The live run, APPROVAL then AUTONOMOUS. `--rca` runs the LLM stage |
+| `harness/rca_f01_live.py` | The ">= 8 of 10" acceptance measurement, with a canary for copied prompt text and a pass condition that requires the diagnosis to be USABLE, not merely correctly classed |
 
 **With the seam in place, F01 changed nothing in `loop.py`'s decision logic,
 `rca/schema.py`, `llm/`, or the safety engine.** That is the bar this phase set,
@@ -656,15 +657,39 @@ configuration the application stopped using. **F01 cannot reach RESOLVED until
 that is decided** — the fix is one line of target application code, which is
 under a standing prohibition. `PRD.md` §12 carries it.
 
-**Also open for F01:** the RCA layer only knows the F06 story. Given a real
-F01 it diagnosed F06 at 0.9 confidence with fabricated evidence values, and the
-deterministic cross-check correctly refused it. F01's vertical is therefore
-claimed on the deterministic path. Teaching RCA the second fault class, and
-adding a validator rule that checks cited *values* against the frame, are both
-P6 work and both in `PRD.md` §12.
+**The RCA layer now knows F01, measured rather than asserted.** It did not at
+first: given a real F01 it returned F06 at 0.9 confidence with every field
+copied verbatim from a worked example the prompt carried, and the deterministic
+cross-check refused it. Four stacked defects sat behind that, and the fix for
+each was the same — a constraint where a prose rule had been:
 
-Still to do for F01: the 20-cycle stability run, the `≥8 of 10` diagnosis
-measurement, and `harness/inject.py`.
+| | class | repair | service | approved |
+|---|---|---|---|---|
+| run 1 | 10/10 | `none` | `backend` | **0/10** |
+| run 2 | 10/10 | `none` | `backend` | **0/10** |
+| run 3 | 10/10 | `switch_llm_endpoint` | `application_service` | **0/10** |
+| run 4 | 10/10 | `switch_llm_endpoint` | `backend` | **10/10** |
+
+The decisive two were in the schema, not the prompt: `CandidateRepair` was a
+`Literal` without `switch_llm_endpoint`, so the decoder could not emit F01's
+repair at all; and `service` was a free string, so the model invented
+`application_service` in ten of ten runs against a rule that explicitly forbids
+it. `ollama_schema()` now takes the declared services and narrows `service` to
+an enum of them.
+
+**Run 4: 10/10 correct, 10/10 approved, 10/10 named the right repair, 8.4s
+mean against the 45s PF-02 budget.** Criterion 3 is met.
+
+**Flagged, not buried:** confidence came back 1.0 in all ten runs, and the
+prompt itself says 1.0 is almost never honest — so the 0.75 gate is doing no
+filtering work on F01. `PRD.md` §12 carries that and the remaining gap that no
+validator rule re-reads a cited numeric claim against the frame.
+
+**F01 acceptance: 5 of 8.** Met: detection within 30s (15.1s), diagnosis ≥8/10
+(10/10), repair executes with an exact inverse, all three fast probes, ownership
+and deny-list. Remaining: the 20-cycle stability run, a
+forced-verification-failure test, an F01 integration test in the suite — and
+`harness/inject.py`, still unwritten.
 
 | Order | Fault | Note |
 |---|---|---|
