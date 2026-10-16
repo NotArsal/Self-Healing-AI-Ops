@@ -253,6 +253,10 @@ class LoopRunner:
     def awaiting(self) -> list[str]:
         return sorted(self._awaiting)
 
+    def parked_used_rca(self, incident_id: str) -> bool:
+        """How the parked plan was derived, so the API can report it honestly."""
+        return bool(self._awaiting.get(incident_id, {}).get("use_rca", True))
+
     def incident(self, incident_id: str) -> loop.Incident | None:
         return self._incidents.get(incident_id)
 

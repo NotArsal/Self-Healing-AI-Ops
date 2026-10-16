@@ -227,31 +227,87 @@ def test_a_missing_series_with_a_real_symptom_is_insufficient_evidence() -> None
     assert d.verdict is det.Verdict.INSUFFICIENT_EVIDENCE
 
 
-def test_the_live_registry_separates_f01_from_f06_on_real_readings() -> None:
-    """The two detectors must be mutually exclusive on live evidence, which is
-    what lets run_all evaluate both and still get one answer."""
+# The ACTUAL readings from the first live F01 run, 2026-10-16. Kept verbatim
+# because they are the counter-example to the assumption this file was first
+# written on - that F01 and F06 could not both claim.
+LIVE_F01_READINGS: dict[str, float | None] = {
+    "similarity_p50": 0.675,        # a STALE 10m quantile: still pre-outage
+    "kept_chunks_mean": 0.4,        # collapsed: nothing is being retrieved
+    "empty_context_ratio": 0.85,
+    "corpus_chunks": 30.0,
+    "llm_error_ratio": 1.0,         # the precondition that settles it
+}
+
+
+def test_an_endpoint_outage_also_destroys_grounding_which_is_the_trap() -> None:
+    """Documents why F06 needed an endpoint precondition, with live readings.
+
+    The original version of this test asserted the two detectors were mutually
+    exclusive, and fed F06 HEALTHY grounding numbers to "prove" it. That was
+    the assumption, not the measurement. On a real outage the embedding call
+    goes through the same broken endpoint, so grounding collapses too, while
+    `similarity_p50` is a 10-minute quantile that still holds pre-outage
+    observations and therefore still looks healthy - which is exactly F06's
+    discriminator reading TRUE on an F01.
+    """
+    from kavach.detection import retrieval_collapse as rc
+    from kavach.detection.retrieval_collapse import Thresholds as F06Thresholds
+
+    without_precondition = {k: v for k, v in LIVE_F01_READINGS.items()
+                            if k != "llm_error_ratio"}
+    fooled = rc.evaluate(without_precondition, fast_set_passed=False,
+                         fast_set_pass_rate=0.0)
+    assert fooled.detected, (
+        "the trap must be real, or this test is not testing anything: without "
+        "the error ratio, F06's own discriminator claims a real F01"
+    )
+
+    settled = rc.evaluate(LIVE_F01_READINGS, fast_set_passed=False,
+                          fast_set_pass_rate=0.0)
+    assert settled.verdict is det.Verdict.INSUFFICIENT_EVIDENCE
+    assert not settled.detected
+    assert any("endpoint fault, not a" in r for r in settled.reasons)
+
+    # Both detectors must agree on where "the endpoint is broken" begins, or
+    # there is a band in which both claim and the loop refuses to act.
+    assert F06Thresholds().llm_error_ceiling == Thresholds().error_ratio_floor
+
+
+def test_the_live_registry_returns_f01_alone_on_the_live_readings() -> None:
+    """The end-to-end consequence: one claim, so a repair can be proposed."""
+    merged = {**LIVE_F01_READINGS, **OUTAGE}
+
+    def promql_live(_url: str, q: str) -> float | None:
+        for key, expr in {**QUERIES}.items():
+            if expr == q:
+                return merged.get(key)
+        from kavach.detection.retrieval_collapse import QUERIES as F06_QUERIES
+        for key, expr in F06_QUERIES.items():
+            if expr == q:
+                return merged.get(key)
+        return None
+
+    d = det.run_all(det.registry.specs(), "http://u", promql_live,
+                    fast_set_passed=False, fast_set_pass_rate=0.0)
+    assert d.verdict is det.Verdict.FAULT
+    assert d.fault_class == "F01"
+
+
+def test_a_real_f06_collapse_is_still_detected() -> None:
+    """The precondition must not cost F06 its own fault: every call succeeded,
+    the answers were simply ungrounded."""
     from kavach.detection import retrieval_collapse as rc
 
-    # An F01 outage: the model was never reached, so grounding metrics are
-    # whatever the window last saw. F06 must not claim it.
-    f06_on_outage = rc.evaluate(
-        {"similarity_p50": 0.657, "kept_chunks_mean": 2.7,
-         "empty_context_ratio": 0.0, "corpus_chunks": 30.0},
-        fast_set_passed=False, fast_set_pass_rate=0.0,
-    )
-    f01_on_outage = evaluate(OUTAGE, fast_set_passed=False, fast_set_pass_rate=0.0)
-    assert f01_on_outage.detected
-    assert not f06_on_outage.detected
-
-    # An F06 collapse: every call succeeded, the answers were just ungrounded.
-    f06_on_collapse = rc.evaluate(
+    f06 = rc.evaluate(
         {"similarity_p50": 0.657, "kept_chunks_mean": 0.0,
-         "empty_context_ratio": 1.0, "corpus_chunks": 30.0},
+         "empty_context_ratio": 1.0, "corpus_chunks": 30.0,
+         "llm_error_ratio": 0.0},
         fast_set_passed=False, fast_set_pass_rate=0.0,
     )
-    f01_on_collapse = evaluate(HEALTHY, fast_set_passed=False, fast_set_pass_rate=0.0)
-    assert f06_on_collapse.detected
-    assert not f01_on_collapse.detected
+    assert f06.detected
+    assert f06.fault_class == "F06"
+    f01 = evaluate(HEALTHY, fast_set_passed=False, fast_set_pass_rate=0.0)
+    assert not f01.detected
 
 
 def test_the_shared_detection_types_carry_no_fault_name() -> None:
@@ -288,3 +344,37 @@ def test_every_registered_detector_reads_only_injected_promql() -> None:
         out = spec.collect("http://unreachable.invalid", fake)
         assert calls, f"{spec.fault_class} collected nothing through promql"
         assert all(v is None for v in out.values())
+
+
+def test_both_detectors_read_the_same_error_signal() -> None:
+    """F06 defers to F01 on this signal, so they must read it identically.
+
+    They did not. F01 used `[5m]` while the evidence frame used `[5m]` with
+    `outcome == "error"` instead of `!= "ok"` - a different window AND a
+    different predicate from the verdict that rested on it. Any divergence here
+    creates a band where F01 claims, F06 defers, and the diagnosis is wrong.
+    """
+    from kavach.detection.retrieval_collapse import QUERIES as F06_QUERIES
+    from kavach.rca.evidence import METRIC_QUERIES
+
+    f01 = QUERIES["llm_error_ratio"]
+    assert F06_QUERIES["llm_error_ratio"] == f01, (
+        "F06's precondition must read exactly what F01 decides on"
+    )
+    assert METRIC_QUERIES["llm_error_ratio"] == f01, (
+        "the model must be shown the same number the detector decided on"
+    )
+
+
+def test_the_error_window_is_short_enough_not_to_carry_residue() -> None:
+    """MEASURED, not chosen. On a healthy target minutes after a sequence of
+    F01 runs had been reverted: [30s] 0.0, [1m] 0.0, [2m] 0.0, [5m] 0.565.
+    0.565 is above the 0.50 floor, so a 5-minute window claimed an endpoint
+    outage from residue - and on the next real F06 injection F01 claimed, F06
+    deferred to it, and the loop diagnosed the wrong fault. During a genuine
+    outage every window read 1.0, so shortening costs nothing."""
+    for q in (QUERIES["llm_error_ratio"], QUERIES["llm_requests"]):
+        assert "[5m]" not in q, (
+            "a 5-minute error window carries residue across incidents"
+        )
+        assert "[2m]" in q

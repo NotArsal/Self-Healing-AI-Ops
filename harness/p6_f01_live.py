@@ -64,8 +64,8 @@ PROM = "http://127.0.0.1:9091"
 # the loop will read rather than on a guessed sleep - the same lesson
 # `p5_gate_live.py` learned the hard way.
 ERROR_RATIO = (
-    '(sum(rate(ragapp_llm_requests_total{outcome!="ok"}[5m])) or vector(0)) '
-    "/ clamp_min(sum(rate(ragapp_llm_requests_total[5m])), 1e-9)"
+    '(sum(rate(ragapp_llm_requests_total{outcome!="ok"}[2m])) or vector(0)) '
+    "/ clamp_min(sum(rate(ragapp_llm_requests_total[2m])), 1e-9)"
 )
 ERROR_RATIO_FLOOR = 0.50
 
@@ -130,7 +130,7 @@ def wait_terminal(incident_id: str, limit_s: int = 900) -> dict[str, Any]:
 def drive_until_detectable(
     client: TargetClient, max_rounds: int = 6
 ) -> tuple[bool, float | None]:
-    """Put load on the faulted system until the 5m error ratio crosses.
+    """Put load on the faulted system until the 2m error ratio crosses.
 
     Under an outage every call fails, so this converges far faster than F06's
     grounding average - the ratio goes to 1.0 rather than being diluted by
@@ -140,7 +140,7 @@ def drive_until_detectable(
         r = fast.run(client, FAST_SET, check_health=False)
         ratio = promql(ERROR_RATIO)
         say(f"    round {round_no}: fast set {r.pass_rate:.0%} in {r.total_s:.1f}s, "
-            f"llm error ratio 5m = {ratio}")
+            f"llm error ratio 2m = {ratio}")
         if ratio is not None and ratio >= ERROR_RATIO_FLOOR:
             return True, ratio
     return False, promql(ERROR_RATIO)
@@ -208,7 +208,7 @@ def main() -> int:
         results["injected"] = fault.is_active()
         results["backup_untouched"] = fault.assert_scope_respected()[0]
 
-        say("  driving load until the 5m error ratio crosses the floor")
+        say("  driving load until the 2m error ratio crosses the floor")
         ready, ratio = drive_until_detectable(client)
         say(f"  detectable              {ready} (error ratio = {ratio})")
         results["fault_is_detectable"] = ready
@@ -258,7 +258,7 @@ def main() -> int:
         m = set_mode("AUTONOMOUS")
         say(f"  mode                    {m['mode']} (overridden={m['overridden']})")
 
-        say("  driving load until the 5m error ratio crosses the floor")
+        say("  driving load until the 2m error ratio crosses the floor")
         ready, ratio = drive_until_detectable(client)
         say(f"  detectable              {ready} (error ratio = {ratio})")
         assert ready, f"error ratio stuck at {ratio}"

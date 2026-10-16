@@ -23,6 +23,26 @@ Conflating those two would send a config rollback at a corpus problem, which is
 the symptom-matching failure mode this project is supposed to avoid. So the
 detector requires healthy similarity to claim `retrieval_collapse`, and reports
 INSUFFICIENT_EVIDENCE rather than guessing when the evidence is mixed.
+
+THE ENDPOINT PRECONDITION, ADDED IN P6 WHEN F01 EXPOSED THE GAP
+The discriminator above is necessary and was not sufficient. It says "chunks
+are retrieved and then filtered out", and that presupposes retrieval HAPPENED -
+which presupposes the query was embedded, which presupposes the LLM endpoint
+answered. During a real `F01` endpoint outage none of that holds, yet the
+reading looks identical to this detector: the embedding call fails, so nothing
+is retrieved and grounding collapses, while `similarity_p50` is a 10-minute
+quantile that still holds pre-outage observations and still looks healthy.
+
+Measured on the first live F01, 2026-10-16: `kept_chunks 0.4,
+empty_context 0.85, similarity_p50 0.675` - and `llm_error_ratio 1.0`. This
+detector claimed, `F01`'s detector claimed, the registry refused to choose
+between two live diagnoses, and nothing was repaired. Correct, and useless.
+
+`llm_error_ratio` is therefore read as a PRECONDITION rather than as a
+retrieval signal: above the ceiling, no retrieval is happening at all and this
+cannot be the fault, whatever the grounding numbers say. This detector was
+under-specified for as long as it was the only one, which is precisely the test
+`ROADMAP.md` said the first fault added after P5 would be.
 """
 
 from __future__ import annotations
@@ -72,6 +92,12 @@ class Thresholds:
     similarity_floor: float = 0.50       # kavach.yaml retrieval_similarity_p50
     empty_context_ceiling: float = 0.20  # kavach.yaml empty_context_ratio
     kept_chunks_floor: float = 1.0       # fewer than one chunk is no grounding
+    # Above this, the model is not being reached and no retrieval is happening,
+    # so this detector must not claim whatever the grounding metrics say. Same
+    # value as F01's floor, deliberately: the two detectors have to agree on
+    # where "the endpoint is broken" starts, or there is a band in which both
+    # claim and the loop refuses. See the ENDPOINT PRECONDITION note above.
+    llm_error_ceiling: float = 0.50
 
 
 # PromQL for the signals this detector uses. None means no series, which is NOT
@@ -90,6 +116,32 @@ QUERIES: dict[str, str] = {
         "/ clamp_min(sum(rate(ragapp_retrieval_kept_chunks_count[10m])), 1e-9)"
     ),
     "corpus_chunks": "ragapp_corpus_chunks",
+    # NOT a retrieval signal, and that is the point: it is the precondition.
+    # "Chunks are retrieved and then filtered out" presupposes that retrieval
+    # HAPPENED, which presupposes the embedding call succeeded. If the LLM
+    # endpoint is refusing, no embedding was produced, nothing was retrieved,
+    # and this is not a rerank-filter fault however the grounding metrics look.
+    # WINDOW MEASURED, NOT CHOSEN - 2m, and 5m was wrong.
+    #
+    # This was [5m] and it made two faults contaminate each other. Measured
+    # 2026-10-16 on a HEALTHY target, minutes after a sequence of F01 runs had
+    # finished and been reverted:
+    #
+    #     [30s] 0.0   [1m] 0.0   [2m] 0.0   [5m] 0.565
+    #
+    # 0.565 is above the 0.50 floor, so a 5-minute window claimed an endpoint
+    # outage on a healthy system purely from residue. It did real damage: on a
+    # subsequent REAL F06 injection, F01 claimed from that residue, F06
+    # correctly deferred to it via its endpoint precondition, and the loop
+    # diagnosed F01 for an F06 fault.
+    #
+    # Nothing is lost by shortening. Measured during a genuine outage, every
+    # window agreed because the outage is total: [1m] 1.0, [2m] 1.0, [5m] 1.0.
+    # 2m over 1m only for sample headroom under the min_requests gate.
+    "llm_error_ratio": (
+        '(sum(rate(ragapp_llm_requests_total{outcome!="ok"}[2m])) or vector(0)) '
+        "/ clamp_min(sum(rate(ragapp_llm_requests_total[2m])), 1e-9)"
+    ),
 }
 
 
@@ -108,6 +160,7 @@ def evaluate(
     kept = metrics.get("kept_chunks_mean")
     empty_ratio = metrics.get("empty_context_ratio")
     corpus = metrics.get("corpus_chunks")
+    llm_errors = metrics.get("llm_error_ratio")
 
     # --- the quality probe: the user-visible symptom
     ev.append(Evidence(
@@ -163,6 +216,44 @@ def evaluate(
         if corpus <= 0:
             reasons.append("corpus is empty; this is not a rerank-filter fault")
             return Detection(Verdict.INSUFFICIENT_EVIDENCE, evidence=ev, reasons=reasons)
+
+    # --- the endpoint precondition: was the model reached at all
+    #
+    # THIS WAS MISSING UNTIL F01 EXISTED, AND A LIVE RUN FOUND IT.
+    # This detector's discriminator is "grounding is lost while raw similarity
+    # stays healthy, so chunks are retrieved and then filtered out". During a
+    # real endpoint outage that reads as TRUE and is wrong: the embedding call
+    # goes through the same endpoint, so nothing is retrieved and grounding
+    # collapses, while `similarity_p50` is a 10-minute quantile that still
+    # holds pre-outage observations and therefore still looks healthy.
+    #
+    # Measured on the first live F01 run: kept_chunks 0.4, empty_context 0.85,
+    # similarity_p50 0.675, llm_error_ratio 1.0. Both detectors claimed, the
+    # registry refused to choose between them, and the incident escalated
+    # without acting - correct, but it meant F01 could not be diagnosed.
+    #
+    # So the claim needs its precondition stated: filtering presupposes
+    # retrieving, which presupposes the embedding call succeeded.
+    if llm_errors is not None:
+        ev.append(Evidence(
+            kind="llm_error_ratio",
+            source='ragapp_llm_requests_total{outcome!="ok"} / total',
+            value=round(llm_errors, 3),
+            expected=f"< {t.llm_error_ceiling} (retrieval cannot be at fault "
+                     f"if the endpoint that embeds the query is refusing)",
+            supports_fault=llm_errors < t.llm_error_ceiling,
+        ))
+        if llm_errors >= t.llm_error_ceiling:
+            reasons.append(
+                f"{llm_errors:.1%} of LLM calls are failing, so the query is "
+                f"not being embedded and nothing is being retrieved. Grounding "
+                f"is lost because there is no retrieval at all, not because a "
+                f"filter discarded it - this is an endpoint fault, not a "
+                f"rerank-threshold fault, and a config rollback would be the "
+                f"wrong repair"
+            )
+            return Detection(Verdict.INSUFFICIENT_EVIDENCE, evidence=ev,
+                             reasons=reasons)
 
     # --- the decision
     grounding_lost = (

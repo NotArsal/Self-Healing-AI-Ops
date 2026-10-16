@@ -49,9 +49,13 @@ METRIC_QUERIES: dict[str, str] = {
     ),
     "corpus_chunks": "ragapp_corpus_chunks",
     "corpus_files": "ragapp_corpus_files",
+    # 2m and `!= "ok"`, matching detection/endpoint_outage.py exactly. It was
+    # 5m and `== "error"`: a different window AND a different label predicate
+    # from the detector that decides on this signal, so the model could be
+    # shown one number while the verdict rested on another.
     "llm_error_ratio": (
-        '(sum(rate(ragapp_llm_requests_total{outcome="error"}[5m])) or vector(0)) '
-        "/ clamp_min(sum(rate(ragapp_llm_requests_total[5m])), 1e-9)"
+        '(sum(rate(ragapp_llm_requests_total{outcome!="ok"}[2m])) or vector(0)) '
+        "/ clamp_min(sum(rate(ragapp_llm_requests_total[2m])), 1e-9)"
     ),
     "llm_generation_latency_p95": (
         "histogram_quantile(0.95, sum by (le) "

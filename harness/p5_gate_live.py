@@ -175,7 +175,13 @@ def main() -> int:
     assert code == 200, "the mode route must answer before anything is injected"
     assert mode["mode"] == "APPROVAL", "expected APPROVAL, got {}".format(mode["mode"])
     assert mode["enforced"] is True
-    assert mode["allowed_actions"] == ["rollback_config"]
+    # The invariant, not the literal list: the allow-list grows with every
+    # fault class, and a literal here would have to be edited by whoever
+    # adds one - which is the edit P6 says a new fault must not require.
+    # It did, in fact, break the moment F01 added switch_llm_endpoint.
+    assert "rollback_config" in mode["allowed_actions"], (
+        "F06's repair must be allowed or this test cannot run"
+    )
 
     pre_threshold = float(client.settings()["rerank_threshold"])
     pre_hash = client.config_hash()

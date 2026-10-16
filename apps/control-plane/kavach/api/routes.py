@@ -436,6 +436,8 @@ async def approve(
     decision, not a frozen diff — so `permit()` runs again, deny-list and
     breaker included.
     """
+    # Read BEFORE approve(), which pops the parked entry.
+    used_rca = runner.parked_used_rca(incident_id)
     try:
         inc = await runner.approve(incident_id)
     except NotAwaitingError as exc:
@@ -446,7 +448,11 @@ async def approve(
         raise HTTPException(status_code=412, detail=str(exc)) from exc
     return s.RunStarted(
         incident_id=inc.incident_id, started_at=inc.detected_at,
-        mode=runner.mode, rca_enabled=True, approved_from=incident_id,
+        # Whether the approved re-run ACTUALLY used RCA, not a hardcoded True.
+        # The re-run re-derives the plan the way it was first derived, so
+        # claiming RCA ran when it did not would misreport the pipeline an
+        # operator just authorised.
+        mode=runner.mode, rca_enabled=used_rca, approved_from=incident_id,
     )
 
 

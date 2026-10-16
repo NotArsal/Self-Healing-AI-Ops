@@ -24,9 +24,24 @@ cannot tell them apart. The separator is **whether the model answered at all**:
   llm error ratio ~0 + grounding lost  -> it answered from nothing (F06)
 
 So this detector requires a genuinely elevated error ratio and reports
-INSUFFICIENT_EVIDENCE rather than guessing when the series are missing. The two
-detectors are therefore mutually exclusive on live evidence, which is what lets
-`detection/base.py` run both and still get one answer.
+INSUFFICIENT_EVIDENCE rather than guessing when the series are missing.
+
+AND THAT IS NOT ENOUGH ON ITS OWN - THE FIRST LIVE RUN PROVED IT
+This module first claimed the two detectors were "mutually exclusive on live
+evidence". They are not, and the assumption was mine rather than a
+measurement. Under a real outage the EMBEDDING call goes through the same
+broken endpoint, so nothing is retrieved and grounding collapses too, while
+`similarity_p50` is a 10-minute quantile still holding pre-outage
+observations - which is F06's discriminator reading TRUE on an F01. Measured:
+`kept_chunks 0.4, empty_context 0.85, similarity_p50 0.675,
+llm_error_ratio 1.0`. Both detectors claimed, `run_all()` refused to choose,
+and the incident escalated without acting.
+
+The separation is therefore enforced from BOTH sides: this detector requires a
+high error ratio, and `retrieval_collapse.py` now requires a LOW one, because
+"chunks are retrieved and then filtered out" presupposes that retrieval
+happened. Both use the same 0.50 boundary on purpose - if they disagreed there
+would be a band in which both claim and nothing can be repaired.
 
 WHY NOT JUST READ /healthz
 Because a health probe is a liveness signal and this has to be a *diagnosis*.
@@ -95,17 +110,37 @@ class Thresholds:
 # on the target's instrumentation from P1 - nothing was added to the target for
 # F01.
 QUERIES: dict[str, str] = {
+    # WINDOW MEASURED, NOT CHOSEN - 2m, and 5m was wrong.
+    #
+    # This was [5m] and it made two faults contaminate each other. Measured
+    # 2026-10-16 on a HEALTHY target, minutes after a sequence of F01 runs had
+    # finished and been reverted:
+    #
+    #     [30s] 0.0   [1m] 0.0   [2m] 0.0   [5m] 0.565
+    #
+    # 0.565 is above the 0.50 floor, so a 5-minute window claimed an endpoint
+    # outage on a healthy system purely from residue. It did real damage: on a
+    # subsequent REAL F06 injection, F01 claimed from that residue, F06
+    # correctly deferred to it via its endpoint precondition, and the loop
+    # diagnosed F01 for an F06 fault.
+    #
+    # Nothing is lost by shortening. Measured during a genuine outage, every
+    # window agreed because the outage is total: [1m] 1.0, [2m] 1.0, [5m] 1.0.
+    # 2m over 1m only for sample headroom under the min_requests gate.
     "llm_error_ratio": (
-        '(sum(rate(ragapp_llm_requests_total{outcome!="ok"}[5m])) or vector(0)) '
-        "/ clamp_min(sum(rate(ragapp_llm_requests_total[5m])), 1e-9)"
+        '(sum(rate(ragapp_llm_requests_total{outcome!="ok"}[2m])) or vector(0)) '
+        "/ clamp_min(sum(rate(ragapp_llm_requests_total[2m])), 1e-9)"
     ),
-    "llm_requests": "sum(increase(ragapp_llm_requests_total[5m])) or vector(0)",
+    # SAME WINDOW as the ratio above, deliberately: a gate that counts
+    # traffic the ratio does not look at would admit a ratio computed from
+    # three requests while claiming it saw thirty.
+    "llm_requests": "sum(increase(ragapp_llm_requests_total[2m])) or vector(0)",
     "llm_ok_rate": (
-        'sum(rate(ragapp_llm_requests_total{outcome="ok"}[5m])) or vector(0)'
+        'sum(rate(ragapp_llm_requests_total{outcome="ok"}[2m])) or vector(0)'
     ),
     # Corroboration, never the decision. See WHY NOT JUST READ /healthz.
     "generation_requests": (
-        'sum(increase(ragapp_llm_requests_total{operation="generation"}[5m])) '
+        'sum(increase(ragapp_llm_requests_total{operation="generation"}[2m])) '
         "or vector(0)"
     ),
 }

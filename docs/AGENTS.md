@@ -58,7 +58,7 @@ If a task conflicts with any of those documents, **stop and say so**. Do not res
 
 1. **Kavach never imports target application business logic.** Not its RAG pipeline, not its embedding code, not its DB module. Kavach talks to the target over HTTP, Prometheus, OTLP, git and the Docker API — never by import.
 2. **The target never imports Kavach.** Zero code dependency in that direction. If the target needs something from Kavach, the answer is a configuration value, not a package.
-3. **Kavach may add minimal instrumentation, configuration and interfaces to the target.** The complete, closed list is `PRD.md` §5.2 — **ten items**. Adding an eleventh requires a decision record.
+3. **Kavach may add minimal instrumentation, configuration and interfaces to the target.** The complete, closed list is `PRD.md` §5.2 — **eleven items**. Adding a twelfth requires a decision record. (Addition 11, `docs/decisions/0007`, is the health probe reading the runtime endpoint; it was authorised explicitly, not taken.)
 4. **No Kavach reasoning or orchestration code goes inside the target.** No detection, no diagnosis, no planning, no risk assessment, no healing, no LangGraph. The target emits telemetry and accepts configuration. That is all.
 5. **Kavach is the only self-healing writer.** `FR-15a`. One writer, one lock.
 6. **The target's existing self-healing mechanism must remain inactive.** `backend/aiops_agent.py` stays on disk for reference; `POST /v1/webhook/alert` is removed from the running application; no code path reaches `delete_namespaced_pod` (`PRD.md` §5.3).
@@ -239,7 +239,7 @@ make bench                 # 7 injectable faults × 5 reps → 35 injections
 
 **Ask first:**
 - Adding any dependency. Justify it against `ARCHITECTURE.md` §2.2 first — several obvious candidates are there because they were already rejected
-- **Any change to the target repository beyond the ten permitted additions** (`PRD.md` §5.2)
+- **Any change to the target repository beyond the eleven permitted additions** (`PRD.md` §5.2)
 - Changing the database schema, or any migration that is not purely additive
 - Changing anything in `safety/`, `executor/`, or `verification/`
 - Changing the `DecisionEngine`, `RuntimeAdapter`, or `Action` interfaces
@@ -269,7 +269,7 @@ make bench                 # 7 injectable faults × 5 reps → 35 injections
 
 When you finish a task, your summary should have:
 
-- **What changed** — files and the reason, not a diff restatement. **If you touched the target repository, say which of the ten permitted additions each change falls under**
+- **What changed** — files and the reason, not a diff restatement. **If you touched the target repository, say which of the eleven permitted additions each change falls under**
 - **What I was unsure about** — explicitly, with what you did about it
 - **Assumptions** — anything you decided without asking
 - **Problems I noticed but did not fix** — the design smells and latent bugs you left alone, so they can be triaged separately

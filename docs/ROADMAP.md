@@ -130,7 +130,7 @@ loop, not a *complete* platform.
 
 > **Accepted 2026-10-03.** Preflight passes against the live target; the baseline captures and re-captures with no drift. Target commits are on `kavach/ops` only — `main` and `modernize-stack` untouched, nothing pushed.
 
-This replaces the deleted "build `demo-rag`" phase. The application exists; what does not exist is any way to observe or control it. **The complete, closed list of permitted additions is `PRD.md` §5.2 — ten items. Do not add an eleventh without a decision record.**
+This replaces the deleted "build `demo-rag`" phase. The application exists; what does not exist is any way to observe or control it. **The complete, closed list of permitted additions is `PRD.md` §5.2 — eleven items. Do not add a twelfth without a decision record.** (Addition 11 arrived in P6 with its record, `docs/decisions/0007`.)
 
 All work lands on `kavach/ops`, branched from `modernize-stack`. **Never `main`. Never pushed.**
 
@@ -782,7 +782,7 @@ The phase most teams skip and most reviewers notice.
 
 **`safety/` and `executor/` have one author.** Those two directories carry the recoverability guarantee; split ownership is how an inverse quietly stops being recorded.
 
-**The target track has a second responsibility:** every change to `Simple_RAG-Pipeline` stays inside the ten permitted additions (`PRD.md` §5.2), lands on `kavach/ops`, and is never pushed. That track owns the boundary, not just the code.
+**The target track has a second responsibility:** every change to `Simple_RAG-Pipeline` stays inside the eleven permitted additions (`PRD.md` §5.2), lands on `kavach/ops`, and is never pushed. That track owns the boundary, not just the code.
 
 ---
 
@@ -795,7 +795,7 @@ The phase most teams skip and most reviewers notice.
 - **Keep the synopsis out of context.** It contradicts `PRD.md` on scope — Kubernetes, nine layers, multi-cloud, MongoDB — and both in context means Claude Code averages them.
 - **Keep the target's `ADR-002` out of context too**, for the same reason: it declares Kubernetes mandatory for self-healing, which is the opposite of Kavach's scope.
 
-Three failure modes to watch for: building adjacent phases because they appear in the PRD; quietly weakening a safety check to make a test pass; and widening the ten permitted target additions. `AGENTS.md` forbids all three. Check anyway.
+Three failure modes to watch for: building adjacent phases because they appear in the PRD; quietly weakening a safety check to make a test pass; and widening the eleven permitted target additions. `AGENTS.md` forbids all three. Check anyway.
 
 ---
 

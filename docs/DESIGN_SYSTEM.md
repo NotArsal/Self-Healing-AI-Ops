@@ -16,7 +16,7 @@
 
 **The console is a Kavach surface, not a RAG surface.** It renders incidents, evidence, diagnoses, actions and verification — the generic vocabulary of `ARCHITECTURE.md` §1.3. Where it currently shows workload-specific rows (`threshold`, `corpus`, a "grounded" case result), that is the first adapter's vocabulary leaking into a generic view, and it is recorded as debt in §1.4. Do not add more of it: a second workload must not require a second console.
 
-Do not restyle, retokenise, or "bring into line" the target's UI. It is not a Kavach surface, it is the application Kavach is watching, and changing it is outside the ten permitted target additions (`PRD.md` §5.2). `AGENTS.md` § Target boundary rule 11 says the same thing from the other direction.
+Do not restyle, retokenise, or "bring into line" the target's UI. It is not a Kavach surface, it is the application Kavach is watching, and changing it is outside the eleven permitted target additions (`PRD.md` §5.2). `AGENTS.md` § Target boundary rule 11 says the same thing from the other direction.
 
 One consequence worth stating because it looks like an inconsistency otherwise: the console is Next.js **15** with Tailwind **v4**, while the target is Next.js **14** with Tailwind **3**. That is two separate applications on two separate version tracks, not a migration anyone forgot to finish.
 

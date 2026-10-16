@@ -275,7 +275,7 @@ change, not a wiring change.
 
 **3. Canary has no substrate.** The reference workload runs **one** backend
 container with no traffic splitting. A real canary needs a second instance and
-routing control — neither exists, and neither is inside the ten permitted
+routing control — neither exists, and neither is inside the eleven permitted
 target additions (`PRD.md` §5.2). Recorded as undecided, not planned.
 
 **4. Kubernetes is a locked non-goal, and it appears in the Tool Layer above.**
