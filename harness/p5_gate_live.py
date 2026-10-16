@@ -5,14 +5,14 @@ API is where the container bugs live. Injects a real F06, asserts the loop
 parks at AWAITING_APPROVAL having written NOTHING, approves, and asserts the
 repair then executed against the captured pre-state value.
 
-WHAT IT DOES NOT ASSERT, AND WHY
-It does not require the incident to end RESOLVED. The fast-verification set is
-bound to a corpus that no longer exists - `fv-01` reads from `1662.pdf`, which
-is absent from the target database - so post-repair verification fails for a
-reason that has nothing to do with the repair, and the loop correctly unwinds.
-`PRD.md` §12 carries that as an unresolved reproducibility issue. The gate
-claim is independent of it: park, write nothing, execute on approve, and
-restore the pre-state witness when verification says no.
+RESOLVED IS PART OF THE CLAIM AGAIN, AS OF 2026-10-16
+It briefly was not. While the corpus was missing `1662.pdf`, `fv-01` retrieved
+zero chunks on every run, so post-repair verification failed for a reason that
+had nothing to do with the repair and the loop correctly unwound and escalated.
+The gate claim held even then - park, write nothing, execute on approve, and
+restore the pre-state witness when verification says no, are all independent of
+`fv-01`. With the corpus restored, the full vertical closes, so RESOLVED is
+asserted here rather than merely reported.
 
 It also does not read the live threshold to decide whether the repair ran. If
 verification fails the loop unwinds, so that read reports "never executed" for
@@ -334,14 +334,14 @@ def main() -> int:
     say(f"  final threshold {fault.current_threshold()}")
 
     gate = all(results.get(k) for k in (
-        "injected", "parked_at_awaiting", "gate_wrote_nothing",
-        "approve_accepted", "executed_the_repair", "approval_is_single_use",
-        "unwound_cleanly_when_verification_failed", "audit_chain_intact"))
+        "injected", "fault_is_detectable", "parked_at_awaiting",
+        "gate_wrote_nothing", "approve_accepted", "executed_the_repair",
+        "resolved", "approval_is_single_use", "audit_chain_intact",
+        "audit_records_the_execution"))
     say("")
-    say("  GATE CLAIM (park, write nothing, execute on approve): %s"
-        % ("PROVEN" if gate else "NOT PROVEN"))
-    say(f"  RESOLVED verdict: {results.get('resolved')}  "
-        f"(expected False while 1662.pdf is missing)")
+    verdict = "PROVEN" if gate else "NOT PROVEN"
+    say(f"  FULL VERTICAL (detect, park, write nothing, approve, execute, "
+        f"verify, resolve): {verdict}")
 
     out = ROOT / "harness" / "reports" / "p5-gate-live.json"
     out.parent.mkdir(parents=True, exist_ok=True)
