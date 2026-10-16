@@ -34,7 +34,7 @@ def test_healthy_baseline_detects_nothing() -> None:
 
 def test_collapse_is_detected_as_retrieval_collapse() -> None:
     d = evaluate(COLLAPSED, fast_set_passed=False, fast_set_pass_rate=0.0)
-    assert d.verdict is Verdict.RETRIEVAL_COLLAPSE
+    assert d.verdict is Verdict.FAULT
     assert d.detected
     assert d.fault_class == "F06"
     assert d.fault_name == "retrieval_collapse"
@@ -99,7 +99,7 @@ def test_empty_context_alone_above_ceiling_detects() -> None:
     """Either grounding signal is sufficient; they are OR-ed."""
     d = evaluate(dict(HEALTHY, empty_context_ratio=0.9),
                  fast_set_passed=False, fast_set_pass_rate=0.0)
-    assert d.verdict is Verdict.RETRIEVAL_COLLAPSE
+    assert d.verdict is Verdict.FAULT
 
 
 def test_thresholds_match_the_rebased_slos() -> None:
@@ -146,4 +146,4 @@ def test_current_evidence_is_required_for_a_fault_claim() -> None:
     stale = evaluate(COLLAPSED, fast_set_passed=True, fast_set_pass_rate=1.0)
     live = evaluate(COLLAPSED, fast_set_passed=False, fast_set_pass_rate=0.0)
     assert stale.verdict is Verdict.NO_FAULT
-    assert live.verdict is Verdict.RETRIEVAL_COLLAPSE
+    assert live.verdict is Verdict.FAULT

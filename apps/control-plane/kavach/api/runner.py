@@ -43,7 +43,7 @@ from kavach.api.events import bus
 from kavach.audit.log import AuditLog
 from kavach.config import Mode, Settings
 from kavach.db.store import IncidentStore
-from kavach.detection import retrieval_collapse as rc
+from kavach.detection import base as det
 from kavach.executor import catalogue  # noqa: F401 - registers the catalogue
 from kavach.executor.base import registry
 from kavach.llm.client import OllamaClient
@@ -158,6 +158,25 @@ class LoopRunner:
     def policy(self) -> ProjectPolicy:
         return policy_from_manifest(self.manifest(), self._mode_override)
 
+    def repair_values(self) -> dict[str, Any]:
+        """The one declared value each repair aims at, read from the manifest.
+
+        `rollback_config` aims at the captured baseline on disk;
+        `switch_llm_endpoint` aims at the backup endpoint the workload declares.
+        Both are workload configuration, which is why neither is a constant in
+        the executor: a hardcoded failover URL would be a control-plane module
+        knowing a workload's network topology.
+        """
+        baseline_value, _ = self.baseline()
+        values: dict[str, Any] = {"rollback_config": baseline_value}
+        llm = self.manifest().llm
+        backup = llm.paths.backup if llm and llm.paths else None
+        # Absent rather than None: the builder's own refusal message is clearer
+        # than a None arriving as if it were a declared value.
+        if backup:
+            values["switch_llm_endpoint"] = backup
+        return values
+
     @property
     def mode(self) -> Mode:
         return self.policy().mode
@@ -261,7 +280,7 @@ class LoopRunner:
 
         def stage(
             fast_result: fast.FastVerificationResult,
-            detection: rc.Detection,
+            detection: det.Detection,
             baseline: float | None,
         ) -> Any:
             frame = ev.collect(
@@ -351,6 +370,7 @@ class LoopRunner:
                     policy=policy,
                     audit=self.audit,
                     approved_from=approved_from,
+                    repair_values=self.repair_values(),
                 )
                 self._remember(result)
                 if result.decision:
@@ -362,6 +382,9 @@ class LoopRunner:
                     self._awaiting[incident_id] = {
                         "baseline_value": baseline_value,
                         "policy": policy,
+                        # How this plan was DERIVED, so approving it re-derives
+                        # it the same way. See `approve()`.
+                        "use_rca": use_rca,
                         "at": datetime.now(UTC).isoformat(timespec="seconds"),
                     }
                 ok = result.status is loop.IncidentStatus.RESOLVED
@@ -417,7 +440,7 @@ class LoopRunner:
                 raise LoopBusyError(
                     f"a loop run is already in flight ({self._running})"
                 )
-            self._awaiting.pop(incident_id)
+            parked = self._awaiting.pop(incident_id)
 
         self.audit.append("approved", incident_id=incident_id, actor="operator",
                           note="re-detected and re-prepared; the decision was "
@@ -428,7 +451,19 @@ class LoopRunner:
         # action to the sandbox, which does not exist until P7, so the approved
         # re-run parked at AWAITING_APPROVAL a second time and the operator's
         # yes healed nothing. The mode on the project stays exactly as it is.
-        return await self.start(use_rca=True, approved_from=incident_id)
+        # Re-derive the plan THE WAY IT WAS DERIVED, not always with RCA on.
+        # Forcing RCA here discarded an operator's approval in a live F01 run:
+        # the parked plan came from deterministic detection, the approved
+        # re-run went through the LLM, the LLM diagnosed a different fault
+        # class, the validator correctly rejected the disagreement, and the
+        # incident escalated. The human had approved a sound plan and the
+        # system answered by doing nothing - because approval silently changed
+        # the pipeline. What a human approves is the decision, and the decision
+        # has to be reached the same way twice.
+        return await self.start(
+            use_rca=bool(parked.get("use_rca", True)),
+            approved_from=incident_id,
+        )
 
     def reject(self, incident_id: str, reason: str) -> None:
         """A human refused the plan. The reason is required, and recorded.

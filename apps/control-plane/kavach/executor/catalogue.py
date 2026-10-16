@@ -16,13 +16,27 @@ Adding a workload means adding a line here, not editing the loop.
 
 from __future__ import annotations
 
-from kavach.executor import config_rollback
-from kavach.executor.base import MEDIUM, registry
+from kavach.executor import config_rollback, endpoint_switch
+from kavach.executor.base import LOW, MEDIUM, registry
 
 registry.register(
     name=config_rollback.ACTION_NAME,
     builder=config_rollback.build_rollback_for_retrieval_collapse,
     risk_tier=MEDIUM,
+    action_type=config_rollback.ConfigRollback,
+)
+
+# F01's repair, added 2026-10-16. Same `ConfigRollback` machinery, built with a
+# different name and tier - see `endpoint_switch.py` for why that is a builder
+# rather than a second action class. LOW because it moves the application
+# between two listeners in front of the SAME model: no data, no prompts, no
+# answers change, and the recorded prior URL restores it exactly. LOW is also
+# the only tier `permit()` executes unattended, so this is the action that
+# makes the autonomous path in `PRD.md` §8.2 real rather than theoretical.
+registry.register(
+    name=endpoint_switch.ACTION_NAME,
+    builder=endpoint_switch.build_switch_for_endpoint_outage,
+    risk_tier=LOW,
     action_type=config_rollback.ConfigRollback,
 )
 

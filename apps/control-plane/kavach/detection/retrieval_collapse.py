@@ -28,19 +28,37 @@ INSUFFICIENT_EVIDENCE rather than guessing when the evidence is mixed.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
-from enum import StrEnum
-from typing import Any
+from dataclasses import dataclass
+
+# Re-exported deliberately. These used to be DEFINED here, which is why
+# `loop.py`, `rca/` and every harness imported them through this F06 module and
+# so depended on a RAG fault to get a generic type. They now live in
+# `detection/base.py`; keeping the names importable from here means that move
+# cost no churn at the call sites, and new code should import from base.
+from kavach.detection.base import (
+    Detection,
+    DetectorSpec,
+    Evidence,
+    Verdict,
+)
+
+__all__ = [
+    "FAULT_CLASS",
+    "FAULT_NAME",
+    "QUERIES",
+    "SERVICE",
+    "SPEC",
+    "Detection",
+    "Evidence",
+    "Thresholds",
+    "Verdict",
+    "collect",
+    "evaluate",
+]
 
 FAULT_CLASS = "F06"
 FAULT_NAME = "retrieval_collapse"
 SERVICE = "backend"
-
-
-class Verdict(StrEnum):
-    NO_FAULT = "NO_FAULT"
-    RETRIEVAL_COLLAPSE = "RETRIEVAL_COLLAPSE"
-    INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
 
 
 @dataclass(frozen=True)
@@ -54,62 +72,6 @@ class Thresholds:
     similarity_floor: float = 0.50       # kavach.yaml retrieval_similarity_p50
     empty_context_ceiling: float = 0.20  # kavach.yaml empty_context_ratio
     kept_chunks_floor: float = 1.0       # fewer than one chunk is no grounding
-
-
-@dataclass
-class Evidence:
-    """One observation. Carries its own interpretation so a diagnosis can cite it."""
-
-    kind: str
-    source: str
-    value: Any
-    expected: str
-    supports_fault: bool
-
-    def render(self) -> str:
-        mark = "!!" if self.supports_fault else "ok"
-        return f"[{mark}] {self.kind}: {self.value} (expected {self.expected})  <- {self.source}"
-
-
-@dataclass
-class Detection:
-    verdict: Verdict
-    fault_class: str | None = None
-    fault_name: str | None = None
-    service: str | None = None
-    evidence: list[Evidence] = field(default_factory=list)
-    reasons: list[str] = field(default_factory=list)
-
-    @property
-    def detected(self) -> bool:
-        return self.verdict is Verdict.RETRIEVAL_COLLAPSE
-
-    def citations(self) -> list[str]:
-        return [e.render() for e in self.evidence if e.supports_fault]
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "verdict": str(self.verdict),
-            "fault_class": self.fault_class,
-            "fault_name": self.fault_name,
-            "service": self.service,
-            "reasons": self.reasons,
-            "evidence": [
-                {"kind": e.kind, "source": e.source, "value": e.value,
-                 "expected": e.expected, "supports_fault": e.supports_fault}
-                for e in self.evidence
-            ],
-        }
-
-    def render(self) -> str:
-        head = f"Detection: {self.verdict}"
-        if self.detected:
-            head += f"  {self.fault_class} {self.fault_name} on {self.service}"
-        lines = [head, ""]
-        lines += [f"  {e.render()}" for e in self.evidence]
-        if self.reasons:
-            lines += [""] + [f"  - {r}" for r in self.reasons]
-        return "\n".join(lines)
 
 
 # PromQL for the signals this detector uses. None means no series, which is NOT
@@ -256,7 +218,7 @@ def evaluate(
     if not fast_set_passed:
         reasons.append("the fast set confirms the user-visible symptom")
     return Detection(
-        verdict=Verdict.RETRIEVAL_COLLAPSE,
+        verdict=Verdict.FAULT,
         fault_class=FAULT_CLASS,
         fault_name=FAULT_NAME,
         service=SERVICE,
@@ -270,3 +232,15 @@ def collect(
 ) -> dict[str, float | None]:
     """Read the detector's signals. `promql` is injected so tests stay offline."""
     return {name: promql(prometheus_url, expr) for name, expr in QUERIES.items()}
+
+
+SPEC = DetectorSpec(
+    fault_class=FAULT_CLASS,
+    fault_name=FAULT_NAME,
+    service=SERVICE,
+    collect=collect,
+    evaluate=evaluate,
+    # Measured and shipped in P2. MEDIUM risk: it changes application
+    # behaviour and is reversible through the config interface plus git.
+    repair_action="rollback_config",
+)

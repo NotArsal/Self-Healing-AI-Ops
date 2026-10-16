@@ -31,7 +31,8 @@ from pathlib import Path
 from typing import Any
 
 from kavach.audit.log import AuditLog
-from kavach.detection import retrieval_collapse as rc
+from kavach.detection import base as det
+from kavach.detection import catalogue as detector_catalogue  # noqa: F401
 from kavach.executor import catalogue  # noqa: F401 - registers the catalogue
 from kavach.executor.base import Action, ActionError, registry
 from kavach.executor.undo_stack import UndoStack
@@ -55,7 +56,7 @@ from kavach.verification import fast
 # positionally, and a Protocol here would match on parameter NAMES, which makes
 # every caller and test fixture restate them for no benefit.
 RcaStage = Callable[
-    [fast.FastVerificationResult, rc.Detection, float | None], RcaResult
+    [fast.FastVerificationResult, det.Detection, float | None], RcaResult
 ]
 
 # An OPTIONAL progress sink: (stage, status, message). Added in P4 so the
@@ -100,9 +101,15 @@ class IncidentStatus(StrEnum):
 
 # The plan step. A literal mapping from fault class to repair, with no reasoning
 # involved. P4 replaces the lookup, not the executor.
-KNOWN_FAULTS: dict[str, str] = {
-    rc.FAULT_CLASS: "rollback_config",
-}
+def known_faults() -> dict[str, str]:
+    """Fault class -> repair action, asked of the detector registry.
+
+    This used to be a module-level dict literal naming one RAG fault and one
+    RAG repair, which is what made the generic orchestrator a RAG orchestrator
+    (`ARCHITECTURE.md` §1.4). It is now derived, so adding a fault class is a
+    line in `detection/catalogue.py` and nothing here changes.
+    """
+    return det.registry.known_faults()
 
 
 @dataclass
@@ -200,6 +207,7 @@ def run_once(
     policy: ProjectPolicy | None = None,
     audit: AuditLog | None = None,
     approved_from: str = "",
+    repair_values: dict[str, Any] | None = None,
 ) -> Incident:
     """One pass of detect -> heal -> verify.
 
@@ -219,6 +227,14 @@ def run_once(
     re-prepares from scratch — the world may have moved — and the approval
     travels into `permit()` as evidence, not as a mode override. Everything
     except the mode and confidence gates is therefore evaluated again.
+
+    `repair_values` maps an action name to the one declared value its builder
+    needs: the captured baseline threshold for `rollback_config`, the declared
+    backup endpoint for `switch_llm_endpoint`. It exists because that value is
+    workload configuration, not something the orchestrator can derive — and
+    because a second repair made `baseline_value` alone wrong as a parameter
+    name for "the thing this repair aims at". `baseline_value` remains the
+    fallback so every P2/P3 caller still works unchanged.
 
     `rca` is OPTIONAL. Omitted, this is the P2 deterministic loop unchanged -
     the reference baseline, and the fallback if RCA is unavailable. Supplied, an
@@ -247,12 +263,16 @@ def run_once(
             f"detection started for {project}; running the 3-case fast set and "
             f"reading retrieval metrics")
     pre_fast = fast.run(client, fast_set_path)
-    metrics = rc.collect(prometheus_url, promql)
-    detection = rc.evaluate(metrics, pre_fast.passed, pre_fast.pass_rate)
+    # Every registered detector, not one imported by name. `run_all` returns a
+    # single verdict and refuses to choose when two detectors claim at once.
+    detection = det.run_all(
+        det.registry.specs(), prometheus_url, promql,
+        pre_fast.passed, pre_fast.pass_rate,
+    )
     inc.detection = detection.to_dict()
     inc.detection["pre_verification"] = pre_fast.to_dict()
 
-    if detection.verdict is rc.Verdict.NO_FAULT:
+    if detection.verdict is det.Verdict.NO_FAULT:
         _notify(on_event, "detect", "ok",
                 f"no fault: fast set {pre_fast.pass_rate:.0%}, "
                 f"verdict {detection.verdict}")
@@ -260,7 +280,7 @@ def run_once(
         inc.outcome = "no fault detected; nothing to do"
         return inc
 
-    if detection.verdict is rc.Verdict.INSUFFICIENT_EVIDENCE:
+    if detection.verdict is det.Verdict.INSUFFICIENT_EVIDENCE:
         _notify(on_event, "detect", "failed",
                 "detection returned INSUFFICIENT_EVIDENCE; escalating without "
                 "proposing a repair")
@@ -328,7 +348,7 @@ def run_once(
     else:
         # --- PLAN: dict lookup, no reasoning
         inc.diagnosed_by = "deterministic"
-        planned = KNOWN_FAULTS.get(detection.fault_class or "")
+        planned = known_faults().get(detection.fault_class or "")
         if planned is None:
             _notify(on_event, "plan", "failed",
                     f"no known repair for {detection.fault_class}")
@@ -358,8 +378,11 @@ def run_once(
     _notify(on_event, "repair", "started",
             f"capturing pre-state for {inc.planned_action}")
     try:
+        # The declared value this specific repair aims at. A missing entry
+        # falls back to the baseline, which is what every pre-P6 caller passes.
+        target_value = (repair_values or {}).get(inc.planned_action, baseline_value)
         action: Action = registry.build(
-            inc.planned_action, inc.incident_id, client, baseline_value
+            inc.planned_action, inc.incident_id, client, target_value
         )
     except ActionError as exc:
         _notify(on_event, "repair", "failed", f"action could not be prepared: {exc}")

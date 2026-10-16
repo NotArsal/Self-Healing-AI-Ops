@@ -20,7 +20,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from kavach.detection import retrieval_collapse as rc
+from kavach.detection import base as det
 from kavach.llm.client import LlmError, LlmResponse, OllamaClient
 from kavach.rca import validate as policy
 from kavach.rca.evidence import EvidenceFrame
@@ -43,7 +43,7 @@ class RcaResult:
     diagnosis: Diagnosis | None = None
     validation: policy.ValidationResult | None = None
     evidence: EvidenceFrame | None = None
-    deterministic: rc.Detection | None = None
+    deterministic: det.Detection | None = None
     model: str = ""
     latency_s: float = 0.0
     prompt_tokens: int = 0
@@ -116,7 +116,7 @@ LlmCall = Callable[[str, str, dict[str, Any]], LlmResponse]
 
 def diagnose(
     frame: EvidenceFrame,
-    deterministic: rc.Detection,
+    deterministic: det.Detection,
     confidence_threshold: float,
     llm: OllamaClient | None = None,
     llm_call: LlmCall | None = None,

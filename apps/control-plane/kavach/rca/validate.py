@@ -28,20 +28,30 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
-from kavach.detection import retrieval_collapse as rc
+from kavach.detection import base as det
+from kavach.detection import catalogue as _detector_catalogue  # noqa: F401
 from kavach.rca.evidence import EvidenceFrame
 from kavach.rca.schema import Diagnosis
+
 
 # Repairs this slice can perform, per fault class. A diagnosis proposing
 # anything else is rejected: the model may not name an action with no
 # implementation, no inverse, or no tested rollback.
-PERMITTED_REPAIR: dict[str, str] = {
-    rc.FAULT_CLASS: "rollback_config",
-}
+#
+# DERIVED, NOT DECLARED, since P6. These two tables used to be literals naming
+# F06 and `rollback_config`, which meant adding a fault class required editing
+# the RCA validator - a core module that `ROADMAP.md` P6 explicitly says a new
+# fault must not touch. They now come from the detector registry, so the
+# validator's rule is "a repair must be the one the workload's own catalogue
+# declares for this fault class" rather than a hardcoded pair.
+def permitted_repair() -> dict[str, str]:
+    return det.registry.known_faults()
 
-# Only F06 is implemented. Every other catalogue class is a legitimate thing
-# for the model to SAY - and an illegitimate thing to act on yet.
-SUPPORTED_FAULT_CLASSES: frozenset[str] = frozenset({rc.FAULT_CLASS})
+
+def supported_fault_classes() -> frozenset[str]:
+    """Classes Kavach can ACT on. Every other catalogue class stays a
+    legitimate thing for the model to SAY and an illegitimate thing to act on."""
+    return det.registry.fault_classes()
 
 MIN_CITED_EVIDENCE = 2
 
@@ -91,7 +101,7 @@ class ValidationResult:
 def validate(
     diagnosis: Diagnosis | None,
     frame: EvidenceFrame,
-    deterministic: rc.Detection,
+    deterministic: det.Detection,
     confidence_threshold: float,
     declared_services: set[str] | None = None,
     parse_error: str = "",
@@ -122,10 +132,11 @@ def validate(
     ok("actionable_claim", f"fault_class {diagnosis.fault_class}")
 
     # --- 3. the class is one we can actually repair
-    if diagnosis.fault_class not in SUPPORTED_FAULT_CLASSES:
+    supported = supported_fault_classes()
+    if diagnosis.fault_class not in supported:
         reject("fault_class_supported",
                f"{diagnosis.fault_class} has no implementation in this slice; "
-               f"supported: {sorted(SUPPORTED_FAULT_CLASSES)}")
+               f"supported: {sorted(supported)}")
         return res
     ok("fault_class_supported", diagnosis.fault_class)
 
@@ -162,7 +173,7 @@ def validate(
             ok("service_declared", diagnosis.service)
 
     # --- 7. the proposed repair must be the permitted one for this class
-    expected_repair = PERMITTED_REPAIR.get(diagnosis.fault_class)
+    expected_repair = permitted_repair().get(diagnosis.fault_class)
     if diagnosis.candidate_repair != expected_repair:
         reject("repair_permitted",
                f"proposed {diagnosis.candidate_repair!r}, but "

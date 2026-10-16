@@ -22,9 +22,9 @@ import pytest
 from kavach.detection import retrieval_collapse as rc
 from kavach.llm.client import LlmError, LlmResponse, assert_not_proxied
 from kavach.rca.engine import RcaResult, build_prompt, diagnose
-from kavach.rca.evidence import EvidenceFrame
+from kavach.rca.evidence import EvidenceFrame, reading
 from kavach.rca.schema import Diagnosis, ollama_schema
-from kavach.rca.validate import SUPPORTED_FAULT_CLASSES, Outcome, validate
+from kavach.rca.validate import Outcome, supported_fault_classes, validate
 
 THRESHOLD = 0.75
 SERVICES = {"backend", "db", "frontend", "toxiproxy", "prometheus"}
@@ -357,7 +357,19 @@ def test_schema_offers_the_whole_catalogue_not_just_f06() -> None:
     assert "F06" in classes and "F01" in classes and "F09" in classes
     assert "INSUFFICIENT_EVIDENCE" in classes and "UNKNOWN" in classes
     assert "F04" not in classes, "F04 is retired"
-    assert {"F06"} == SUPPORTED_FAULT_CLASSES, "only F06 is actionable in this slice"
+    # Asserted as an invariant rather than a literal set, because the
+    # actionable set grows every phase and a literal would have to be edited
+    # by whoever adds a fault - which is the edit P6 says a new fault must not
+    # require. What must stay true is that SAYING a class is always allowed
+    # while ACTING on one is not, so the actionable set is a strict subset.
+    actionable = supported_fault_classes()
+    assert actionable, "at least one class must be actionable"
+    assert actionable < set(classes), (
+        "every actionable class must be sayable, and the model must be able to "
+        "name classes Kavach cannot act on - otherwise a one-option model "
+        "always picks the option it has"
+    )
+    assert all(c in classes for c in actionable)
 
 
 def test_ollama_schema_is_generated_from_the_model() -> None:
@@ -422,3 +434,43 @@ def test_service_identity_is_present_in_a_collected_frame() -> None:
     src = Path(evmod.__file__).read_text(encoding="utf-8")
     assert 'eid="EV-S01"' in src and 'eid="EV-S02"' in src
     assert '"backend"' in src
+
+
+# --- NaN is missing data, not a number -------------------------------------
+
+
+def test_a_nan_metric_is_presented_as_missing_not_as_a_number() -> None:
+    """The misdiagnosis this prevents actually happened, on the first live F01.
+
+    Shown `retrieval_top_similarity_p50 = nan`, llama3.2 reported "EV-M01
+    shows similarity at 0.658 which is healthy" - reciting this project's
+    documented baseline rather than reading the evidence - ruled out F01 with
+    "EV-M06 shows llm_error_ratio 0.0" when EV-M06 was 1.0, and diagnosed F06
+    at 0.9 confidence against a real endpoint outage. The deterministic
+    cross-check refused it, which is the system working; the NaN is the part
+    that should never have been shown.
+    """
+    value, note = reading(float("nan"))
+    assert value is None, "a NaN must not reach the model as a number"
+    assert "NO DATA" in note
+    assert "not zero and not healthy" in note
+
+
+def test_a_missing_series_and_a_nan_are_presented_identically() -> None:
+    """Both mean 'there is nothing to read here', so they must not be
+    distinguishable to the model - one of them inviting a guess is enough."""
+    assert reading(None) == reading(float("nan"))
+
+
+def test_a_real_reading_is_rounded_and_carries_no_note() -> None:
+    value, note = reading(0.6578431)
+    assert value == 0.6578
+    assert note == ""
+
+
+def test_zero_is_a_real_reading_and_must_not_be_treated_as_missing() -> None:
+    """The opposite error. A kept-chunks mean of 0.0 IS the F06 symptom, and
+    collapsing it into 'no data' would hide the fault."""
+    value, note = reading(0.0)
+    assert value == 0.0
+    assert note == ""

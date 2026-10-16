@@ -177,6 +177,40 @@ def _recent_logs(container: str, tail: int = 60, keep: int = 10) -> list[str]:
     return out[-keep:]
 
 
+NO_DATA_NOTE = (
+    "NO DATA. The series returned nothing, or returned NaN because the "
+    "underlying histogram has no observations in the window. This is MISSING, "
+    "not zero and not healthy: you may not infer a value for it, and you may "
+    "not cite it as evidence of health"
+)
+
+
+def reading(value: float | None) -> tuple[float | None, str]:
+    """One metric reading as the model should see it, plus its note.
+
+    NaN IS MISSING DATA, AND IT MUST NOT REACH THE MODEL AS A NUMBER.
+    `histogram_quantile` over a bucket with no observations returns NaN, which
+    is the normal reading for a similarity or latency quantile during an
+    outage: no requests happened, so there is no distribution to take a
+    quantile of.
+
+    Passing it through as `nan` cost a real misdiagnosis. On the first live F01
+    run llama3.2 was shown `retrieval_top_similarity_p50 = nan` and reported
+    "EV-M01 shows similarity at 0.658 which is healthy" - reciting this
+    project's own documented baseline rather than reading the evidence - then
+    ruled out F01 with "EV-M06 shows llm_error_ratio 0.0" when EV-M06 was 1.0,
+    and diagnosed F06 at 0.9 confidence against a real endpoint outage. The
+    deterministic cross-check refused it.
+
+    A value the model cannot reason about is an invitation to supply one from
+    memory, so this collapses NaN into the same `None` that a missing series
+    already produced, and says so in the note.
+    """
+    if value is None or value != value:  # NaN is the only x != x
+        return None, NO_DATA_NOTE
+    return round(value, 4), ""
+
+
 def collect(
     client: TargetClient,
     prometheus_url: str,
@@ -209,12 +243,10 @@ def collect(
 
     # --- metrics
     for n, (name, expr) in enumerate(METRIC_QUERIES.items(), start=1):
-        value = promql(prometheus_url, expr)
+        value, note = reading(promql(prometheus_url, expr))
         frame.add(
-            eid=f"EV-M{n:02d}", kind="metric", name=name,
-            value=None if value is None else round(value, 4),
-            expected=HEALTHY_EXPECTATION.get(name, ""),
-            note="" if value is not None else "no series returned (missing, not zero)",
+            eid=f"EV-M{n:02d}", kind="metric", name=name, value=value,
+            expected=HEALTHY_EXPECTATION.get(name, ""), note=note,
         )
 
     # --- current configuration

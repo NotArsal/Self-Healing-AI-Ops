@@ -24,7 +24,7 @@ from kavach.executor.config_rollback import (
     build_rollback_for_retrieval_collapse,
     idempotency_key,
 )
-from kavach.loop import KNOWN_FAULTS, IncidentStatus, RcaStage, run_once
+from kavach.loop import IncidentStatus, RcaStage, known_faults, run_once
 from kavach.rca.engine import RcaResult
 from kavach.target import TargetClient, TargetEndpoints, TargetError
 from kavach.verification.fast import FastVerificationResult
@@ -322,9 +322,28 @@ def test_denied_key_cannot_be_rolled_back() -> None:
         action.prepare(t)
 
 
-def test_known_fault_map_covers_only_f06() -> None:
-    """Scope control: this slice implements one fault."""
-    assert KNOWN_FAULTS == {"F06": "rollback_config"}
+def test_known_fault_map_is_derived_from_the_detector_registry() -> None:
+    """Inverted at P6, not deleted.
+
+    It used to assert `KNOWN_FAULTS == {"F06": "rollback_config"}` - a literal
+    in the orchestrator's own module body, which is what stopped a second fault
+    class being added without editing the core. The map is now derived from
+    `detection/catalogue.py`, so this asserts the relationship instead of the
+    contents: every fault the registry can see must name a repair the executor
+    can actually build.
+    """
+    from kavach.executor.base import registry as actions
+
+    faults = known_faults()
+    assert faults, "at least one fault class must be known"
+    assert faults["F06"] == "rollback_config", "the P2 pairing must not drift"
+    for fault_class, action in faults.items():
+        assert action, f"{fault_class} names no repair"
+        assert actions.knows(action), (
+            f"{fault_class} names {action!r}, which the executor registry does "
+            f"not know. A detector that can see a fault but names an "
+            f"unbuildable repair escalates every time"
+        )
 
 
 # ===========================================================================
