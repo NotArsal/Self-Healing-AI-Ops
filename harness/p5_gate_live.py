@@ -126,7 +126,7 @@ KEPT_CHUNKS_FLOOR = 1.0
 
 
 def drive_until_detectable(
-    client: TargetClient, fast_set: Path, max_rounds: int = 8
+    client: TargetClient, fast_set: Path, max_rounds: int = 18
 ) -> tuple[bool, float | None]:
     """Put load on the faulted system until its 10m grounding average collapses.
 
@@ -149,6 +149,20 @@ def drive_until_detectable(
     It is a precondition for the test, never part of the claim: nothing here
     touches Kavach, and the loop still has to detect, diagnose and repair on
     its own.
+
+    THE BOUND WENT FROM 8 ROUNDS TO 18, AND THE REASON IS WORTH KEEPING.
+    Eight was enough when the window started around 2.0. Run immediately after
+    the `F08` live harness it was not: F08 leaves grounding entirely INTACT -
+    that is its signature - so its run fills this ten-minute window with
+    healthy samples, and F06 started from 2.61 instead. Eight rounds decayed it
+    to 1.49 and the harness correctly refused to proceed rather than ask the
+    loop to diagnose an undetectable fault.
+
+    So the bound is not a magic number, it is "long enough to outlast a
+    ten-minute window that another fault's harness just filled". That cost is
+    structural, it is now the third time this window has bitten, and `PRD.md`
+    §12 carries it as an open decision rather than something to keep papering
+    over with a larger bound.
     """
     for round_no in range(1, max_rounds + 1):
         r = fast.run(client, fast_set, check_health=False)

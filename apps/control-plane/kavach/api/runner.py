@@ -92,20 +92,35 @@ def policy_from_manifest(m: Manifest, mode_override: Mode | None = None) -> Proj
     )
 
 
-def newest_baseline(baselines: Path, project: str) -> tuple[float | None, str]:
-    """The rerank_threshold from the most recent capture, and its filename."""
-    d = baselines
-    if not d.is_dir():
-        return None, ""
-    files = sorted(d.glob(f"baseline-{project}-*.json"))
-    for path in reversed(files):
+def newest_baseline_doc(baselines: Path, project: str) -> tuple[dict[str, Any], str]:
+    """The most recent usable capture, whole, and its filename.
+
+    "Usable" means it records a `rerank_threshold`, which is the one field the
+    F06 rollback cannot be built without. The whole document is returned
+    because F08 needs its `settings` snapshot, and reading the file twice to
+    get two fields out of it would let the two reads disagree.
+    """
+    if not baselines.is_dir():
+        return {}, ""
+    # Newest first: the filenames carry a sortable UTC timestamp.
+    for path in sorted(baselines.glob(f"baseline-{project}-*.json"), reverse=True):
         try:
             doc = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        value = doc.get("rerank_threshold")
-        if isinstance(value, int | float):
-            return float(value), path.name
+        if isinstance(doc, dict) and isinstance(
+            doc.get("rerank_threshold"), int | float
+        ):
+            return doc, path.name
+    return {}, ""
+
+
+def newest_baseline(baselines: Path, project: str) -> tuple[float | None, str]:
+    """The rerank_threshold from the most recent capture, and its filename."""
+    doc, name = newest_baseline_doc(baselines, project)
+    value = doc.get("rerank_threshold")
+    if isinstance(value, int | float):
+        return float(value), name
     return None, ""
 
 
@@ -228,6 +243,13 @@ class LoopRunner:
         return newest_baseline(
             self.settings.baselines_dir(), self.settings.target_project
         )
+
+    def baseline_doc(self) -> dict[str, Any]:
+        """The whole capture, for the detectors that compare against it."""
+        doc, _ = newest_baseline_doc(
+            self.settings.baselines_dir(), self.settings.target_project
+        )
+        return doc
 
     # --- history ------------------------------------------------------------
 
@@ -375,6 +397,7 @@ class LoopRunner:
                     audit=self.audit,
                     approved_from=approved_from,
                     repair_values=self.repair_values(),
+                    baseline=self.baseline_doc(),
                 )
                 self._remember(result)
                 if result.decision:

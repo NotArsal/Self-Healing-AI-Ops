@@ -47,7 +47,6 @@ under-specified for as long as it was the only one, which is precisely the test
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 
 # Re-exported deliberately. These used to be DEFINED here, which is why
@@ -59,6 +58,8 @@ from kavach.detection.base import (
     Detection,
     DetectorSpec,
     Evidence,
+    Readings,
+    Signals,
     Verdict,
 )
 
@@ -318,11 +319,12 @@ def evaluate(
     )
 
 
-def collect(
-    prometheus_url: str, promql: Callable[[str, str], float | None]
-) -> dict[str, float | None]:
+def collect(signals: Signals) -> Readings:
     """Read the detector's signals. `promql` is injected so tests stay offline."""
-    return {name: promql(prometheus_url, expr) for name, expr in QUERIES.items()}
+    return {
+        key: signals.promql(signals.prometheus_url, expr)
+        for key, expr in QUERIES.items()
+    }
 
 
 SPEC = DetectorSpec(

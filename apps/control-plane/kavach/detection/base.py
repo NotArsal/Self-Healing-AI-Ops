@@ -74,6 +74,20 @@ class Detection:
     service: str | None = None
     evidence: list[Evidence] = field(default_factory=list)
     reasons: list[str] = field(default_factory=list)
+    # What the repair should aim at, when only the detector can know it.
+    #
+    # F06's rollback target is the captured baseline threshold, which the
+    # runner resolves before detection runs. F08's is "whichever settings
+    # drifted, back to their captured values" - and which those are is the
+    # detection itself. Rather than let the loop ask a detector for it, or
+    # give the action the whole baseline and have it roll back more than was
+    # diagnosed, the detector states its own target and the loop prefers it.
+    #
+    # Scoping is the reason this is not simply "restore the whole baseline".
+    # An operator may have deliberately changed a setting no fault involves;
+    # reverting that because some OTHER key broke would be the control plane
+    # overruling its owner on something it was not asked about.
+    repair_target: dict[str, Any] | None = None
 
     @property
     def detected(self) -> bool:
@@ -107,12 +121,50 @@ class Detection:
         return "\n".join(lines)
 
 
+@dataclass(frozen=True)
+class Signals:
+    """Everything a detector is allowed to read, as one object.
+
+    WHY A CONTEXT OBJECT AND NOT MORE PARAMETERS
+    `collect` originally took `(prometheus_url, promql)`, which was enough for
+    the two metric-driven detectors. `F08` is defined by `PRD.md` §6 as "config
+    hash changed + SLO breach within the window", and a config hash is not a
+    Prometheus series - it comes from the target's control interface and from
+    the baseline capture on disk. So the inputs had to widen.
+
+    Widening them into a single object rather than a third and fourth
+    positional argument is the point: the next fault that needs a source the
+    others do not will add a field here and change no existing detector's
+    signature. `ROADMAP.md` P6 says a new fault must not force a change to the
+    core; this is the one change that buys that property, made once.
+
+    `client` and `baseline` are optional because the offline tests drive
+    detectors with nothing but a fake `promql`, and a detector that needs a
+    source it was not given must report INSUFFICIENT_EVIDENCE rather than
+    raise.
+    """
+
+    prometheus_url: str
+    promql: PromQL
+    # A `TargetClient`. Typed loosely on purpose: `detection/` must not import
+    # the target adapter, or the generic core gains a workload dependency.
+    client: Any = None
+    # The newest baseline capture, as `make onboard` wrote it. `settings` and
+    # `config_hash` are the keys `F08` reads.
+    baseline: dict[str, Any] = field(default_factory=dict)
+
+
 # A detector's two functions, as the loop calls them. Deliberately plain
 # callables rather than a class: every existing detector is already a module of
 # pure functions, and an ABC here would be an interface with one shape and no
 # behaviour of its own.
-Collect = Callable[[str, PromQL], dict[str, float | None]]
-Evaluate = Callable[[dict[str, float | None], bool, float], Detection]
+#
+# The readings are `Any` rather than `float | None` because not every signal is
+# a number: `F08`'s most useful one is WHICH settings drifted, and a count
+# alone cannot be cited as evidence.
+Readings = dict[str, Any]
+Collect = Callable[[Signals], Readings]
+Evaluate = Callable[[Readings, bool, float], Detection]
 
 
 @dataclass(frozen=True)
@@ -176,8 +228,7 @@ registry = DetectorRegistry()
 
 def run_all(
     specs: list[DetectorSpec],
-    prometheus_url: str,
-    promql: PromQL,
+    signals: Signals,
     fast_set_passed: bool,
     fast_set_pass_rate: float,
 ) -> Detection:
@@ -210,7 +261,7 @@ def run_all(
     others: list[Detection] = []
     for spec in specs:
         d = spec.evaluate(
-            spec.collect(prometheus_url, promql), fast_set_passed, fast_set_pass_rate
+            spec.collect(signals), fast_set_passed, fast_set_pass_rate
         )
         (claims if d.detected else others).append(d)
 

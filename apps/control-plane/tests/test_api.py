@@ -23,6 +23,7 @@ from kavach.api import routes, schemas
 from kavach.api.events import EventBus
 from kavach.api.runner import LoopBusyError, LoopRunner, NoBaselineError, newest_baseline
 from kavach.config import Settings
+from kavach.detection import base as det
 from kavach.detection import retrieval_collapse as rc
 from kavach.verification import fast
 
@@ -31,7 +32,9 @@ from kavach.verification import fast
 
 def a_detection() -> rc.Detection:
     """A real detection, built through the real collector and evaluator."""
-    metrics = rc.collect("http://unused", lambda _url, _q: None)
+    metrics = rc.collect(
+        det.Signals(prometheus_url="http://unused", promql=lambda _url, _q: None)
+    )
     return rc.evaluate(metrics, fast_set_passed=False, fast_set_pass_rate=0.0)
 
 

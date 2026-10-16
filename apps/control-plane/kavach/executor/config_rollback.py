@@ -187,22 +187,46 @@ class ConfigRollback:
 
 
 def build_rollback_for_retrieval_collapse(
-    incident_id: str, client: TargetClient, known_good_threshold: float | None = None
+    incident_id: str,
+    client: TargetClient,
+    known_good_threshold: float | dict[str, Any] | None = None,
 ) -> ConfigRollback:
-    """Construct the F06 repair.
+    """Construct a `rollback_config` repair.
 
-    `known_good_threshold` comes from the captured baseline. If it is None the
-    action cannot be built: there is nothing to roll back TO, and inventing a
-    default would turn a rollback into a guess.
+    TWO FAULT CLASSES SHARE THIS ACTION, SO IT TAKES TWO SHAPES OF TARGET.
+    `F06` passes a FLOAT - the captured baseline `rerank_threshold`, resolved
+    from the baseline on disk before detection runs. `F08` passes a DICT of
+    settings at their captured values, because which settings to restore is
+    the F08 diagnosis itself and nothing before detection can know it.
+
+    Both end as the same `ConfigRollback`: the inverse is read from the live
+    target immediately before the write, so neither shape restores a constant.
+    The name is kept despite now serving both, because `executor/catalogue.py`
+    registers it under `rollback_config` and renaming it would churn every
+    existing caller for no behaviour change.
+
+    `None` means the action cannot be built: there is nothing to roll back TO,
+    and inventing a default would turn a rollback into a guess.
     """
     if known_good_threshold is None:
         raise ActionError(
-            "no baseline rerank_threshold available; rollback_config needs a "
-            "recorded known-good value and must not fall back to a constant"
+            "no known-good config available; rollback_config needs a recorded "
+            "value and must not fall back to a constant"
         )
+    if isinstance(known_good_threshold, dict):
+        if not known_good_threshold:
+            raise ActionError(
+                "the rollback target is an empty settings map, so there is "
+                "nothing to restore. A diagnosis that names no drifted setting "
+                "must not produce a write"
+            )
+        target_settings: dict[str, Any] = dict(known_good_threshold)
+    else:
+        target_settings = {"rerank_threshold": float(known_good_threshold)}
+
     action = ConfigRollback(
         incident_id=incident_id,
-        target_settings={"rerank_threshold": float(known_good_threshold)},
+        target_settings=target_settings,
     )
     action.prepare(client)
     return action

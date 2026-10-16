@@ -708,10 +708,94 @@ against the pre-state witness. It is not optional bookkeeping either:
 application is already on the backup, so without the inverse cycle 2 would
 refuse to build. Twenty cycles, twenty inverses, each verified.
 
+### F08 — the seam widened, and the sweep needed repetitions
+
+**F08 forced the change this phase said to watch for.** `PRD.md` §6 defines its
+signal as *"config hash changed + SLO breach within the window"*, and a config
+hash is not a Prometheus series — it comes from the target's control interface
+and from the baseline capture on disk. Detectors could read only metrics, so the
+inputs had to widen.
+
+Widened **once**, into a context object rather than a third positional
+argument:
+
+```python
+@dataclass(frozen=True)
+class Signals:
+    prometheus_url: str
+    promql: PromQL
+    client: Any = None              # the target's control interface
+    baseline: dict[str, Any] = ...  # the capture `make onboard` wrote
+```
+
+The next fault that needs a source the others do not adds a field here and
+changes no existing detector's signature. That is the property this phase asked
+for, bought once instead of per fault.
+
+| File | What it is |
+|---|---|
+| `kavach/detection/config_regression.py` | F08's detector. Compares live settings against the baseline snapshot |
+| `harness/faults/f08_config_regression.py` | Clamps `max_tokens`; the sweep is in its docstring |
+| `harness/p6_f08_live.py` | The live run, APPROVAL only — `rollback_config` is MEDIUM, so AUTONOMOUS routes it to a sandbox that is P7 |
+| `tests/test_f08_config.py` | 15 tests, most of them about F08 **not** claiming what it does not own |
+
+**Detection is residual by OWNERSHIP, not by position.** Every config-driven
+fault moves the config hash, so "hash changed + fast set failing" is true during
+an `F06` as well — F08 would have collided with F06 on every retrieval collapse
+and `run_all()` would have refused to choose. So it asks which KEY moved:
+`rerank_threshold` belongs to F06, `llm_base_url` to F01/F02, anything else is
+F08's. Unexplained drift defaulting to F08 is the correct default for a residual
+class. **Drift with a passing fast set is `NO_FAULT`** — named in the evidence,
+never repaired: an operator may have changed a setting deliberately, and
+reverting that unasked would be the control plane overruling its owner.
+
+`Detection.repair_target` was added so F08 restores **only the keys it
+diagnosed**, at their captured values. Rolling back the whole baseline would
+revert settings no fault involved.
+
+**The clamp was swept, and the sweep is the finding.** Three cases at each
+value, three repetitions each:
+
+| `max_tokens` | fv-01 | fv-02 | fv-03 | verdict |
+|---|---|---|---|---|
+| 8 | fail | fail | pass | partial |
+| 4 | fail | fail | 1 fail / 2 pass | **partial, NON-DETERMINISTIC** |
+| 3 | fail | fail | pass ×3 | partial |
+| **2** | fail | fail | fail ×3 | **full collapse — chosen** |
+| 1 | fail | fail | fail ×3 | full, degenerate |
+
+`f06_retrieval_collapse.py` records that *"the reranker is deterministic —
+results were identical across reps at every value"*. **Generation is not.** A
+single-repetition sweep would have picked 4 and shipped an injector that
+silently fails to inject about two runs in three. 1 was rejected as a degenerate
+boundary — the model emits a bare `"The"` — on the same reasoning that rejected
+a 1.0 rerank threshold.
+
+The resulting signature is unique in the catalogue: `keyword_present False` but
+`non_refusal True`, `sources_block True`, `llm_error_ratio 0.0`, grounding
+intact. The model answered, retrieval worked, only the content was cut off.
+
+**Measured live, 12 of 12 checks:** injected, config hash moved
+`de4cfaed14a8bb98` → `1d8e3b442a0b0932`, diagnosed `F08/backend`,
+`REQUIRE_APPROVAL / MEDIUM`, **wrote nothing** while parked, then on approval
+wrote `{max_tokens: 2} → {max_tokens: 0}`, reached `RESOLVED`, restored the hash
+exactly, rolled back **only** the drifted key, settings identical, corpus
+unchanged, audit chain intact.
+
+**F08 needs no warm-up, and it is the only fault that does not.** `F06` reads a
+ten-minute grounding average and `F01` a two-minute error ratio, so both need
+the fault to dominate a window first — five driven rounds and two respectively.
+F08's signal is read at the instant the loop runs. That makes it the best demo
+candidate in the catalogue, which is worth stating precisely because it is
+**not** the fault carrying the research claim.
+
+**Remaining for F08:** the 20-cycle stability run and the `≥8 of 10` RCA
+measurement. The vertical is proven; the acceptance table is not yet complete.
+
 | Order | Fault | Note |
 |---|---|---|
 | 1 | `F01` primary LLM endpoint outage | **DONE 2026-10-16, 8 of 8 acceptance criteria** — see below. Gives the LOW-risk autonomous demo path of `PRD.md` §8.2, and it healed unattended |
-| 2 | `F08` config regression | Reuses the config interface already built for `F06` |
+| 2 | `F08` config regression | **Vertical proven 2026-10-16** — see below. Reuses the config interface already built for `F06`, and needed no new allow-list entry |
 | 3 | **`F07` prompt regression** | **Needs the git adapter extended to prompt blobs.** Prompts were externalised in P1, so this is the git work, not the extraction |
 | 4 | **`F09` token blowout** | Reuses `F07`'s machinery; token capture landed in P1 |
 | 5 | `F02` latency degradation | Toxiproxy already in place. **Confirm the ~30s timeout from P1 holds** — at 1200s this is a hang, not a fault |

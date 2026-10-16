@@ -68,7 +68,8 @@ from kavach.detection.base import (
     Detection,
     DetectorSpec,
     Evidence,
-    PromQL,
+    Readings,
+    Signals,
     Verdict,
 )
 
@@ -254,9 +255,12 @@ def evaluate(
     )
 
 
-def collect(prometheus_url: str, promql: PromQL) -> dict[str, float | None]:
+def collect(signals: Signals) -> Readings:
     """Read the detector's signals. `promql` is injected so tests stay offline."""
-    return {name: promql(prometheus_url, expr) for name, expr in QUERIES.items()}
+    return {
+        key: signals.promql(signals.prometheus_url, expr)
+        for key, expr in QUERIES.items()
+    }
 
 
 SPEC = DetectorSpec(

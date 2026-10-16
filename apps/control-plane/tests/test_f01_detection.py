@@ -15,6 +15,7 @@ import pytest
 
 from kavach.detection import base as det
 from kavach.detection import catalogue  # noqa: F401 - registers the detectors
+from kavach.detection.base import Signals
 from kavach.detection.endpoint_outage import (
     QUERIES,
     Thresholds,
@@ -115,7 +116,7 @@ def test_collect_injects_promql_and_reads_every_declared_query() -> None:
         seen.append(q)
         return 1.0
 
-    out = collect("http://unused", fake)
+    out = collect(Signals("http://unused", fake))
     assert set(out) == set(QUERIES)
     assert len(seen) == len(QUERIES)
 
@@ -150,7 +151,7 @@ def test_a_detector_may_not_register_without_a_repair() -> None:
     with pytest.raises(ValueError, match="repair_action"):
         r.register(det.DetectorSpec(
             fault_class="FXX", fault_name="x", service="backend",
-            collect=lambda _u, _p: {}, evaluate=lambda _m, _p, _r: det.Detection(
+            collect=lambda _s: {}, evaluate=lambda _m, _p, _r: det.Detection(
                 det.Verdict.NO_FAULT),
             repair_action="",
         ))
@@ -160,7 +161,7 @@ def test_the_catalogue_is_assembled_in_exactly_one_place() -> None:
     r = det.DetectorRegistry()
     spec = det.DetectorSpec(
         fault_class="FXX", fault_name="x", service="backend",
-        collect=lambda _u, _p: {},
+        collect=lambda _s: {},
         evaluate=lambda _m, _p, _r: det.Detection(det.Verdict.NO_FAULT),
         repair_action="rollback_config",
     )
@@ -180,7 +181,7 @@ def _spec(name: str, verdict: det.Verdict, cls: str = "") -> det.DetectorSpec:
 
     return det.DetectorSpec(
         fault_class=cls or name, fault_name=name, service="backend",
-        collect=lambda _u, _p: {}, evaluate=evaluate_,
+        collect=lambda _s: {}, evaluate=evaluate_,
         repair_action="rollback_config",
     )
 
@@ -192,7 +193,7 @@ def promql_none(_url: str, _q: str) -> float | None:
 def test_one_claim_is_returned_as_is() -> None:
     specs = [_spec("a", det.Verdict.NO_FAULT, "FA"),
              _spec("b", det.Verdict.FAULT, "FB")]
-    d = det.run_all(specs, "http://u", promql_none, False, 0.0)
+    d = det.run_all(specs, det.Signals("http://u", promql_none), False, 0.0)
     assert d.verdict is det.Verdict.FAULT
     assert d.fault_class == "FB"
 
@@ -202,7 +203,7 @@ def test_two_claims_at_once_refuse_rather_than_choose() -> None:
     a decision, and the wrong repair is worse than none."""
     specs = [_spec("a", det.Verdict.FAULT, "FA"),
              _spec("b", det.Verdict.FAULT, "FB")]
-    d = det.run_all(specs, "http://u", promql_none, False, 0.0)
+    d = det.run_all(specs, det.Signals("http://u", promql_none), False, 0.0)
     assert d.verdict is det.Verdict.INSUFFICIENT_EVIDENCE
     assert d.fault_class is None, "an ambiguous verdict must name no class"
     assert any("claimed a fault at once" in r for r in d.reasons)
@@ -213,7 +214,7 @@ def test_a_missing_series_on_a_working_system_is_not_a_symptom() -> None:
     empty; escalating a healthy system every run is how a gate gets disabled."""
     specs = [_spec("a", det.Verdict.NO_FAULT, "FA"),
              _spec("b", det.Verdict.INSUFFICIENT_EVIDENCE, "FB")]
-    d = det.run_all(specs, "http://u", promql_none,
+    d = det.run_all(specs, det.Signals("http://u", promql_none),
                     fast_set_passed=True, fast_set_pass_rate=1.0)
     assert d.verdict is det.Verdict.NO_FAULT
     assert any("not a symptom" in r for r in d.reasons)
@@ -222,7 +223,7 @@ def test_a_missing_series_on_a_working_system_is_not_a_symptom() -> None:
 def test_a_missing_series_with_a_real_symptom_is_insufficient_evidence() -> None:
     specs = [_spec("a", det.Verdict.NO_FAULT, "FA"),
              _spec("b", det.Verdict.INSUFFICIENT_EVIDENCE, "FB")]
-    d = det.run_all(specs, "http://u", promql_none,
+    d = det.run_all(specs, det.Signals("http://u", promql_none),
                     fast_set_passed=False, fast_set_pass_rate=0.0)
     assert d.verdict is det.Verdict.INSUFFICIENT_EVIDENCE
 
@@ -287,7 +288,8 @@ def test_the_live_registry_returns_f01_alone_on_the_live_readings() -> None:
                 return merged.get(key)
         return None
 
-    d = det.run_all(det.registry.specs(), "http://u", promql_live,
+    d = det.run_all(det.registry.specs(),
+                    det.Signals("http://u", promql_live),
                     fast_set_passed=False, fast_set_pass_rate=0.0)
     assert d.verdict is det.Verdict.FAULT
     assert d.fault_class == "F01"
@@ -341,7 +343,16 @@ def test_every_registered_detector_reads_only_injected_promql() -> None:
 
     for spec in det.registry.specs():
         calls.clear()
-        out = spec.collect("http://unreachable.invalid", fake)
+        out = spec.collect(det.Signals("http://unreachable.invalid", fake))
+        # F08 reads the target and the baseline rather than Prometheus, so it
+        # legitimately makes no promql call. It must still return readings
+        # that say MISSING rather than claiming nothing drifted.
+        if spec.fault_class == "F08":
+            assert out["drift"] is None, (
+                "with no client and no baseline, F08 must report missing "
+                "evidence, not an absence of drift"
+            )
+            continue
         assert calls, f"{spec.fault_class} collected nothing through promql"
         assert all(v is None for v in out.values())
 

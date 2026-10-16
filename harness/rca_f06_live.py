@@ -36,6 +36,7 @@ from harness.faults.f06_retrieval_collapse import (  # noqa: E402
     BAD_THRESHOLD,
     F06RetrievalCollapse,
 )
+from kavach.detection import base as det  # noqa: E402
 from kavach.detection import retrieval_collapse as rc  # noqa: E402
 from kavach.llm.client import OllamaClient  # noqa: E402
 from kavach.loop import IncidentStatus, run_once  # noqa: E402
@@ -156,7 +157,9 @@ def main() -> int:
         time.sleep(20)   # let the metric windows reflect the collapse
 
         detection = rc.evaluate(
-            rc.collect(args.prometheus, _promql), pre.passed, pre.pass_rate
+            rc.collect(det.Signals(prometheus_url=args.prometheus,
+                                   promql=_promql, client=client)),
+            pre.passed, pre.pass_rate,
         )
         say(f"  deterministic detection: {detection.verdict}")
         say("")

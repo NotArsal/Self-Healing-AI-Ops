@@ -23,7 +23,7 @@ first only because that is the order a human would read them in.
 
 from __future__ import annotations
 
-from kavach.detection import endpoint_outage, retrieval_collapse
+from kavach.detection import config_regression, endpoint_outage, retrieval_collapse
 from kavach.detection.base import registry
 
 # F01 — the endpoint is visibly down; HTTP status carries the fault.
@@ -32,5 +32,12 @@ registry.register(endpoint_outage.SPEC)
 # F06 — the endpoint is up and the answers are wrong; HTTP status carries
 # nothing, and detection has to come from grounding metrics.
 registry.register(retrieval_collapse.SPEC)
+
+# F08 — a setting drifted from the captured known-good and nothing more
+# specific explains it. Listed LAST because it is the residual config class,
+# and it defers to the others by ownership rather than by position: see
+# `config_regression.CLAIMED_ELSEWHERE`. Position here still decides nothing,
+# because `run_all()` refuses to choose when two detectors claim at once.
+registry.register(config_regression.SPEC)
 
 __all__ = ["registry"]

@@ -45,6 +45,7 @@ sys.path[:0] = [str(ROOT), str(ROOT / "apps" / "control-plane")]
 from harness.faults.base import Fault  # noqa: E402
 from harness.faults.f01_endpoint_outage import F01EndpointOutage  # noqa: E402
 from harness.faults.f06_retrieval_collapse import F06RetrievalCollapse  # noqa: E402
+from harness.faults.f08_config_regression import F08ConfigRegression  # noqa: E402
 from kavach.target import TargetClient, TargetEndpoints  # noqa: E402
 
 TARGET = "http://127.0.0.1:8000"
@@ -74,6 +75,7 @@ FAULTS: dict[str, Builder] = {
     # F01 drives Toxiproxy's admin API, not the target, so it takes no client.
     "F01": lambda _client, corpus: F01EndpointOutage(corpus_probe=corpus),
     "F06": lambda client, corpus: F06RetrievalCollapse(client, corpus_probe=corpus),
+    "F08": lambda client, corpus: F08ConfigRegression(client, corpus_probe=corpus),
 }
 
 
@@ -204,6 +206,15 @@ def _assumed_pre_state(name: str, fault: Fault) -> dict[str, Any]:
         )
 
         return {"settings": {SETTING: EXPECTED_HEALTHY_THRESHOLD}}
+    if name == "F08":
+        from harness.faults.f08_config_regression import (
+            EXPECTED_HEALTHY_MAX_TOKENS,
+        )
+        from harness.faults.f08_config_regression import (
+            SETTING as F08_SETTING,
+        )
+
+        return {"settings": {F08_SETTING: EXPECTED_HEALTHY_MAX_TOKENS}}
     raise SystemExit(f"no documented healthy state for {name}")
 
 
@@ -216,6 +227,8 @@ def _describe(name: str, fault: Fault) -> str:
             return f"{PRIMARY} enabled={enabled}"
         if name == "F06":
             return f"rerank_threshold={fault.current_threshold()}"  # type: ignore[attr-defined]
+        if name == "F08":
+            return f"max_tokens={fault.current_max_tokens()}"  # type: ignore[attr-defined]
     except Exception as exc:
         return f"(could not read back: {exc})"
     return ""

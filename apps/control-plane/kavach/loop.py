@@ -208,6 +208,7 @@ def run_once(
     audit: AuditLog | None = None,
     approved_from: str = "",
     repair_values: dict[str, Any] | None = None,
+    baseline: dict[str, Any] | None = None,
 ) -> Incident:
     """One pass of detect -> heal -> verify.
 
@@ -235,6 +236,11 @@ def run_once(
     because a second repair made `baseline_value` alone wrong as a parameter
     name for "the thing this repair aims at". `baseline_value` remains the
     fallback so every P2/P3 caller still works unchanged.
+
+    `baseline` is the whole newest baseline capture, handed to the detectors.
+    `F08` compares the live control-interface settings against the `settings`
+    snapshot in it, which is a source no metric can supply. Omitted, F08
+    reports INSUFFICIENT_EVIDENCE rather than clearing a system it cannot see.
 
     `rca` is OPTIONAL. Omitted, this is the P2 deterministic loop unchanged -
     the reference baseline, and the fallback if RCA is unavailable. Supplied, an
@@ -265,9 +271,20 @@ def run_once(
     pre_fast = fast.run(client, fast_set_path)
     # Every registered detector, not one imported by name. `run_all` returns a
     # single verdict and refuses to choose when two detectors claim at once.
+    #
+    # `Signals` carries the target and the baseline as well as Prometheus,
+    # because F08's signal is a config comparison rather than a metric. A
+    # detector given a source it does not need simply ignores it.
     detection = det.run_all(
-        det.registry.specs(), prometheus_url, promql,
-        pre_fast.passed, pre_fast.pass_rate,
+        det.registry.specs(),
+        det.Signals(
+            prometheus_url=prometheus_url,
+            promql=promql,
+            client=client,
+            baseline=baseline or {},
+        ),
+        pre_fast.passed,
+        pre_fast.pass_rate,
     )
     inc.detection = detection.to_dict()
     inc.detection["pre_verification"] = pre_fast.to_dict()
@@ -378,9 +395,17 @@ def run_once(
     _notify(on_event, "repair", "started",
             f"capturing pre-state for {inc.planned_action}")
     try:
-        # The declared value this specific repair aims at. A missing entry
-        # falls back to the baseline, which is what every pre-P6 caller passes.
-        target_value = (repair_values or {}).get(inc.planned_action, baseline_value)
+        # The value this specific repair aims at, in order of authority:
+        #   1. the detector's own `repair_target`, when only it can know -
+        #      F08's rollback restores exactly the settings IT diagnosed as
+        #      drifted, which nothing before detection could have resolved
+        #   2. the manifest/baseline value for this action, resolved up front
+        #   3. the baseline threshold, which is what every pre-P6 caller passes
+        target_value: Any = detection.repair_target
+        if target_value is None:
+            target_value = (repair_values or {}).get(
+                inc.planned_action, baseline_value
+            )
         action: Action = registry.build(
             inc.planned_action, inc.incident_id, client, target_value
         )

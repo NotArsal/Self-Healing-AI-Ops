@@ -144,8 +144,11 @@ def main() -> int:
 
         # The deterministic answer this is measured against.
         pre = fast.run(client, FAST_SET, check_health=False)
-        detection = det.run_all(det.registry.specs(), PROM, promql,
-                                pre.passed, pre.pass_rate)
+        detection = det.run_all(
+            det.registry.specs(),
+            det.Signals(prometheus_url=PROM, promql=promql, client=client),
+            pre.passed, pre.pass_rate,
+        )
         say(f"  deterministic      {detection.verdict} "
             f"{detection.fault_class} {detection.fault_name}")
         assert detection.fault_class == "F01", (
