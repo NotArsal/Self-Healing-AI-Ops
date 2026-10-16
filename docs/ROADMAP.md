@@ -621,9 +621,54 @@ The sandbox remains the most likely thing to overrun — ports, volumes and stat
 
 **Each new fault also needs the `harness/inject.py` CLI that P2 skipped** — a second caller finally justifies it.
 
+### F01 — what landed, and the one thing holding it open
+
+**The detector seam had to be built first, which is exactly what this phase's
+entry note predicted.** `loop.py` imported a detector by name and
+`KNOWN_FAULTS` mapped one RAG fault to one RAG repair in the orchestrator's own
+module body, so F01 could not be added as an adapter until that was fixed.
+
+| File | What it is |
+|---|---|
+| `kavach/detection/base.py` | The shared `Detection` / `Evidence` / `Verdict` types, `DetectorSpec`, the registry and `run_all()`. The verdict enum lost its `RETRIEVAL_COLLAPSE` member — it named one specific fault, so a second detector could not add to someone else's enum, and it duplicated `Detection.fault_class` |
+| `kavach/detection/catalogue.py` | The one place detectors register, mirroring `executor/catalogue.py` |
+| `kavach/detection/endpoint_outage.py` | F01's detector. Discriminator is the LLM error ratio: high means the model was never reached, ~0 with grounding lost is F06 |
+| `kavach/executor/endpoint_switch.py` | `switch_llm_endpoint`, LOW. A **builder** over `ConfigRollback`, not a second action class |
+| `harness/faults/f01_endpoint_outage.py` | Disables the `ollama-primary` Toxiproxy listener. Surfaced on `/healthz` in **0.034s** as a 503, recovered in 0.075s |
+| `harness/p6_f01_live.py` | The live run, APPROVAL then AUTONOMOUS. `--rca` reproduces the LLM refusal rather than hiding it |
+
+**With the seam in place, F01 changed nothing in `loop.py`'s decision logic,
+`rca/schema.py`, `llm/`, or the safety engine.** That is the bar this phase set,
+and it was met.
+
+**Measured live:** APPROVAL detected `F01/backend` in 15.1s, planned
+`switch_llm_endpoint` `21434 → 21435`, verdict `REQUIRE_APPROVAL / LOW`, wrote
+nothing. AUTONOMOUS returned **`ALLOW_AUTO / LOW` and executed with no human** —
+the first unattended authorisation in this project, possible only because the
+action is LOW where `rollback_config` is MEDIUM and routes to the sandbox.
+
+**Open, and it is not a Kavach defect.** A successful failover still reads as
+unhealthy: verification measured `quality_ok: true, pass_rate: 1.0`, all three
+cases passing, while `/healthz` returned 503. The target's `_check_ollama()`
+reads `os.getenv("OLLAMA_BASE_URL")` while `embeddings.py` and `rag.py` read
+`runtime_config.get("llm_base_url")`, so the health check reports on a
+configuration the application stopped using. **F01 cannot reach RESOLVED until
+that is decided** — the fix is one line of target application code, which is
+under a standing prohibition. `PRD.md` §12 carries it.
+
+**Also open for F01:** the RCA layer only knows the F06 story. Given a real
+F01 it diagnosed F06 at 0.9 confidence with fabricated evidence values, and the
+deterministic cross-check correctly refused it. F01's vertical is therefore
+claimed on the deterministic path. Teaching RCA the second fault class, and
+adding a validator rule that checks cited *values* against the frame, are both
+P6 work and both in `PRD.md` §12.
+
+Still to do for F01: the 20-cycle stability run, the `≥8 of 10` diagnosis
+measurement, and `harness/inject.py`.
+
 | Order | Fault | Note |
 |---|---|---|
-| 1 | `F01` primary LLM endpoint outage | Toxiproxy from P1; gives the LOW-risk autonomous demo path of `PRD.md` §8.2 |
+| 1 | `F01` primary LLM endpoint outage | **Mostly done, 2026-10-16** — see below. Gives the LOW-risk autonomous demo path of `PRD.md` §8.2, and it ran |
 | 2 | `F08` config regression | Reuses the config interface already built for `F06` |
 | 3 | **`F07` prompt regression** | **Needs the git adapter extended to prompt blobs.** Prompts were externalised in P1, so this is the git work, not the extraction |
 | 4 | **`F09` token blowout** | Reuses `F07`'s machinery; token capture landed in P1 |
