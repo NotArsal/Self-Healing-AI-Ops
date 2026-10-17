@@ -240,8 +240,9 @@ def run_all(
                              order would be a guess dressed as a decision.
     - no claims, fast set passing -> NO_FAULT, even if some detector could not
                              read its signals. See below; this is not laxity.
-    - no claims, fast set failing -> the merged INSUFFICIENT_EVIDENCE, because
-                             there IS a symptom and nothing could explain it.
+    - no claims, fast set FAILING -> INSUFFICIENT_EVIDENCE, always, whether or
+                             not any detector reported missing evidence. A
+                             failing probe cannot produce a healthy verdict.
 
     A MISSING SERIES IS NOT A SYMPTOM, AND TREATING IT AS ONE IS A FALSE ALARM
     The first version of this returned INSUFFICIENT_EVIDENCE whenever any
@@ -290,6 +291,38 @@ def run_all(
         for d in insufficient:
             merged.evidence.extend(d.evidence)
             merged.reasons.extend(d.reasons)
+        return merged
+
+    # A FAILING FAST SET CAN NEVER PRODUCE NO_FAULT, WHATEVER THE DETECTORS SAY.
+    #
+    # The fast set is the ground truth that something IS wrong: three real
+    # questions got wrong answers from the live system. If no detector claims
+    # and none even reports missing evidence, the honest verdict is "broken,
+    # and nothing here explains it" - which is INSUFFICIENT_EVIDENCE, and
+    # escalates to a human.
+    #
+    # Without this the arithmetic reaches NO_FAULT, and the loop's own wording
+    # for NO_FAULT is "no fault detected; nothing to do". That is a
+    # false-healthy verdict on a demonstrably broken system, which is the one
+    # outcome this project forbids outright.
+    #
+    # It is currently unreachable by luck rather than by design: F01 and F06
+    # both happen to return INSUFFICIENT_EVIDENCE when they cannot explain a
+    # failing set. A fourth detector that returned NO_FAULT instead would open
+    # the hole, and nothing per-fault would catch it. See
+    # tests/test_fails_closed.py.
+    if not fast_set_passed:
+        merged = Detection(Verdict.INSUFFICIENT_EVIDENCE)
+        for d in others:
+            merged.evidence.extend(d.evidence)
+            merged.reasons.extend(d.reasons)
+        merged.reasons.insert(
+            0,
+            "the fast set is failing and no detector claims a fault, so the "
+            "system is broken in a way none of them recognises. Reported as "
+            "undiagnosed rather than healthy: a failing probe cannot produce "
+            "a NO_FAULT verdict",
+        )
         return merged
 
     merged = Detection(Verdict.NO_FAULT)
