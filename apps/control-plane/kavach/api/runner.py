@@ -303,6 +303,7 @@ class LoopRunner:
         llm = OllamaClient(s.llm_base_url, s.llm_model)
         services = set(s.target_services())
         baseline_value, _ = self.baseline()
+        baseline_doc = self.baseline_doc()
 
         def stage(
             fast_result: fast.FastVerificationResult,
@@ -312,6 +313,11 @@ class LoopRunner:
             frame = ev.collect(
                 client, s.prometheus_url, _promql, fast_result,
                 baseline_rerank_threshold=baseline if baseline is not None else baseline_value,
+                # The whole captured snapshot, so every config line in the
+                # frame carries its own known-good. Without it `F08` is not
+                # diagnosable from the evidence at all.
+                baseline_settings=dict(baseline_doc.get("settings") or {}),
+                baseline_config_hash=str(baseline_doc.get("config_hash") or ""),
             )
             publish("evidence", "ok",
                     f"evidence collected: {len(frame.items)} citable items"

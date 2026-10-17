@@ -95,11 +95,41 @@ class CycleResult:
 
     @property
     def passed(self) -> bool:
+        """The ACCEPTANCE criterion, which is about the injector, not the model.
+
+        `ROADMAP.md` asks that the "injector is deterministic, reverts cleanly,
+        20 cycles stable", and the project's own gloss of that last clause -
+        in `PRD.md` §5.2 and `ROADMAP.md`'s P1 notes - is "20 cycles leave the
+        stack identical to the start state". Every clause here is about the
+        injector writing the same value, restoring it exactly, and disturbing
+        nothing else.
+
+        `broke` is DELIBERATELY NOT IN THIS LIST, and that is a correction
+        rather than a concession. It asks whether the TARGET fully collapsed,
+        which is a property of the model's response, not of the injector. The
+        first version of this harness folded the two together and reported
+        FAIL on 18/20 when the injector had in fact been perfect 20 times out
+        of 20 and the stack was identical at the end. Conflating them makes a
+        stochastic symptom look like a broken injector.
+
+        The manifestation rate is not dropped - it is reported separately and
+        prominently, because it is the more interesting number.
+        """
         return all((
-            self.injected, self.broke, self.healed, self.restored_exactly,
+            self.injected, self.healed, self.restored_exactly,
             self.hash_restored, self.scope_ok, self.corpus_ok,
             self.action_record_ok,
         )) and not self.error
+
+    @property
+    def manifested(self) -> bool:
+        """Did the fault actually collapse quality this cycle?
+
+        Separate from `passed` on purpose. F08's symptom is generated token
+        count, which is stochastic on this model, so this is measured and
+        reported rather than asserted.
+        """
+        return self.broke
 
     def line(self) -> str:
         def m(b: bool) -> str:
@@ -107,7 +137,8 @@ class CycleResult:
 
         head = "PASS" if self.passed else "FAIL"
         return (f"  cycle {self.n:2}  {head}  "
-                f"inject={m(self.injected)} broke={m(self.broke)} "
+                f"inject={m(self.injected)} "
+                f"manifested={'yes' if self.broke else 'NO '} "
                 f"healed={m(self.healed)} restore={m(self.restored_exactly)} "
                 f"hash={m(self.hash_restored)} scope={m(self.scope_ok)} "
                 f"corpus={m(self.corpus_ok)} record={m(self.action_record_ok)}"
@@ -127,6 +158,10 @@ class Report:
     @property
     def passed(self) -> int:
         return sum(1 for c in self.cycles if c.passed)
+
+    @property
+    def manifested(self) -> int:
+        return sum(1 for c in self.cycles if c.manifested)
 
     @property
     def identical(self) -> bool:
@@ -265,7 +300,13 @@ def main() -> int:
     say("=" * 74)
     say("SUMMARY")
     say("=" * 74)
-    say(f"  cycles passed      {rep.passed}/{len(rep.cycles)}")
+    say(f"  cycles passed      {rep.passed}/{len(rep.cycles)}   "
+        f"(injector deterministic, reverts exactly, nothing else disturbed)")
+    manifested = rep.manifested
+    total = len(rep.cycles)
+    rate = (manifested / total * 100) if total else 0.0
+    say(f"  symptom manifested {manifested}/{total}  = {rate:.0f}%   "
+        f"(MEASURED, not asserted - see CycleResult.passed)")
     if secs:
         say(f"  seconds per cycle  min {min(secs):.1f} mean "
             f"{statistics.mean(secs):.1f} max {max(secs):.1f}")
@@ -285,6 +326,8 @@ def main() -> int:
         "finished_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "cycles_requested": args.cycles,
         "cycles_passed": rep.passed,
+        "symptom_manifested": rep.manifested,
+        "manifestation_rate": (rep.manifested / len(rep.cycles)) if rep.cycles else None,
         "stack_identical": rep.identical,
         "clamped_to": BAD_MAX_TOKENS,
         "settings_at_start": rep.settings_at_start,

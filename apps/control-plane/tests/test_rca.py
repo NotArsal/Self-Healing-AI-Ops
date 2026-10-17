@@ -347,8 +347,15 @@ def test_prompt_includes_every_evidence_id() -> None:
 
 def test_prompt_explains_the_similarity_discriminator() -> None:
     """The one piece of reasoning the model cannot get right unaided."""
-    prompt = build_prompt(collapsed_frame())
-    assert "BEFORE" in prompt and "rerank" in prompt.lower()
+    # Whitespace-insensitive: the prose is wrapped, and pinning a phrase
+    # across a line break is how the previous version of this test broke on a
+    # reflow that changed nothing.
+    prompt = " ".join(build_prompt(collapsed_frame()).lower().split())
+    assert "rerank" in prompt
+    assert "similarity" in prompt
+    assert "upstream of the filter" in prompt, (
+        "the low-similarity case must be named as NOT F06"
+    )
 
 
 def test_schema_offers_the_whole_catalogue_not_just_f06() -> None:
@@ -517,14 +524,53 @@ def test_the_prompt_skeleton_cannot_be_returned_as_a_valid_answer() -> None:
         assert slot in text, f"{slot} must be a slot, not a value"
 
 
-def test_the_prompt_tells_the_model_to_check_the_endpoint_before_retrieval() -> None:
-    """An outage collapses grounding too, so F01 has to be ruled out first.
-    Measured live: kept_chunks 0.4, empty_context 0.85, similarity 0.675 -
-    F06's signature - with llm_error_ratio at 1.0."""
+def test_the_prompt_separates_the_three_implemented_classes() -> None:
+    """Asserted as a property of the SECTION, not as exact wording.
+
+    The first version of these checks pinned literal strings - "STALE", "This
+    is F01." - and broke the moment the section was restructured, even though
+    everything they were protecting was still there. What has to hold is that
+    all three implemented classes are discriminated, symmetrically, and that
+    the two traps measured live are named.
+    """
     text = PROMPT_PATH.read_text(encoding="utf-8")
+    lower = text.lower()
+
+    # All three implemented classes get a decision branch.
+    for fault in ("F01", "F06", "F08"):
+        assert f"--> {fault}" in text, f"{fault} has no branch in the table"
+
+    # Trap 1: an outage also destroys grounding, and similarity goes stale.
     assert "llm_error_ratio" in text
-    assert "STALE" in text, "the stale-quantile trap must be named"
-    assert "This is F01." in text
+    assert "stale" in lower, "the stale-quantile trap must be named"
+
+    # Trap 2: F08 is the one that needs noticing what is NOT wrong.
+    assert "grounding intact" in lower
+    assert "differs" in lower, "the config comparison marker must be explained"
+
+
+def test_each_implemented_class_gets_exactly_one_decision_branch() -> None:
+    """The bias this guards against was measured twice, in both directions.
+
+    With a retrieval-only section the model answered F06 for everything. After
+    a prominent "check this first ... This is F01." section was added, it
+    answered F01 for everything - including 10 of 10 against a real F08.
+
+    Counting how often each class is NAMED is a bad proxy for privilege: F06
+    is named more simply because it has two "this is NOT F06" caveats, which
+    are the opposite of favouritism. What does hold structurally is one
+    branch per class, in one table, so no class is reached by a route the
+    others do not have.
+    """
+    text = PROMPT_PATH.read_text(encoding="utf-8")
+    section = text[text.index("## How to tell the implemented classes apart"):
+                   text.index("## Rules")]
+    for fault in ("F01", "F06", "F08"):
+        assert section.count(f"--> {fault}") == 1, (
+            f"{fault} must have exactly one decision branch in the table"
+        )
+    # And every branch lives in that one section, not scattered.
+    assert text.count("-->") == section.count("-->")
 
 
 def test_the_prompt_repair_table_comes_from_the_registry() -> None:

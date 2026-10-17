@@ -223,8 +223,28 @@ def collect(
     baseline_rerank_threshold: float | None = None,
     backend_container: str = "rag_backend",
     include_logs: bool = True,
+    baseline_settings: dict[str, Any] | None = None,
+    baseline_config_hash: str = "",
 ) -> EvidenceFrame:
-    """Build the frame from the live system."""
+    """Build the frame from the live system.
+
+    `baseline_settings` and `baseline_config_hash` are what the capture on disk
+    recorded. Without them the frame shows a live setting with NOTHING to
+    compare it against, and `F08` - a class defined entirely by "this value
+    differs from the captured known-good" - becomes undiagnosable from the
+    evidence however the prompt is worded.
+
+    That is not hypothetical. Measured 2026-10-16, the RCA layer returned `F01`
+    in 10 of 10 runs against a real `F08`: the frame showed it `max_tokens = 2`
+    and carried a baseline for the rerank threshold alone, so the one fact that
+    identifies the fault was absent. Blaming the model for that would have been
+    the same error as blaming it for proposing "none" when
+    `switch_llm_endpoint` was missing from its output vocabulary.
+
+    The comparison goes in each item's `expected` field rather than as extra
+    `EV-` entries, because the frame has a ~768-token budget and doubling the
+    config section to carry its own baseline would crowd out the logs.
+    """
     frame = EvidenceFrame(
         collected_at=datetime.now(UTC).isoformat(timespec="seconds")
     )
@@ -257,14 +277,31 @@ def collect(
     try:
         cfg = client.config()
         settings = cfg.get("settings", {})
+        base = baseline_settings or {}
         for n, key in enumerate(
             ("rerank_threshold", "llm_model", "llm_base_url", "max_tokens",
              "chaos_enabled", "llm_timeout_s"), start=1
         ):
+            live = settings.get(key)
+            # The captured known-good sits in `expected`, so every config line
+            # carries its own comparison and a drifted setting is visible
+            # without the model having to remember a baseline from elsewhere.
+            if key in base:
+                want = base[key]
+                expected = (f"baseline {want!r}"
+                            + ("" if live == want else "  <-- DIFFERS"))
+            else:
+                expected = "no baseline captured for this key"
             frame.add(eid=f"EV-C{n:02d}", kind="config", name=key,
-                      value=settings.get(key))
+                      value=live, expected=expected)
+        live_hash = cfg.get("config_hash")
         frame.add(eid="EV-C07", kind="config", name="config_hash",
-                  value=cfg.get("config_hash"))
+                  value=live_hash,
+                  expected=(f"baseline {baseline_config_hash!r}"
+                            + ("" if live_hash == baseline_config_hash
+                               else "  <-- DIFFERS")
+                            if baseline_config_hash
+                            else "no baseline config_hash captured"))
         pv = (cfg.get("prompt_version") or {}).get("files", {})
         frame.add(eid="EV-C08", kind="config", name="prompt_file_hashes", value=pv)
     except TargetError as exc:

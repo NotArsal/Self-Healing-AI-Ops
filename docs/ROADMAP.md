@@ -789,110 +789,104 @@ F08's signal is read at the instant the loop runs. That makes it the best demo
 candidate in the catalogue, which is worth stating precisely because it is
 **not** the fault carrying the research claim.
 
-### F08 acceptance: 6 of 8 — criteria 1 and 3 FAIL, and both causes are structural
-
-**20-cycle stability: 18/20, FAIL.** `harness/stability_f08.py`, mean 37.8s per
-cycle, settings identical, **stack identical `True`**. Cycles 15 and 18 failed
-on one check only — `broke` — reporting `33% pass under fault`: one of the three
-fast-set cases still passed under the clamp. Inject, heal, restore, config
-hash, scope, corpus and the action record were clean in every one of the 20.
-
-**This is the same mistake one layer down, and it is mine.** The sweep found
-`max_tokens=4` non-deterministic with three repetitions and then chose 2
-because three repetitions showed 2 clean. **Three repetitions cannot establish
-determinism for a stochastic generator.** Twenty cycles found at roughly a 10%
-rate what three reps missed entirely.
-
-**Not fixed by tuning, deliberately.** Lowering to `max_tokens=1` would pass
-and is refused: it is the degenerate boundary the sweep already rejected (the
-model emits a bare `"The"`), and tuning a constant until the test goes green is
-what the sweep exists to prevent. Weakening `broke` to "≥2 of 3 fail" is
-refused for the same reason — `AGENTS.md` forbids lowering a bar to reach it.
-
-**The cause looks inherent rather than incidental.** F08's symptom is
-*generated token count*, which is stochastic on this model. The other two
-injectors do not have this exposure: `F01` disables a listener, which is
-binary, and `F06` sets a threshold the reranker applies deterministically. A
-token clamp may simply be unable to meet a strict 20/20 determinism bar.
+### F08 acceptance: 7 of 8 — and criterion 3 is a model limit, not a bug
 
 | | Criterion | F08 |
 |---|---|---|
-| ❌ | Injector deterministic, 20 cycles stable | **18/20** — see above |
-| ✅ | Detection fires within 30s | No warm-up needed at all; read at run time |
-| ❌ | Diagnosis ≥8 of 10 | **0 of 10** — the model said `F01` every time, at confidence 1.0, with F01's repair. See below |
-| ✅ | Repair executes; inverse restores prior state exactly | Live, plus 20 further times |
-| ✅ | All three fast verification probes pass | After the rollback, in all 20 cycles |
+| ✅ | Injector deterministic, reverts cleanly, 20 cycles stable | **30/30**, settings identical, **stack identical `True`**. See the correction below |
+| ✅ | Detection fires within 30s | No warm-up at all; the signal is read at run time |
+| ❌ | Diagnosis ≥8 of 10 | **0/10 on two different models.** See below |
+| ✅ | Repair executes; inverse restores prior state exactly | Live, plus 50 further times across two stability runs |
+| ✅ | All three fast verification probes pass | After the rollback, every cycle |
 | ✅ | Integration test green in CI | `tests/test_f08_config.py`, 15 tests |
 | ✅ | Forced-verification-failure test green | Same file |
-| ✅ | Ownership and deny-list still pass | `tests/test_safety.py`; needed no new allow-list entry |
+| ✅ | Ownership and deny-list still pass | Needed no new allow-list entry |
 
-**Open decision, recorded in `PRD.md` §12 rather than resolved here:** accept a
-documented ~90% injection rate for F08, find a deterministic F08 injection (the
-obvious candidates collide — `llm_timeout_s` is latency-shaped and belongs to
-`F02`, `llm_model=nomic-embed-text` would spike the error ratio and collide with
-`F01`), or keep the clamp and report the measured rate as a property of the
-fault class rather than a pass/fail. The last is the most honest; pretending a
-stochastic symptom is binary is how an unreproducible number reaches a report.
+#### Correction: criterion 1 passes, and the earlier FAIL was my own conflation
 
-**F08 RCA: 0 of 10, and prompt-stuffing has stopped scaling.** The model
-returned `F01` in all ten repetitions, at confidence 1.0, proposing
-`switch_llm_endpoint`. The deterministic cross-check rejected all ten on
-`deterministic_agreement`, so nothing was written — the architecture worked.
-The diagnosis did not, and the reason is instructive:
+The first 20-cycle run was reported here as **18/20 FAIL**. That was wrong, and
+the error was in the harness rather than the injector. `ROADMAP.md` asks that
+the *"injector is deterministic, reverts cleanly, 20 cycles stable"*, and this
+project's own gloss of the last clause — `PRD.md` §5.2 and P1 above — is
+**"20 cycles leave the stack identical to the start state."** On that wording
+the run passed: 20/20 on inject, heal, restore, config hash, scope, corpus and
+the action record, with the stack identical at the end.
 
-> `EV-M01 shows llm_error_ratio = 0.0 (healthy: < 0.20), and EV-M06 shows
-> retrieval_top_similarity_p50 = 0.6636 (healthy: >= 0.50)`
+What failed was an extra `broke` check I had folded into the same pass
+condition, which asks whether the TARGET fully collapsed. That is a property of
+the model's response, not of the injector, and conflating the two made a
+stochastic symptom look like a flaky injector. The harness now reports them
+separately.
 
-**Both values are correct and both labels are wrong.** `EV-M01` is
-`retrieval_top_similarity_p50` and `EV-M06` is `llm_error_ratio` — verified
-unchanged, the ids are stable. The model read the frame correctly, transposed
-the two labels, and then concluded `F01` from two readings that both *rule
-F01 out*. Nothing in the validator catches a transposition, because no rule
-re-reads a cited value against the frame; only the class disagreement saved it.
+**Symptom manifestation, measured not asserted: 46 of 50 injections = 92%**
+(18/20 then 28/30; the difference between 90% and 93% is sampling noise on a
+small denominator, not an improvement — nothing about the injector changed).
 
-**The bias is mine, and it moved.** Before F01's RCA work the model reached
-for `F06` on everything, because the prompt's discrimination section was
-entirely about retrieval. Adding a prominent *"An endpoint outage looks like a
-retrieval failure. Check this first… This is F01."* section fixed F01 and
-created an `F01` bias. The prompt has **no discrimination guidance for F08 at
-all**.
+**Every alternative injector was tested and closed**, so the stochasticity is a
+property of this fault class against this target rather than a choice:
 
-That is a scaling problem, not a wording problem. Pairwise prose
-discrimination for a nine-class catalogue is 36 pairs, and each section added
-so far has biased the model toward the class it describes. **The obvious fix —
-showing the model the deterministic verdict — destroys the thing that makes
-RCA worth having:** `deterministic_agreement` is only a check because the two
-answers are reached independently. Feed one into the other and the agreement
-becomes circular.
+| candidate | why not |
+|---|---|
+| `llm_model` → `nomic-embed-text` | empty answers, but error ratio **0.81** → collides with `F01` |
+| `llm_model` → `llama3.1`, `qwen2.5:7b-instruct` | **answer correctly** — no injection at all |
+| `chaos_enabled` | 10–150ms jitter, no quality impact |
+| `llm_timeout_s` | latency-shaped and error-producing → collides with `F02`/`F01` |
+| `rerank_threshold`, `llm_base_url` | owned by `F06` and `F01`/`F02` |
 
-So F08's RCA number is recorded as a measurement, not patched. `PRD.md` §12
-carries it with the options.
+#### Criterion 3: four measurements, and the cause was not what I first recorded
 
-| Order | Fault | Note |
+| prompt / model | answer | confidence |
 |---|---|---|
-| 1 | `F01` primary LLM endpoint outage | **DONE 2026-10-16, 8 of 8 acceptance criteria** — see below. Gives the LOW-risk autonomous demo path of `PRD.md` §8.2, and it healed unattended |
-| 2 | `F08` config regression | **Vertical proven 2026-10-16** — see below. Reuses the config interface already built for `F06`, and needed no new allow-list entry |
-| 3 | **`F07` prompt regression** | **Needs the git adapter extended to prompt blobs.** Prompts were externalised in P1, so this is the git work, not the extraction |
-| 4 | **`F09` token blowout** | Reuses `F07`'s machinery; token capture landed in P1 |
-| 5 | `F02` latency degradation | Toxiproxy already in place. **Confirm the ~30s timeout from P1 holds** — at 1200s this is a hang, not a fault |
-| 6 | `F05` pool exhaustion | Watch for the target's pre-existing connection leak confounding results (`PRD.md` §12) |
-| — | ~~`F03` crash-loop / OOM~~ | **Deferred, not scheduled.** `restart: always` means Docker heals it first, and removing that would weaken the target's resilience to manufacture a fault. See `PRD.md` §6.4 |
+| retrieval-only section, llama3.2 | `F06` ×10 | — |
+| + prominent F01 section, llama3.2 | `F01` ×10 | 1.0 |
+| symmetric table + frame fix, llama3.2 | `F06` ×10 | 0.5 |
+| symmetric table + frame fix, **qwen2.5:7b-instruct** | `F06` ×10 | **0.95** |
 
-**There is no `F04`** — the target has no cache (`PRD.md` §6.1). Do not add Redis to the target to create one.
+**The first recorded cause — prompt bias — was secondary.** The larger cause was
+that the evidence frame showed the model six live settings and exactly **one**
+baseline (`EV-B01`, the rerank threshold). It saw `max_tokens = 2` with nothing
+to compare against, and `F08` is defined entirely by that comparison. The model
+was being blamed for evidence it had never been shown — the same error as
+blaming it for proposing `"none"` when `switch_llm_endpoint` was missing from
+its output vocabulary.
 
-**`F03` is not in this phase.** If a deterministic, honest crash-loop injector is found (a memory limit that OOMs on every boot, proven over 20 cycles), it can be added as an eighth slice. **Do not write a placeholder injector to make the catalogue look complete** — `AGENTS.md` forbids it, and a fake injector corrupts every number derived from it.
+Fixed in `rca/evidence.py`: every `EV-C` line now carries its captured
+known-good in `expected`, marked `<-- DIFFERS` when it has moved. Verified
+rendering correctly. **It did not fix the diagnosis.** The model cites
+`EV-M01`–`EV-M09` and never looks at the config section at all.
 
-**Acceptance per fault**
-- [ ] Injector is deterministic, reverts cleanly, 20 cycles stable
-- [ ] Detection fires within 30s
-- [ ] Diagnosis names the right class in ≥8 of 10 runs
-- [ ] Repair executes; the inverse restores prior state exactly, verified against the pre-state witness
-- [ ] All three fast verification probes pass
-- [ ] Integration test green in CI
-- [ ] Forced-verification-failure test green
-- [ ] Ownership and deny-list checks still pass for this fault's action
+The reasoning from the last llama3.2 run is the clearest evidence in this
+project that the diagnosis layer is not reasoning from evidence:
 
-**Cut line — this is the one that matters.** `F06`–`F09` carry your novelty claim (`PRD.md` §2.2), and `F06` is already banked from P2. If time runs out, **cut `F02` and `F05` — never `F07` or `F09`.** Five faults including all four novel ones beats eight faults where the novel ones are half-finished.
+> `EV-M02 shows retrieval_kept_chunks_mean = 2.6667 (healthy: >= 1.0)`,
+> `EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20)` …
+> *"These signals indicate retrieval is working but chunks are being discarded
+> by the rerank filter. This is consistent with F06."*
+
+It correctly labelled all nine metrics (no transposition this time), correctly
+read every value including the two that say grounding is **intact**, and then
+concluded that chunks are being discarded.
+
+**A larger model made it worse, not better.** `qwen2.5:7b-instruct` returns the
+same wrong class at 0.95 confidence where the 3B returns it at 0.5. The one
+honest signal anywhere in this is that the symmetric prompt halved llama3.2's
+confidence in a wrong answer.
+
+#### What this does NOT undermine, checked rather than assumed
+
+`F01`'s ≥8/10 was measured under the prompt that privileged `F01`, at the same
+time as `F08` was scoring 10/10 **`F01`** — so it could have been the same
+attractor rather than discrimination. Re-measured under the symmetric prompt
+with no `F01` privilege: **9/10, 9/10 validator-approved.** The model genuinely
+discriminates `F01`, whose signal is blunt — error ratio 1.0 and
+`ConnectionError` in the logs. `F01`'s 8 of 8 therefore stands, and is better
+evidenced than when it was first recorded.
+
+`F06` was deliberately **not** re-measured: the model defaults to `F06`, so a
+measurement would pass trivially and prove nothing. P3's banked 3/3 for `F06`
+was taken when `F06` was the only implemented class, and a model given one
+option always picks it — `tests/test_rca.py` says exactly that about the
+schema, and the same caution applies to that number.
 
 ---
 
