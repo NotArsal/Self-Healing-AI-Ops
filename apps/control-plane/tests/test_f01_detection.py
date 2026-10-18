@@ -427,21 +427,56 @@ def test_the_frame_and_the_detector_read_kept_chunks_identically() -> None:
     )
 
 
-def test_only_the_unconstrained_retrieval_window_was_shortened() -> None:
-    """`similarity_p50` and `empty_context_ratio` mirror a declared
-    `window_s: 600` in the target's manifest; `kept_chunks` has no SLO at all.
+def test_the_detector_windows_match_the_manifest_they_mirror() -> None:
+    """A signal with a declared `window_s` must be read over that window.
 
-    That asymmetry is the whole reason the shortening was a detector-local
-    change rather than a spec change, and it is load-bearing: a later edit
-    that quietly shortened one of the manifest-backed signals WOULD diverge
-    from the contract, and nothing else in the suite would notice.
+    This replaces a test that pinned `similarity_p50` and
+    `empty_context_ratio` at a literal `[10m]`. That was the right guard for
+    one day and the wrong shape: when `empty_context_ratio` was shortened to
+    `[1m]` on 2026-10-18 as a deliberate spec change (`ADR 0010`), the test
+    failed for doing its job, and "edit the literal" is not a check.
+
+    The invariant worth holding is not a number, it is AGREEMENT: whatever
+    the manifest declares, the detector reads. Written this way the pair
+    cannot drift in either direction - shortening the detector alone now
+    fails here, and so does shortening the manifest alone.
+
+    `kept_chunks_mean` is deliberately absent: it has no SLO in the manifest,
+    which is precisely why it could be shortened without a spec change.
     """
+    import re
+    from pathlib import Path
+
+    import yaml
+
+    from kavach.config import get_settings
     from kavach.detection.retrieval_collapse import QUERIES as F06_QUERIES
 
-    assert "[1m]" in F06_QUERIES["kept_chunks_mean"]
-    for constrained in ("similarity_p50", "empty_context_ratio"):
-        assert "[10m]" in F06_QUERIES[constrained], (
-            f"{constrained} mirrors kavach.yaml's declared window_s: 600. "
-            f"Shortening it is a spec change and needs a decision record, "
-            f"not an edit"
+    manifest = yaml.safe_load(
+        (Path(get_settings().target_path) / "kavach.yaml").read_text(
+            encoding="utf-8"))
+    declared = {s["name"]: int(s["window_s"]) for s in manifest["slo"]}
+
+    # detector signal -> the manifest SLO it mirrors
+    mirrored = {
+        "similarity_p50": "retrieval_similarity_p50",
+        "empty_context_ratio": "empty_context_ratio",
+    }
+    units = {"s": 1, "m": 60, "h": 3600}
+    for signal, slo_name in mirrored.items():
+        windows = set(re.findall(r"\[(\d+)([smh])\]", F06_QUERIES[signal]))
+        assert windows, f"{signal} declares no window at all"
+        seconds = {int(n) * units[u] for n, u in windows}
+        assert len(seconds) == 1, (
+            f"{signal} mixes windows {seconds}; one query, one window"
         )
+        assert seconds.pop() == declared[slo_name], (
+            f"{signal} is read over a different window than kavach.yaml "
+            f"declares for {slo_name} ({declared[slo_name]}s). The manifest "
+            f"is the contract: change both together or neither"
+        )
+
+    assert "kept_chunks" not in str(declared), (
+        "kept_chunks has gained an SLO in the manifest. Its window is no "
+        "longer detector-local and shortening it is now a spec change too"
+    )

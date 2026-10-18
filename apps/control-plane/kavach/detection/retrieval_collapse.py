@@ -155,9 +155,44 @@ QUERIES: dict[str, str] = {
         "rate(ragapp_retrieval_kept_chunks_sum[1m]) "
         "/ clamp_min(rate(ragapp_retrieval_kept_chunks_count[1m]), 1e-9)"
     ),
+    # WINDOW MEASURED, NOT CHOSEN - 1m, and this one IS a spec change.
+    #
+    # Unlike kept_chunks_mean two entries above, this signal mirrors a
+    # declared `window_s: 600` in the target's manifest, so shortening it in
+    # the detector alone would diverge from the contract. The manifest was
+    # changed in the same commit and `ADR 0010` records why.
+    #
+    # It had to move because F06 claims on `kept_chunks low OR
+    # empty_context high`. Once kept_chunks went to [1m] this became the SOLE
+    # remaining contaminator, and on its own it was enough: measured
+    # 2026-10-18, at [10m] it takes 494.1s - over eight minutes - to forget a
+    # fault. For that whole time, any NEXT fault of any class is diagnosed
+    # ambiguously, because F06 claims from the stale ratio alongside whatever
+    # detector is actually right. Observed three times in a row on F07 and
+    # F08 before it was understood.
+    #
+    #     window   detects fault   forgets it
+    #     30s      18.6s           19.3s
+    #     1m       37.7s           59.1s      <- chosen
+    #     2m       56.6s           99.4s
+    #     5m       76.0s           255.5s
+    #     10m      131.9s          494.1s
+    #
+    # 1m over 30s to match kept_chunks_mean and for the same sample-headroom
+    # reason, and because this ratio is the more fragile of the two: it is a
+    # proportion with a 0.20 ceiling, so ONE empty context in a window
+    # holding three requests reads 0.33. A shorter window makes a single
+    # transient blip louder.
+    #
+    # WHAT THIS DOES NOT FIX, STATED PLAINLY: it shortens the collision
+    # window from eight minutes to about one. It does not make a spurious
+    # F06 claim impossible, because a blip inside that minute can still
+    # coincide with another fault failing the fast set. Eliminating it would
+    # mean requiring BOTH grounding signals rather than either, which makes
+    # F06 strictly harder to detect and is a separate decision.
     "empty_context_ratio": (
-        "(sum(rate(ragapp_retrieval_empty_context_total[10m])) or vector(0)) "
-        "/ clamp_min(sum(rate(ragapp_retrieval_kept_chunks_count[10m])), 1e-9)"
+        "(sum(rate(ragapp_retrieval_empty_context_total[1m])) or vector(0)) "
+        "/ clamp_min(sum(rate(ragapp_retrieval_kept_chunks_count[1m])), 1e-9)"
     ),
     "corpus_chunks": "ragapp_corpus_chunks",
     # NOT a retrieval signal, and that is the point: it is the precondition.

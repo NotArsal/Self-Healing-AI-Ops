@@ -51,8 +51,8 @@ METRIC_QUERIES: dict[str, str] = {
         "/ clamp_min(rate(ragapp_retrieval_kept_chunks_count[1m]), 1e-9)"
     ),
     "retrieval_empty_context_ratio": (
-        "(sum(rate(ragapp_retrieval_empty_context_total[10m])) or vector(0)) "
-        "/ clamp_min(sum(rate(ragapp_retrieval_kept_chunks_count[10m])), 1e-9)"
+        "(sum(rate(ragapp_retrieval_empty_context_total[1m])) or vector(0)) "
+        "/ clamp_min(sum(rate(ragapp_retrieval_kept_chunks_count[1m])), 1e-9)"
     ),
     "corpus_chunks": "ragapp_corpus_chunks",
     "corpus_files": "ragapp_corpus_files",
