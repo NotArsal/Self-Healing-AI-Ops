@@ -1,0 +1,328 @@
+"""Model providers. One registry, one OpenAI-compatible client, one factory.
+
+Ollama stays the default and stays the reported configuration (`PL-02`: no
+cloud key may be REQUIRED for Kavach to run). The cloud providers exist
+because of one measured finding: no local 3B-7B model wrote a unified diff
+that applies, 0 of 15 (ADR 0011). Diagnosis is not the bottleneck; writing a
+diff is, and the obvious next variable is a bigger model.
+
+WHY ONE CLIENT FOR FOUR PROVIDERS
+Groq, OpenRouter, Gemini and OpenCode Zen all speak the OpenAI chat
+completions protocol: `POST {base}/chat/completions`, a bearer token, and
+`response_format` for structured output. So they differ only in a base URL,
+an environment variable and a default model, which makes them a TABLE rather
+than four classes. Adding a provider is one row.
+
+Ollama is the odd one out - its own `/api/chat` with a `format` field - and
+it already has a working client, so it keeps it.
+
+EVERY RESPONSE CARRIES THE PROVIDER THAT PRODUCED IT
+`LlmResponse.provider` is not decoration. Every number in this project is
+"model X scored Y": RCA 10 of 10, the 0 of 15 diff finding, the MTTR
+figures. The moment the provider can vary between runs, a result without its
+provenance is unreproducible, and the measurements are the deliverable. So
+provenance travels with the response rather than being remembered by the
+caller.
+
+NO SILENT FALLBACK BETWEEN PROVIDERS
+There is deliberately no "try the cloud, fall back to Ollama" path here. It
+would make the model that produced a given result non-deterministic, which
+is the same defect in a different coat. A caller that wants a fallback must
+ask for each provider explicitly and record which one answered.
+
+SECRETS
+A key is read from the environment, sent in a header, and never logged,
+never put in an exception message, and never written to a record. The error
+paths below quote status codes and response bodies; `_scrub` exists because
+a provider that echoes the Authorization header into an error body would
+otherwise leak it into an audit log that is append-only by design.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import json
+import os
+import time
+import urllib.error
+import urllib.request
+from dataclasses import dataclass
+from typing import Any
+
+from kavach.llm.client import (
+    LlmClient,
+    LlmError,
+    LlmResponse,
+    OllamaClient,
+    assert_not_proxied,
+)
+
+OLLAMA = "ollama"
+
+
+@dataclass(frozen=True)
+class Provider:
+    """One OpenAI-compatible endpoint."""
+
+    name: str
+    base_url: str
+    key_env: str
+    default_model: str
+    note: str = ""
+
+
+# The table. A base URL here NEVER includes `/chat/completions`: the client
+# appends it, and including it doubles the path for a 404 that looks like an
+# auth problem.
+PROVIDERS: dict[str, Provider] = {
+    "openrouter": Provider(
+        name="openrouter",
+        base_url="https://openrouter.ai/api/v1",
+        key_env="KAVACH_OPENROUTER_API_KEY",
+        default_model="anthropic/claude-sonnet-4.5",
+        note="one key, most models; model string selects the vendor",
+    ),
+    "groq": Provider(
+        name="groq",
+        base_url="https://api.groq.com/openai/v1",
+        key_env="KAVACH_GROQ_API_KEY",
+        default_model="llama-3.3-70b-versatile",
+        note="fast inference, open-weight models only",
+    ),
+    "gemini": Provider(
+        name="gemini",
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+        key_env="KAVACH_GEMINI_API_KEY",
+        default_model="gemini-2.5-flash",
+        note="Google's OpenAI-compatibility layer, not the native API",
+    ),
+    "opencodezen": Provider(
+        name="opencodezen",
+        base_url="https://opencode.ai/zen/v1",
+        key_env="KAVACH_OPENCODEZEN_API_KEY",
+        default_model="",
+        note="base path unverified against a live call; see ADR 0012",
+    ),
+}
+
+# TokenRouter is deliberately absent. It was asked for, searched for on
+# 2026-10-18, and no public API could be confirmed. Inventing a base URL
+# would produce a provider that fails at the first call with a misleading
+# error. It is one row away whenever its documentation turns up.
+
+
+def _scrub(text: str, key: str) -> str:
+    """Never let a key reach a log, a record or an exception message."""
+    if key and key in text:
+        text = text.replace(key, "***")
+    return text
+
+
+def key_for(spec: Provider) -> str:
+    """The key for a provider, from settings first and the environment second.
+
+    Settings FIRST because that is where `.env` actually lands.
+    `pydantic_settings` reads `.env` into the `Settings` object, not into
+    `os.environ`, so a key written to `.env` - which is exactly what a user
+    is told to do, and the only gitignored place for it - is invisible to
+    `os.environ.get`. Reading the environment alone would mean every key
+    silently appeared absent unless it had also been exported by hand.
+
+    The environment is still consulted, because compose and CI set variables
+    that way and never write a `.env`.
+    """
+    field = f"{spec.name}_api_key"
+    try:
+        from kavach.config import get_settings
+
+        value = str(getattr(get_settings(), field, "") or "")
+        if value:
+            return value
+    except Exception:
+        # Settings may be unconstructable in a bare context (a probe script,
+        # a test). The environment is then the only source, which is fine.
+        pass
+    return os.environ.get(spec.key_env, "")
+
+
+class OpenAiCompatClient:
+    """Any provider that speaks OpenAI chat completions.
+
+    Structured output uses `response_format: {"type": "json_schema", ...}`
+    with `strict: true`, which is the closest equivalent to Ollama's
+    grammar-constrained decoding. Our schemas already set
+    `additionalProperties: false` and list every property in `required`,
+    which strict mode requires, so they pass through unchanged.
+
+    A provider that does not support strict json_schema fails loudly here
+    rather than quietly degrading to free text. Degrading would mean the
+    decoder constraint silently stopped existing, and `rca/schema.py` records
+    at length what unconstrained decoding costs this project.
+    """
+
+    def __init__(
+        self,
+        provider: Provider,
+        model: str = "",
+        api_key: str = "",
+        timeout_s: float = 180.0,
+    ) -> None:
+        assert_not_proxied(provider.base_url)
+        self.provider = provider
+        self.base_url = provider.base_url.rstrip("/")
+        self.model = model or provider.default_model
+        self._key = api_key or key_for(provider)
+        self.timeout_s = timeout_s
+        if not self.model:
+            raise LlmError(
+                f"provider {provider.name!r} has no default model, so a model "
+                f"must be given explicitly (KAVACH_LLM_MODEL)"
+            )
+
+    # --- availability -------------------------------------------------------
+
+    def available(self) -> bool:
+        """A key is present and `/models` answers.
+
+        Checked rather than assumed because the failure it catches - a key
+        that is absent, expired or for the wrong provider - otherwise surfaces
+        in the middle of a measurement run as a 401 that looks like a model
+        problem.
+        """
+        if not self._key:
+            return False
+        try:
+            req = urllib.request.Request(
+                f"{self.base_url}/models",
+                headers={"Authorization": f"Bearer {self._key}"},
+            )
+            with urllib.request.urlopen(req, timeout=15) as r:
+                json.load(r)
+            return True
+        except Exception:
+            return False
+
+    # --- the one call -------------------------------------------------------
+
+    def structured(
+        self,
+        system: str,
+        user: str,
+        schema: dict[str, Any],
+        temperature: float = 0.0,
+    ) -> LlmResponse:
+        if not self._key:
+            raise LlmError(
+                f"no API key for {self.provider.name}: set "
+                f"{self.provider.key_env} in .env. Kavach runs on Ollama "
+                f"without any cloud key (PL-02); a cloud provider is opt-in"
+            )
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "kavach_reply",
+                    "strict": True,
+                    "schema": schema,
+                },
+            },
+            "stream": False,
+            # Same determinism contract as the Ollama path. `seed` is honoured
+            # by some providers and ignored by others; sending it costs
+            # nothing and the ones that honour it become reproducible.
+            "temperature": temperature,
+            "top_p": 1.0,
+            "seed": 42,
+        }
+        req = urllib.request.Request(
+            f"{self.base_url}/chat/completions",
+            data=json.dumps(payload).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self._key}",
+            },
+            method="POST",
+        )
+        started = time.perf_counter()
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout_s) as r:
+                data = json.load(r)
+        except urllib.error.HTTPError as exc:
+            detail = ""
+            with contextlib.suppress(Exception):
+                detail = exc.read().decode("utf-8", "replace")[:300]
+            raise LlmError(
+                f"{self.provider.name} returned HTTP {exc.code}: "
+                f"{_scrub(detail, self._key)}"
+            ) from exc
+        except Exception as exc:
+            raise LlmError(
+                f"{self.provider.name} call failed: "
+                f"{_scrub(str(exc), self._key)}"
+            ) from exc
+        elapsed = time.perf_counter() - started
+
+        try:
+            content = data["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise LlmError(
+                f"unexpected {self.provider.name} response shape: "
+                f"{_scrub(str(data)[:300], self._key)}"
+            ) from exc
+        if content is None:
+            raise LlmError(
+                f"{self.provider.name} returned no content; the model may "
+                f"have refused or hit a length limit"
+            )
+
+        usage = data.get("usage") or {}
+        return LlmResponse(
+            raw=str(content),
+            model=str(data.get("model") or self.model),
+            latency_s=elapsed,
+            prompt_tokens=int(usage.get("prompt_tokens") or 0),
+            completion_tokens=int(usage.get("completion_tokens") or 0),
+            provider=self.provider.name,
+        )
+
+
+def names() -> list[str]:
+    """Every provider that can be selected, Ollama included."""
+    return [OLLAMA, *sorted(PROVIDERS)]
+
+
+def build(
+    provider: str = OLLAMA,
+    model: str = "",
+    base_url: str = "",
+    api_key: str = "",
+) -> LlmClient:
+    """The one way to obtain a model client.
+
+    `provider` is explicit. There is no auto-detection from which key happens
+    to be set: that would make the model behind a measurement depend on the
+    contents of a `.env` file nobody reads, and the whole point of carrying
+    provenance is that it is never inferred.
+    """
+    key = provider.strip().lower() or OLLAMA
+    if key == OLLAMA:
+        return OllamaClient(
+            base_url=base_url or "http://localhost:11434",
+            model=model or "llama3.2",
+        )
+    spec = PROVIDERS.get(key)
+    if spec is None:
+        raise LlmError(
+            f"unknown provider {provider!r}; available: {names()}"
+        )
+    if base_url:
+        spec = Provider(
+            name=spec.name, base_url=base_url, key_env=spec.key_env,
+            default_model=spec.default_model, note=spec.note,
+        )
+    return OpenAiCompatClient(spec, model=model, api_key=api_key)

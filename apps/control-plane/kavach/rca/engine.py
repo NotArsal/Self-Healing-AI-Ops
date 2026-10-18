@@ -21,7 +21,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from kavach.detection import base as det
-from kavach.llm.client import LlmError, LlmResponse, OllamaClient
+from kavach.llm.client import LlmClient, LlmError, LlmResponse
 from kavach.rca import validate as policy
 from kavach.rca.evidence import EvidenceFrame
 from kavach.rca.schema import Diagnosis, ollama_schema
@@ -144,7 +144,7 @@ def diagnose(
     frame: EvidenceFrame,
     deterministic: det.Detection,
     confidence_threshold: float,
-    llm: OllamaClient | None = None,
+    llm: LlmClient | None = None,
     llm_call: LlmCall | None = None,
     declared_services: set[str] | None = None,
     prompt_path: Path | None = None,

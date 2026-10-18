@@ -52,7 +52,7 @@ from kavach.config import get_settings  # noqa: E402
 from kavach.detection import catalogue  # noqa: E402, F401 - registers detectors
 from kavach.executor import apply_patch, sandbox  # noqa: E402
 from kavach.executor.config_rollback import ActionError  # noqa: E402
-from kavach.llm.client import OllamaClient  # noqa: E402
+from kavach.llm import providers  # noqa: E402
 from kavach.onboarding.manifest import load as load_manifest  # noqa: E402
 from kavach.rca import patch_engine  # noqa: E402
 from kavach.target import TargetClient, TargetEndpoints  # noqa: E402
@@ -66,7 +66,8 @@ def say(m: str = "") -> None:
     print(m, flush=True)
 
 
-def probe(model: str, ollama: str, n: int, json_out: str) -> int:
+def probe(provider: str, model: str, ollama: str, n: int,
+          json_out: str) -> int:
     """How often does this model write a patch that actually applies?
 
     Separated from the live run because it needs no target, no sandbox and
@@ -90,7 +91,8 @@ def probe(model: str, ollama: str, n: int, json_out: str) -> int:
         {"fault_class": "F07", "service": "backend", "confidence": 0.9},
         "EV-C08 prompt answer.txt changed from baseline; grounding absent",
         f"prompts/{PROMPT_FILE}", DEGRADED_PROMPT)
-    llm = OllamaClient(ollama, model)
+    llm = providers.build(provider, model, ollama)
+    model = llm.model
 
     applies = 0
     failures: list[str] = []
@@ -113,12 +115,13 @@ def probe(model: str, ollama: str, n: int, json_out: str) -> int:
             except git.GitAdapterError as exc:
                 failures.append(str(exc)[:160])
 
-    say(f"{model}: {applies}/{n} patches apply to the file")
+    say(f"{provider}/{model}: {applies}/{n} patches apply to the file")
     for f in failures[:3]:
         say(f"   {f}")
     Path(json_out).parent.mkdir(parents=True, exist_ok=True)
     Path(json_out).write_text(json.dumps(
-        {"model": model, "runs": n, "applies": applies,
+        {"provider": provider, "model": model, "runs": n,
+         "applies": applies,
          "failures": failures[:10],
          "measured": datetime.now(UTC).isoformat(timespec="seconds")},
         indent=2), encoding="utf-8", newline="")
@@ -128,7 +131,12 @@ def probe(model: str, ollama: str, n: int, json_out: str) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--ollama", default="http://127.0.0.1:11434")
-    ap.add_argument("--model", default="qwen2.5:7b-instruct")
+    ap.add_argument("--model", default="",
+                    help="blank uses the provider's own default")
+    ap.add_argument("--provider", default="ollama",
+                    choices=providers.names(),
+                    help="ollama is the default and the reported "
+                         "configuration; a cloud provider is opt-in")
     ap.add_argument("--json-out",
                     default=str(ROOT / "harness" / "reports" / "p7-patch-live.json"))
     ap.add_argument("--probe", type=int, default=0, metavar="N",
@@ -137,7 +145,8 @@ def main() -> int:
     args = ap.parse_args()
 
     if args.probe:
-        return probe(args.model, args.ollama, args.probe, args.json_out)
+        return probe(args.provider, args.model, args.ollama,
+                     args.probe, args.json_out)
 
     settings = get_settings()
     client = TargetClient(TargetEndpoints(
@@ -154,6 +163,7 @@ def main() -> int:
 
     out: dict[str, object] = {
         "started": datetime.now(UTC).isoformat(timespec="seconds"),
+        "provider": args.provider,
         "model": args.model,
     }
 
@@ -181,7 +191,7 @@ def main() -> int:
         out["production_passed_under_fault"] = prod_fast.passed
 
         say("\n[2/4] asking the model for a patch")
-        llm = OllamaClient(base_url=args.ollama, model=args.model)
+        llm = providers.build(args.provider, args.model, args.ollama)
         witness = {f"prompts/{PROMPT_FILE}": apply_patch.digest(degraded)}
         diagnosis = {
             "fault_class": "F07", "service": "backend", "confidence": 0.9,

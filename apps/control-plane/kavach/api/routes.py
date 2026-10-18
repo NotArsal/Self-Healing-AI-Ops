@@ -34,7 +34,7 @@ from kavach.api.runner import (
     NotAwaitingError,
 )
 from kavach.config import Settings, get_settings
-from kavach.llm.client import OllamaClient
+from kavach.llm import providers
 from kavach.onboarding import preflight
 from kavach.onboarding.baseline import _promql
 from kavach.target import TargetError
@@ -237,7 +237,8 @@ async def system(
     except (TargetError, TypeError, ValueError):
         threshold = None
 
-    llm = OllamaClient(settings.llm_base_url, settings.llm_model)
+    llm = providers.build(settings.llm_provider, settings.llm_model,
+                          settings.llm_base_url)
     direct_ok = await asyncio.to_thread(llm.available)
     deps.append(s.Dependency(
         name="Ollama, Kavach path", ok=direct_ok,

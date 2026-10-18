@@ -46,7 +46,7 @@ from kavach.db.store import IncidentStore
 from kavach.detection import base as det
 from kavach.executor import catalogue  # noqa: F401 - registers the catalogue
 from kavach.executor.base import registry
-from kavach.llm.client import OllamaClient
+from kavach.llm import providers
 from kavach.onboarding.baseline import _promql
 from kavach.onboarding.manifest import Manifest, load
 from kavach.rca import evidence as ev
@@ -317,7 +317,7 @@ class LoopRunner:
         inside this wrapper, because the loop sees RCA as one opaque call.
         """
         s = self.settings
-        llm = OllamaClient(s.llm_base_url, s.llm_model)
+        llm = providers.build(s.llm_provider, s.llm_model, s.llm_base_url)
         services = set(s.target_services())
         baseline_value, _ = self.baseline()
         baseline_doc = self.baseline_doc()

@@ -41,7 +41,7 @@ from typing import Any
 
 from kavach.executor import patch_checks
 from kavach.executor.adapters import git
-from kavach.llm.client import LlmError, OllamaClient
+from kavach.llm.client import LlmClient, LlmError
 from kavach.rca.patch_schema import PatchProposal, ollama_schema
 
 PROMPT = Path(__file__).resolve().parents[1] / "llm" / "prompts" / "patch.txt"
@@ -89,7 +89,7 @@ def build_prompt(
 
 def propose(
     *,
-    llm: OllamaClient,
+    llm: LlmClient,
     diagnosis: dict[str, Any],
     evidence: str,
     target_path: str,

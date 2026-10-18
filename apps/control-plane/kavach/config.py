@@ -46,6 +46,24 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://localhost:11434"
     llm_model: str = "llama3.2"
 
+    # Which provider answers. `ollama` is the default and the REPORTED
+    # configuration: PL-02 forbids a required cloud key, and a live demo that
+    # depends on a third-party API being up is a demo that can fail in the
+    # room. A cloud provider is opt-in, for the work where a bigger model is
+    # the variable under test - see ADR 0011 on the 0-of-15 diff finding.
+    #
+    # Valid values are `llm/providers.py`'s `names()`. Nothing infers the
+    # provider from which key happens to be set.
+    llm_provider: str = "ollama"
+
+    # Cloud keys. No defaults, deliberately: a credential literal in source is
+    # a credential in git history. Empty means "that provider is unavailable",
+    # which is a correct and supported state, not an error.
+    openrouter_api_key: str = ""
+    groq_api_key: str = ""
+    gemini_api_key: str = ""
+    opencodezen_api_key: str = ""
+
     # Global default mode. SIMULATION, per PRD.md §5.4 — a project must be moved
     # out of it explicitly, after preflight passes.
     #

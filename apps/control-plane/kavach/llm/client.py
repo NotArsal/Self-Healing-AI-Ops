@@ -29,7 +29,7 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 
 class LlmError(RuntimeError):
@@ -43,6 +43,15 @@ class LlmResponse:
     latency_s: float
     prompt_tokens: int = 0
     completion_tokens: int = 0
+    # WHICH provider answered. Defaults to ollama because this client is the
+    # Ollama one; `llm/providers.py` sets it for the rest.
+    #
+    # Provenance travels with the response rather than being remembered by
+    # the caller. Every figure in this project is "model X scored Y", so a
+    # result that cannot say which model produced it is not a result - and a
+    # caller that has to remember will eventually forget in exactly the run
+    # that matters.
+    provider: str = "ollama"
 
     def parsed(self) -> Any:
         """The decoded JSON object. Raises LlmError if it is not JSON.
@@ -57,6 +66,28 @@ class LlmResponse:
                 f"model returned text that is not JSON despite a schema "
                 f"constraint: {self.raw[:200]!r}"
             ) from exc
+
+
+@runtime_checkable
+class LlmClient(Protocol):
+    """What the RCA and patch engines actually need from a model.
+
+    `OllamaClient` was their annotation when it was also the only
+    implementation, which made the annotation shorthand for "a model
+    client". With a second implementation in `llm/providers.py` that
+    shorthand becomes false, so the contract is stated once here and both
+    clients satisfy it structurally - no base class, no rewrite of the one
+    that already works.
+    """
+
+    model: str
+
+    def structured(self, system: str, user: str, schema: dict[str, Any],
+                   temperature: float = 0.0) -> LlmResponse:
+        """One schema-constrained completion."""
+
+    def available(self) -> bool:
+        """Can this provider be reached, and authenticated if it needs it?"""
 
 
 def assert_not_proxied(base_url: str) -> None:
