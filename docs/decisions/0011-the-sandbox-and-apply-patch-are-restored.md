@@ -60,45 +60,79 @@ code path that could (`AGENTS.md` rule 10, honoured by absence).
   after six deterministic checks, only with a byte-exact inverse recorded, and
   only to one directory.
 
-## Measured on the day it was built, 2026-10-18
+## Measured 2026-10-18, and CORRECTED 2026-10-19
 
-The machinery works. No local model has yet fed it a usable patch.
+### What the first measurement said, and why it was wrong
 
-| model | patches that APPLY to the file |
-|---|---|
-| llama3.1 | 0 of 5 |
-| llama3.2 | 0 of 5 |
-| qwen2.5:7b-instruct | 0 of 5 |
+On 2026-10-18 this section reported 0 of 15 - no model, local or
+otherwise, writing a patch that applies - and attributed it to model
+capability. **That attribution was wrong, and the largest single cause was
+a defect in Kavach.**
 
-Reproduce with `harness/patch_live.py --probe N --model M`. A patch counts
-only if `git apply --check` accepts it; all three models pass the six
-deterministic checks, which is why passing them is not the thing counted.
+`git apply` treats a patch whose final line has no newline as truncated
+and reports `corrupt patch at line N`, which describes its parser rather
+than the patch. A model returns its diff as a JSON string, and a JSON
+string ends where the content ends, so the last hunk line arrived
+unterminated nearly every time. Diffs whose headers, markers and context
+lines were all correct were being rejected for a missing `
+`.
 
-Two distinct failures, both about diff syntax rather than about the repair:
+A second, smaller cause was also ours: this prompt said *"do not worry
+about the numbers in the `@@` header being exact"* and a model read that
+as permission to omit them, emitting a bare `@@`. The prompt now says the
+numbers must be PRESENT though not exact.
 
-1. qwen2.5:7b-instruct omits the `--- a/<path>` header in most runs.
-2. All three mis-handle a file whose own lines begin with `- `. Every hunk
-   line needs its own marker in column 1, so a line of this file that is
-   being deleted begins with two minus signs. The models write one, which
-   git reads as an unchanged line, producing a hunk that changes nothing.
+The lesson is the one the project keeps relearning: **before a measurement
+becomes a finding about the world, check that it is not a finding about
+the instrument.** A hand-written diff through the same path would have
+exposed this on day one, and is now a test.
 
-Neither is a prompt problem in the sense of being fixable by a better
-prompt. Both were stated explicitly in `llm/prompts/patch.txt` and
-re-measured; the rate did not move. A field `description` in the JSON
-schema does nothing either, because Ollama compiles the schema to a
-grammar and a grammar has no room for prose - that attempt took qwen from
-1 in 3 to 0 in 5.
+### The corrected numbers
 
-The honest reading is that writing a unified diff is a different and
-harder skill than diagnosing, and a 3B-7B local model does not have it.
-Diagnosis on the same hardware reached 10 of 10. This is a finding about
-model capability, not a defect in the action, and the containment held on
-every one of the 25 runs: nothing was applied, and the target was restored
-byte-exact each time.
+Applicability - does `git apply --check` accept the patch against the
+degraded file? Ten samples each, all after the fix except where noted.
+A call that never reached the model is excluded from the denominator
+rather than counted as a failure.
 
-The next variable to try is a larger model through the cloud provider
-path, which is already planned. The thresholds do not move to meet the
-models.
+| model | via | applies |
+|---|---|---|
+| gpt-oss-120b | Groq | **10 / 10** |
+| gemini-3.8-flash | Gemini | 7 / 10 *(measured BEFORE the fix; floor, not ceiling)* |
+| llama3.1 | Ollama, local | 0 / 10 |
+| llama3.2 | Ollama, local | 0 / 10 |
+| qwen2.5:7b-instruct | Ollama, local | 0 / 10 |
+
+Reproduce with `harness/patch_live.py --probe N --provider P --model M`.
+
+### The local result survives, for a different reason
+
+0 of 30 across three local models still holds after the fix, and the
+error changed in a way that matters: from `corrupt patch` - a structural
+complaint - to `patch failed: answer.txt:N`, a CONTENT mismatch. The local
+models cannot reproduce this file's context lines exactly. Its lines begin
+with `- `, so a line being deleted must begin with two minus signs, and
+they write one. That is a real capability limit and it is now the only
+thing being claimed.
+
+### End to end, against the live sandbox
+
+`harness/patch_live.py` injects F07 for real, asks for a patch, applies it
+to the clone and runs the clone's fast set there.
+
+- **gemini-3.8-flash: PASS.** Production degraded at 0%, the generated
+  patch applied to the sandbox, the sandbox fast set returned 100%, and
+  production was untouched and restored byte-exact. The first generated
+  repair this project has produced and verified.
+- **gpt-oss-120b, 3 runs: 1 inapplicable, 2 REFUSED BY THE SANDBOX.** Both
+  refusals are the most useful result here. The patch passed all six
+  deterministic checks and applied cleanly; the sandbox fast set then came
+  back 67% and the action was refused before it could be offered to
+  anyone. A patch that is well-formed, permitted, applicable and does not
+  actually repair the behaviour is exactly what constraint 4 exists for,
+  and it is not detectable by any amount of static checking.
+
+Production was restored byte-exact after every run, including the
+failures.
 
 ## What would reverse this
 

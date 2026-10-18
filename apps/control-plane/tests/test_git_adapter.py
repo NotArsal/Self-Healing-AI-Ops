@@ -179,3 +179,38 @@ def test_recount_does_not_make_wrong_context_acceptable(area: Path) -> None:
     assert (area / "answer.txt").read_text(encoding="utf-8") == (
         "alpha\nbeta\ngamma\n"
     )
+
+
+# --- found live, 2026-10-19: the largest single cause of rejections --------
+
+
+def test_a_diff_without_a_trailing_newline_still_applies(area: Path) -> None:
+    """A model returns its diff as a JSON string, and a JSON string ends
+    where the content ends, so the last hunk line arrives unterminated.
+    `git apply` calls that `corrupt patch at line N` - a message about its
+    parser, not about the repair.
+
+    gpt-oss-120b was producing diffs whose headers, markers and context
+    lines were all correct and which applied the instant a newline was
+    appended. That was being counted as a model capability limit.
+    """
+    unterminated = diff_for("answer.txt", "old line", "new line").rstrip("\n")
+    assert not unterminated.endswith("\n")
+
+    git.apply(unterminated, area, area)
+    assert (area / "answer.txt").read_text(encoding="utf-8") == "new line\n"
+
+
+def test_terminating_the_patch_does_not_make_bad_content_acceptable(
+    area: Path,
+) -> None:
+    """THE check that the newline is not a weakening. It forgives how the
+    text was transported; it forgives nothing about what the text says."""
+    write(area, "answer.txt", "a human rewrote this\n")
+    stale = diff_for("answer.txt", "old line", "new line").rstrip("\n")
+
+    with pytest.raises(git.GitAdapterError):
+        git.apply(stale, area, area)
+    assert (area / "answer.txt").read_text(encoding="utf-8") == (
+        "a human rewrote this\n"
+    )

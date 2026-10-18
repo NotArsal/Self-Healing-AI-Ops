@@ -68,6 +68,30 @@ class GitAdapterError(RuntimeError):
     """A patch could not be applied, or was refused before being applied."""
 
 
+def _as_patch_file(diff: str) -> str:
+    """Terminate the final line. Nothing else.
+
+    `git apply` reads a patch whose last line has no newline as truncated
+    and reports `corrupt patch at line N`, which says nothing about the
+    cause. A model returns its diff as a JSON string, and a JSON string
+    ends where the content ends, so the final hunk line arrives
+    unterminated almost every time.
+
+    This was the single largest cause of rejected patches: gpt-oss-120b
+    produced diffs whose headers, markers and context lines were all
+    correct and which applied cleanly the moment a newline was appended.
+    The rate it was costing was being read as a model capability limit.
+
+    It is the same category of accommodation as `--recount`: a formatting
+    artifact of how the text was transported is forgiven, and nothing about
+    the CONTENT is. Appending a newline cannot change which lines match,
+    which are added, or which are removed - a patch that was going to be
+    rejected for touching the wrong file, or for context that no longer
+    exists, is rejected identically afterwards.
+    """
+    return diff if diff.endswith("\n") else diff + "\n"
+
+
 def _run(args: list[str], cwd: Path, timeout_s: float = 60.0) -> str:
     try:
         proc = subprocess.run(
@@ -117,7 +141,8 @@ def check(diff: str, root: Path, boundary: Path, strip: int = 1) -> None:
         raise GitAdapterError("refusing to apply an empty patch")
     with tempfile.TemporaryDirectory() as tmp:
         patch_file = Path(tmp) / "incident.diff"
-        patch_file.write_text(diff, encoding="utf-8", newline="")
+        patch_file.write_text(_as_patch_file(diff), encoding="utf-8",
+                              newline="")
         _run([_GIT_APPLY, "--check", "--recount", f"-p{strip}",
               str(patch_file)], cwd=r)
 
@@ -134,7 +159,8 @@ def apply(diff: str, root: Path, boundary: Path, strip: int = 1) -> list[str]:
     check(diff, r, boundary, strip)
     with tempfile.TemporaryDirectory() as tmp:
         patch_file = Path(tmp) / "incident.diff"
-        patch_file.write_text(diff, encoding="utf-8", newline="")
+        patch_file.write_text(_as_patch_file(diff), encoding="utf-8",
+                              newline="")
         # --numstat first, so the return value reports what git itself says
         # was touched rather than what the diff's headers claimed.
         stat = _run([_GIT_APPLY, "--numstat", "--recount", f"-p{strip}",

@@ -63,9 +63,15 @@ begins with a plus and then a minus. Dropping the marker, so that the file's
 own `-` is read as the marker, produces a hunk that changes nothing and does
 not apply.
 
-Do not worry about the numbers in the `@@` header being exact — they are
-recomputed from the body of your hunk before the patch is tried. The
-CONTENT of the context lines must be exact.
+The `@@` header must be complete: `@@ -<start>,<count> +<start>,<count> @@`,
+with all four numbers written out. The numbers do not have to be EXACT —
+they are recomputed from the body of your hunk before the patch is tried —
+but they must be PRESENT. A bare `@@` is a corrupt hunk and is rejected
+before it is tried, however correct the lines beneath it are.
+
+Give `<start>` your honest best guess at the first line of the file your
+hunk covers, counting from 1. The CONTENT of the context lines must be
+exact.
 
 ## Rules
 

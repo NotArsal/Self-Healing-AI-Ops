@@ -78,8 +78,21 @@ def probe(provider: str, model: str, ollama: str, n: int,
     degraded file. Passing the deterministic checks is not counted as
     success - every model passes those, and a well-formed diff that does
     not fit the file repairs nothing.
+
+    THE DENOMINATOR IS ANSWERS, NOT ATTEMPTS
+    A call that never reached the model - a rate limit, a dead socket, an
+    empty account - is not evidence about the model, and counting it as a
+    failed patch would quietly understate a provider that happens to be
+    busy. Groq's free tier returns HTTP 429 part way through a run of five,
+    which was being recorded as two patches that did not apply.
+
+    So a 429 is retried with backoff, and anything that still never
+    produced an answer is excluded from the denominator and reported
+    separately as `unreached`. `applies/answered` is the model's rate;
+    `attempts` says how much it cost to get there.
     """
     import tempfile
+    import time as _time
 
     from harness.faults.f07_prompt_regression import DEGRADED_PROMPT
     from kavach.executor.adapters import git
@@ -94,17 +107,34 @@ def probe(provider: str, model: str, ollama: str, n: int,
     llm = providers.build(provider, model, ollama_base_url=ollama)
     model = llm.model
 
-    applies = 0
+    applies = answered = unreached = attempts = 0
     failures: list[str] = []
     for _ in range(n):
-        try:
-            raw = llm.structured(
-                system="You propose one small, reversible edit to one text file.",
-                user=prompt, schema=schema).raw
-            diff = str(json.loads(raw).get("diff", ""))
-        except (LlmError, ValueError) as exc:
-            failures.append(f"generation: {exc}")
+        diff = None
+        last = "unreached"
+        for backoff in (0, 20, 45):          # a rate limit is not a verdict
+            if backoff:
+                _time.sleep(backoff)
+            attempts += 1
+            try:
+                raw = llm.structured(
+                    system=("You propose one small, reversible edit to one "
+                            "text file."),
+                    user=prompt, schema=schema).raw
+                diff = str(json.loads(raw).get("diff", ""))
+                break
+            except (LlmError, ValueError) as exc:
+                msg = str(exc)
+                if "429" not in msg and "rate limit" not in msg.lower():
+                    failures.append(f"generation: {msg[:200]}")
+                    break
+                last = f"rate limited: {msg[:120]}"
+        if diff is None:
+            unreached += 1
+            failures.append(last)
             continue
+
+        answered += 1
         with tempfile.TemporaryDirectory() as t:
             area = Path(t)
             (area / PROMPT_FILE).write_text(
@@ -115,13 +145,17 @@ def probe(provider: str, model: str, ollama: str, n: int,
             except git.GitAdapterError as exc:
                 failures.append(str(exc)[:160])
 
-    say(f"{provider}/{model}: {applies}/{n} patches apply to the file")
+    rate = f"{applies}/{answered}" if answered else "no answers"
+    say(f"{provider}/{model}: {rate} patches apply "
+        f"({attempts} calls, {unreached} never reached the model)")
     for f in failures[:3]:
         say(f"   {f}")
     Path(json_out).parent.mkdir(parents=True, exist_ok=True)
     Path(json_out).write_text(json.dumps(
-        {"provider": provider, "model": model, "runs": n,
-         "applies": applies,
+        {"provider": provider, "model": model, "requested": n,
+         "answered": answered, "applies": applies, "unreached": unreached,
+         "attempts": attempts,
+         "apply_rate": (applies / answered) if answered else None,
          "failures": failures[:10],
          "measured": datetime.now(UTC).isoformat(timespec="seconds")},
         indent=2), encoding="utf-8", newline="")
@@ -214,6 +248,13 @@ def main() -> int:
         out["propose_latency_s"] = result.latency_s
         out["propose_usable"] = result.usable
         out["propose_reasons"] = result.reasons
+        # The provider error, kept SEPARATE from the verdict reasons. A call
+        # that never reached the model is not evidence about the model, and
+        # recording a rate limit as "produced no usable patch" is the same
+        # conflation `probe()` was fixed for: run 3 of the first live set
+        # failed in 0.39s with no reasons at all, which read as a model
+        # failure and was a quota reply.
+        out["provider_error"] = result.error
         say(f"      usable={result.usable} in {result.latency_s}s")
         if result.proposal is not None:
             say(f"      rationale: {result.proposal.rationale[:120]}")

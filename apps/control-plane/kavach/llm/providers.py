@@ -90,6 +90,15 @@ class Provider:
     # Cannot find field", so the determinism hint is dropped for it rather
     # than dropped for everyone. Providers that honour it stay reproducible.
     supports_seed: bool = True
+    # The output budget. 2048 is generous for what the schemas allow - the
+    # diff is capped at 4000 characters and the rationale at 600 - but a
+    # REASONING model spends hidden thinking tokens out of the same budget
+    # and they do not appear in `completion_tokens`. Gemini 3.8-flash spent
+    # ~3000 on this project's patch prompt and returned 33 tokens of answer
+    # under a 2048 cap, sometimes cut mid-string. At 8192 it returns a whole
+    # one. So the budget is per-provider rather than one number that is
+    # wrong for somebody.
+    max_output_tokens: int = 2048
 
 
 # The table. A base URL here NEVER includes `/chat/completions`: the client
@@ -119,6 +128,7 @@ PROVIDERS: dict[str, Provider] = {
         default_model="gemini-3.8-flash",
         note="Google's OpenAI-compatibility layer, not the native API",
         supports_seed=False,
+        max_output_tokens=8192,
     ),
     "opencodezen": Provider(
         name="opencodezen",
@@ -268,12 +278,8 @@ class OpenAiCompatClient:
             # reserves credits against that assumption and refused with HTTP
             # 402 - "you requested up to 64000 tokens, but can only afford
             # 97" - which reads like an empty account rather than a missing
-            # parameter.
-            #
-            # 2048 is generous for what the schemas allow: `PatchProposal`
-            # caps the diff at 4000 characters and the rationale at 600, and
-            # a diagnosis is smaller still.
-            "max_tokens": 2048,
+            # parameter. The per-provider value is on the table row.
+            "max_tokens": self.provider.max_output_tokens,
             # Same determinism contract as the Ollama path. `seed` is added
             # below only where the provider accepts it - see `supports_seed`.
             "temperature": temperature,
