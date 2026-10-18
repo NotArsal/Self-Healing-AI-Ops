@@ -40,12 +40,22 @@ everything a real on-call engineer would have. They do **not** get Kavach's
 console, its incident list, or its proposed plan. Showing them Kavach's
 verdict and then timing them against Kavach measures reading speed.
 
-**Kavach runs in `SIMULATION` alongside, and this is the best part of the
-design.** It observes the same incident, forms a diagnosis and a plan, and
-writes nothing. So each run yields a *paired* observation on the identical
-incident — human time against Kavach's plan and whether that plan was right
-— rather than two unpaired samples taken minutes apart on a drifting system.
-`docs/decisions/0006` is why SIMULATION is safe to leave running.
+**The runner fires one Kavach cycle in `SIMULATION` per injection, and this
+is the best part of the design.** Kavach observes the same incident, forms a
+diagnosis, and writes nothing. So each run yields a *paired* observation on
+the identical incident — human time against Kavach's answer and whether that
+answer was right — rather than two unpaired samples taken minutes apart on a
+drifting system. `docs/decisions/0006` is why SIMULATION is safe.
+
+> **Corrected 2026-10-18.** This section previously said Kavach should just
+> "be left running in `SIMULATION` alongside". That would not have worked:
+> `POST /v1/loop/run` is the only thing that starts a cycle and there is no
+> scheduler, so nothing would have observed the incident and the pairing —
+> the main reason to run the two together — would silently never have
+> happened. The runner now triggers it explicitly, asynchronously so the
+> operator is never blocked, and **refuses to start in any mode other than
+> `SIMULATION`**, because in `APPROVAL` or `AUTONOMOUS` Kavach could act on
+> the very fault the operator is being timed on.
 
 **The operator may use anything except Kavach.** Editing config by hand,
 `docker logs`, reading the source, grep. Restricting their tooling to make

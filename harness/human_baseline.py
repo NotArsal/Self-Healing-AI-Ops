@@ -25,11 +25,21 @@ revert runs in a finally block and the final state is checked against the
 pre-state witness. A session cannot leave the target broken for the next run.
 
 WHAT IT DELIBERATELY DOES NOT DO
-It does not tell the operator anything, score their diagnosis for them, or
-run Kavach. Kavach should be left running in SIMULATION so the same incident
-yields a paired observation - see the protocol - but this script neither
-starts nor reads it, because a runner that drove both would be able to
-influence the comparison it is measuring.
+It does not tell the operator anything or score their diagnosis for them.
+
+IT DOES TRIGGER KAVACH ONCE, AND THAT IS A CORRECTION
+An earlier draft said Kavach should simply "be left running in SIMULATION"
+alongside, so the same incident would yield a paired observation. That does
+not work: `POST /v1/loop/run` is the only thing that starts a cycle and there
+is no scheduler, so nothing would have observed the incident and the pairing
+would silently never have happened.
+
+So the runner fires one SIMULATION cycle immediately after injecting and
+reads the verdict back at scoring time. It is asynchronous (the endpoint
+returns 202), so the operator is never blocked, and SIMULATION means Kavach
+writes nothing to the target no matter what it concludes. The runner refuses
+to start unless the mode really is SIMULATION, because in any other mode
+Kavach could act on the fault the operator is being timed on.
 """
 
 from __future__ import annotations
@@ -64,6 +74,7 @@ from kavach.verification import fast  # noqa: E402
 FAST_SET = CONTROL_PLANE / "kavach" / "verification" / "fast_set.yaml"
 TARGET = "http://127.0.0.1:8000"
 PROM = "http://127.0.0.1:9091"
+API = "http://127.0.0.1:8080"
 
 # The corpus the fast set was built against. A session run on a drifted corpus
 # measures the drift; PRD.md section 12 records that happening twice.
@@ -72,6 +83,16 @@ EXPECTED_CORPUS = {"chunks": 30.0, "files": 2.0}
 
 def say(m: str = "") -> None:
     print(m, flush=True)
+
+
+def api(path: str, method: str = "GET",
+        timeout: int = 30) -> tuple[int, Any]:
+    req = urllib.request.Request(API + path, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status, json.loads(r.read() or b"null")
+    except Exception as exc:
+        return 0, str(exc)
 
 
 def promql(query: str) -> float | None:
@@ -125,6 +146,14 @@ class Run:
     notes: str = ""
     corpus_before: dict[str, float | None] = field(default_factory=dict)
     corpus_after: dict[str, float | None] = field(default_factory=dict)
+    # The paired observation: Kavach's own answer on this same incident,
+    # formed in SIMULATION and never acted on.
+    kavach_incident_id: str = ""
+    kavach_fault_class: str = ""
+    kavach_status: str = ""
+    kavach_confidence: float | None = None
+    kavach_correct: bool | None = None
+    kavach_seconds: float | None = None
 
 
 def ask(prompt: str) -> str:
@@ -160,6 +189,14 @@ def one_run(client: TargetClient, operator: str, rng: random.Random) -> Run:
     try:
         fault.inject()
         say(f"  INJECTED at t=0. Clock running. ({operator})")
+
+        # The paired observation. Asynchronous (202), so the operator is not
+        # blocked, and SIMULATION means it writes nothing whatever it decides.
+        code, started = api("/v1/loop/run?rca=true", "POST")
+        if code == 202 and isinstance(started, dict):
+            run.kavach_incident_id = str(started.get("incident_id", ""))
+        else:
+            run.notes = f"kavach cycle did not start ({code}: {started})"
         say("")
 
         ask("  [1/3] press enter the moment you can tell something is WRONG> ")
@@ -212,6 +249,21 @@ def one_run(client: TargetClient, operator: str, rng: random.Random) -> Run:
             say(f"  REVERT FAILED: {exc}")
         run.corpus_after = corpus()
 
+    if run.kavach_incident_id:
+        code, inc = api("/v1/incidents/" + run.kavach_incident_id)
+        if code == 200 and isinstance(inc, dict):
+            run.kavach_status = str(inc.get("status", ""))
+            run.kavach_fault_class = str(inc.get("fault_class") or "")
+            run.kavach_correct = run.kavach_fault_class == fault_class
+            diag = ((inc.get("rca") or {}).get("diagnosis") or {})
+            conf = diag.get("confidence")
+            run.kavach_confidence = float(conf) if conf is not None else None
+            say(f"  kavach (SIMULATION) said {run.kavach_fault_class or 'nothing'} "
+                f"/ {run.kavach_status}, confidence {run.kavach_confidence}  "
+                f"{'CORRECT' if run.kavach_correct else 'wrong'}")
+        else:
+            say(f"  kavach verdict unreadable ({code})")
+
     verdict = ask(f"  was '{run.operator_diagnosis}' the right cause "
                   f"for {fault_class}? [y/n/skip]> ").lower()
     if verdict.startswith("y"):
@@ -257,6 +309,20 @@ def main() -> int:
     if not client.is_healthy():
         say("  REFUSING: the target is not healthy before injection.")
         return 1
+
+    # In any mode but SIMULATION, Kavach could act on the very fault the
+    # operator is being timed on - which would both corrupt the timing and
+    # hand them the answer.
+    _, mode = api("/v1/mode")
+    live_mode = mode.get("mode") if isinstance(mode, dict) else None
+    say(f"  kavach mode        {live_mode}")
+    if live_mode != "SIMULATION":
+        say(f"  REFUSING: kavach is in {live_mode}, not SIMULATION. It could "
+            f"act on the fault being timed. Set it with:")
+        say(f"    curl -X PUT {API}/v1/mode "
+            f"-H 'Content-Type: application/json' "
+            f"-d '{{\"mode\":\"SIMULATION\"}}'")
+        return 1
     pre = fast.run(client, FAST_SET, check_health=False)
     say(f"  fast set at start  {pre.pass_rate:.0%}")
     if not pre.passed:
@@ -279,12 +345,18 @@ def main() -> int:
                 else "FALSE RECOVERY" if r.false_recovery
                 else f"{r.resolve_s}s")
         say(f"  {r.fault_class}  MTTD {r.mttd_s}s  diagnosis {r.diagnosis_s}s  "
-            f"MTTR {mttr}  correct={r.diagnosis_correct}")
+            f"MTTR {mttr}  human_correct={r.diagnosis_correct}  "
+            f"kavach={r.kavach_fault_class or '-'} "
+            f"({'correct' if r.kavach_correct else 'wrong'})")
     resolved = [r for r in runs if r.verified]
     say("")
     say(f"  verified resolutions {len(resolved)}/{len(runs)}")
     say(f"  false recoveries     {sum(1 for r in runs if r.false_recovery)}")
     say(f"  gave up              {sum(1 for r in runs if r.gave_up)}")
+    paired = [r for r in runs if r.kavach_fault_class]
+    if paired:
+        say(f"  kavach correct       {sum(1 for r in paired if r.kavach_correct)}"
+            f"/{len(paired)}  (same incidents, SIMULATION, wrote nothing)")
     if resolved:
         times = sorted(r.resolve_s or 0 for r in resolved)
         mid = times[len(times) // 2]
