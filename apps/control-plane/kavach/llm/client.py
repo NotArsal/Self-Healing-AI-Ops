@@ -149,6 +149,25 @@ class OllamaClient:
                 "temperature": temperature,
                 "top_p": 1.0,
                 "seed": 42,
+                # SET EXPLICITLY, because the default was being exceeded.
+                #
+                # Ollama served this model with a 4096-token window. Measured
+                # across six real incidents on 2026-10-19, every diagnosis
+                # ran within 10% of that ceiling and one went over it:
+                # INC-191611 used 3753 prompt + 405 completion = 4158.
+                #
+                # Exceeding the window is not an error. Ollama slides it and
+                # drops the OLDEST tokens, which are the system prompt and
+                # the opening of the instructions - so the model silently
+                # loses the rules it is being judged against, and the reply
+                # still arrives looking perfectly well-formed. There is no
+                # signal in the response that it happened.
+                #
+                # The evidence frame grows with the number of EV rows, so
+                # this was going to get worse rather than better. 8192 is
+                # roughly double the worst case observed and well inside
+                # what qwen2.5 and llama3.x support.
+                "num_ctx": 8192,
             },
         }
         body = json.dumps(payload).encode()

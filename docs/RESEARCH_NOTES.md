@@ -187,9 +187,52 @@ forbids outright.
 
 ---
 
+## 4a. A latent bug found while writing this, and what it costs
+
+**Every LLM diagnosis this project has measured ran within 10% of its
+context window, and at least one exceeded it.**
+
+Measured across six real incidents on 2026-10-19, from the API's own
+records:
+
+| incident | prompt | completion | total | window |
+|---|---|---|---|---|
+| INC-191611 | 3753 | 405 | **4158** | 4096 — **over** |
+| INC-191650 | 3752 | 322 | 4074 | 4096 |
+| INC-191014 | 3744 | 263 | 4007 | 4096 |
+| INC-190935 | 3746 | 283 | 4029 | 4096 |
+| INC-191351 | 3420 | 349 | 3769 | 4096 |
+| INC-191321 | 3420 | 310 | 3730 | 4096 |
+
+Ollama was serving a 4096-token window and `num_ctx` was never set.
+Exceeding it is not an error: Ollama slides the window and discards the
+OLDEST tokens — the system prompt and the opening of the instructions — so
+the model loses the rules it is being judged against and still returns a
+well-formed reply. Nothing in the response says it happened.
+
+`num_ctx` is now set to 8192 explicitly, roughly double the worst case
+observed and well inside what qwen2.5 and llama3.x support. Verified
+served at 8192, still entirely on GPU.
+
+**What this costs, stated plainly.** Every RCA accuracy figure this project
+has published was measured under a window that was sometimes exceeded. The
+direction of the error is knowable: truncation can only remove instructions,
+so the published numbers are a **floor**, not a ceiling, and the model may be
+better than recorded. They should be re-measured before the report quotes
+them. The `make bench` run started tonight uses the containerised API, whose
+image predates this fix, so its LLM-accuracy column carries the same caveat;
+its MTTR figures do not, because repairs are driven by the deterministic
+path.
+
+This belongs in the report as a methods note rather than being quietly
+corrected. It is the second instrument bug found in two days — see ADR 0011
+on the missing trailing newline — and two is a pattern worth naming.
+
 ## 5. Open items, in the order I would do them
 
 1. `make bench` full 4×5 run — **running in the background now**
+2. Re-measure RCA accuracy at `num_ctx=8192` (see §4a); rebuild the API
+   image first, or the container keeps the old window
 2. Postmortem renderer (§3.1)
 3. Report and slides — cite AIOpsLab and ITBench in related work
 4. `make scenario`, three consecutive clean runs an hour apart
