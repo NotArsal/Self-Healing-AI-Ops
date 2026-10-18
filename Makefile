@@ -159,6 +159,11 @@ scenario:
 	@echo Not implemented until P9.
 	@exit 1
 
+# The metrics table from PRD section 10, over repeated live injections.
+# PACED, NOT FAST: permit() allows five incident starts an hour and an
+# approved heal costs two, so a full run is hours of mostly waiting. That is
+# deliberate - the alternative was restarting the API between repetitions to
+# clear the in-memory counter, which would have measured a system that does
+# not exist. ARGS="--reps 1 --classes F08" for a smoke test.
 bench:
-	@echo Not implemented until P8.
-	@exit 1
+	$(UV) run python -I ../../harness/report.py $(ARGS)
