@@ -1,4 +1,0 @@
-You are an AI assistant tasked with generating alternative versions of a search query.
-Generate {num_queries} different search queries to retrieve relevant documents for the question below.
-Provide each query on a new line. Do not number the queries, and do not write any introductory or concluding text.
-Original Question: {question}
