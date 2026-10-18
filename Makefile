@@ -23,7 +23,7 @@ COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml
 UV      := uv --directory $(CP)
 
 .DEFAULT_GOAL := help
-.PHONY: help setup up down ps logs dev-api dev-console lint format types test \
+.PHONY: postmortem help setup up down ps logs dev-api dev-console lint format types test \
         socket-test test-integration check migrate migration gen-client \
         target-up target-down onboard inject scenario bench
 
@@ -171,5 +171,12 @@ scenario:
 # deliberate - the alternative was restarting the API between repetitions to
 # clear the in-memory counter, which would have measured a system that does
 # not exist. ARGS="--reps 1 --classes F08" for a smoke test.
+# The postmortem Kavach writes about itself, from its own audit record.
+# Renders the most recent incident; ARGS="INC-191650" picks one, and
+# ARGS="--out notes.md" writes a file. Reads the running control plane,
+# because the audit log lives inside its container.
+postmortem:
+	$(UV) run python -m kavach.audit.postmortem $(ARGS)
+
 bench:
 	$(UV) run python -I ../../harness/report.py $(ARGS)
