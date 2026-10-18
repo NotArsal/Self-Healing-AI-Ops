@@ -1,0 +1,113 @@
+# The sandbox: an isolated clone of the target, for trying a repair before
+# production sees it. `ARCHITECTURE.md` §6.1's REQUIRE_SANDBOX verdict and
+# `apply_patch`'s fourth constraint both point here.
+#
+# WHY THIS IS A STANDALONE FILE AND NOT A COMPOSE OVERRIDE
+# The obvious approach is `-f target/docker-compose.yml -f override.yml`.
+# Two things in the target's compose make that a trap:
+#
+#   * `container_name` is hardcoded (`rag_backend`, `rag_db`). Container
+#     names are GLOBAL in Docker, not per project, so a second project
+#     reusing that file collides on the name even with `-p`.
+#   * Compose APPENDS volume lists across files rather than replacing them.
+#     Overriding `./prompts:/app/prompts:ro` would leave the service with
+#     two mounts on one path - and that path is exactly the one the sandbox
+#     has to keep separate from production.
+#
+# A standalone file avoids both. The cost is that it can drift from the
+# target's own compose, so `tests/test_sandbox.py` asserts the environment
+# the backend needs still matches what the target declares - agreement, not
+# a copied literal, the same shape as the window tests.
+#
+# WHAT IS DELIBERATELY ABSENT
+#   frontend   - the sandbox verifies ANSWERS, through the API. No UI.
+#   toxiproxy  - it exists to inject endpoint faults, and the sandbox is for
+#                trying repairs, not injecting. The backend talks to the host
+#                Ollama directly, which is also one less moving part.
+#   prometheus - profiled off in the target too; the control plane runs the
+#                one Prometheus (`ARCHITECTURE.md` §2.4).
+#
+# EVERY HOST PORT IS REMAPPED, because production holds 5432, 8000, 3000 and
+# 8474 and a clone that cannot start is not a safety mechanism.
+
+name: kavach-sandbox
+
+services:
+  db:
+    image: ankane/pgvector:latest
+    container_name: kavach_sandbox_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Password
+      POSTGRES_DB: postgres
+    ports:
+      - "55432:5432"
+    # Its OWN volume. The project name prefixes it, so this is
+    # `kavach-sandbox_sandbox_pgdata` and can never be the target's pgdata.
+    volumes:
+      - sandbox_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks: [sandbox]
+
+  backend:
+    # The SAME build context as the target, so the sandbox runs the same
+    # code. An image built from somewhere else would verify a different
+    # application and the result would mean nothing.
+    build:
+      context: ${TARGET_REPO:-../../Target_RAG-App}/backend
+    container_name: kavach_sandbox_backend
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: ragdb
+      DB_USER: postgres
+      DB_PASSWORD: Password
+      # Straight to the host Ollama: no toxiproxy in the sandbox.
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      LLM_MODEL: llama3.2
+      # NEVER overridden, here or anywhere. Changing it makes the target's
+      # db.py drop document_chunks (AGENTS.md denied mutation).
+      EMBED_MODEL: nomic-embed-text
+      OTEL_SERVICE_NAME: simple-rag-sandbox
+      LLM_TIMEOUT_SECONDS: "30"
+      CHAOS_ENABLED: "false"
+      PROMPTS_DIR: /app/prompts
+      KAVACH_ADMIN_TOKEN: ${KAVACH_ADMIN_TOKEN:-local-dev-token}
+    ports:
+      - "18000:8000"
+    volumes:
+      # A SEPARATE prompts directory, populated by the sandbox lifecycle from
+      # production. This is the whole point: a model-authored patch tried in
+      # here is physically incapable of reaching the target's prompts.
+      - ${SANDBOX_PROMPTS:-./sandbox-prompts}:/app/prompts:ro
+      # Shared with the target on purpose - it is a read-mostly model cache,
+      # and a cold copy would add minutes to every sandbox start.
+      - hf_cache:/root/.cache/huggingface
+    depends_on:
+      db:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import sys,urllib.request; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/healthz',timeout=5).status==200 else 1)\""]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 60s
+    networks: [sandbox]
+
+volumes:
+  sandbox_pgdata:
+  hf_cache:
+    # The target's cache, by its full external name, so the sandbox reuses
+    # the downloaded embedding model instead of fetching it again.
+    external: true
+    name: target_rag-app_hf_cache
+
+networks:
+  sandbox:
+    driver: bridge
