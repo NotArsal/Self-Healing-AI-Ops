@@ -1134,7 +1134,7 @@ here, which is a more useful result than claiming zero.
 The phase most teams skip and most reviewers notice.
 
 **Deliverables**
-- **Human baseline run** — all 35 injections in `SIMULATION` mode, resolved manually by a teammate, timed. ~2 hours of work and it is what makes MTTR mean anything
+- **Human baseline run** — **protocol written 2026-10-18: `docs/HUMAN_BASELINE.md`, runner `harness/human_baseline.py`.** Not 35 injections: that figure was written for an eight-class catalogue and four are implemented, so it is **4 classes × 3 repetitions = 12 runs**, which is the same ~2 hours. The runner injects blind, times detect / diagnose / resolve separately, and refuses to score a run as resolved unless the real fast set passes — a declaration over a still-broken system is recorded as a **false recovery**, not as a slower fix. Kavach is left in `SIMULATION` alongside so each incident yields a *paired* observation rather than two unpaired samples. **Still to do: actually run it.** It needs humans and an interactive terminal
 - **Undo ablation run** — the catalogue with the undo stack disabled. Reproducing the shape of STRATUS's result on your own system is your strongest research contribution
 - Full `make bench` with conditional metrics
 - **Localization reported honestly** — with the denominator and the per-service confusion matrix (`PRD.md` §10.2)
@@ -1142,7 +1142,7 @@ The phase most teams skip and most reviewers notice.
 - Report, slides, demo rehearsal
 
 **Acceptance**
-- [ ] Human baseline MTTR recorded per fault class
+- [ ] Human baseline MTTR recorded per fault class — *protocol and runner ready; the session itself is not run*
 - [ ] Undo ablation numbers recorded
 - [ ] P(heal | correct diagnosis) and P(heal | wrong diagnosis) both reported
 - [ ] P2 vs. P3 and rule-engine vs. Laya comparisons written up — the P2-vs-P3 numbers for `F06` are already recorded; extend them across every fault class
@@ -1192,6 +1192,7 @@ Three failure modes to watch for: building adjacent phases because they appear i
 | End of week 7 | Does a second workload type look like an adapter, or a fork? | Fix the seam before P6 multiplies the coupling (`ARCHITECTURE.md` §1.4) |
 | End of week 8 | **Has the safety engine started?** | **Stop.** Nothing that adds a repair action may begin until `permit()` exists (P5) |
 | End of week 10 | Are `F07` and `F09` started? | Drop `F02` and `F05` now, not later |
+| ~~F09~~ | **CLOSED 2026-10-18: not injectable.** Three mechanisms measured — `rerank_threshold` 1.20x, verbose prompts 0.87–1.17x, `max_tokens` is a ceiling. `PRD.md` §12 carries the numbers | Implemented catalogue is `F01`, `F06`, `F07`, `F08` |
 | End of week 11 | Does `make bench` run unattended? | Cut the Laya shadow, protect P8 |
 | End of week 12 | Has the human baseline been run? | Do it this week. It is 2 hours and it is load-bearing |
 
