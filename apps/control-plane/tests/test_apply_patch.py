@@ -421,3 +421,52 @@ def test_a_proposal_that_never_produced_a_patch_is_a_different_refusal(
             PatchResult(proposal=None, error="connection refused"),
             world["prod"], VERSIONED, DENIED, {},
         )
+
+
+# --- slice 4: promotion, and what it must not open up ----------------------
+
+
+def test_sandbox_passed_is_none_until_the_trial_runs(
+    world: dict[str, Any],
+) -> None:
+    """The loop promotes on `is True`, so an untried action must not read as
+    anything else. None and False both mean "wait"."""
+    action = an_action(world)
+    assert action.sandbox_passed is None
+
+    action.prepare(FakeTarget(world["prod"]))
+    assert action.sandbox_passed is True
+
+
+def test_no_other_action_exposes_sandbox_passed(
+    world: dict[str, Any],
+) -> None:
+    """THE containment check for the loop's promotion branch.
+
+    `loop.py` promotes a REQUIRE_SANDBOX verdict when the action reports
+    `sandbox_passed is True`. REQUIRE_SANDBOX is also what every MEDIUM
+    action gets in AUTONOMOUS, where there is no human approval at all, so
+    if one of them grew the attribute it would start auto-executing. They
+    do not have it, they read as None, and they keep waiting.
+    """
+    from kavach.executor import config_rollback, prompt_rollback
+
+    for cls in (config_rollback.ConfigRollback, prompt_rollback.PromptRollback):
+        assert getattr(cls, "sandbox_passed", None) is None, (
+            f"{cls.__name__} exposes sandbox_passed; the loop would promote "
+            f"it on a REQUIRE_SANDBOX verdict, which in AUTONOMOUS arrives "
+            f"with no approval behind it"
+        )
+
+
+def test_a_high_action_cannot_reach_the_sandbox_verdict_unapproved() -> None:
+    """Promotion is reachable only after a human says yes. An unapproved
+    HIGH action returns REQUIRE_APPROVAL in EVERY mode, so the branch the
+    loop added is unreachable without an approval."""
+    from kavach.executor.base import HIGH
+    from kavach.safety.engine import SafetyEngine, Verdict
+
+    route = SafetyEngine._route
+    for mode in ("SIMULATION", "APPROVAL", "AUTONOMOUS"):
+        assert route(mode, HIGH, False, "") is Verdict.REQUIRE_APPROVAL, mode
+    assert route("AUTONOMOUS", HIGH, False, "INC-1") is Verdict.REQUIRE_SANDBOX

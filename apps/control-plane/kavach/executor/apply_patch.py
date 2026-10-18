@@ -134,6 +134,20 @@ class ApplyPatch:
     def inverse_settings(self) -> dict[str, Any]:
         return {k: digest(v) for k, v in self.inverse_text.items()}
 
+    @property
+    def sandbox_passed(self) -> bool | None:
+        """Has a clone already run this patch and agreed?
+
+        Read by `loop.py` when `permit()` returns REQUIRE_SANDBOX. That
+        verdict means "no production write until a clone agrees", and for
+        this action the clone ran during `prepare()` - constraint 4 makes
+        the sandbox a precondition of the proposal, not a later stage.
+
+        An action without this attribute reads as None and the loop waits,
+        which is every other action in the catalogue.
+        """
+        return self.trial.passed
+
     # --- preparation: generate, check, and TRY IT ON A CLONE ---------------
 
     def prepare(self, client: TargetClient) -> None:

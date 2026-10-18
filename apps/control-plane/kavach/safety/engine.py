@@ -326,7 +326,13 @@ class SafetyEngine:
         HIGH is the exception and stays one. A fixed-HIGH action's sandbox is
         mandatory rather than routed (`ARCHITECTURE.md` §6.2.1), so an approval
         moves it to the sandbox and no further. `apply_patch` is the action
-        this protects, and it is deliberately not registered yet.
+        this protects.
+
+        "No further" is about THIS function, not about the incident. What an
+        approval buys is a sandbox requirement, never a direct write. Whether
+        a patch that has already satisfied that requirement may then be
+        promoted is `loop.py`'s question and is answered in ADR 0012: only
+        with an approval AND a clone that passed. Nothing here grants it.
         """
         if approved:
             return Verdict.REQUIRE_SANDBOX if tier == HIGH else Verdict.ALLOW_AUTO

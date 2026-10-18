@@ -448,7 +448,32 @@ def run_once(
             inc.corpus_after = inc.corpus_before
             return inc
 
-        if decision.verdict is not Verdict.ALLOW_AUTO:
+        # A sandbox verdict whose sandbox has ALREADY run and passed.
+        #
+        # `permit()` returns REQUIRE_SANDBOX to mean "this may not go to
+        # production until a clone has agreed". For `apply_patch` the clone
+        # ran during `prepare()`, because `ARCHITECTURE.md` §6.2.1
+        # constraint 4 makes a sandbox result a precondition of the proposal
+        # rather than a later step - no human should be asked to approve an
+        # untested diff. So by the time the verdict is read, the condition
+        # it names is already satisfied, and stopping here would mean a
+        # patch could never reach production however many times it passed.
+        #
+        # Asked of the ACTION, not of its name. An action that ran no
+        # sandbox has no `sandbox_passed`, reads as None, and falls through
+        # to the await below exactly as before - which is every MEDIUM
+        # action in AUTONOMOUS, so this adds no path for them.
+        #
+        # For HIGH this is reachable only after a human approval, because
+        # an unapproved HIGH action returns REQUIRE_APPROVAL in every mode
+        # including AUTONOMOUS (`safety/engine.py`). Approval plus a passing
+        # clone, and nothing less, is what writes a generated patch.
+        if (decision.verdict is Verdict.REQUIRE_SANDBOX
+                and getattr(action, "sandbox_passed", None) is True):
+            _notify(on_event, "gate", "ok",
+                    f"{action.name} passed its sandbox before the gate saw "
+                    f"it; promoting to production")
+        elif decision.verdict is not Verdict.ALLOW_AUTO:
             # SIMULATION, APPROVAL, a HIGH tier, a below-threshold confidence,
             # or a MEDIUM action needing the sandbox. All of them stop here:
             # the plan and its dry-run diff are the output, and nothing is
