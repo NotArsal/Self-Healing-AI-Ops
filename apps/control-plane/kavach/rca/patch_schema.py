@@ -18,6 +18,17 @@ JSON Schema. Everything about it is checked afterwards, deterministically,
 by `patch_checks.evaluate`, and nothing is applied before `git apply
 --check` agrees it still fits the file.
 
+A FIELD `description` IS NOT A DECODER CONSTRAINT, AND WAS MEASURED NOT TO BE
+The obvious move when a model gets a field wrong is to describe the field
+better in the schema. It does nothing here. Ollama compiles `format` into a
+GBNF grammar, and a grammar encodes which TOKENS are legal, not prose about
+them - so a `description` never reaches the model at all. Measured on
+2026-10-18: adding one telling the model the `--- a/` header was mandatory
+changed the rate at which qwen2.5:7b-instruct emitted it from 1 in 3 to 0 in
+5. The enum on `target_path` works because an enum IS expressible as a
+grammar. The distinction is the whole reason this file calls out which
+constraint lives where.
+
 `rationale` is required and bounded. A patch an operator cannot read a
 reason for is one they cannot approve, and `apply_patch` is HIGH tier so a
 human always sees it.

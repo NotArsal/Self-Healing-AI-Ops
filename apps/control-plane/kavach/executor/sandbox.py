@@ -52,6 +52,7 @@ from pathlib import Path
 from typing import Any
 
 from kavach.executor.adapters import docker
+from kavach.target import TargetEndpoints
 
 SANDBOX_COMPOSE = "infra/sandbox-compose.yml"
 SANDBOX_BACKEND = "kavach_sandbox_backend"
@@ -254,3 +255,18 @@ def prompts_dir() -> Path:
     because the two are different directories on different mounts.
     """
     return _root() / SANDBOX_PROMPTS
+
+
+def endpoints() -> TargetEndpoints:
+    """Where the sandbox answers, as a `TargetClient` can consume it.
+
+    Built from this module's own constants rather than from settings: a
+    caller that could point "the sandbox" at port 8000 by configuration is a
+    caller that could run a model's patch against production by typo.
+    """
+    import os
+
+    return TargetEndpoints(
+        health=SANDBOX_HEALTH, chat=SANDBOX_CHAT, config=SANDBOX_CONFIG,
+        admin_token=os.environ.get("KAVACH_ADMIN_TOKEN", "local-dev-token"),
+    )

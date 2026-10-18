@@ -49,6 +49,28 @@ CandidateRepair = Literal[
     "rollback_config", "switch_llm_endpoint", "rollback_prompt", "none",
 ]
 
+# Registered actions the model is deliberately NOT allowed to name.
+#
+# `apply_patch` is registered and buildable, so the invariant above would
+# normally demand it appear in `CandidateRepair`. It must not, and the reason
+# is `validate.py` rule 7: a diagnosis's repair must be the ONE repair
+# permitted for the class it named. `apply_patch` is the permitted repair for
+# no class - F01, F06, F07 and F08 each have a deterministic repair that
+# works. Listing it would therefore add a value the validator rejects for
+# every possible class: a trap rather than a capability, and exactly the kind
+# of "sound diagnosis that can never authorise a repair" this file already
+# has scar tissue about.
+#
+# `apply_patch` is reached a different way. The diagnosis names a class; the
+# operator or the engine then asks `rca/patch_engine.py` for a patch FOR that
+# class. The model never chooses to patch; it is asked to write one.
+#
+# This set is not an escape hatch for the invariant. Anything in it is an
+# action no diagnosis can propose, which has to be true by design rather than
+# by oversight, and `tests/test_rca.py` still fails for any registered action
+# that is neither nameable nor listed here.
+NOT_MODEL_PROPOSABLE: frozenset[str] = frozenset({"apply_patch"})
+
 
 class RejectedAlternative(BaseModel):
     """A fault class considered and ruled out, with the reason (FR-10)."""

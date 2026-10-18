@@ -197,3 +197,31 @@ def test_the_tier_is_fixed_high_and_not_computed() -> None:
     """Constraint 1. A model-authored payload is HIGH whatever it claims to
     touch, so the tier is a property of the action, never of its parameters."""
     assert pc.RISK_TIER == "HIGH"
+
+
+# --- found live, 2026-10-18 ------------------------------------------------
+
+
+def test_a_hunk_with_only_a_plus_header_is_refused_here_not_by_git() -> None:
+    """qwen2.5:7b-instruct produced exactly this on a live run: a `+++` line,
+    a valid `@@` hunk, and no `--- a/...` line at all. Every check passed and
+    `git apply` then failed with "patch fragment without header" - true, but
+    a message about git's parser rather than about the proposal.
+
+    The layer that claims to know what a unified diff looks like should be
+    the one that says so.
+    """
+    headerless = ("+++ b/prompts/answer.txt\n@@ -1,1 +1,1 @@\n"
+                  "-old line\n+Answer only from the context.\n")
+    v = pc.evaluate_static(
+        headerless, {"prompts": "./prompts"}, DENIED,
+        {"prompts/answer.txt": "d55c73a23f33"})
+    assert not v.allowed
+    assert any("no `--- a/<path>` header" in r for r in v.reasons)
+
+
+def test_a_hunk_with_only_a_minus_header_is_refused() -> None:
+    v = pc.evaluate_static(
+        "--- a/prompts/answer.txt\n@@ -1,1 +1,1 @@\n-old line\n+new line\n",
+        {"prompts": "./prompts"}, DENIED, {"prompts/answer.txt": "d55c73a23f33"})
+    assert not v.allowed

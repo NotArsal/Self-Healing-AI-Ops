@@ -604,12 +604,21 @@ def test_the_repair_vocabulary_covers_every_registered_action() -> None:
 
     from kavach.executor import catalogue  # noqa: F401 - registers the actions
     from kavach.executor.base import registry as actions
-    from kavach.rca.schema import CandidateRepair
+    from kavach.rca.schema import NOT_MODEL_PROPOSABLE, CandidateRepair
 
     vocabulary = set(get_args(CandidateRepair))
     assert "none" in vocabulary, '"none" must remain available for no-repair'
 
-    buildable = set(actions.names())
+    # An action may be exempt only by being named in `NOT_MODEL_PROPOSABLE`,
+    # which is a declaration that no diagnosis can propose it. `apply_patch`
+    # is the only one: it is the permitted repair for no fault class, so
+    # listing it in the vocabulary would add a value `validate.py` rule 7
+    # rejects whatever class the model picks.
+    buildable = set(actions.names()) - NOT_MODEL_PROPOSABLE
+    assert not (NOT_MODEL_PROPOSABLE & vocabulary), (
+        f"{sorted(NOT_MODEL_PROPOSABLE & vocabulary)} is both exempt and "
+        f"nameable; it cannot be both"
+    )
     missing = buildable - vocabulary
     assert not missing, (
         f"registered but unnameable by the model: {sorted(missing)}. The model "

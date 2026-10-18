@@ -145,12 +145,30 @@ def check_shape(diff: str, v: PatchVerdict) -> PatchVerdict:
     """It must actually be a unified diff, with at least one hunk."""
     if not diff.strip():
         return v.deny("the patch is empty")
-    if not any(_HUNK.match(ln) for ln in diff.splitlines()):
+    lines = diff.splitlines()
+    if not any(_HUNK.match(ln) for ln in lines):
         return v.deny(
             "the patch contains no @@ hunk header, so it is not a unified "
             "diff. §6.2.1 requires a diff against a known blob, never a "
             "whole file: a whole-file write silently overwrites work done "
             "since the witness was taken"
+        )
+    # BOTH file headers, not just the `+++` one `changed_files` reads.
+    # qwen2.5:7b-instruct emitted a `+++` line with no `---` line on a live
+    # run; every check here passed and `git apply` then failed with "patch
+    # fragment without header", which is a true but unhelpful account of a
+    # malformed proposal. Refusing it here names the actual problem, and at
+    # the layer that is supposed to know what a diff looks like.
+    if not any(ln.startswith("--- ") for ln in lines):
+        return v.deny(
+            "the patch has no `--- a/<path>` header. A unified diff needs "
+            "both file headers; with only `+++` git cannot tell which file "
+            "the hunk belongs to"
+        )
+    if not any(ln.startswith("+++ ") for ln in lines):
+        return v.deny(
+            "the patch has no `+++ b/<path>` header, so it names no file "
+            "to write"
         )
     return v
 

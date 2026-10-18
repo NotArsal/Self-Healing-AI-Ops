@@ -46,6 +46,10 @@ Your diff must:
 +a line that is added, with a leading plus
 ```
 
+Both the `---` and the `+++` line are required. A patch that has only one
+of them is rejected without being tried, because git cannot tell which file
+the hunk belongs to.
+
 Include at least one unchanged line around your change where the file has
 one. Those lines are how the patch finds its place; without them it cannot
 be matched and will be rejected.

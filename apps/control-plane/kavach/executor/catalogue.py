@@ -16,8 +16,13 @@ Adding a workload means adding a line here, not editing the loop.
 
 from __future__ import annotations
 
-from kavach.executor import config_rollback, endpoint_switch, prompt_rollback
-from kavach.executor.base import LOW, MEDIUM, registry
+from kavach.executor import (
+    apply_patch,
+    config_rollback,
+    endpoint_switch,
+    prompt_rollback,
+)
+from kavach.executor.base import HIGH, LOW, MEDIUM, registry
 
 registry.register(
     name=config_rollback.ACTION_NAME,
@@ -53,18 +58,29 @@ registry.register(
     action_type=prompt_rollback.PromptRollback,
 )
 
-# `apply_patch` is NOT registered, and as of 2026-10-18 it never will be in
-# v1: P7 is cut (`docs/decisions/0009-p7-is-cut.md`), which takes the sandbox
-# and this action with it - they were always one decision, per ROADMAP's P6
-# cut line. The paragraph below is kept because the REASON it is unregistered
-# is the point, and it outlives the schedule that once said "P7".
+# `apply_patch`, added 2026-10-18. ADR 0011 partially reverses ADR 0009: the
+# sandbox and this action are restored, Laya and the knowledge base stay cut.
 #
-# `apply_patch` is NOT registered. Its contract exists (ARCHITECTURE.md §6.2.1)
-# and its tier is fixed HIGH, but it requires the sandbox, and registering an
-# action whose safety precondition is unbuilt would make `permit()` able to
-# authorise something that cannot yet be made safe. It would have
-# registered with `tier_is_fixed=True`; it now does not register at all,
-# which is the behaviour that matters - an unregistered action cannot be
-# authorised by permit() whatever any document says.
+# The ONLY action whose payload a model wrote, and the only HIGH one.
+# `tier_is_fixed=True` says that tier is a property of the action and not of
+# its parameters - there is no patch small enough, and no file harmless
+# enough, to make a generated write MEDIUM. Every other action picks a name
+# from a closed list and writes a recorded value; this one writes prose that
+# did not exist until a model produced it.
+#
+# ADR 0009's objection to registering it was precise and is now answered: an
+# action whose safety precondition is unbuilt would let `permit()` authorise
+# something that cannot be made safe. The sandbox is built and proven, and
+# `ApplyPatch.prepare()` will not return an action at all unless the patch has
+# already been applied to a clone and passed the fast set there. So by the
+# time `permit()` sees this, constraint 4 has a real answer rather than a
+# promise - which is why the trial lives in `prepare()` and not in `execute()`.
+registry.register(
+    name=apply_patch.ACTION_NAME,
+    builder=apply_patch.build_from_proposal,
+    risk_tier=HIGH,
+    action_type=apply_patch.ApplyPatch,
+    tier_is_fixed=True,
+)
 
 __all__ = ["registry"]
