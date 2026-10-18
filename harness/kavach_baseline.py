@@ -63,6 +63,8 @@ from harness.faults.f06_retrieval_collapse import F06RetrievalCollapse  # noqa: 
 from harness.faults.f07_prompt_regression import F07PromptRegression  # noqa: E402
 from harness.faults.f08_config_regression import F08ConfigRegression  # noqa: E402
 from kavach.config import get_settings  # noqa: E402
+from kavach.detection.endpoint_outage import QUERIES as F01_QUERIES  # noqa: E402
+from kavach.detection.endpoint_outage import Thresholds as F01Thresholds  # noqa: E402
 from kavach.detection.retrieval_collapse import QUERIES as F06_QUERIES  # noqa: E402
 from kavach.detection.retrieval_collapse import Thresholds  # noqa: E402
 from kavach.onboarding.manifest import load as load_manifest  # noqa: E402
@@ -183,21 +185,37 @@ def drain(client: TargetClient, max_rounds: int = 40) -> tuple[bool, float]:
     It reported a clean system eight times in a row and every measurement
     after the first was still dirty.
 
-    So this reads the two grounding signals directly and waits for both to be
+    IT DRAINS THE ERROR RATIO TOO, AND LEAVING THAT OUT COST A DEMO RUN
+    The first version waited on the two GROUNDING signals only. F01 leaves a
+    different residue - `llm_error_ratio` at [2m] - and that one is enough on
+    its own to make the endpoint detector claim. In the first full
+    `make scenario` run, act 3 took both Toxiproxy listeners down and act 4
+    then diagnosed "95.1% of LLM calls are failing: the configured endpoint
+    is refusing them" for a fault that was a stopped DATABASE. Acts 2, 3 and
+    4 all failed off the back of it.
+
+    That is the sixth instance of one root cause in this project: a windowed
+    metric read while it still remembers the previous experiment. Draining
+    some of the windows is not draining the windows.
+
+    So this reads all three signals directly and waits for every one to be
     healthy. `empty_context_ratio` is the slow one: it is still `[10m]`
     because it mirrors a declared `window_s: 600` in the target manifest,
     which `kept_chunks_mean` does not, so shortening it would be a spec
     change rather than a detector-local fix.
     """
     t = Thresholds()
+    t1 = F01Thresholds()
     t0 = time.time()
     for _ in range(max_rounds):
         fast.run(client, FAST_SET, check_health=False)
         kept = promql(F06_QUERIES["kept_chunks_mean"])
         empty = promql(F06_QUERIES["empty_context_ratio"])
+        errors = promql(F01_QUERIES["llm_error_ratio"])
         kept_ok = kept is None or kept >= t.kept_chunks_floor
         empty_ok = empty is None or empty <= t.empty_context_ceiling
-        if kept_ok and empty_ok:
+        errors_ok = errors is None or errors < t1.error_ratio_floor
+        if kept_ok and empty_ok and errors_ok:
             return True, round(time.time() - t0, 1)
     return False, round(time.time() - t0, 1)
 

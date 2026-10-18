@@ -155,9 +155,15 @@ inject:
 	@echo Not implemented until P2.
 	@exit 1
 
+# The four-act demo: autonomous heal, approval heal, rollback, and a
+# refusal on a fault outside the catalogue. NAME picks the scenario, ACTS
+# runs a subset (ACTS=2 to rehearse just the approval pause).
+#
+# ONE full run fits inside permit()'s five-incidents-an-hour blast radius;
+# a second rehearsal in the same hour will park, which is correct behaviour
+# and not a bug. Space rehearsals an hour apart.
 scenario:
-	@echo Not implemented until P9.
-	@exit 1
+	$(UV) run python -I ../../harness/scenario.py --name $(or $(NAME),demo-full) $(ARGS)
 
 # The metrics table from PRD section 10, over repeated live injections.
 # PACED, NOT FAST: permit() allows five incident starts an hour and an
