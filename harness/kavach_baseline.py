@@ -229,10 +229,32 @@ class Measurement:
     detect_s: float | None = None
     decide_s: float | None = None
     resolve_s: float | None = None
+    # The DETERMINISTIC detector's verdict. `incident.fault_class` is this,
+    # in both arms, which is the trap below.
     diagnosed: str = ""
+    # The LLM's OWN answer, read from the RCA stage. Recorded separately
+    # because the first version of this harness scored the LLM arm off
+    # `incident.fault_class` - the deterministic verdict - and so credited
+    # the model with 4/4 on a run where it had said F06 for an F07 at 0.95
+    # confidence and been rejected. A comparison that reads the same field
+    # for both arms is not a comparison.
+    llm_diagnosed: str = ""
+    llm_confidence: float | None = None
+    llm_approved: bool | None = None
+    llm_correct: bool | None = None
     correct: bool = False
     status: str = ""
     action: str = ""
+    # Whether the target really went back to how this measurement found it.
+    # A run that leaves the system dirty poisons every run after it, so this
+    # is recorded per measurement rather than hoped for.
+    # Set when permit() refused for a reason that is about the HARNESS
+    # rather than the fault - the blast-radius limiter counting this run's
+    # own earlier incidents. A measurement blocked by rate limiting measured
+    # the rate limiter, not the thing it claims to.
+    blocked_by_safety: str = ""
+    state_clean: bool = True
+    restored: dict[str, Any] = field(default_factory=dict)
     error: str = ""
 
     def line(self) -> str:
@@ -257,6 +279,22 @@ def measure(client: TargetClient, fault_class: str, rca: bool) -> Measurement:
                    "on a contaminated window would measure the contamination")
         return m
 
+    # THE FULL PRE-STATE, CAPTURED HERE RATHER THAN TRUSTED TO THE INJECTOR.
+    # This replaces a restore that read
+    # `fault.record.pre_state["settings"]["llm_base_url"]` - a key F01's
+    # injector never populates, so after a successful switch_llm_endpoint the
+    # restore silently did nothing and the target stayed on the BACKUP
+    # listener. Every later F01 injection then disabled a primary the
+    # application was no longer using and correctly produced NO_FAULT, and
+    # every later measurement of ANY class ran against a non-baseline system.
+    # It cost two whole runs, and I made the same mistake in two files.
+    #
+    # So the harness no longer asks the injector what the pre-state was. It
+    # reads it, restores it, and VERIFIES the restore - a measurement that
+    # silently starts from the wrong state is worse than one that fails.
+    pre_settings = dict(client.settings())
+    pre_prompts = dict((client.config().get("prompt_version") or {}).get("files") or {})
+
     fault = build(fault_class, client)
     try:
         fault.inject()
@@ -276,6 +314,14 @@ def measure(client: TargetClient, fault_class: str, rca: bool) -> Measurement:
         m.status = str(inc.get("status", ""))
         m.diagnosed = str(inc.get("fault_class") or "")
         m.correct = m.diagnosed == fault_class
+        rca_stage = inc.get("rca") or {}
+        diag = rca_stage.get("diagnosis") or {}
+        if diag:
+            m.llm_diagnosed = str(diag.get("fault_class") or "")
+            conf = diag.get("confidence")
+            m.llm_confidence = float(conf) if conf is not None else None
+            m.llm_approved = bool(rca_stage.get("approved"))
+            m.llm_correct = m.llm_diagnosed == fault_class
         m.action = str(inc.get("planned_action") or "")
 
         if m.status == "AWAITING_APPROVAL":
@@ -290,6 +336,8 @@ def measure(client: TargetClient, fault_class: str, rca: bool) -> Measurement:
             m.status = str(inc.get("status", ""))
         if m.status == "RESOLVED":
             m.resolve_s = round(time.time() - t0, 1)
+        elif "blast_radius" in str(inc.get("escalation_reason") or ""):
+            m.blocked_by_safety = str(inc.get("escalation_reason"))[:160]
     except Exception as exc:
         m.error = f"{type(exc).__name__}: {exc}"
     finally:
@@ -297,13 +345,26 @@ def measure(client: TargetClient, fault_class: str, rca: bool) -> Measurement:
             fault.revert()
         except Exception as exc:  # pragma: no cover - teardown only
             m.error = (m.error + f" | revert failed: {exc}").strip(" |")
-        # F01's repair moves the endpoint; put it back so the next class
-        # starts from the documented pre-state rather than the backup.
-        if fault_class == "F01":
-            prior = fault.record.pre_state.get("settings", {}).get("llm_base_url")
-            with contextlib.suppress(Exception):
-                if prior:
-                    client.apply_settings({"llm_base_url": prior})
+        # Restore every setting the repair or the injector moved, from the
+        # pre-state THIS function captured, then check it actually took.
+        with contextlib.suppress(Exception):
+            live = client.settings()
+            drifted = {k: v for k, v in pre_settings.items()
+                       if k in live and live[k] != v}
+            if drifted:
+                client.apply_settings(drifted)
+                m.restored = drifted
+            after = client.settings()
+            after_prompts = dict(
+                (client.config().get("prompt_version") or {}).get("files") or {})
+            m.state_clean = (after == pre_settings
+                             and after_prompts == pre_prompts)
+            if not m.state_clean:
+                still = {k: (pre_settings.get(k), after.get(k))
+                         for k in pre_settings
+                         if after.get(k) != pre_settings.get(k)}
+                m.error = (m.error
+                           + f" | STATE NOT RESTORED: {still}").strip(" |")
     return m
 
 
@@ -316,6 +377,12 @@ class Report:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--classes", default=",".join(CLASSES))
+    ap.add_argument("--arms", default="det,llm",
+                    help="which arms to run. permit()'s blast-radius limiter "
+                         "allows 5 incidents an hour, and each arm is one "
+                         "incident per class, so 4 classes x 2 arms trips it "
+                         "and the later arm measures the limiter instead of "
+                         "the LLM. Run one arm per session.")
     ap.add_argument("--reps", type=int, default=1)
     ap.add_argument("--json-out",
                     default=str(ROOT / "harness" / "reports" / "kavach-baseline.json"))
@@ -352,8 +419,9 @@ def main() -> int:
     rep = Report(at=datetime.now(UTC).isoformat(timespec="seconds"))
     try:
         for rep_no in range(1, args.reps + 1):
+            arms = [a.strip() for a in args.arms.split(",") if a.strip()]
             for fc in classes:
-                for rca in (False, True):
+                for rca in [a == "llm" for a in arms]:
                     m = measure(client, fc, rca)
                     rep.measurements.append(m)
                     say(m.line())
@@ -379,10 +447,29 @@ def main() -> int:
             return f"{statistics.median(vals):.1f}s" if vals else "none"
 
         def right(ms: list[Measurement]) -> str:
-            return f"{sum(1 for m in ms if m.correct)}/{len(ms)}" if ms else "-"
+            """The LLM arm is scored on the LLM's OWN answer, not on the
+            deterministic verdict that sits in the same incident."""
+            if not ms:
+                return "-"
+            if ms[0].rca:
+                scored = [m for m in ms if m.llm_correct is not None]
+                if scored:
+                    return f"{sum(1 for m in scored if m.llm_correct)}/{len(scored)}"
+            return f"{sum(1 for m in ms if m.correct)}/{len(ms)}"
 
         say(f"  {fc:<6} {med(det):>12} {med(llm):>12} "
             f"{right(det):>10} {right(llm):>10}")
+
+    blocked = [m for m in rep.measurements if m.blocked_by_safety]
+    if blocked:
+        say("")
+        say(f"  {len(blocked)} measurement(s) were REFUSED BY permit()'s "
+            f"blast-radius limiter, not by anything about the fault:")
+        for m in blocked:
+            say(f"    {m.fault_class} {'LLM' if m.rca else 'det'}: "
+                f"{m.blocked_by_safety}")
+        say("  Those timings measure the limiter. Re-run that arm in a "
+            "separate session (--arms), or wait out the hour.")
 
     resolved = [m for m in rep.measurements if m.resolve_s is not None]
     if resolved:
@@ -391,6 +478,16 @@ def main() -> int:
         say(f"  resolved           {len(resolved)}/{len(rep.measurements)}")
         say(f"  median resolve     {statistics.median(times):.1f}s   "
             f"(PRD section 10 target: < 180s)")
+    rejected = [m for m in rep.measurements
+                if m.llm_approved is False and m.llm_diagnosed]
+    if rejected:
+        say("")
+        say("  CROSS-CHECK REJECTIONS (the architecture's case, live):")
+        for m in rejected:
+            say(f"    {m.fault_class}: the model said {m.llm_diagnosed} at "
+                f"{m.llm_confidence} confidence; deterministic detection said "
+                f"{m.diagnosed}. Refused, nothing written.")
+
     say("")
     say("  The LLM column is the non-LLM comparison PRD section 10.3 calls "
         "irrecoverable. It is recoverable: rca=false runs the same loop with "
