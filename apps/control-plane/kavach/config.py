@@ -14,6 +14,33 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 Mode = Literal["SIMULATION", "APPROVAL", "AUTONOMOUS"]
 
 
+def _env_files() -> tuple[str, ...]:
+    """`.env` by cwd AND `.env` at the repository root.
+
+    `env_file=".env"` alone is resolved against the CURRENT WORKING
+    DIRECTORY, so it silently found nothing whenever the process did not
+    start at the repo root - and `uv --directory apps/control-plane`, which
+    is how every harness and Makefile target runs, never does. Keys written
+    to the one gitignored file a user is told to use read back empty, with no
+    error, because an absent `.env` is not an error.
+
+    That cost real time twice: once on `KAVACH_TARGET_ADMIN_TOKEN` (a 401
+    that looked like a target problem, and the Makefile carries a comment
+    about it) and once on the cloud provider keys. Anchoring to the
+    repository root as well fixes the class, not the instance.
+
+    Both entries are returned rather than one: the root path does not exist
+    inside the image, where the package lives at `/app/kavach` with no
+    repository around it and compose supplies the environment directly. A
+    missing env file is ignored, so listing both is safe in both places. The
+    later entry wins where they differ, and they are the same file whenever
+    the process did start at the root.
+    """
+    parents = Path(__file__).resolve().parents
+    root = parents[3] if len(parents) > 3 else parents[1]
+    return (".env", str(root / ".env"))
+
+
 class Settings(BaseSettings):
     """Control-plane configuration, read from the environment.
 
@@ -28,7 +55,7 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="KAVACH_",
-        env_file=".env",
+        env_file=_env_files(),
         env_file_encoding="utf-8",
         extra="ignore",
     )

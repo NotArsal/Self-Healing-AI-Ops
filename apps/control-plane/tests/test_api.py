@@ -371,8 +371,20 @@ def test_admin_token_has_no_source_default() -> None:
 
     Empty is a usable state: the target answers 401 and the loop escalates
     rather than writing, which is the correct failure for a missing secret.
+
+    THE DECLARED DEFAULT IS THE CLAIM, NOT THE RESOLVED VALUE
+    This also asserted `Settings().target_admin_token == ""`, which reads the
+    ENVIRONMENT and so asserted something about the machine rather than about
+    the source. It passed only because `.env` was being looked for relative to
+    the working directory and was therefore invisible from here; it would have
+    failed just as readily for anyone who exported the variable in their
+    shell, which is a supported way to run this. Once `config.py` started
+    finding the repository's `.env` wherever it was launched from, the
+    accident ended.
+
+    The field default IS the property the docstring names, it is a statement
+    about source, and it is true on every machine.
     """
-    assert Settings().target_admin_token == ""
     field = Settings.model_fields["target_admin_token"]
     assert field.default == ""
 

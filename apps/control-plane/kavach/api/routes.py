@@ -238,7 +238,7 @@ async def system(
         threshold = None
 
     llm = providers.build(settings.llm_provider, settings.llm_model,
-                          settings.llm_base_url)
+                          ollama_base_url=settings.llm_base_url)
     direct_ok = await asyncio.to_thread(llm.available)
     deps.append(s.Dependency(
         name="Ollama, Kavach path", ok=direct_ok,

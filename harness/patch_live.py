@@ -91,7 +91,7 @@ def probe(provider: str, model: str, ollama: str, n: int,
         {"fault_class": "F07", "service": "backend", "confidence": 0.9},
         "EV-C08 prompt answer.txt changed from baseline; grounding absent",
         f"prompts/{PROMPT_FILE}", DEGRADED_PROMPT)
-    llm = providers.build(provider, model, ollama)
+    llm = providers.build(provider, model, ollama_base_url=ollama)
     model = llm.model
 
     applies = 0
@@ -191,7 +191,8 @@ def main() -> int:
         out["production_passed_under_fault"] = prod_fast.passed
 
         say("\n[2/4] asking the model for a patch")
-        llm = providers.build(args.provider, args.model, args.ollama)
+        llm = providers.build(args.provider, args.model,
+                              ollama_base_url=args.ollama)
         witness = {f"prompts/{PROMPT_FILE}": apply_patch.digest(degraded)}
         diagnosis = {
             "fault_class": "F07", "service": "backend", "confidence": 0.9,

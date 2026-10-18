@@ -317,7 +317,8 @@ class LoopRunner:
         inside this wrapper, because the loop sees RCA as one opaque call.
         """
         s = self.settings
-        llm = providers.build(s.llm_provider, s.llm_model, s.llm_base_url)
+        llm = providers.build(s.llm_provider, s.llm_model,
+                              ollama_base_url=s.llm_base_url)
         services = set(s.target_services())
         baseline_value, _ = self.baseline()
         baseline_doc = self.baseline_doc()

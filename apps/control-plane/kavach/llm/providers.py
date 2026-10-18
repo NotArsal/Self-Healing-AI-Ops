@@ -59,6 +59,22 @@ from kavach.llm.client import (
 
 OLLAMA = "ollama"
 
+# Sent on every cloud request, and it is load-bearing rather than polite.
+#
+# Groq and OpenCode Zen sit behind Cloudflare, which answers the default
+# `Python-urllib/3.12` with HTTP 403 and `error code: 1010` - its browser
+# integrity check. That reads exactly like a rejected key and sent this
+# project looking at the wrong thing for a while, so the fix is recorded
+# next to the cause.
+#
+# It names Kavach honestly. It is deliberately NOT a copied browser string:
+# the problem is an unidentified client, and the fix for that is to identify
+# the client, not to impersonate a different one.
+USER_AGENT = (
+    "Kavach/1.0 (self-healing-ai-ops; "
+    "+https://github.com/NotArsal/Self-Healing-AI-Ops)"
+)
+
 
 @dataclass(frozen=True)
 class Provider:
@@ -69,6 +85,11 @@ class Provider:
     key_env: str
     default_model: str
     note: str = ""
+    # Not every "OpenAI-compatible" layer accepts every OpenAI field.
+    # Gemini's rejects `seed` outright with HTTP 400 "Unknown name seed:
+    # Cannot find field", so the determinism hint is dropped for it rather
+    # than dropped for everyone. Providers that honour it stay reproducible.
+    supports_seed: bool = True
 
 
 # The table. A base URL here NEVER includes `/chat/completions`: the client
@@ -93,15 +114,20 @@ PROVIDERS: dict[str, Provider] = {
         name="gemini",
         base_url="https://generativelanguage.googleapis.com/v1beta/openai",
         key_env="KAVACH_GEMINI_API_KEY",
-        default_model="gemini-2.5-flash",
+        # 2.5-flash was retired for new users on 2026-10-18; the API
+        # itself named 3.8-flash as the replacement.
+        default_model="gemini-3.8-flash",
         note="Google's OpenAI-compatibility layer, not the native API",
+        supports_seed=False,
     ),
     "opencodezen": Provider(
         name="opencodezen",
         base_url="https://opencode.ai/zen/v1",
         key_env="KAVACH_OPENCODEZEN_API_KEY",
         default_model="",
-        note="base path unverified against a live call; see ADR 0012",
+        note="base path CONFIRMED live 2026-10-18 (reached its auth layer); "
+             "no default model because the key available then had expired "
+             "before the model list could be read",
     ),
 }
 
@@ -179,6 +205,12 @@ class OpenAiCompatClient:
                 f"must be given explicitly (KAVACH_LLM_MODEL)"
             )
 
+    def _headers(self) -> dict[str, str]:
+        return {
+            "Authorization": f"Bearer {self._key}",
+            "User-Agent": USER_AGENT,
+        }
+
     # --- availability -------------------------------------------------------
 
     def available(self) -> bool:
@@ -193,9 +225,7 @@ class OpenAiCompatClient:
             return False
         try:
             req = urllib.request.Request(
-                f"{self.base_url}/models",
-                headers={"Authorization": f"Bearer {self._key}"},
-            )
+                f"{self.base_url}/models", headers=self._headers())
             with urllib.request.urlopen(req, timeout=15) as r:
                 json.load(r)
             return True
@@ -232,20 +262,29 @@ class OpenAiCompatClient:
                 },
             },
             "stream": False,
-            # Same determinism contract as the Ollama path. `seed` is honoured
-            # by some providers and ignored by others; sending it costs
-            # nothing and the ones that honour it become reproducible.
+            # Bounded on purpose, and not only to control cost.
+            #
+            # Left unset, a provider assumes its model's maximum. OpenRouter
+            # reserves credits against that assumption and refused with HTTP
+            # 402 - "you requested up to 64000 tokens, but can only afford
+            # 97" - which reads like an empty account rather than a missing
+            # parameter.
+            #
+            # 2048 is generous for what the schemas allow: `PatchProposal`
+            # caps the diff at 4000 characters and the rationale at 600, and
+            # a diagnosis is smaller still.
+            "max_tokens": 2048,
+            # Same determinism contract as the Ollama path. `seed` is added
+            # below only where the provider accepts it - see `supports_seed`.
             "temperature": temperature,
             "top_p": 1.0,
-            "seed": 42,
         }
+        if self.provider.supports_seed:
+            payload["seed"] = 42
         req = urllib.request.Request(
             f"{self.base_url}/chat/completions",
             data=json.dumps(payload).encode(),
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self._key}",
-            },
+            headers={**self._headers(), "Content-Type": "application/json"},
             method="POST",
         )
         started = time.perf_counter()
@@ -299,8 +338,9 @@ def names() -> list[str]:
 def build(
     provider: str = OLLAMA,
     model: str = "",
-    base_url: str = "",
+    ollama_base_url: str = "",
     api_key: str = "",
+    base_url: str = "",
 ) -> LlmClient:
     """The one way to obtain a model client.
 
@@ -308,11 +348,24 @@ def build(
     to be set: that would make the model behind a measurement depend on the
     contents of a `.env` file nobody reads, and the whole point of carrying
     provenance is that it is never inferred.
+
+    THE TWO URL PARAMETERS ARE SEPARATE ON PURPOSE
+    `ollama_base_url` is where Ollama listens and is IGNORED by every cloud
+    provider. `base_url` overrides a cloud provider's own endpoint and is
+    ignored by Ollama.
+
+    They were one parameter for about an hour, and every caller had an
+    Ollama URL to hand (`settings.llm_base_url`, `--ollama`) and passed it
+    positionally. So selecting OpenRouter sent the request to
+    127.0.0.1:11434, Ollama replied `404 page not found`, and three
+    different providers produced byte-identical errors that looked like a
+    routing problem at their end. Two names cost nothing and make that
+    unrepresentable.
     """
     key = provider.strip().lower() or OLLAMA
     if key == OLLAMA:
         return OllamaClient(
-            base_url=base_url or "http://localhost:11434",
+            base_url=ollama_base_url or "http://localhost:11434",
             model=model or "llama3.2",
         )
     spec = PROVIDERS.get(key)
