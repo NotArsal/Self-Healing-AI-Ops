@@ -413,6 +413,71 @@ Also: `score` is the weakest primitive (SST-5 0.372), so **risk tier must be a `
 
 One operational note: `transformers` probes for TensorFlow at import and its abseil runtime can deadlock model construction, so `laya.load()` hangs if TF is installed. Running Laya as a sidecar makes this a property of one container rather than a constraint on the whole stack.
 
+**DEPENDENCY RE-CHECKED 2026-10-18. All three defects still hold; nothing above needs correcting.**
+
+Laya ships fast — `v0.4.11` the day before this check, 33,294 stars, and the
+numbers above were written against the `0.3.x` line. A dependency whose
+defects shape our architecture is worth re-reading before the viva rather
+than cited from weeks-old notes, so each of the three was checked against its
+primary source.
+
+| Defect | Status on 2026-10-18 | Primary source |
+|---|---|---|
+| 1. Never use `noul` for gate decisions | **Still unfixed.** Maintainer: *"The English-checkpoint bias itself needs a retrained checkpoint, so this stays open."* The README still recommends the two-option `choice` with neutral keys | [#156](https://github.com/NandhaKishorM/laya/issues/156) |
+| 2. Never gate on `act_probability` | **Still unfixed, reconfirmed 2026-10-11.** Maintainer: *"the operative advice is unchanged… do not gate on `act_probability`. Its raw logits run against correctness at AUROC 0.30 on 396 labelled decisions, while `confidence` reaches 0.77 on the same items."* | [#185](https://github.com/NandhaKishorM/laya/issues/185) |
+| 3. Ships over-confident; must be temperature-refit | **Still true.** Card: ECE 0.213, and *"treat its confidence as uncalibrated"* until refit | `laya-typed-decisions` model card |
+
+**So §7.1 above stands unchanged and the v1 plan needs no rework.** That is
+the result worth having: the three workarounds this project designed around
+are still the correct ones.
+
+**One caveat on #156, stated rather than resolved.** The page metadata reads
+*closed* while the maintainer's own comment on it says *"this stays open"*.
+That contradiction was not resolvable from the page. The substance — the bias
+needs a retrained checkpoint, and the neutral-key `choice` is still the
+documented workaround — is the reliable part; the state label is not. Do not
+cite #156 as open or closed in the report without re-checking.
+
+**Two mechanism details worth having before P7 touches this.** On #185 the
+maintainer has now measured and rejected the obvious fix twice: a `LayerNorm`
+before `act_head` cannot be added at load time, because the shipped
+checkpoints store `act_head.0.weight` at `(256, 1028)` and inserting anything
+at index 0 collides with it — and more fundamentally, a `LayerNorm` with
+γ=1 is not an identity, so even a shape-compatible insert would feed the
+trained `Linear` inputs on a scale it was never fitted on. The act head needs
+retraining, not calibrating. Separately, defect 3 has a sharper form than
+§7.1 records: `temperature_by_options` is **inherited from the base
+checkpoint and overrides** the per-type temperatures fitted for
+`laya-typed-decisions`, and those per-type values (`[1.0148, 1.0374,
+1.0575]`) were themselves fitted on a slice of the training data
+([#186](https://github.com/NandhaKishorM/laya/issues/186)). Both layers have
+to be refit, not just one.
+
+**Four things that did not exist when §7.1 was written.** None of them
+changes the v1 plan — Laya is P7, P7 has not started, and chasing a
+dependency's new features against this deadline is the scope creep §11
+exists to prevent. Recorded so P7 starts from the current state rather than
+from this document's snapshot:
+
+- **`laya.calibrate`**, including `fit_abstention_thresholds`. Defect 3 says
+  we must refit on our own data; there is now first-party tooling for exactly
+  that, and an abstention threshold is a natural fit for a shadow engine that
+  should decline rather than guess.
+- **ONNX export plus Rust, Go and TypeScript SDKs.** Potentially material:
+  `ARCHITECTURE.md` §2.2 and `AGENTS.md` mandate the sidecar partly because
+  `transformers` probes for TensorFlow and abseil can deadlock `laya.load()`.
+  An ONNX runtime path removes that failure mode rather than isolating it.
+  **The sidecar decision is not reopened here** — it is cheap, already
+  specified, and isolating a dependency tree is worth doing on its own merits.
+- **MCP `laya_predict_long`** for states past the context window, which
+  overlaps the decision-frame compression §7.1 schedules as real P7 work.
+  Check whether it subsumes part of that before building it.
+- **An opt-in `labels` override** (PR #163), which lets the label-word effect
+  behind defect 1 be *measured* without changing defaults. That is the
+  cheapest publishable micro-result available here: whether neutral keys
+  actually help on Kavach's own decision frames is currently asserted from
+  the card, not measured on our data.
+
 ---
 
 ## 8. User flows
