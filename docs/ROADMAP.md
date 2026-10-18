@@ -1162,14 +1162,14 @@ The phase most teams skip and most reviewers notice.
 
 **Acceptance**
 - [ ] Human baseline MTTR recorded per fault class — *protocol and runner ready; the session itself is not run*
-- [ ] Undo ablation numbers recorded
-- [ ] P(heal | correct diagnosis) and P(heal | wrong diagnosis) both reported
-- [ ] P2 vs. P3 and rule-engine vs. Laya comparisons written up — the P2-vs-P3 numbers for `F06` are already recorded; extend them across every fault class
+- [x] Undo ablation numbers recorded — `harness/ablation_undo.py`, artifact `harness/reports/ablation-undo.json`. With undo the target is left exactly as found; without it, stranded in a third state. **Caveat carried: the undo stack had never fired in any prior live run, so this is insurance against a constructed case, not a measured improvement**
+- [~] P(heal | correct diagnosis) and P(heal | wrong diagnosis) both reported — **emitted by `make bench`** (`harness/report.py`) along with P(correct | heal). Smoke-tested on one class; **not yet run at the full 4 × 5 denominator**, which takes ~8h paced under the blast radius
+- [~] P2 vs. P3 extended to every class — **measured** (`harness/reports/kavach-baseline*.json`): deterministic F08 60.6s, F07 63.5s, F01 84.8s, F06 114.7s; with RCA 102.7s / — / 127.2s / 160.0s. **Not yet written up.** The rule-engine-vs-Laya half is void: Laya was cut (`ADR 0009`)
 - [ ] The eight-fault catalogue and `F04`'s retirement are stated in the report, with the reason
 - [ ] The target's Kubernetes files are explained as *not* a Kavach capability (`PRD.md` §5.3)
 - [ ] **Demo script runs clean three times consecutively on the demo machine**
 - [ ] Offline rehearsal — no network, local model only, no `GEMINI_API_KEY` present
-- [ ] A failure path is in the demo. Showing a rollback that works is more persuasive than four successes
+- [x] A failure path is in the demo — **two**. `make scenario` act 3 is a rollback after a repair that correctly fails, and act 4 is a refusal on a fault outside the catalogue (database stopped), proven live with legible reasoning
 
 ---
 
