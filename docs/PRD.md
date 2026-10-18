@@ -369,14 +369,24 @@ Two orthogonal axes, deliberately separated because conflating them caused the L
 | `F-UNK` | Unknown-failure flow — evidence → hypotheses → risk → escalate (never auto-execute) | P1 | P6. *The `UNKNOWN` **gate** is already live in the RCA validator; the hypothesis flow is not* |
 | `F-EVAL-FULL` | Full offline evaluation runner for research measurement | P1 | P7 |
 | `F-MEM` | Incident knowledge base with similarity retrieval over past incidents | P1 | P7 |
-| `F-DEC` | **Pluggable decision model — rule engine is authority, Laya adapter in shadow** (§7.1) | **P1** | **P7** |
-| `F-SBX` | Sandbox: clone the stack, apply the repair there first | P1 | P6 |
-| `F-CODE` | **Generated repair — `apply_patch`**: an LLM-authored diff to a declared file, HIGH risk, sandbox-gated, git-revertible | P2 | P7. *Depends on BOTH the safety engine (P5) and the sandbox (P6). Not startable before either* |
+| `F-DEC` | ~~Pluggable decision model — rule engine is authority, Laya adapter in shadow~~ (§7.1) | **P1** | ❌ **CUT** (`ADR 0009`). Shadow-only by design, so this removes a comparison, not a capability. The rule engine was always the permanent v1 authority |
+| `F-SBX` | ~~Sandbox: clone the stack, apply the repair there first~~ | P1 | ❌ **CUT** (`ADR 0009`), together with `F-CODE` — `ROADMAP.md`'s P6 cut line makes them one decision. The approval path is proven live without it |
+| `F-CODE` | ~~**Generated repair — `apply_patch`**: an LLM-authored diff to a declared file, HIGH risk, sandbox-gated, git-revertible~~ | P2 | ❌ **CUT** (`ADR 0009`). Never registered, so `permit()` could never authorise it. The six constraints in `ARCHITECTURE.md` §6.2.1 remain specified and unbuilt |
 | `F-BENCH` | AIOpsLab / RCAEval harness adapter | P2 | — |
 
 **`F-MODE` note, corrected 2026-10-04.** The earlier draft said `SIMULATION` is the default from the first line of code written. **It is not, because there is no mode plumbing yet** — the P2/P3 loop has no mode parameter to default. What makes that tolerable for now is narrower and should be stated as such: the loop is invoked explicitly by a harness, never on a timer, so it cannot act unattended. **The mode check must land with the safety engine in P6, before anything invokes the loop automatically.** P6 then adds `APPROVAL`'s interrupt/resume flow and the full `AUTONOMOUS` tier routing.
 
 ### 7.1 On the decision model — read the model card before building this
+
+> **❌ CUT 2026-10-18 (`ADR 0009`). Laya is not built and will not be in v1.**
+> Everything below stands as specification and as a dependency assessment —
+> the three defects were re-verified against their primary sources on
+> 2026-10-18 and all three still hold — but no `laya-serve` sidecar exists,
+> nothing calls it, and the rule engine remains the sole decision authority,
+> which §7.1 always said it would be permanently in v1. Typed-decision frames
+> are still logged, so the corpus keeps accumulating and the work stays
+> startable later. **Nothing in this section describes running software.**
+
 
 **Resolution of the P1/P2 contradiction: `F-DEC` is `P1` in priority and scheduled in `P7`. Laya is shadow-only in v1 and never gates an action.** Priority and phase are separate concepts; the previous draft conflated them and stated both P1 and P2 in four different places.
 
@@ -519,7 +529,7 @@ Project is in `AUTONOMOUS`. Fault `F01` is injected. The console shows, in seque
 
 Same until step 5. Risk is MEDIUM, so:
 
-5. Kavach clones the stack into an isolated sandbox project, applies the repair there, runs fast verification against the sandbox. *(If `F-SBX` is cut, this step is skipped and the proposal carries no sandbox result — see `ROADMAP.md` P6 cut line.)*
+5. ~~Kavach clones the stack into an isolated sandbox project, applies the repair there, runs fast verification against the sandbox.~~ **CUT (`ADR 0009`): `F-SBX` was cut, so this step does not happen and a proposal carries no sandbox result.** The conditional this step was written with — *"if `F-SBX` is cut, this step is skipped"* — is now the actual behaviour rather than a contingency.
 6. Console shows a **proposal**: diagnosis, proposed diff, sandbox verification result, risk rationale, inverse action.
 7. Human approves or rejects. Rejection is recorded with a reason and feeds the knowledge base.
 8. On approval, execute → verify → resolve, identical to the low-risk path.

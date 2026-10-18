@@ -53,10 +53,18 @@ registry.register(
     action_type=prompt_rollback.PromptRollback,
 )
 
+# `apply_patch` is NOT registered, and as of 2026-10-18 it never will be in
+# v1: P7 is cut (`docs/decisions/0009-p7-is-cut.md`), which takes the sandbox
+# and this action with it - they were always one decision, per ROADMAP's P6
+# cut line. The paragraph below is kept because the REASON it is unregistered
+# is the point, and it outlives the schedule that once said "P7".
+#
 # `apply_patch` is NOT registered. Its contract exists (ARCHITECTURE.md §6.2.1)
 # and its tier is fixed HIGH, but it requires the sandbox, and registering an
 # action whose safety precondition is unbuilt would make `permit()` able to
-# authorise something that cannot yet be made safe. It registers in P7, with
-# `tier_is_fixed=True`.
+# authorise something that cannot yet be made safe. It would have
+# registered with `tier_is_fixed=True`; it now does not register at all,
+# which is the behaviour that matters - an unregistered action cannot be
+# authorised by permit() whatever any document says.
 
 __all__ = ["registry"]

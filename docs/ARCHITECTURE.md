@@ -77,7 +77,7 @@ Note two deliberate properties of that diagram:
 | **Safety engine** | Project ownership, risk tier, allow-list, blast radius, circuit breaker, writer lock, mode policy | Choosing the repair |
 | **Executor** | The only component with side effects. One adapter per action type | Deciding whether to act |
 | **Knowledge base** | Incident embeddings, similarity retrieval, outcome history | Real-time decisions |
-| **Decision engine (shadow)** | Laya's independent answer to the same decisions; agreement logging | Anything binding. It never gates (`PRD.md` §7.1) |
+| ~~**Decision engine (shadow)**~~ ❌ **CUT** (`ADR 0009`) | ~~Laya's independent answer to the same decisions; agreement logging~~ **Not built.** Nothing produces a shadow answer | Anything binding. It never gated, and now does not exist (`PRD.md` §7.1) |
 
 The separation that matters: **the graph decides, the safety engine permits, the executor acts.** No component does two of those three.
 

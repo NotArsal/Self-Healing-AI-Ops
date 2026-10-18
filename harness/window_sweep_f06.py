@@ -78,6 +78,11 @@ WINDOWS = ["30s", "1m", "2m", "5m", "10m"]
 # From `retrieval_collapse.Thresholds`. Not re-declared loosely: a sweep that
 # used a different floor than the detector would measure nothing useful.
 KEPT_CHUNKS_FLOOR = 1.0
+# From `retrieval_collapse.Thresholds`. F06 claims on
+# `kept_chunks low OR empty_context high`, so this signal can
+# carry a claim entirely on its own - which is what made it the
+# sole remaining contaminator once kept_chunks went to [1m].
+EMPTY_CONTEXT_CEILING = 0.20
 
 
 def kept_chunks_query(window: str) -> str:
@@ -133,6 +138,8 @@ def main() -> int:
                     help="healthy rounds allowed to flush a prior fault")
     ap.add_argument("--settle-rounds", type=int, default=3,
                     help="healthy fast-set rounds before measuring at rest")
+    ap.add_argument("--recovery-rounds", type=int, default=40,
+                    help="healthy rounds allowed for a window to forget")
     ap.add_argument("--fault-rounds", type=int, default=8,
                     help="max driven rounds under injection")
     ap.add_argument("--json-out",
@@ -179,6 +186,7 @@ def main() -> int:
     say("-" * 78)
     drain_t0 = time.time()
     recovered_at: dict[str, float | None] = dict.fromkeys(WINDOWS)
+    empty_recovered_at: dict[str, float | None] = dict.fromkeys(WINDOWS)
     drain_rounds = 0
     for i in range(1, args.max_drain_rounds + 1):
         drain_rounds = i
@@ -189,17 +197,26 @@ def main() -> int:
             v = vals["kept_chunks_mean"][w]
             if recovered_at[w] is None and v is not None and v >= KEPT_CHUNKS_FLOOR:
                 recovered_at[w] = elapsed
+            e = vals["empty_context_ratio"][w]
+            if (empty_recovered_at[w] is None and e is not None
+                    and e <= EMPTY_CONTEXT_CEILING):
+                empty_recovered_at[w] = elapsed
         say(f"  round {i} at {elapsed:6.1f}s (fast set {r.pass_rate:.0%})")
         say(header())
         say(row("kept_chunks_mean", vals["kept_chunks_mean"]))
-        if all(recovered_at[w] is not None for w in WINDOWS):
-            say("  every window is back above the floor")
+        say(row("empty_context_ratio", vals["empty_context_ratio"]))
+        if all(recovered_at[w] is not None for w in WINDOWS) and all(
+                empty_recovered_at[w] is not None for w in WINDOWS):
+            say("  both signals are back inside their thresholds at every window")
             break
     report["recovered_at_s"] = recovered_at
+    report["empty_recovered_at_s"] = empty_recovered_at
     report["drain_rounds"] = drain_rounds
     say("")
-    say(f"  time to forget the previous fault: "
+    say(f"  kept_chunks forgets in:         "
         f"{ {w: ('never' if v is None else f'{v}s') for w, v in recovered_at.items()} }")
+    say(f"  empty_context_ratio forgets in: "
+        f"{ {w: ('never' if v is None else f'{v}s') for w, v in empty_recovered_at.items()} }")
     say("")
 
     # --- 1. FALSE POSITIVES AT REST -----------------------------------------
@@ -240,6 +257,7 @@ def main() -> int:
     say("-" * 78)
     fault = F06RetrievalCollapse(client)
     crossed_at: dict[str, float | None] = dict.fromkeys(WINDOWS)
+    empty_crossed_at: dict[str, float | None] = dict.fromkeys(WINDOWS)
     timeline: list[dict[str, Any]] = []
 
     try:
@@ -256,9 +274,14 @@ def main() -> int:
                 v = vals["kept_chunks_mean"][w]
                 if crossed_at[w] is None and v is not None and v < KEPT_CHUNKS_FLOOR:
                     crossed_at[w] = elapsed
+                e = vals["empty_context_ratio"][w]
+                if (empty_crossed_at[w] is None and e is not None
+                        and e > EMPTY_CONTEXT_CEILING):
+                    empty_crossed_at[w] = elapsed
             say(f"  round {i} at {elapsed:6.1f}s (fast set {r.pass_rate:.0%})")
             say(header())
             say(row("kept_chunks_mean", vals["kept_chunks_mean"]))
+            say(row("empty_context_ratio", vals["empty_context_ratio"]))
             if all(crossed_at[w] is not None for w in WINDOWS):
                 say("  every window has crossed; stopping early")
                 break
@@ -269,6 +292,51 @@ def main() -> int:
 
     report["under_fault"] = timeline
     report["crossed_at_s"] = crossed_at
+    report["empty_crossed_at_s"] = empty_crossed_at
+
+    # --- 3. RECOVERY, MEASURED AFTER A REAL INJECTION -----------------------
+    #
+    # The forget time has to be measured here and nowhere else. Phase 0
+    # reports it only when the run happens to START dirty, and a first
+    # attempt at this measurement exited after one round because the system
+    # was already clean - recording "forgets in 23.5s" identically at every
+    # window including [10m], which is impossible and was the tell.
+    #
+    # This runs straight after the revert, with the windows genuinely full of
+    # collapsed samples, and drives healthy traffic while it waits because
+    # that is the realistic case: a demo moving to its next fault is not an
+    # idle system.
+    say("")
+    say("-" * 78)
+    say("3. RECOVERY. The fault is reverted. How long until each window")
+    say("   forgets it? THIS is what decides whether two faults can be")
+    say("   demonstrated back to back.")
+    say("-" * 78)
+    forget_t0 = time.time()
+    forgot: dict[str, float | None] = dict.fromkeys(WINDOWS)
+    empty_forgot: dict[str, float | None] = dict.fromkeys(WINDOWS)
+    for i in range(1, args.recovery_rounds + 1):
+        r = fast.run(client, FAST_SET, check_health=False)
+        elapsed = round(time.time() - forget_t0, 1)
+        vals = read_all()
+        for w in WINDOWS:
+            v = vals["kept_chunks_mean"][w]
+            if forgot[w] is None and v is not None and v >= KEPT_CHUNKS_FLOOR:
+                forgot[w] = elapsed
+            e = vals["empty_context_ratio"][w]
+            if (empty_forgot[w] is None and e is not None
+                    and e <= EMPTY_CONTEXT_CEILING):
+                empty_forgot[w] = elapsed
+        say(f"  round {i} at {elapsed:6.1f}s (fast set {r.pass_rate:.0%})")
+        say(header())
+        say(row("kept_chunks_mean", vals["kept_chunks_mean"]))
+        say(row("empty_context_ratio", vals["empty_context_ratio"]))
+        if all(forgot[w] is not None for w in WINDOWS) and all(
+                empty_forgot[w] is not None for w in WINDOWS):
+            say("  both signals have forgotten the fault at every window")
+            break
+    report["forgot_at_s"] = forgot
+    report["empty_forgot_at_s"] = empty_forgot
 
     # --- the decision table --------------------------------------------------
     say("")
@@ -306,7 +374,29 @@ def main() -> int:
         report["shortest_usable"] = None
 
     say("")
-    say("  NOTE: this changes kept_chunks_mean ONLY. similarity_p50 and")
+    say("=" * 78)
+    say("DECISION TABLE 2: empty_context_ratio  (ceiling "
+        f"{EMPTY_CONTEXT_CEILING})")
+    say("=" * 78)
+    say(f"  {'window':<10} {'detects fault':<16} {'forgets it':<14} verdict")
+    for w in WINDOWS:
+        at = empty_crossed_at[w]
+        rec = empty_forgot[w]
+        detected = "never" if at is None else f"{at:.1f}s"
+        forgets = "never" if rec is None else f"{rec:.1f}s"
+        if at is None:
+            verdict = "cannot see the fault"
+        elif rec is None or rec > 120:
+            verdict = "SLOW TO FORGET - contaminates the next fault"
+        else:
+            verdict = "usable"
+        say(f"  {w:<10} {detected:<16} {forgets:<14} {verdict}")
+    say("")
+    say("  This signal alone can carry an F06 claim, so its FORGET time is")
+    say("  what decides whether two faults can be demoed back to back.")
+
+    say("")
+    say("  NOTE: decision table 1 changed kept_chunks_mean ONLY. similarity_p50 and")
     say("  empty_context_ratio mirror declared window_s values in kavach.yaml")
     say("  and are left alone - similarity must stay HEALTHY during an F06, so")
     say("  a long window on it is correct rather than merely tolerable.")

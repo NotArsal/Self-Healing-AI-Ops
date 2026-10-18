@@ -95,7 +95,13 @@ If a task conflicts with any of those documents, **stop and say so**. Do not res
 - Reuse before you create. Check `components/ui/` (shadcn) and `components/incident/` first.
 - **These rules apply to `apps/console/`.** The target's frontend is not governed here.
 
-### Laya integration
+### Laya integration ❌ CUT
+
+> **P7 is cut (`docs/decisions/0009-p7-is-cut.md`); Laya is not built.** The
+> rules below stay because one of them is a SAFETY rule and must survive the
+> cut: **Laya's output must never reach `permit()`**. That holds trivially
+> while nothing produces any output, and it must still hold if anyone revives
+> this. The rest is specification for work that is not happening in v1.
 
 **Laya is priority P1 and scheduled in P7. It is shadow-only in v1 and never gates an action.** Priority and phase are separate; if you find a document saying P2, it is stale — `PRD.md` §7.1 is authoritative.
 

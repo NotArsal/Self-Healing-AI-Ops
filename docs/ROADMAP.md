@@ -1077,7 +1077,26 @@ here, which is a more useful result than claiming zero.
 
 ---
 
-## P7 — Git isolation, knowledge base, Laya shadow
+## P7 — Git isolation, knowledge base, Laya shadow ❌ CUT 2026-10-18
+
+> **CUT IN ITS ENTIRETY. Nothing below was attempted.** See
+> `docs/decisions/0009-p7-is-cut.md` for the decision and the reasoning per
+> piece. In short: the sandbox and `apply_patch` are one decision and this
+> file's own P6 cut line already says so; Laya is shadow-only and never gates,
+> so cutting it removes a comparison rather than a capability; the knowledge
+> base enriches evidence that diagnosis already runs without; and git
+> isolation is largely moot once `apply_patch` is gone, because the only
+> file-writing action left writes the working tree directly (`ADR 0008`).
+>
+> **The section is kept rather than deleted** so the specification and the
+> reasoning survive for anyone continuing the work. Everything in it is
+> written in the future tense it was drafted in; none of it describes
+> software that exists.
+>
+> The effort goes to P8, which was ~10% done when this was decided — and
+> which this file calls *"the phase most teams skip and most reviewers
+> notice."*
+
 
 **Weeks 11–13 · Owner: evaluation track**
 
