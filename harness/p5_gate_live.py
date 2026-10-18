@@ -46,6 +46,10 @@ from harness.faults.f06_retrieval_collapse import (  # noqa: E402
     BAD_THRESHOLD,
     F06RetrievalCollapse,
 )
+from kavach.detection.retrieval_collapse import (  # noqa: E402
+    QUERIES as F06_QUERIES,
+)
+from kavach.detection.retrieval_collapse import Thresholds  # noqa: E402
 from kavach.target import TargetClient, TargetEndpoints  # noqa: E402
 from kavach.verification import fast  # noqa: E402
 
@@ -116,19 +120,27 @@ def corpus() -> dict[str, float | None]:
             "files": promql("ragapp_corpus_files")}
 
 
-# The detector's own grounding signal and floor, so this waits on exactly what
-# `permit()`'s upstream will read rather than on a guessed sleep.
-KEPT_CHUNKS_MEAN = (
-    "rate(ragapp_retrieval_kept_chunks_sum[10m]) "
-    "/ clamp_min(rate(ragapp_retrieval_kept_chunks_count[10m]), 1e-9)"
-)
-KEPT_CHUNKS_FLOOR = 1.0
+# IMPORTED, not copied. This harness used to carry its own transcription of
+# the detector's query, which is a third copy of a string that has to agree
+# with two others - and when `kept_chunks_mean` was shortened to [1m] on
+# 2026-10-18 this copy silently stayed at [10m], so the harness would have
+# waited on a signal the detector no longer reads. Importing it means the
+# wait is on exactly what `permit()`'s upstream will read, by construction.
+KEPT_CHUNKS_MEAN = F06_QUERIES["kept_chunks_mean"]
+KEPT_CHUNKS_FLOOR = Thresholds().kept_chunks_floor
 
 
 def drive_until_detectable(
     client: TargetClient, fast_set: Path, max_rounds: int = 18
 ) -> tuple[bool, float | None]:
-    """Put load on the faulted system until its 10m grounding average collapses.
+    """Put load on the faulted system until its grounding average collapses.
+
+    MOSTLY HISTORICAL SINCE 2026-10-18. `kept_chunks_mean` moved from [10m]
+    to [1m] after a measured sweep, and this now returns on ROUND 1 - about
+    21 seconds - where it previously needed up to 18 rounds and roughly five
+    minutes. The loop is kept because the bound is what makes the harness
+    assert rather than hang if the fault ever stops being detectable, and
+    because the reasoning below is why the window was measured at all.
 
     A FIXED SLEEP IS NOT ENOUGH, AND FINDING THAT OUT COST A RUN.
     Detection reads `rate(...[10m])`, so it reports on the last ten minutes,
@@ -168,7 +180,7 @@ def drive_until_detectable(
         r = fast.run(client, fast_set, check_health=False)
         mean = promql(KEPT_CHUNKS_MEAN)
         say(f"    round {round_no}: fast set {r.pass_rate:.0%} in {r.total_s:.1f}s, "
-            f"kept_chunks 10m mean = {mean}")
+            f"kept_chunks mean = {mean}")
         if mean is not None and mean < KEPT_CHUNKS_FLOOR:
             return True, mean
     return False, promql(KEPT_CHUNKS_MEAN)
@@ -215,12 +227,12 @@ def main() -> int:
         live = fault.current_threshold()
         say(f"  live threshold          {live}")
         results["injected"] = live == BAD_THRESHOLD
-        say("  driving load until the 10m grounding average crosses the floor")
+        say("  driving load until the grounding average crosses the floor")
         ready, mean = drive_until_detectable(client, FAST_SET)
-        say(f"  detectable              {ready} (kept_chunks 10m mean = {mean})")
+        say(f"  detectable              {ready} (kept_chunks mean = {mean})")
         results["fault_is_detectable"] = ready
         assert ready, (
-            f"the 10m grounding average is still {mean}, above the {KEPT_CHUNKS_FLOOR} "
+            f"the grounding average is still {mean}, above the {KEPT_CHUNKS_FLOOR} "
             f"floor, so the detector would correctly answer INSUFFICIENT_EVIDENCE. "
             f"This is the window being honest, not a Kavach defect - see "
             f"drive_until_detectable()."

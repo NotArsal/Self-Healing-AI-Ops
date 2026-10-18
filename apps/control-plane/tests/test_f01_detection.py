@@ -399,3 +399,49 @@ def test_the_error_window_is_short_enough_not_to_carry_residue() -> None:
             "a 5-minute error window carries residue across incidents"
         )
         assert "[2m]" in q
+
+
+def test_the_frame_and_the_detector_read_kept_chunks_identically() -> None:
+    """The signal that GATES an F06 claim must be the same number the model
+    is shown.
+
+    `kept_chunks_mean` was shortened from `[10m]` to `[1m]` on 2026-10-18
+    after a live sweep (`harness/window_sweep_f06.py`): at `[10m]` its
+    detection latency ranged 92-241s depending on how much healthy traffic
+    preceded the fault, which is the cross-fault contamination `PRD.md`
+    section 12 records three times.
+
+    The detector and the evidence frame each carry their own copy of the
+    query, so shortening one without the other would show the model a
+    ten-minute average while the verdict rested on a one-minute one. That is
+    the identical failure `test_both_detectors_read_the_same_error_signal`
+    documents for F01's error ratio, and it is cheap to pin.
+    """
+    from kavach.detection.retrieval_collapse import QUERIES as F06_QUERIES
+    from kavach.rca.evidence import METRIC_QUERIES
+
+    assert (F06_QUERIES["kept_chunks_mean"]
+            == METRIC_QUERIES["retrieval_kept_chunks_mean"]), (
+        "the detector and the evidence frame read kept_chunks differently, so "
+        "the model is shown a different number from the one the verdict rests on"
+    )
+
+
+def test_only_the_unconstrained_retrieval_window_was_shortened() -> None:
+    """`similarity_p50` and `empty_context_ratio` mirror a declared
+    `window_s: 600` in the target's manifest; `kept_chunks` has no SLO at all.
+
+    That asymmetry is the whole reason the shortening was a detector-local
+    change rather than a spec change, and it is load-bearing: a later edit
+    that quietly shortened one of the manifest-backed signals WOULD diverge
+    from the contract, and nothing else in the suite would notice.
+    """
+    from kavach.detection.retrieval_collapse import QUERIES as F06_QUERIES
+
+    assert "[1m]" in F06_QUERIES["kept_chunks_mean"]
+    for constrained in ("similarity_p50", "empty_context_ratio"):
+        assert "[10m]" in F06_QUERIES[constrained], (
+            f"{constrained} mirrors kavach.yaml's declared window_s: 600. "
+            f"Shortening it is a spec change and needs a decision record, "
+            f"not an edit"
+        )

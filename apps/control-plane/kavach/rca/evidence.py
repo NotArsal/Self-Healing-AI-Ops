@@ -39,9 +39,16 @@ METRIC_QUERIES: dict[str, str] = {
         "histogram_quantile(0.50, sum by (le) "
         "(rate(ragapp_retrieval_top_similarity_bucket[10m])))"
     ),
+    # [1m], matching `retrieval_collapse.QUERIES["kept_chunks_mean"]` exactly.
+    # A frame that showed the model a DIFFERENT number from the one the
+    # deterministic verdict rests on would invite the two to disagree for a
+    # reason neither could explain - which already happened once with F01's
+    # error ratio, and is what `test_both_detectors_read_the_same_error_signal`
+    # exists to prevent. `test_the_frame_and_the_detector_read_kept_chunks_
+    # identically` now pins this pair the same way.
     "retrieval_kept_chunks_mean": (
-        "rate(ragapp_retrieval_kept_chunks_sum[10m]) "
-        "/ clamp_min(rate(ragapp_retrieval_kept_chunks_count[10m]), 1e-9)"
+        "rate(ragapp_retrieval_kept_chunks_sum[1m]) "
+        "/ clamp_min(rate(ragapp_retrieval_kept_chunks_count[1m]), 1e-9)"
     ),
     "retrieval_empty_context_ratio": (
         "(sum(rate(ragapp_retrieval_empty_context_total[10m])) or vector(0)) "

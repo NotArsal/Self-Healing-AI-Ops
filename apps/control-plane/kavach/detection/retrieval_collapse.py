@@ -108,9 +108,52 @@ QUERIES: dict[str, str] = {
         "histogram_quantile(0.50, sum by (le) "
         "(rate(ragapp_retrieval_top_similarity_bucket[10m])))"
     ),
+    # WINDOW MEASURED, NOT CHOSEN - 1m, and 10m was the demo-killer.
+    #
+    # This is the signal that GATES an F06 claim: similarity_p50 must stay
+    # healthy during a retrieval collapse and empty_context_ratio is
+    # secondary, so kept_chunks falling below the floor is what makes the
+    # detector speak. At [10m] it needed minutes of driven load to fall, and
+    # `PRD.md` section 12 records that blocking detection three separate
+    # times.
+    #
+    # SHORTENING IT IS NOT A SPEC CHANGE, which is what the earlier write-up
+    # got wrong. `retrieval_similarity_p50` and `empty_context_ratio` each
+    # mirror a declared `window_s: 600` in the target's manifest and are
+    # deliberately left at [10m]. `kept_chunks` HAS NO SLO IN kavach.yaml -
+    # its only appearance there is as the denominator inside
+    # empty_context_ratio's expression - so there is no declared contract for
+    # this window to diverge from. Same situation as F01's error ratio, which
+    # went [5m] -> [2m] on the same reasoning.
+    #
+    # Measured live 2026-10-18, five candidate windows, on the real stack
+    # (harness/window_sweep_f06.py, artifact harness/reports/):
+    #
+    #     window   at rest   detects fault   forgets a prior fault
+    #     30s      healthy   36.5s           19.1s
+    #     1m       healthy   55.0s           19.1s     <- chosen
+    #     2m       healthy   91.9s           19.1s
+    #     5m       healthy   202.5s          96.7s
+    #     10m      healthy   92-241s         19.1s
+    #
+    # No window produces a false positive on a drained healthy system; every
+    # one reads 2.0-4.0 against the 1.0 floor. The case against [10m] is the
+    # SPREAD: three runs measured 106s, 92s and 241s, because its latency
+    # depends on how much healthy traffic preceded the fault. That history
+    # dependence IS the cross-fault contamination in PRD section 12. 30s and
+    # 1m were consistent across every run.
+    #
+    # 1m OVER 30s, despite 30s being faster and equally clean at rest, on the
+    # precedent F01's note sets two entries below: sample headroom. A cold
+    # fast-set round takes 33.9s, so a 30s window can hold less than one full
+    # round, and `rate()` needs two samples to return anything. Sparse, it
+    # returns None, which this detector correctly reads as missing evidence
+    # rather than zero - safe, but blind at exactly the moment it is asked.
+    # 1m holds about three rounds and still cuts worst-case detection from
+    # 241s to 55s.
     "kept_chunks_mean": (
-        "rate(ragapp_retrieval_kept_chunks_sum[10m]) "
-        "/ clamp_min(rate(ragapp_retrieval_kept_chunks_count[10m]), 1e-9)"
+        "rate(ragapp_retrieval_kept_chunks_sum[1m]) "
+        "/ clamp_min(rate(ragapp_retrieval_kept_chunks_count[1m]), 1e-9)"
     ),
     "empty_context_ratio": (
         "(sum(rate(ragapp_retrieval_empty_context_total[10m])) or vector(0)) "
