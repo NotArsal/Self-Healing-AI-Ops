@@ -183,6 +183,7 @@ class LoopRunner:
         knowing a workload's network topology.
         """
         baseline_value, _ = self.baseline()
+        baseline_doc = self.baseline_doc()
         values: dict[str, Any] = {"rollback_config": baseline_value}
         llm = self.manifest().llm
         backup = llm.paths.backup if llm and llm.paths else None
@@ -190,6 +191,22 @@ class LoopRunner:
         # than a None arriving as if it were a declared value.
         if backup:
             values["switch_llm_endpoint"] = backup
+
+        # `rollback_prompt` aims at the prompt text the baseline captured, in
+        # the directory the manifest declares. Both halves are required and
+        # neither is defaulted: without the text there is nothing to restore,
+        # and without the declared directory there is nowhere to write.
+        #
+        # This is the channel rather than the detector's `repair_target`
+        # because `loop.py` reserves that for a value only detection can know.
+        # Prompt text is not that - it is on disk, here, before detection runs.
+        declared = self.manifest().versioned_paths.get("prompts")
+        contents = baseline_doc.get("prompt_contents") or {}
+        if declared and contents:
+            values["rollback_prompt"] = {
+                "dir": str((Path(self.settings.target_path) / declared).resolve()),
+                "files": dict(contents),
+            }
         return values
 
     @property
@@ -318,6 +335,9 @@ class LoopRunner:
                 # diagnosable from the evidence at all.
                 baseline_settings=dict(baseline_doc.get("settings") or {}),
                 baseline_config_hash=str(baseline_doc.get("config_hash") or ""),
+                baseline_prompt_files=dict(
+                    (baseline_doc.get("prompt_version") or {}).get("files") or {}
+                ),
             )
             publish("evidence", "ok",
                     f"evidence collected: {len(frame.items)} citable items"

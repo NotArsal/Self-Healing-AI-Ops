@@ -344,17 +344,27 @@ def test_every_registered_detector_reads_only_injected_promql() -> None:
     for spec in det.registry.specs():
         calls.clear()
         out = spec.collect(det.Signals("http://unreachable.invalid", fake))
-        # F08 reads the target and the baseline rather than Prometheus, so it
-        # legitimately makes no promql call. It must still return readings
-        # that say MISSING rather than claiming nothing drifted.
-        if spec.fault_class == "F08":
-            assert out["drift"] is None, (
-                "with no client and no baseline, F08 must report missing "
-                "evidence, not an absence of drift"
-            )
-            continue
-        assert calls, f"{spec.fault_class} collected nothing through promql"
-        assert all(v is None for v in out.values())
+        # Not every detector reads Prometheus. F08 and F07 compare the
+        # target's control interface against the baseline capture, so with
+        # neither supplied they legitimately make no promql call at all.
+        #
+        # Stated as a property rather than as a list of exempt classes,
+        # because the list was the F08 special case this replaces and it
+        # would have had to grow for every control-interface fault. What is
+        # actually required of all of them is the same: a detector given
+        # nothing readable reports MISSING, and never reaches the network to
+        # find something.
+        # What is actually required of all of them is the same: given nothing
+        # readable, every reading comes back MISSING. A detector that reached
+        # a real Prometheus behind the seam would return a number here, and a
+        # detector that treated absence as zero would return one too - this
+        # one assertion catches both, for a metric detector and a
+        # control-interface detector alike.
+        assert all(v is None for v in out.values()), (
+            f"{spec.fault_class} returned a non-missing reading from entirely "
+            f"absent evidence: {out}"
+        )
+        assert all(q for q in calls), f"{spec.fault_class} issued an empty query"
 
 
 def test_both_detectors_read_the_same_error_signal() -> None:

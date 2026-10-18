@@ -45,6 +45,7 @@ sys.path[:0] = [str(ROOT), str(ROOT / "apps" / "control-plane")]
 from harness.faults.base import Fault  # noqa: E402
 from harness.faults.f01_endpoint_outage import F01EndpointOutage  # noqa: E402
 from harness.faults.f06_retrieval_collapse import F06RetrievalCollapse  # noqa: E402
+from harness.faults.f07_prompt_regression import F07PromptRegression  # noqa: E402
 from harness.faults.f08_config_regression import F08ConfigRegression  # noqa: E402
 from kavach.target import TargetClient, TargetEndpoints  # noqa: E402
 
@@ -71,10 +72,36 @@ def promql(prometheus_url: str, query: str) -> float | None:
 # every subcommand.
 Builder = Callable[[TargetClient, Callable[[], dict[str, Any]]], Fault]
 
+def prompts_dir() -> Path:
+    """Where the target keeps its prompts, as the target itself declares it.
+
+    Resolved from the manifest rather than hardcoded, for the reason the
+    executor resolves the backup endpoint from the manifest: a path to a
+    workload's files, written into the control plane, is the control plane
+    knowing a workload's layout.
+    """
+    from kavach.config import get_settings
+    from kavach.onboarding.manifest import load
+
+    target = Path(get_settings().target_path)
+    declared = load(target / "kavach.yaml").versioned_paths.get("prompts")
+    if not declared:
+        raise SystemExit(
+            "the target manifest declares no `versioned_paths.prompts`, so "
+            "there is nowhere to inject a prompt regression"
+        )
+    return (target / declared).resolve()
+
+
 FAULTS: dict[str, Builder] = {
     # F01 drives Toxiproxy's admin API, not the target, so it takes no client.
     "F01": lambda _client, corpus: F01EndpointOutage(corpus_probe=corpus),
     "F06": lambda client, corpus: F06RetrievalCollapse(client, corpus_probe=corpus),
+    # F07 writes a FILE rather than a setting, so it needs the prompts
+    # directory as well as the control interface - it uses the first to inject
+    # and the second to confirm the running target actually saw it.
+    "F07": lambda client, corpus: F07PromptRegression(
+        client, prompts_dir(), corpus_probe=corpus),
     "F08": lambda client, corpus: F08ConfigRegression(client, corpus_probe=corpus),
 }
 
@@ -215,6 +242,17 @@ def _assumed_pre_state(name: str, fault: Fault) -> dict[str, Any]:
         )
 
         return {"settings": {F08_SETTING: EXPECTED_HEALTHY_MAX_TOKENS}}
+    if name == "F07":
+        # Deliberately refused rather than answered. Every other fault here
+        # has a documented healthy CONSTANT; F07's healthy state is the text
+        # of a file, which is recorded in the baseline capture and nowhere
+        # else. Inventing one would write a prompt nobody ever ran.
+        raise SystemExit(
+            "F07 has no documented healthy constant: the known-good prompt is "
+            "the text `make onboard` captured, not a value that can be stated "
+            "here. Revert it in the process that injected it, or restore "
+            "`prompt_contents` from the newest baseline under harness/baselines/"
+        )
     raise SystemExit(f"no documented healthy state for {name}")
 
 
@@ -227,6 +265,11 @@ def _describe(name: str, fault: Fault) -> str:
             return f"{PRIMARY} enabled={enabled}"
         if name == "F06":
             return f"rerank_threshold={fault.current_threshold()}"  # type: ignore[attr-defined]
+        if name == "F07":
+            from harness.faults.f07_prompt_regression import PROMPT_FILE
+
+            live = fault.reported_digests().get(PROMPT_FILE)  # type: ignore[attr-defined]
+            return f"{PROMPT_FILE} digest={live} (as the TARGET reports it)"
         if name == "F08":
             return f"max_tokens={fault.current_max_tokens()}"  # type: ignore[attr-defined]
     except Exception as exc:

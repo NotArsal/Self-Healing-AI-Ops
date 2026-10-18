@@ -148,6 +148,20 @@ services:
       # target's safety policy and must never be able to widen it. TARGET_REPO
       # is relative to THIS directory (infra/), not the repository root.
       - ${TARGET_REPO:-../../Target_RAG-App}/kavach.yaml:/app/target/kavach.yaml:ro
+      # READ-WRITE, and the only writable path Kavach has into the target.
+      # `rollback_prompt` restores prompt files to their captured text, and
+      # the target reads this same directory through its OWN read-only mount
+      # with no caching, so a write here takes effect on the next request with
+      # no restart.
+      #
+      # Scoped to `prompts/` rather than the repository on purpose. Mounting
+      # the repository would also mount `.git`, and every guarantee in
+      # AGENTS.md rule 10 - never push, never amend, never touch main - would
+      # stop being structural (the container does not have the files) and
+      # become merely procedural (the code chooses not to). Two text files is
+      # the whole blast radius; `executor/prompt_rollback.py` refuses any name
+      # that is not a bare `*.txt` resolving inside this directory.
+      - ${TARGET_REPO:-../../Target_RAG-App}/prompts:/app/target/prompts
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:

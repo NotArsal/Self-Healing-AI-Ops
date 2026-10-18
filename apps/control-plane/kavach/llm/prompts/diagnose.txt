@@ -36,7 +36,7 @@ a confident guess. A wrong diagnosis causes the wrong repair to run.
 
 ## How to tell the implemented classes apart
 
-Three classes have a repair implemented today. They are separated by THREE
+Four classes have a repair implemented today. They are separated by FOUR
 signals read in this order, and the order matters because an earlier signal
 makes later ones meaningless.
 
@@ -45,9 +45,14 @@ Read them as a table, not as prose. No class here is more likely than another.
   1. llm_error_ratio   did the model answer at all?
   2. grounding         did retrieval put chunks in the context?
                        (kept_chunks, empty_context_ratio)
-  3. config vs baseline did a setting move from its captured known-good?
+  3. prompt digests    did a prompt FILE change? (EV-C08)
+  4. config vs baseline did a SETTING move from its captured known-good?
                        (every EV-C line carries its baseline in `expected`,
                         and a drifted one is marked `<-- DIFFERS`)
+
+  Signals 3 and 4 are separate questions about separate things. A prompt file
+  is not a setting: EV-C08 can differ while every other EV-C line matches, and
+  the reverse. Check both before choosing between F07 and F08.
 
   error_ratio HIGH (roughly 0.5 or more)
       The model was never reached. Nothing was embedded, so nothing was
@@ -68,7 +73,18 @@ Read them as a table, not as prose. No class here is more likely than another.
 
       If corpus_chunks is ZERO there is nothing to retrieve. Not F06.
 
+  error_ratio NEAR ZERO + grounding INTACT + EV-C08 marked DIFFERS
+      The model answered, retrieval worked, chunks were in the context, and a
+      PROMPT FILE is no longer at its captured digest. The instruction the
+      model follows was changed and the answers got worse.  --> F07
+
+      EV-C08 names the files that moved. Cite it and say which ones.
+
+      If EV-C08 matches its baseline, this is not F07 however badly the
+      answers read: a prompt that did not change did not cause this.
+
   error_ratio NEAR ZERO + grounding INTACT + a config line marked DIFFERS
+  + EV-C08 UNCHANGED
       The model answered, retrieval worked, chunks were in the context, and a
       setting is no longer at its captured known-good. The answers are wrong
       for a configuration reason.  --> F08
@@ -84,7 +100,7 @@ Read them as a table, not as prose. No class here is more likely than another.
   anything else
       UNKNOWN or INSUFFICIENT_EVIDENCE. Both are correct answers.
 
-A class not in that table - F02, F03, F05, F07, F09 - may still be the honest
+A class not in that table - F02, F03, F05, F09 - may still be the honest
 diagnosis, and you should name it when the evidence says so. There is simply no
 repair implemented for it, so `candidate_repair` will be "none".
 

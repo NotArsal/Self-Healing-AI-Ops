@@ -179,9 +179,29 @@ def main() -> int:
             f"would measure agreement with the wrong answer"
         )
 
-        frame = ev.collect(client, PROM, promql, pre,
-                           baseline_rerank_threshold=baseline.get(
-                               "rerank_threshold", 0.35))
+        # ALL of the baselines, not just the rerank threshold. Until
+        # 2026-10-17 this call passed only the threshold, so every EV-C line
+        # rendered as "no baseline captured for this key" and the model was
+        # shown `max_tokens = 2` with nothing to compare it against - the
+        # exact defect `rca/evidence.py` was changed to fix, left out of the
+        # path that measures it. The 0 of 10 recorded before this date was
+        # therefore not a measurement of the fixed frame.
+        frame = ev.collect(
+            client, PROM, promql, pre,
+            baseline_rerank_threshold=baseline.get("rerank_threshold", 0.35),
+            baseline_settings=dict(baseline.get("settings") or {}),
+            baseline_config_hash=str(baseline.get("config_hash") or ""),
+            baseline_prompt_files=dict(
+                (baseline.get("prompt_version") or {}).get("files") or {}),
+        )
+        for item in frame.items:
+            if item.eid == "EV-C04":   # max_tokens, the drifted key
+                say(f"  EV-C04             {item.value}  "
+                    f"expected: {item.expected}")
+                assert "DIFFERS" in str(item.expected), (
+                    "the frame does not mark max_tokens as drifted, so it "
+                    "carries no evidence of the fault being injected"
+                )
         say(f"  evidence frame     {len(frame.items)} items, "
             f"{len(frame.problems)} collection problem(s)")
         say("")

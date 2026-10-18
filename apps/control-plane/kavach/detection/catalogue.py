@@ -23,7 +23,12 @@ first only because that is the order a human would read them in.
 
 from __future__ import annotations
 
-from kavach.detection import config_regression, endpoint_outage, retrieval_collapse
+from kavach.detection import (
+    config_regression,
+    endpoint_outage,
+    prompt_regression,
+    retrieval_collapse,
+)
 from kavach.detection.base import registry
 
 # F01 — the endpoint is visibly down; HTTP status carries the fault.
@@ -32,6 +37,11 @@ registry.register(endpoint_outage.SPEC)
 # F06 — the endpoint is up and the answers are wrong; HTTP status carries
 # nothing, and detection has to come from grounding metrics.
 registry.register(retrieval_collapse.SPEC)
+
+# F07 — a prompt file's digest moved away from the captured known-good and
+# the answers got worse. Reads a different half of the same control-interface
+# response F08 reads, so the two cannot both claim: see the module docstring.
+registry.register(prompt_regression.SPEC)
 
 # F08 — a setting drifted from the captured known-good and nothing more
 # specific explains it. Listed LAST because it is the residual config class,

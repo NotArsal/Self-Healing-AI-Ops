@@ -16,7 +16,7 @@ Adding a workload means adding a line here, not editing the loop.
 
 from __future__ import annotations
 
-from kavach.executor import config_rollback, endpoint_switch
+from kavach.executor import config_rollback, endpoint_switch, prompt_rollback
 from kavach.executor.base import LOW, MEDIUM, registry
 
 registry.register(
@@ -38,6 +38,19 @@ registry.register(
     builder=endpoint_switch.build_switch_for_endpoint_outage,
     risk_tier=LOW,
     action_type=config_rollback.ConfigRollback,
+)
+
+# F07's repair, added 2026-10-17. The FIRST action that writes a file rather
+# than a config key, which is why it is its own class instead of another
+# `ConfigRollback` construction: the write path, the witness and all three
+# verifications are different, and only the contract is shared. MEDIUM for the
+# same reason `rollback_config` is - it changes answer quality and is
+# reversible from a recorded witness.
+registry.register(
+    name=prompt_rollback.ACTION_NAME,
+    builder=prompt_rollback.build_rollback_for_prompt_regression,
+    risk_tier=MEDIUM,
+    action_type=prompt_rollback.PromptRollback,
 )
 
 # `apply_patch` is NOT registered. Its contract exists (ARCHITECTURE.md §6.2.1)

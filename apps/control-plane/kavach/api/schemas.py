@@ -158,10 +158,30 @@ class ActionOut(BaseModel):
     action: str
     risk_tier: str
     idempotency_key: str
+    # For a config repair these are setting names and values; for
+    # `rollback_prompt` they are filenames and content DIGESTS, never prompt
+    # text. Both shapes fit because both are "what this action writes" and
+    # "what undoes it", which is the only thing the gate and the console need.
     requested_settings: dict[str, float | int | str | bool | None]
     inverse_settings: dict[str, float | int | str | bool | None]
     config_hash_before: str = ""
     config_hash_after: str = ""
+    # Added 2026-10-17 with F07, and the reason is worth recording: this
+    # schema was shaped entirely around `ConfigRollback`, so the first action
+    # that was not one had its whole record silently truncated on the wire.
+    # The live harness caught it because it asserts on what the API returns
+    # rather than on what the action object holds.
+    #
+    # `ROADMAP.md` P6 asks that a new fault class change nothing in the core.
+    # F07 needed no change to the loop, the detector seam, the safety engine
+    # or the schema the model answers in - and needed this one. The seam held
+    # where it was built and was missing here, which is a more useful result
+    # than claiming zero.
+    #
+    # Optional with defaults, so a `ConfigRollback` record is unchanged.
+    restored_files: list[str] = Field(default_factory=list)
+    bytes_written: dict[str, int] = Field(default_factory=dict)
+    prompts_dir: str = ""
     executed: bool = False
     reverted: bool = False
     prepared_at: str = ""

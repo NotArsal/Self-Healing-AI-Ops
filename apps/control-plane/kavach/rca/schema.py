@@ -45,7 +45,9 @@ FaultClass = Literal[
 # asserts it equals the executor registry plus "none", so adding an action
 # without widening this fails the suite loudly instead of silently gagging the
 # model.
-CandidateRepair = Literal["rollback_config", "switch_llm_endpoint", "none"]
+CandidateRepair = Literal[
+    "rollback_config", "switch_llm_endpoint", "rollback_prompt", "none",
+]
 
 
 class RejectedAlternative(BaseModel):

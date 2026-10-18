@@ -143,6 +143,8 @@ export const resolvedIncident: Incident = {
     inverse_settings: { rerank_threshold: 0.999 },
     config_hash_before: "11aabb22",
     config_hash_after: "9f1c2ab4",
+    // Empty for a config repair: only `rollback_prompt` writes files.
+    prompts_dir: "",
     executed: true,
     reverted: false,
     prepared_at: "2026-10-04T10:45:44+00:00",

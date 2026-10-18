@@ -23,6 +23,7 @@ Three properties this module is built around:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import statistics
 import time
@@ -69,6 +70,18 @@ class Baseline:
     # Target identity and configuration
     config_hash: str = ""
     prompt_version: dict[str, Any] = field(default_factory=dict)
+    # The prompt files' CONTENTS, not just their digests. `prompt_version`
+    # above is what the target reports over HTTP - sha256 prefixes - and a
+    # digest cannot be rolled back to. `rollback_prompt` needs the bytes, and
+    # this is the only place a known-good copy of them is recorded.
+    #
+    # Read from disk at capture time rather than over the control interface,
+    # because the target exposes no endpoint that returns prompt text and
+    # adding one would be a twelfth permitted addition (PRD.md 5.2). Capture
+    # is a host operation with the repository present, so disk is available
+    # here and is not available to the API - which is exactly why the API
+    # mounts `harness/baselines/` read-only.
+    prompt_contents: dict[str, str] = field(default_factory=dict)
     corpus_fingerprint: dict[str, Any] = field(default_factory=dict)
     rerank_threshold: float | None = None
     settings: dict[str, Any] = field(default_factory=dict)
@@ -102,7 +115,12 @@ class Baseline:
         lines.append(f"  rerank_threshold  {self.rerank_threshold}")
         lines.append(f"  corpus            {self.corpus_fingerprint}")
         for name, digest in (self.prompt_version.get("files") or {}).items():
-            lines.append(f"  prompt {name:<22} {digest}")
+            # A digest with no captured text cannot be rolled back to, so the
+            # rendering says which of the two this is rather than implying a
+            # usable known-good exists.
+            held = len(self.prompt_contents.get(name, ""))
+            note = f"{held}B held" if held else "NO CONTENT CAPTURED"
+            lines.append(f"  prompt {name:<22} {digest}  ({note})")
         lines += ["", "SLO values at capture"]
         for name, value in self.slo_values.items():
             ok = self.slo_satisfied.get(name)
@@ -200,6 +218,55 @@ SNAPSHOT_METRICS = {
 }
 
 
+def _capture_prompts(
+    target: Path, declared_dir: str, reported_digests: dict[str, Any],
+) -> tuple[dict[str, str], list[str]]:
+    """Read the prompt files and check them against the target's own digests.
+
+    Returns ({name: text}, problems). A file whose on-disk bytes hash to
+    something other than what the running target reports is NOT captured: a
+    known-good the target never served is worse than none, because the repair
+    would write it confidently.
+    """
+    contents: dict[str, str] = {}
+    problems: list[str] = []
+    seen: set[str] = set()
+    d = (target / declared_dir).resolve()
+    if not d.is_dir():
+        return contents, [f"prompt directory not found: {d}"]
+
+    for path in sorted(d.glob("*.txt")):
+        seen.add(path.name)
+        try:
+            raw = path.read_bytes()
+        except OSError as exc:
+            problems.append(f"could not read prompt {path.name}: {exc}")
+            continue
+        digest = hashlib.sha256(raw).hexdigest()[:12]
+        reported = reported_digests.get(path.name)
+        if reported is None:
+            problems.append(
+                f"prompt {path.name} is on disk but the target does not report "
+                f"it; the running container is reading a different directory"
+            )
+            continue
+        if reported != digest:
+            problems.append(
+                f"prompt {path.name} on disk hashes to {digest} but the target "
+                f"reports {reported}; not captured, because a known-good the "
+                f"target never served cannot be rolled back to"
+            )
+            continue
+        contents[path.name] = raw.decode("utf-8")
+
+    for name in sorted(set(reported_digests) - seen):
+        problems.append(
+            f"the target reports prompt {name} but there is no such file in "
+            f"{d}; its known-good text cannot be captured"
+        )
+    return contents, problems
+
+
 # --- capture ----------------------------------------------------------------
 
 
@@ -234,6 +301,21 @@ def capture(
         bl.rerank_threshold = bl.settings.get("rerank_threshold")
     except Exception as exc:
         bl.problems.append(f"could not read target config: {exc}")
+
+    # Prompt text, from disk. `rollback_prompt`'s inverse is a recorded value
+    # like every other inverse in this system, and for prompts the recorded
+    # value has to be the bytes - a digest restores nothing.
+    #
+    # Verified against the digests the TARGET reported above, not trusted. The
+    # repository on disk and the directory bind-mounted into the running
+    # container are two different things, and capturing bytes from a checkout
+    # that the backend is not actually reading would record a known-good that
+    # was never good for this target. A mismatch is a problem, not a warning.
+    bl.prompt_contents, prompt_problems = _capture_prompts(
+        target, manifest.versioned_paths.get("prompts", "./prompts"),
+        (bl.prompt_version.get("files") or {}),
+    )
+    bl.problems.extend(prompt_problems)
 
     # The fast-verification set, run exactly as the live loop runs it: the same
     # 3 cases, serially, so the numbers are comparable to a later run.
@@ -354,3 +436,77 @@ def compare(old: Baseline, new: Baseline) -> list[str]:
     if old_lat and abs(new_lat - old_lat) / old_lat > 0.5:
         out.append(f"mean case latency {old_lat:.1f}s -> {new_lat:.1f}s")
     return out
+
+
+# --- CLI ---------------------------------------------------------------------
+#
+# `make onboard` is the documented way to capture a baseline (`AGENTS.md`,
+# `PRD.md` §5.1) and until 2026-10-17 the Makefile target printed "Not
+# implemented until P1" and exited 1. It had been stale since P1 shipped the
+# capture itself; nobody noticed because every caller so far was a test or a
+# harness importing `capture()` directly.
+#
+# F07 is what forced it: `rollback_prompt` restores the prompt text recorded
+# in `prompt_contents`, which only a capture taken after that field existed
+# contains. The documented command for the thing a fault class depends on
+# cannot be one that exits 1.
+#
+# A `__main__` here rather than a new `capture_cli.py` module: `capture()`
+# and `save()` already exist and take their configuration from `Settings`,
+# so the entry point is argument plumbing and nothing else.
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Capture a baseline against the configured target and save it."""
+    import argparse
+
+    from kavach.config import get_settings
+
+    settings = get_settings()
+    ap = argparse.ArgumentParser(
+        prog="python -m kavach.onboarding.baseline",
+        description="Capture a last-known-good baseline from the live target.",
+    )
+    ap.add_argument("--target-path", default=settings.target_path)
+    ap.add_argument("--prometheus", default=settings.prometheus_url)
+    ap.add_argument("--chat-url", default=settings.target_chat_url)
+    ap.add_argument("--admin-url", default=settings.target_config_url)
+    ap.add_argument("--out", default=str(settings.baselines_dir()),
+                    help="directory for the artifact; one file per capture")
+    ap.add_argument(
+        "--force", action="store_true",
+        help="save even when the capture is not healthy. Refused by default: "
+             "a baseline taken while a probe is failing makes every later "
+             "comparison inherit the fault as normal",
+    )
+    args = ap.parse_args(argv)
+
+    bl = capture(
+        target_path=args.target_path,
+        prometheus_url=args.prometheus,
+        kavach_root=settings.root(),
+        chat_url=args.chat_url,
+        admin_url=args.admin_url,
+        admin_token=settings.target_admin_token,
+    )
+    print(bl.render(), flush=True)
+    print(flush=True)
+
+    if not bl.healthy and not args.force:
+        print("NOT HEALTHY - refusing to save. A baseline captured while a "
+              "fast-verification case is failing is worse than no baseline, "
+              "because every later comparison inherits the fault as normal. "
+              "Fix the target, or pass --force if you know why.")
+        return 1
+
+    path = save(bl, args.out)
+    held = {name: len(text) for name, text in bl.prompt_contents.items()}
+    print(f"saved   {path}")
+    print(f"prompts {held or 'NONE CAPTURED - rollback_prompt cannot be built'}")
+    if not bl.healthy:
+        print("WARNING: saved an UNHEALTHY capture because --force was given.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

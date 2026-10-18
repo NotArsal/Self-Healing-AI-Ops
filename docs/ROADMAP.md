@@ -789,13 +789,13 @@ F08's signal is read at the instant the loop runs. That makes it the best demo
 candidate in the catalogue, which is worth stating precisely because it is
 **not** the fault carrying the research claim.
 
-### F08 acceptance: 7 of 8 — and criterion 3 is a model limit, not a bug
+### F08 acceptance: 8 of 8 — criterion 3 passed once it was measured properly
 
 | | Criterion | F08 |
 |---|---|---|
 | ✅ | Injector deterministic, reverts cleanly, 20 cycles stable | **30/30**, settings identical, **stack identical `True`**. See the correction below |
 | ✅ | Detection fires within 30s | No warm-up at all; the signal is read at run time |
-| ❌ | Diagnosis ≥8 of 10 | **0/10 on two different models.** See below |
+| ✅ | Diagnosis ≥8 of 10 | **10/10 on qwen2.5:7b.** 0/10 on llama3.2. The earlier 0/10 on both was measured against a frame carrying no baseline — see the correction below |
 | ✅ | Repair executes; inverse restores prior state exactly | Live, plus 50 further times across two stability runs |
 | ✅ | All three fast verification probes pass | After the rollback, every cycle |
 | ✅ | Integration test green in CI | `tests/test_f08_config.py`, 15 tests |
@@ -867,10 +867,12 @@ It correctly labelled all nine metrics (no transposition this time), correctly
 read every value including the two that say grounding is **intact**, and then
 concluded that chunks are being discarded.
 
-**A larger model made it worse, not better.** `qwen2.5:7b-instruct` returns the
-same wrong class at 0.95 confidence where the 3B returns it at 0.5. The one
-honest signal anywhere in this is that the symmetric prompt halved llama3.2's
-confidence in a wrong answer.
+**WITHDRAWN 2026-10-17.** This paragraph read *"a larger model made it worse,
+not better"*, on the basis that `qwen2.5:7b-instruct` returned the same wrong
+class at 0.95 confidence where the 3B returned it at 0.5. Both of those runs
+used a frame that carried no baseline for any `EV-C` line, so neither model
+was shown the fact that identifies this fault. Re-measured on the fixed
+frame, qwen2.5:7b scores **10/10**. The correction below has the detail.
 
 #### What this does NOT undermine, checked rather than assumed
 
@@ -887,6 +889,191 @@ measurement would pass trivially and prove nothing. P3's banked 3/3 for `F06`
 was taken when `F06` was the only implemented class, and a model given one
 option always picks it — `tests/test_rca.py` says exactly that about the
 schema, and the same caution applies to that number.
+
+#### Correction 2026-10-17: the F08 RCA number does not measure what it says
+
+Found while writing `rca_f07_live.py`, which needs the same evidence the F08
+run needed. **`rca_f08_live.py` never passed the baselines into the evidence
+frame.** It called:
+
+```python
+frame = ev.collect(client, PROM, promql, pre,
+                   baseline_rerank_threshold=baseline.get("rerank_threshold", 0.35))
+```
+
+`ev.collect` also takes `baseline_settings` and `baseline_config_hash`, and
+without them every `EV-C` line renders as *"no baseline captured for this
+key"*. So the frame the model was shown during all four measurements carried
+`max_tokens = 2` with **nothing to compare it against** — which is precisely
+the defect those measurements were run to re-test after fixing.
+
+The fix to `rca/evidence.py` was real and was verified rendering correctly,
+but it was verified through `api/runner.py`, which is the only caller that
+passed the new arguments. The harness that produces the number in this table
+was not updated, so the four runs re-measured the broken frame and the
+conclusion drawn from them — *"it did not fix the diagnosis"* — is not
+supported by them.
+
+What this does and does not overturn:
+
+- **The 0/10 is void as evidence about the fixed frame.** It remains a real
+  measurement of the unfixed one, which is what the first 0/10 already said.
+- **The qwen2.5:7b comparison is equally void**, for the same reason.
+- **The deterministic cross-check rejecting 40 of 40 wrong diagnoses stands.**
+  That result is about the validator, not about the frame.
+- **F01's 9/10 stands.** F01 is diagnosed from the error ratio and the logs,
+  neither of which is an `EV-C` line, so the missing baselines did not affect
+  it.
+
+`rca_f08_live.py` now passes all three baselines and asserts that `EV-C04` is
+marked `<-- DIFFERS` before measuring, so a frame carrying no evidence of the
+injected fault fails the run instead of being silently diagnosed.
+
+**Re-measured 2026-10-17 on the fixed frame:**
+
+| model | F08 | F07 |
+|---|---|---|
+| llama3.2 (3B) | 0/10 → `F06` | 0/10 → `F06` |
+| qwen2.5:7b-instruct | **10/10, all approved** | **10/10, all approved** |
+
+So criterion 3 passes and **F08 is 8 of 8**. The conclusion it previously
+carried — *"a larger model made it worse"* — was an artifact of the broken
+frame and is withdrawn. What replaces it is better: with a correct frame the
+two config-driven classes are diagnosable, and model capacity rather than
+evidence quality is what separates success from failure. The small model
+fails both classes in exactly the same way, defaulting to `F06`, and the
+deterministic cross-check caught all 20.
+
+The general lesson is worth more than the number: a fix verified in one call
+path and measured in another is not verified. Both of this project's live RCA
+harnesses now assert on the frame's *content* before diagnosing it.
+
+### F07 acceptance: 8 of 8 — and it produced the clearest result in the project
+
+Fourth fault class, and the first whose repair writes a **file**. The vertical
+is proven live, **19 of 19 checks**, and the stability run is **20/20 with
+100% manifestation** — better than F08's 92%, because a task-level prompt edit
+is deterministic in a way token truncation is not.
+
+| | Criterion | F07 |
+|---|---|---|
+| ✅ | Injector deterministic, reverts cleanly, 20 cycles stable | **20/20**, digests identical, stack identical, manifestation **20/20 = 100%** |
+| ✅ | Detection fires within 30s | No warm-up; like F08 the signal is read at run time |
+| ✅ | Diagnosis ≥8 of 10 | **10/10 on qwen2.5:7b.** 0/10 on llama3.2 — see below, it is the interesting half |
+| ✅ | Repair executes; inverse restores prior state exactly | Live, plus 20 further times in the stability run |
+| ✅ | All three fast verification probes pass | 100% after the rollback, with no restart |
+| ✅ | Integration test green in CI | `tests/test_f07_prompt.py`, 35 tests |
+| ✅ | Forced-verification-failure test green | Same file; the prompt is left degraded, not "fixed" |
+| ✅ | Ownership and deny-list still pass | New allow-list entry `rollback_prompt`; `ADR 0008` records the mount |
+
+#### The injector was swept, and the sweep is the finding
+
+The first attempt **changed the file correctly and degraded nothing** — all
+three fast-set cases still found their keyword. The harness refused to
+proceed, which is the only reason it was not recorded as a pass.
+
+Five candidates, three repetitions of the full three-case set each:
+
+| candidate | lost keyword | verdict |
+|---|---|---|
+| ignore the context, answer from your own knowledge | 0 of 3 ×3 | **no injection at all** |
+| answer in at most five words | 0 of 3 ×3 | **no injection at all** |
+| do not answer; list the topics | 3 of 3 ×3 | full collapse |
+| **you are a summarisation assistant** | **3 of 3 ×3** | **full collapse — chosen** |
+| answer a different question | 1–2 of 3 | partial, non-deterministic |
+
+**The pattern: this model obeys instructions about the FORM or TASK of its
+answer, and ignores instructions to WITHHOLD information sitting in its
+context.** A marker probe pinned it down separately — told to begin every
+answer with the word BANANA it complied instantly, while told to disregard
+the context it answered *"The LSTM model achieved a ROC-AUC of 0.91"* from
+that very context.
+
+The brevity result is the mirror of F08's and worth keeping: told to answer in
+five words the model replied `"0.91"`, which **is** the keyword. Truncation
+removes a figure only when the figure comes late; an instruction to be brief
+makes the model lead with it. F07 and F08 are not reachable by the same
+mechanism from opposite directions.
+
+Summarisation was chosen over "do not answer" because the latter contains *"do
+not include figures"*, which engineers the injection around the thing the fast
+set happens to check. Summarisation says nothing about figures: the keyword
+disappears as a **consequence** of the degradation rather than as its
+mechanism, and a prompt file pasted over with another one is a slip that
+actually happens.
+
+#### The 0/10 that is worth more than the 10/10
+
+llama3.2 returned `F06` in all ten runs while **citing `EV-C08` in nine of
+them** — the one line that marks the prompt as changed. The frame was correct
+this time and verified before measuring: `<-- DIFFERS: ['answer.txt']`.
+
+Its reasoning, verbatim and reproduced in eight of ten runs:
+
+> `EV-C01` shows rerank_threshold = 0.35 (healthy: baseline 0.35) … **These
+> rules out F07.** `EV-C08` shows prompt_file_hashes = … `<-- DIFFERS:
+> ['answer.txt']`, **which rules out F08.** Therefore, the evidence supports
+> F06: Retrieval collapse.
+
+It read both lines correctly, labelled both values correctly, and **attached
+each to the wrong class** — an unchanged *config* line used to rule out the
+*prompt* fault, and the changed *prompt* line used to rule out the *config*
+fault. It then concluded with F06, whose own evidence (`kept_chunks` 2.67,
+`empty_context_ratio` 0.0) it had just read as healthy.
+
+**The deterministic cross-check rejected all ten**, on
+`deterministic_agreement`. Across F07 and F08 it is now **20 of 20 wrong
+diagnoses caught**, and that is the architecture's case, stated in numbers.
+
+qwen2.5:7b-instruct on the identical frame: **10/10 correct, 10/10
+validator-approved, 10/10 naming `rollback_prompt`, 10/10 citing `EV-C08`**,
+mean latency 9.5s against the 45s PF-02 budget.
+
+So the honest finding is not "the diagnosis layer cannot reason". It is three
+things, and each is measured:
+
+1. **The evidence frame must carry the baseline comparison.** Without it both
+   F07 and F08 are undiagnosable at any model size — proved by the F08
+   correction above.
+2. **Given a correct frame, model capacity is the binding constraint.** 3B
+   fails both classes identically; 7B is perfect on both. The earlier
+   conclusion that "a larger model made it worse" was an artifact of the
+   broken frame.
+3. **The cross-check caught 100% of the small model's errors.** That is what
+   makes a cheap local model safe to deploy at all, and it is the result to
+   take to the viva.
+
+**Open decision:** the default model is still `llama3.2`, which cannot
+diagnose either config-driven class. Moving the default to `qwen2.5:7b` costs
+~3s of mean RCA latency and buys both criteria. Recorded in `PRD.md` §12
+rather than changed unilaterally.
+
+#### What was new, and the one place the seam was missing
+
+**The first repair that writes a file.** `ADR 0008` records why the write goes
+to a `prompts/`-only read-write mount instead of to git: the roadmap's plan
+assumed git `HEAD` holds the known-good version, but a real prompt regression
+arrives **as a commit**, so `HEAD` is the bad version and the rollback
+restores nothing. Mounting the repository to reach `.git` would also demote
+rule 10 from structural — the container does not have the files — to merely
+procedural.
+
+**Verification asks the target, never the filesystem.** Every check compares
+against the digests the *running backend* computes. Re-hashing the file Kavach
+just wrote would prove only that the write succeeded, which is never the thing
+in doubt.
+
+**The detector needed no seam change.** F08 forced `Signals` into existence;
+F07's signal arrives in the `client` and `baseline` fields that already
+existed. A detector module, an action module, two registration lines.
+
+**The one core change it did need was `api/schemas.py`.** `ActionOut` was
+shaped entirely around `ConfigRollback`, so the first action that was not one
+had `restored_files`, `bytes_written` and `prompts_dir` silently dropped on
+the wire. The live harness caught it only because it asserts on what the API
+returns rather than on what the action object holds. P6 asks that a new fault
+change nothing in the core; the seam held where it was built and was missing
+here, which is a more useful result than claiming zero.
 
 ---
 

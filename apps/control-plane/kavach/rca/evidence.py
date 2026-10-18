@@ -225,6 +225,7 @@ def collect(
     include_logs: bool = True,
     baseline_settings: dict[str, Any] | None = None,
     baseline_config_hash: str = "",
+    baseline_prompt_files: dict[str, Any] | None = None,
 ) -> EvidenceFrame:
     """Build the frame from the live system.
 
@@ -302,8 +303,23 @@ def collect(
                                else "  <-- DIFFERS")
                             if baseline_config_hash
                             else "no baseline config_hash captured"))
-        pv = (cfg.get("prompt_version") or {}).get("files", {})
-        frame.add(eid="EV-C08", kind="config", name="prompt_file_hashes", value=pv)
+        # EV-C08 carried a live value and NO expectation until F07 was
+        # built, which is the same hole that made F08 undiagnosable: a model
+        # shown `answer.txt = 4f2a...` with nothing to compare it against
+        # cannot identify a class defined entirely by that comparison. The
+        # changed filenames are named explicitly rather than left for the
+        # model to diff two hex strings by eye.
+        pv = dict((cfg.get("prompt_version") or {}).get("files") or {})
+        base_pv = baseline_prompt_files or {}
+        if base_pv:
+            moved = sorted(n for n, d in pv.items()
+                           if n in base_pv and base_pv[n] != d)
+            expected = (f"baseline {base_pv!r}"
+                        + (f"  <-- DIFFERS: {moved}" if moved else ""))
+        else:
+            expected = "no baseline prompt digests captured"
+        frame.add(eid="EV-C08", kind="config", name="prompt_file_hashes",
+                  value=pv, expected=expected)
     except TargetError as exc:
         frame.problems.append(f"could not read target config: {exc}")
 

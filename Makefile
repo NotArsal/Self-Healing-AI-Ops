@@ -144,9 +144,12 @@ gen-client:
 
 # --- Demo and measurement ----------------------------------------------------
 
+# Capture a last-known-good baseline from the live target. Refuses to save an
+# unhealthy capture; pass ARGS="--force" to override, and read the refusal
+# first. Was a P1-era stub printing "Not implemented until P1" until
+# 2026-10-17, long after P1 shipped the capture it calls.
 onboard:
-	@echo Not implemented until P1.
-	@exit 1
+	$(UV) run python -m kavach.onboarding.baseline $(ARGS)
 
 inject:
 	@echo Not implemented until P2.
