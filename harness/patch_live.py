@@ -66,13 +66,78 @@ def say(m: str = "") -> None:
     print(m, flush=True)
 
 
+def probe(model: str, ollama: str, n: int, json_out: str) -> int:
+    """How often does this model write a patch that actually applies?
+
+    Separated from the live run because it needs no target, no sandbox and
+    no injection: it asks the one question that turned out to be decisive,
+    and asks it cheaply enough to ask of several models.
+
+    A patch is counted ONLY if `git apply --check` accepts it against the
+    degraded file. Passing the deterministic checks is not counted as
+    success - every model passes those, and a well-formed diff that does
+    not fit the file repairs nothing.
+    """
+    import tempfile
+
+    from harness.faults.f07_prompt_regression import DEGRADED_PROMPT
+    from kavach.executor.adapters import git
+    from kavach.llm.client import LlmError
+    from kavach.rca.patch_schema import ollama_schema
+
+    schema = ollama_schema(["prompts/answer.txt"])
+    prompt = patch_engine.build_prompt(
+        {"fault_class": "F07", "service": "backend", "confidence": 0.9},
+        "EV-C08 prompt answer.txt changed from baseline; grounding absent",
+        f"prompts/{PROMPT_FILE}", DEGRADED_PROMPT)
+    llm = OllamaClient(ollama, model)
+
+    applies = 0
+    failures: list[str] = []
+    for _ in range(n):
+        try:
+            raw = llm.structured(
+                system="You propose one small, reversible edit to one text file.",
+                user=prompt, schema=schema).raw
+            diff = str(json.loads(raw).get("diff", ""))
+        except (LlmError, ValueError) as exc:
+            failures.append(f"generation: {exc}")
+            continue
+        with tempfile.TemporaryDirectory() as t:
+            area = Path(t)
+            (area / PROMPT_FILE).write_text(
+                DEGRADED_PROMPT, encoding="utf-8", newline="")
+            try:
+                git.check(diff, area, area, strip=2)
+                applies += 1
+            except git.GitAdapterError as exc:
+                failures.append(str(exc)[:160])
+
+    say(f"{model}: {applies}/{n} patches apply to the file")
+    for f in failures[:3]:
+        say(f"   {f}")
+    Path(json_out).parent.mkdir(parents=True, exist_ok=True)
+    Path(json_out).write_text(json.dumps(
+        {"model": model, "runs": n, "applies": applies,
+         "failures": failures[:10],
+         "measured": datetime.now(UTC).isoformat(timespec="seconds")},
+        indent=2), encoding="utf-8", newline="")
+    return 0 if applies else 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--ollama", default="http://127.0.0.1:11434")
     ap.add_argument("--model", default="qwen2.5:7b-instruct")
     ap.add_argument("--json-out",
                     default=str(ROOT / "harness" / "reports" / "p7-patch-live.json"))
+    ap.add_argument("--probe", type=int, default=0, metavar="N",
+                    help="skip the live target: generate N patches against "
+                         "the degraded prompt and report how many APPLY")
     args = ap.parse_args()
+
+    if args.probe:
+        return probe(args.model, args.ollama, args.probe, args.json_out)
 
     settings = get_settings()
     client = TargetClient(TargetEndpoints(

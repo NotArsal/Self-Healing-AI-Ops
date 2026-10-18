@@ -54,6 +54,15 @@ Include at least one unchanged line around your change where the file has
 one. Those lines are how the patch finds its place; without them it cannot
 be matched and will be rejected.
 
+Every line in the hunk body carries its own marker in column 1 — a space, a
+minus or a plus — and that marker is IN ADDITION to whatever the file's line
+already starts with. This file's lines begin with `- ` themselves. A line of
+this file that you are leaving alone therefore begins with a space and then a
+minus; one you are deleting begins with two minus signs; one you are adding
+begins with a plus and then a minus. Dropping the marker, so that the file's
+own `-` is read as the marker, produces a hunk that changes nothing and does
+not apply.
+
 Do not worry about the numbers in the `@@` header being exact — they are
 recomputed from the body of your hunk before the patch is tried. The
 CONTENT of the context lines must be exact.

@@ -60,6 +60,46 @@ code path that could (`AGENTS.md` rule 10, honoured by absence).
   after six deterministic checks, only with a byte-exact inverse recorded, and
   only to one directory.
 
+## Measured on the day it was built, 2026-10-18
+
+The machinery works. No local model has yet fed it a usable patch.
+
+| model | patches that APPLY to the file |
+|---|---|
+| llama3.1 | 0 of 5 |
+| llama3.2 | 0 of 5 |
+| qwen2.5:7b-instruct | 0 of 5 |
+
+Reproduce with `harness/patch_live.py --probe N --model M`. A patch counts
+only if `git apply --check` accepts it; all three models pass the six
+deterministic checks, which is why passing them is not the thing counted.
+
+Two distinct failures, both about diff syntax rather than about the repair:
+
+1. qwen2.5:7b-instruct omits the `--- a/<path>` header in most runs.
+2. All three mis-handle a file whose own lines begin with `- `. Every hunk
+   line needs its own marker in column 1, so a line of this file that is
+   being deleted begins with two minus signs. The models write one, which
+   git reads as an unchanged line, producing a hunk that changes nothing.
+
+Neither is a prompt problem in the sense of being fixable by a better
+prompt. Both were stated explicitly in `llm/prompts/patch.txt` and
+re-measured; the rate did not move. A field `description` in the JSON
+schema does nothing either, because Ollama compiles the schema to a
+grammar and a grammar has no room for prose - that attempt took qwen from
+1 in 3 to 0 in 5.
+
+The honest reading is that writing a unified diff is a different and
+harder skill than diagnosing, and a 3B-7B local model does not have it.
+Diagnosis on the same hardware reached 10 of 10. This is a finding about
+model capability, not a defect in the action, and the containment held on
+every one of the 25 runs: nothing was applied, and the target was restored
+byte-exact each time.
+
+The next variable to try is a larger model through the cloud provider
+path, which is already planned. The thresholds do not move to meet the
+models.
+
 ## What would reverse this
 
 If `apply_patch` cannot be shown working end to end in time, it is cut again
