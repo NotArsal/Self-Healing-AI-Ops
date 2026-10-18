@@ -115,6 +115,22 @@ def _get_json(url: str, timeout: float = 10.0) -> Any:
         return json.load(r)
 
 
+# The sandbox backend's own healthcheck requires Ollama, so when Ollama is
+# down the sandbox reports "container is unhealthy" and says nothing about
+# why. That cost a diagnosis: the first time it happened the message sent me
+# into container logs to find a dependency that was simply not running.
+OLLAMA_TAGS = "http://127.0.0.1:11434/api/tags"
+
+
+def ollama_reachable(timeout: float = 5.0) -> bool:
+    """Is the model host up? Checked separately so a failure can say so."""
+    try:
+        _get_json(OLLAMA_TAGS, timeout)
+        return True
+    except Exception:
+        return False
+
+
 def health(timeout: float = 10.0) -> bool:
     try:
         return bool(_get_json(SANDBOX_HEALTH, timeout).get("status") == "ok")
@@ -187,6 +203,16 @@ def ensure(wait_s: float = 180.0) -> SandboxState:
     state = SandboxState()
     t0 = time.perf_counter()
     try:
+        # Before blaming the sandbox for being unhealthy, check the thing its
+        # healthcheck depends on. A dependency that is simply not running
+        # should not read as a broken clone.
+        if not ollama_reachable():
+            state.problems.append(
+                "the model host at 127.0.0.1:11434 is not reachable, so the "
+                "sandbox backend's healthcheck cannot pass. This is not a "
+                "sandbox fault: start Ollama and try again"
+            )
+            return state
         if health():
             state.created = True
         else:
