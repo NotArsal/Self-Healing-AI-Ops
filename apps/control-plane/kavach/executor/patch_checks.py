@@ -277,18 +277,27 @@ def check_sandbox_result(sandbox_passed: bool | None,
     return v
 
 
-def evaluate(
+def evaluate_static(
     diff: str,
     versioned_paths: dict[str, str],
     denied_mutations: list[str],
     witness: dict[str, str],
-    sandbox_passed: bool | None = None,
 ) -> PatchVerdict:
-    """All six checks, in order, collecting every reason rather than the first.
+    """The five checks answerable from the patch alone.
 
-    Every rule runs even after one fails: an operator reading a refusal
-    should see everything wrong with a patch, not play whack-a-mole with it
-    one rule at a time.
+    SPLIT FROM `evaluate` BECAUSE THE SIXTH IS A DIFFERENT KIND OF QUESTION,
+    and a test made that obvious. Five of the constraints ask "is this patch
+    permitted" and can be answered the moment the model replies. Constraint
+    4 asks "what happened when it was tried", which has no answer until a
+    sandbox has run.
+
+    Calling the full `evaluate` at proposal time therefore always denied -
+    correctly, since `None` means nobody checked - and that denial short-
+    circuited the applicability test, so a proposal could never be found
+    worth sandboxing in the first place. The sandbox was gating the road to
+    the sandbox.
+
+    So: this at proposal time, `evaluate` before anything is written.
     """
     v = PatchVerdict()
     check_shape(diff, v)
@@ -298,6 +307,24 @@ def evaluate(
     check_denied(files, diff, denied_mutations, v)
     check_budget(diff, files, v)
     check_against_witness(files, witness, v)
+    v.allowed = not v.reasons
+    return v
+
+
+def evaluate(
+    diff: str,
+    versioned_paths: dict[str, str],
+    denied_mutations: list[str],
+    witness: dict[str, str],
+    sandbox_passed: bool | None = None,
+) -> PatchVerdict:
+    """All six checks. THE gate before anything is written to production.
+
+    Every rule runs even after one fails: an operator reading a refusal
+    should see everything wrong with a patch, not play whack-a-mole with it
+    one rule at a time.
+    """
+    v = evaluate_static(diff, versioned_paths, denied_mutations, witness)
     check_sandbox_result(sandbox_passed, v)
     v.allowed = not v.reasons
     return v

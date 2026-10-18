@@ -24,6 +24,19 @@ model's experimental patch can never be swept into a commit by `git add
 -A`. So this adapter runs with no repository in play at all, which removes
 the whole class of risk rule 10 is about rather than guarding against it.
 
+`--recount` IS PASSED, AND IT IS NOT A WEAKENING
+A language model reliably gets the CONTENT of context lines right and the
+NUMBERS in `@@ -1,4 +1,5 @@` wrong - it is counting, which is the thing
+these models are worst at. `--recount` tells git to derive those counts
+from the hunk body instead of trusting the header.
+
+It does not relax matching. The context lines themselves must still be
+found, in order, in the file, so the property this whole design rests on -
+a patch against a moved file is rejected - is untouched. What it removes is
+a failure mode that has nothing to do with whether the repair is correct.
+The alternative was asking the model to count, and `rca/schema.py` already
+records what asking a small model nicely is worth.
+
 WHY `git apply` AND NOT A HAND-WRITTEN PATCHER
 `--check` gives the property §6.2.1 asks for, for free: *"If the file moved
 since the witness was taken, the patch no longer applies and the incident
@@ -105,7 +118,8 @@ def check(diff: str, root: Path, boundary: Path, strip: int = 1) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         patch_file = Path(tmp) / "incident.diff"
         patch_file.write_text(diff, encoding="utf-8", newline="")
-        _run([_GIT_APPLY, "--check", f"-p{strip}", str(patch_file)], cwd=r)
+        _run([_GIT_APPLY, "--check", "--recount", f"-p{strip}",
+              str(patch_file)], cwd=r)
 
 
 def apply(diff: str, root: Path, boundary: Path, strip: int = 1) -> list[str]:
@@ -123,9 +137,9 @@ def apply(diff: str, root: Path, boundary: Path, strip: int = 1) -> list[str]:
         patch_file.write_text(diff, encoding="utf-8", newline="")
         # --numstat first, so the return value reports what git itself says
         # was touched rather than what the diff's headers claimed.
-        stat = _run([_GIT_APPLY, "--numstat", f"-p{strip}", str(patch_file)],
-                    cwd=r)
-        _run([_GIT_APPLY, f"-p{strip}", str(patch_file)], cwd=r)
+        stat = _run([_GIT_APPLY, "--numstat", "--recount", f"-p{strip}",
+                     str(patch_file)], cwd=r)
+        _run([_GIT_APPLY, "--recount", f"-p{strip}", str(patch_file)], cwd=r)
     written = []
     for line in stat.splitlines():
         parts = line.split("\t")

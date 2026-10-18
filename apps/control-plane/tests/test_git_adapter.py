@@ -143,3 +143,39 @@ def test_the_adapter_has_no_history_writing_code_path() -> None:
                   and callable(getattr(git, n))) == [
         "GitAdapterError", "Path", "apply", "check",
     ]
+
+
+# --- --recount: forgiving about counting, strict about content -------------
+
+
+def test_wrong_hunk_line_numbers_still_apply_if_the_context_matches(
+    area: Path,
+) -> None:
+    """A language model gets context lines right and the numbers in
+    `@@ -1,4 +1,5 @@` wrong, because that is counting. `--recount` derives
+    the counts from the hunk body, which removes a failure mode that has
+    nothing to do with whether the repair is correct."""
+    write(area, "answer.txt", "alpha\nbeta\ngamma\n")
+    nonsense_numbers = (
+        "--- a/answer.txt\n+++ b/answer.txt\n"
+        "@@ -99,7 +42,3 @@\n alpha\n-beta\n+BETA\n gamma\n"
+    )
+    git.apply(nonsense_numbers, area, area)
+    assert (area / "answer.txt").read_text(encoding="utf-8") == (
+        "alpha\nBETA\ngamma\n"
+    )
+
+
+def test_recount_does_not_make_wrong_context_acceptable(area: Path) -> None:
+    """THE check that --recount is not a weakening. The numbers may be
+    wrong; the context lines may not."""
+    write(area, "answer.txt", "alpha\nbeta\ngamma\n")
+    wrong_context = (
+        "--- a/answer.txt\n+++ b/answer.txt\n"
+        "@@ -1,3 +1,3 @@\n alpha\n-NOT THE REAL LINE\n+BETA\n gamma\n"
+    )
+    with pytest.raises(git.GitAdapterError):
+        git.apply(wrong_context, area, area)
+    assert (area / "answer.txt").read_text(encoding="utf-8") == (
+        "alpha\nbeta\ngamma\n"
+    )
