@@ -1077,7 +1077,39 @@ here, which is a more useful result than claiming zero.
 
 ---
 
-## P7 — Git isolation, knowledge base, Laya shadow ❌ CUT 2026-10-18
+## P7 — Git isolation, knowledge base, Laya shadow ⚠️ PARTIALLY REVIVED 2026-10-19
+
+> **Read this before the CUT notice below, which is now only half true.**
+> `docs/decisions/0011` partially reverses `0009`: the sandbox and
+> `apply_patch` were rebuilt and work. Laya, the knowledge base and the full
+> git-isolation model stay cut and nothing below describes them accurately.
+>
+> **Done and measured:**
+> - `F-SBX` the sandbox — standalone compose stack, `ensure()` rebuilds in
+>   14.4s, seeded from a production dump, production never touched
+> - `F-CODE` `apply_patch` — registered HIGH with `tier_is_fixed=True`, six
+>   deterministic checks, the sandbox trial inside `prepare()` so no human is
+>   ever asked to approve an untested diff, byte-exact inverse
+> - promotion on approval + a passing clone (`loop.py`, ADR 0012)
+> - **first generated repair verified end to end:** F07 injected for real,
+>   gemini-3.8-flash wrote the patch, the clone's fast set returned 100%,
+>   production stayed degraded and was restored byte-exact
+> - applicability measured per model: gpt-oss-120b 10/10, gemini-3.8-flash
+>   7/10, three local models 0/30 (ADR 0011)
+> - two of three gpt-oss-120b end-to-end runs were **refused by the sandbox**
+>   at 67% after passing every static check — constraint 4 earning its place
+>
+> **Still not done:** `apply_patch` is absent from the target manifest's
+> `allowed_actions`, so `permit()` denies it in production. That one line is
+> left for the operator and ADR 0012 carries the exact yaml.
+>
+> **Still cut:** Laya (`F-DEC`), the pgvector knowledge base, and incident
+> branches / blob witnesses. ADR 0012 supersedes `ARCHITECTURE.md` §6.2.1
+> constraint 3 — the inverse is the pre-state bytes, because `AGENTS.md`
+> rule 10 forbids Kavach committing to the target at all.
+
+### The original cut notice, kept for the reasoning
+
 
 > **CUT IN ITS ENTIRETY. Nothing below was attempted.** See
 > `docs/decisions/0009-p7-is-cut.md` for the decision and the reasoning per
