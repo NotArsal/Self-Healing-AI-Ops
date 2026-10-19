@@ -230,12 +230,51 @@ on the missing trailing newline — and two is a pattern worth naming.
 
 ## 5. Open items, in the order I would do them
 
-1. `make bench` full 4×5 run — **running in the background now**
-2. Re-measure RCA accuracy at `num_ctx=8192` (see §4a); rebuild the API
+1. ~~`make bench` full 4×5 run~~ — **finished 2026-10-19 08:55.** 20/20
+   injections, 0 false heals, target clean 20/20, chain intact. It also
+   produced the finding below.
+2. ~~Postmortem renderer~~ (§3.1) — **built**, `make postmortem`
+3. Re-measure RCA accuracy at `num_ctx=8192` (see §4a); rebuild the API
    image first, or the container keeps the old window
-2. Postmortem renderer (§3.1)
-3. Report and slides — cite AIOpsLab and ITBench in related work
-4. `make scenario`, three consecutive clean runs an hour apart
-5. Decide the human baseline: run it with a teammate, or record the decision
+4. Report and slides — cite AIOpsLab and ITBench in related work
+5. Re-state the MTTD acceptance target with its window arithmetic. 48.5s
+   median against a < 30s target, where two of four detectors claim on 60s
+   rate windows. The target was set before the detectors existed.
+6. `make scenario`, three consecutive clean runs an hour apart
+7. Decide the human baseline: run it with a teammate, or record the decision
    to drop it. It is currently neither.
-6. The one-line `allowed_actions` decision for `apply_patch` (ADR 0012)
+8. The one-line `allowed_actions` decision for `apply_patch` (ADR 0012)
+
+---
+
+## 6. What the bench found that no single run could
+
+**F07 healed 0 times out of 5**, and the reason is a property of the design
+rather than a bug.
+
+`runner.approve()` re-detects and re-diagnoses instead of replaying the
+parked plan — deliberately, because the world may have moved while the
+approval dialog was open and a replayed plan would restore a value that was
+true when it opened. The cost is that **an approved incident is diagnosed
+twice, and the model has to be right both times.** qwen2.5:7b got F07 right
+on 2 of 5 first frames; both of those then flipped to F06 on the second
+frame and the cross-check correctly refused them.
+
+Three consequences worth writing up:
+
+- The headline §4.3 result — qwen 10/10 on F07 — was **decoder determinism
+  on one frozen frame**, not accuracy. Across fresh frames the same model
+  scores 2/5. This is the same class of error as the two instrument bugs in
+  §4a and ADR 0011: the measurement described the rig, not the system.
+- **The safety property held under the failure.** Five F07 injections, five
+  escalations, nothing written, target left as found every time. A system
+  that healed F07 by acting on an F06 diagnosis would look better on the
+  results table and be worse.
+- There is a cheap, honest improvement available: when the deterministic
+  detector is unambiguous, do not re-run RCA on the approved path. The
+  operator approved a decision that deterministic detection reached; routing
+  the re-derivation through a model that may disagree with it discards the
+  approval. `runner.approve()` already carries a comment describing exactly
+  this failure for F01. The bench shows it is not hypothetical — it is the
+  whole F07 column. **Recommended, and not done:** it changes approval
+  semantics, which is the operator's call, not an overnight one.

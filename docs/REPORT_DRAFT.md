@@ -5,8 +5,14 @@ below is traceable to a file in `harness/reports/`, and the filename is given.
 Where a number is missing or provisional it says so rather than being filled
 in. Nothing here is estimated.
 
-Written 2026-10-19. The full `make bench` run was still executing when this
-was drafted; §4.1 is marked accordingly.
+`harness/reports/` is in `.gitignore`, so those files exist on the machine
+that produced them and not in a clone. For a report whose argument is
+traceability that is a gap; committing the artifacts is a one-line change to
+`.gitignore` and is left as a deliberate decision rather than made quietly.
+
+Written 2026-10-19, updated after the full `make bench` run completed at
+08:55 UTC. §4.1 and §4.2 are now the bench's twenty injections, not single
+runs.
 
 ---
 
@@ -66,54 +72,119 @@ incident from it, and verifies the chain while doing so.
 
 ## 4. Results
 
-### 4.1 Mean time to repair — `kavach-baseline.json`
+### 4.1 The bench — `bench-full.json`, 4 classes x 5 reps = 20 injections
 
-Deterministic path, one run per class:
+Run unattended overnight in `APPROVAL` mode, 2026-10-18 19:12 to 2026-10-19
+08:55 UTC. Every injection was real, every approval was issued by the harness
+acting as the operator, and nothing was reset, raised or disabled.
 
-| class | detected → resolved | gate decision | end state |
+| class | MTTD median [min–max] | MTTR median [min–max] | healed |
 |---|---|---|---|
-| F08 | **60.6s** | 21.2s | clean |
-| F07 | **63.5s** | 21.2s | clean |
-| F01 | **84.8s** | 51.6s | clean |
-| F06 | **114.7s** | 75.5s | clean |
+| F08 config regression | 36.4s [30.3–39.3] | **99.9s** [90.9–105.8] | 5/5 |
+| F07 prompt regression | 39.4s [39.4–42.4] | — | **0/5** |
+| F01 endpoint outage | 78.9s [54.6–94.0] | **124.4s** [96.9–154.6] | 5/5 |
+| F06 retrieval collapse | 87.9s [84.0–93.5] | **150.8s** [147.5–160.0] | 5/5 |
 
-Median **84.8s** against the `PRD.md` §10 target of 180s. The target is met
-with margin on every class.
+| metric | value | `PRD.md` §10 target | |
+|---|---|---|---|
+| detection rate | 100% (20/20) | ≥ 95% | met |
+| localisation | 100% (20/20) | ≥ 80% | met *(one-way, see §6)* |
+| RCA accuracy, the model's own answer | 85% (17/20) | ≥ 75% | met |
+| auto-resolution | 75% (15/20) | ≥ 70% | met |
+| **false healing** | **0% (0/20)** | ≤ 5% | met |
+| MTTR median | 124.4s (n=15) | < 180s | met |
+| **MTTD median** | **48.5s** | < 30s | **missed** |
+| target state clean after run | 100% (20/20) | 100% | met |
+| audit chain intact | yes | yes | met |
 
-> The full 4×5 `make bench` run was still executing at the time of writing.
-> These are single runs; the bench supplies the repeated denominator and
-> replaces this table.
+**MTTD misses its target and the target was the wrong number.** Detection is
+bounded below by the detector's own evaluation window — F06 claims on a 60s
+`empty_context_ratio` ratio and F01 on a 60s error ratio, so a sub-30s median
+across those classes is arithmetically impossible, not merely unachieved. The
+two classes that do not wait on a rate window (F07 39.4s, F08 36.4s) still sit
+above 30s because the loop polls. The honest correction is to the target, in
+the report, with the window arithmetic shown — not to the measurement.
 
-### 4.2 Does the LLM help? — the honest answer is "not yet"
+### 4.2 F07 healed 0 times out of 5, and that is the most interesting row
 
-Running the same classes with the RCA stage enabled:
+F07 is the only class the bench never repaired, and it failed twice over for
+two different reasons:
 
-| class | deterministic | with RCA |
-|---|---|---|
-| F06 | 114.7s resolved | 169.8s resolved |
-| F01 | 84.8s resolved | **escalated** |
-| F07 | 63.5s resolved | **escalated** |
-| F08 | 60.6s resolved | **escalated** |
+| rep | first RCA | after approval | end |
+|---|---|---|---|
+| 1 | F07 ✓ | **F06 ✗** | escalated |
+| 2 | F06 ✗ | — | escalated |
+| 3 | F07 ✓ | **F06 ✗** | escalated |
+| 4 | F06 ✗ | — | escalated |
+| 5 | F06 ✗ | — | escalated |
 
-**The LLM path is slower where it works and escalates where it does not.**
-This is reported because it is true. The escalations are the cross-check
-refusing a diagnosis it could not corroborate, which is the designed behaviour
-and the system's central safety property working — but it is not a speed-up,
-and the report should not imply one.
+The model scored 2/5 on the first evidence frame. Both of those two then
+**flipped to F06 on a second, freshly-built frame** taken after the operator
+approved. `runner.approve()` re-detects and re-diagnoses rather than replaying
+a stored plan, deliberately — the world may have moved while the dialog was
+open, and a replayed plan would restore a value that was true when it opened.
+The cost of that correctness is that an approved F07 must be diagnosed
+correctly *twice*, and qwen2.5:7b cannot do it once reliably.
 
-### 4.3 Diagnosis accuracy — `p6-*-rca*.json`, 10 repetitions each
+Three things follow, and all three belong in the report:
+
+1. **The cross-check held.** Every one of the five is an escalation with
+   nothing written and the target left as found. A system that healed F07 by
+   acting on an F06 diagnosis would have scored better on this table and been
+   worse.
+2. **§4.3's 10/10 for qwen on F07 was consistency, not accuracy.** The same
+   model on fresh frames of the same fault scores 2/5. Fixed-frame repetition
+   measures decoder determinism; it does not measure diagnosis. §4.3 is
+   re-labelled accordingly.
+3. **Approval doubles the model's exposure.** Not a defect — a measured
+   property of re-deriving the plan, and the argument for routing a
+   deterministically-detected fault around RCA entirely when the detector is
+   already unambiguous.
+
+### 4.2a The conditionals — the part a reviewer asks about
+
+| | |
+|---|---|
+| P(heal \| diagnosis correct) | 88% (15/17) |
+| P(heal \| diagnosis **wrong**) | **0% (0/3)** |
+| P(diagnosis correct \| heal) | **100% (15/15)** |
+
+A high auto-resolution rate next to a high P(heal | wrong) would mean a
+symptom-matcher with an LLM bolted on. Both are reported, or neither is worth
+reporting.
+
+### 4.2b The throughput ceiling, measured not assumed
+
+The bench spent **7.4 hours of its 13.7-hour wall clock waiting** for the
+blast-radius window to slide. `permit()` allows five incident starts per
+sliding hour and an approved heal costs two, so Kavach performs **at most two
+approved heals per hour** and halts rather than widening. That is a demo
+constraint as much as an operational one, and it is the reason the bench ran
+overnight instead of in twenty minutes.
+
+### 4.3 Decoder consistency, NOT diagnosis accuracy — `p6-*-rca*.json`
 
 | model | F01 | F07 | F08 |
 |---|---|---|---|
 | llama3.2 | **10/10** | 0/10 | 0/10 |
 | qwen2.5:7b-instruct | — | **10/10** | **10/10** |
 
-Validator approval tracked class accuracy exactly in every run.
+**This table was mis-titled in the first draft and the bench proves it.** Ten
+repetitions against *one frozen evidence frame* measure whether the decoder
+returns the same answer twice, which at temperature 0 it should. They do not
+measure diagnosis. The same qwen2.5:7b that scores 10/10 here scores **2/5 on
+F07 across fresh frames** (§4.2) and flips its own correct answer when asked a
+second time about the same live fault.
 
-Two caveats that matter more than the numbers:
+§4.1's `RCA accuracy 85% (17/20)` is the accuracy figure. This one is a
+determinism check, and it is kept only because a *failure* here would have
+invalidated everything downstream.
 
-- These measure **consistency on one fixed evidence frame**, not accuracy
-  across frames. On a fresh frame, qwen got F07 wrong.
+Two further caveats:
+
+- Validator approval tracked class agreement exactly in every run — the
+  cross-check added nothing on a frame the model had already got right, which
+  is the expected null result.
 - **All of these were measured with a context window that was sometimes
   exceeded.** See §6.
 
@@ -167,10 +238,23 @@ missing.
 
 | event | count |
 |---|---|
-| wrong diagnoses rejected by the cross-check | 21 / 21 |
+| wrong diagnoses rejected by the cross-check | 26 / 26 |
+| of those, from this bench | 5 / 5 |
+| F07 incidents escalated rather than guessed | 5 / 5 |
 | generated patches refused before production | all of them |
 | patches refused *by the sandbox after passing every static check* | 2 |
-| incidents leaving the target unclean | 0 |
+| incidents leaving the target unclean | **0 / 20** |
+| false healings — resolved while still broken | **0 / 20** |
+
+False healing is checked by an **independent** fast-set run after the loop
+declares `RESOLVED`, not by the loop's own verification, because a
+verification bug would otherwise hide inside the number meant to catch it.
+
+The bench's own summary prints `LLM diagnoses refused: 3/20` because its
+denominator is one diagnosis per run. Two more were refused on the
+post-approval re-runs of F07 reps 1 and 3, which that denominator does not
+see — 22 diagnoses were issued across 20 injections. Five were wrong and five
+were refused.
 
 ## 6. Threats to validity — read this before quoting §4
 
@@ -198,7 +282,17 @@ measurement is a finding about the instrument until proven otherwise.** Both
 bugs were found by checking the rig against a known-good input, which is now a
 test in both cases.
 
-**Single runs.** §4.1 and §4.2 are one run per class pending the bench.
+**Five repetitions, one machine, one night.** n=5 per class is enough to
+show F07 failing consistently and not enough for a confidence interval on
+MTTR. Every run shares one host, one Ollama and one corpus.
+
+**The bench ran in `APPROVAL`, so every MTTR includes an operator round
+trip.** The harness approves instantly; a human would not. MTTR here is a
+floor for the approval posture and is not comparable to an `AUTONOMOUS` one.
+
+**MTTD misses its target and the target is wrong, not the system.** See §4.1.
+Stated as a missed target anyway, because moving a threshold after seeing the
+data is how acceptance criteria stop meaning anything.
 
 ## 7. What Kavach is not
 
@@ -229,8 +323,11 @@ development.
 
 ## 9. Still to do
 
-1. Full `make bench` → replaces §4.1 and §4.2
-2. Re-measure §4.3 at the corrected context window
-3. `make scenario` — three clean runs, an hour apart
-4. Human baseline: run it, or record the decision to drop it
-5. The one-line `allowed_actions` decision for `apply_patch` (ADR 0012)
+1. ~~Full `make bench`~~ — **done 2026-10-19 08:55**, §4.1/§4.2
+2. Re-measure RCA at the corrected context window. The bench's API image
+   predates the `num_ctx` fix, so its 85% carries the §6 caveat; its MTTR
+   figures do not, because repairs run on the deterministic path.
+3. Re-state the MTTD target with its window arithmetic (§4.1)
+4. `make scenario` — three clean runs, an hour apart
+5. Human baseline: run it, or record the decision to drop it
+6. The one-line `allowed_actions` decision for `apply_patch` (ADR 0012)
