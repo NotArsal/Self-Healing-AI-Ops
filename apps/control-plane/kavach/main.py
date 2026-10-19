@@ -15,11 +15,11 @@ from contextlib import asynccontextmanager
 from typing import Annotated, Literal
 
 import structlog
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from kavach import __version__
+from kavach import __version__, telemetry
 from kavach.api.routes import router as console_router
 from kavach.config import Mode, Settings, get_settings
 
@@ -84,7 +84,22 @@ def create_app() -> FastAPI:
             default_mode=settings.default_mode,
         )
 
+    @app.get("/metrics", include_in_schema=False)
+    async def metrics() -> Response:
+        """Kavach's own series, for the `kavach-api` scrape job.
+
+        Out of the schema because it is not part of the console API and
+        its format is Prometheus exposition, not JSON. Unauthenticated
+        for the same reason `/healthz` is: it carries counters and
+        durations, never a target value, a config key or a token.
+        """
+        body, content_type = telemetry.exposition()
+        return Response(content=body, media_type=content_type)
+
     app.include_router(console_router)
+    # Last, so the instrumentor sees every route. A collector that is
+    # down or absent returns False and changes nothing else.
+    telemetry.setup_tracing(app, settings)
     return app
 
 

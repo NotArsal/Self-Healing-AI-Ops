@@ -1,0 +1,19 @@
+# The one Prometheus (ARCHITECTURE.md section 2.4), reached by service name on
+# the kavach network. Provisioned from this file rather than added through the
+# UI so the datasource is in git: a dashboard wired up by clicking exists only
+# on the machine it was clicked on.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: kavach-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      # Matches `global.scrape_interval` in infra/prometheus.yml. A shorter
+      # step here would draw gaps between real samples and invite someone to
+      # read a scrape boundary as a dip.
+      timeInterval: 15s

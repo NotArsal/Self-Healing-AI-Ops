@@ -1,0 +1,726 @@
+{
+  "uid": "kavach-overview",
+  "title": "Kavach - control plane and target",
+  "description": "Provisioned from infra/grafana/dashboards/kavach.json. Target panels reuse the detectors' own PromQL verbatim so the graph and the verdict cannot disagree; control-plane panels are the figures REPORT_DRAFT.md quotes.",
+  "tags": [
+    "kavach"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "editable": false,
+  "panels": [
+    {
+      "type": "row",
+      "title": "The target, read exactly as the detectors read it",
+      "id": 1,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "F01 - LLM error ratio",
+      "description": "VERBATIM from detection/endpoint_outage.py. ADR 0013: an evidence frame is an interface, and a graph drawn from a different window than the detector uses is a graph of a different fault.",
+      "id": 2,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "kavach-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "kavach-prometheus"
+          },
+          "expr": "(sum(rate(ragapp_llm_requests_total{outcome!=\"ok\"}[2m])) or vector(0)) / clamp_min(sum(rate(ragapp_llm_requests_total[2m])), 1e-9)",
+          "legendFormat": "error ratio [2m]",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          },
+          "max": 1,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "F06 - chunks surviving rerank",
+      "description": "VERBATIM from detection/retrieval_collapse.py. Zero means an answer with no grounding, returned as HTTP 200.",
+      "id": 3,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "kavach-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "kavach-prometheus"
+          },
+          "expr": "rate(ragapp_retrieval_kept_chunks_sum[1m]) / clamp_min(rate(ragapp_retrieval_kept_chunks_count[1m]), 1e-9)",
+          "legendFormat": "kept chunks per query [1m]",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "F06 - empty-context ratio",
+      "description": "The silent-failure counter. These queries still return 200.",
+      "id": 4,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "kavach-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "kavach-prometheus"
+          },
+          "expr": "(sum(rate(ragapp_retrieval_empty_context_total[1m])) or vector(0)) / clamp_min(sum(rate(ragapp_retrieval_kept_chunks_count[1m])), 1e-9)",
+          "legendFormat": "empty context [1m]",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          },
+          "max": 1,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Kavach's own work (ADR 0016)",
+      "id": 5,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Incidents by terminal status",
+      "description": "ESCALATED is not a failure. On a fault outside the catalogue it is the correct outcome, and 0/20 false heals is the result that depends on it.",
+      "id": 6,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "kavach-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 10
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "kavach-prometheus"
+          },
+          "expr": "sum by (status) (kavach_incidents_total)",
+          "legendFormat": "{{status}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "permit() verdicts",
+      "description": "Every side effect in Kavach passes the gate, so every side effect is counted here. DENY and REQUIRE_APPROVAL are the system working.",
+      "id": 7,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "kavach-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 10
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "kavach-prometheus"
+          },
+          "expr": "sum by (verdict) (kavach_permit_verdicts_total)",
+          "legendFormat": "{{verdict}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Corpus fingerprint - the invariant",
+      "description": "An incident is RESOLVED only if verification passed AND these did not move. A step in either line during a heal is the worst outcome in the design.",
+      "id": 8,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "kavach-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 10
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "kavach-prometheus"
+          },
+          "expr": "ragapp_corpus_chunks",
+          "legendFormat": "chunks",
+          "refId": "A",
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "kavach-prometheus"
+          },
+          "expr": "ragapp_corpus_files",
+          "legendFormat": "files",
+          "refId": "B",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "The report's headline metrics, live",
+      "id": 9,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "MTTD - incident open to detection concluded",
+      "description": "ADR 0014: the previous figure spanned detect + diagnose + gate and was named after one of them. This reads detection.concluded_at and nothing else. Bounded below by each detector's window - 2m for F01, 1m for F06, no PromQL at all for F07 and F08.",
+      "id": 10,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "kavach-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 19
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "kavach-prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum(rate(kavach_detection_seconds_bucket[30m])) by (le))",
+          "legendFormat": "p50",
+          "refId": "A",
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "kavach-prometheus"
+          },
+          "expr": "histogram_quantile(0.9, sum(rate(kavach_detection_seconds_bucket[30m])) by (le))",
+          "legendFormat": "p90",
+          "refId": "B",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "MTTR - incident open to terminal",
+      "description": "Split by status, because the mean of a resolve and an escalation is a number about neither.",
+      "id": 11,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "kavach-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 19
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "kavach-prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum(rate(kavach_incident_seconds_bucket[30m])) by (le, status))",
+          "legendFormat": "p50 {{status}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "RCA latency - one LLM diagnosis",
+      "description": "Local qwen2.5:7b-instruct. approve() re-diagnoses rather than replaying the parked plan, so an approved heal pays this twice.",
+      "id": 12,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "kavach-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 19
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "kavach-prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum(rate(kavach_rca_latency_seconds_bucket[30m])) by (le))",
+          "legendFormat": "p50",
+          "refId": "A",
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "kavach-prometheus"
+          },
+          "expr": "histogram_quantile(0.9, sum(rate(kavach_rca_latency_seconds_bucket[30m])) by (le))",
+          "legendFormat": "p90",
+          "refId": "B",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Incidents recorded",
+      "description": "Since the control plane last started.",
+      "id": 13,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "kavach-prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 27
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "kavach-prometheus"
+          },
+          "expr": "sum(kavach_incidents_total)",
+          "legendFormat": "all",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Resolved",
+      "description": "Verification passed and the corpus did not move.",
+      "id": 14,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "kavach-prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 27
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "kavach-prometheus"
+          },
+          "expr": "sum(kavach_incidents_total{status=\"RESOLVED\"})",
+          "legendFormat": "resolved",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Escalated",
+      "description": "Refused to act, or acted and unwound. Not a failure count.",
+      "id": 15,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "kavach-prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 27
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "kavach-prometheus"
+          },
+          "expr": "sum(kavach_incidents_total{status=\"ESCALATED\"})",
+          "legendFormat": "escalated",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Auto-executed",
+      "description": "ALLOW_AUTO verdicts: repairs no human gated.",
+      "id": 16,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "kavach-prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 27
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "kavach-prometheus"
+          },
+          "expr": "sum(kavach_permit_verdicts_total{verdict=\"ALLOW_AUTO\"})",
+          "legendFormat": "auto",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    }
+  ]
+}

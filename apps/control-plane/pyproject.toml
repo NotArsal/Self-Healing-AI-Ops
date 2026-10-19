@@ -13,6 +13,10 @@ dependencies = [
     "docker>=7.1",
     "sqlalchemy>=2.0",
     "psycopg[binary]>=3.2",
+    "prometheus-client>=0.21",
+    "opentelemetry-sdk>=1.29",
+    "opentelemetry-exporter-otlp-proto-http>=1.29",
+    "opentelemetry-instrumentation-fastapi>=0.50b0",
 ]
 
 # sqlalchemy and psycopg arrive in P5 with incident persistence: approval has
@@ -21,7 +25,18 @@ dependencies = [
 # a worker thread; an async driver would need the whole executor path rewritten
 # for no behaviour gain.
 #
-# Still deliberately absent: alembic, redis, langgraph, opentelemetry-*.
+# Still deliberately absent: alembic, redis, langgraph.
+#
+# OPENTELEMETRY AND PROMETHEUS-CLIENT, added 2026-10-19 (ADR 0016). They
+# were absent because Kavach watched the target and nothing watched
+# Kavach: `/metrics` was a 404, the scrape job for it was commented out,
+# and the collector in compose received nothing because no process ever
+# exported to it. A control plane with no telemetry of its own cannot be
+# the evidence for a claim about observability-driven healing.
+#
+# They sit OUTSIDE the healing path by construction: every call site is
+# in `telemetry.py`, which swallows, and the loop and the gate are
+# untouched. A collector that is down costs a graph, never a repair.
 #
 # LANGGRAPH, SPECIFICALLY: ARCHITECTURE 3 reserves `graph/` for it, and P5
 # listed it. It is not here because the thing it would buy - resumable state
@@ -79,6 +94,14 @@ mypy_path = "../.."
 # The docker SDK ships no type stubs. Scoped to this one import so it can never
 # silently widen (AGENTS.md security rule 15).
 module = ["docker.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# opentelemetry-instrumentation-* are pre-1.0 (0.5xb0) and ship no
+# py.typed. Scoped to the one instrumentation package actually imported,
+# not to `opentelemetry.*` - the SDK and the exporter ARE typed and must
+# stay checked (AGENTS.md security rule 15).
+module = ["opentelemetry.instrumentation.fastapi"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

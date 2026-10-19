@@ -62,6 +62,31 @@ services:
       retries: 5
     networks: [kavach]
 
+  # Where the traces Kavach now exports actually land (ADR 0016). The
+  # collector was always the fan-out point, but its traces pipeline
+  # exported to `debug` only - printed to the collector's stdout and
+  # discarded - so "we have tracing" meant a running process receiving
+  # nothing from nobody.
+  #
+  # OBSERVER, NEVER PARTICIPANT. Nothing in the healing path reads this.
+  # all-in-one keeps spans in memory: restarting it loses the history, which
+  # is the right trade for a component that must never be load-bearing. The
+  # audit log, not this, is the durable record of what Kavach did.
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    container_name: kavach-jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "${JAEGER_UI_PORT:-16686}:16686"   # the UI
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:16686/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [kavach]
+
   prometheus:
     # THE one Prometheus. Control-plane-owned so it keeps observing the target
     # while Kavach restarts the target's containers (ARCHITECTURE.md §2.4).
@@ -198,6 +223,43 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
+    networks: [kavach]
+
+  # Read-only view over the Prometheus above (ADR 0016). Provisioned from
+  # files so the dashboard is in git and survives the container: a dashboard
+  # built by clicking exists only on the machine it was clicked on, which is
+  # not evidence anybody can reproduce.
+  #
+  # OBSERVER, NEVER PARTICIPANT. It holds no credentials for the target and
+  # cannot reach it; it reads one Prometheus and nothing else.
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: kavach-grafana
+    restart: unless-stopped
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    environment:
+      # Anonymous VIEWER on a dashboard of counters and durations, on a
+      # machine-local port. A login prompt in the middle of a live demo is a
+      # worse failure than an unauthenticated graph of how long detection
+      # took, and there is nothing here an operator could change.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "${GRAFANA_PORT:-3002}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks: [kavach]
 
 volumes:

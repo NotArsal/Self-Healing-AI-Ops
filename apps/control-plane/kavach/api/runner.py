@@ -38,7 +38,7 @@ from typing import Any
 
 import structlog
 
-from kavach import loop
+from kavach import loop, telemetry
 from kavach.api.events import bus
 from kavach.audit.log import AuditLog
 from kavach.config import Mode, Settings
@@ -377,6 +377,12 @@ class LoopRunner:
             bus.publish_threadsafe(
                 event_loop, stage, status, message, incident_id=incident_id
             )
+            # The same sink the console watches, now also marking the
+            # run span. Riding the existing callback rather than adding
+            # calls inside `loop.run_once` keeps the loop free of
+            # telemetry entirely; `stage_event` swallows and is a no-op
+            # when no collector is configured.
+            telemetry.stage_event(stage, status, message)
 
         # Resolved before the first event, so a manifest that will not parse is
         # reported to the caller rather than surfacing inside a worker thread.
@@ -407,6 +413,10 @@ class LoopRunner:
         )
         self._remember(inc)
 
+        # A @contextmanager is also a decorator, which wraps the whole
+        # run in one span without re-indenting the body. No-op when no
+        # collector is configured.
+        @telemetry.heal_span(incident_id)
         def work() -> None:
             try:
                 result = loop.run_once(
@@ -427,6 +437,7 @@ class LoopRunner:
                     baseline=self.baseline_doc(),
                 )
                 self._remember(result)
+                telemetry.record_incident(result)
                 if result.decision:
                     self.store.save_decision(incident_id, result.decision)
                 if result.status is loop.IncidentStatus.AWAITING:
@@ -456,6 +467,7 @@ class LoopRunner:
                 inc.escalation_reason = f"{type(exc).__name__}: {exc}"
                 inc.outcome = "escalated; the run did not complete"
                 self._remember(inc)
+                telemetry.record_incident(inc)
                 publish("resolve", "failed", inc.escalation_reason)
             finally:
                 with self._lock:

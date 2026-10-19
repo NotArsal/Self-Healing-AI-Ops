@@ -65,7 +65,12 @@ class Settings(BaseSettings):
     # Infrastructure. Unused in Phase 0 — wired in P2/P3.
     database_url: str = "postgresql+asyncpg://kavach:kavach@localhost:5433/kavach"
     prometheus_url: str = "http://localhost:9091"
-    otlp_endpoint: str = "http://localhost:4318"
+    # EMPTY BY DEFAULT, which means tracing off. It had a URL default while
+    # nothing read it; the moment `telemetry.setup_tracing` did, every
+    # pytest run that built the app stood up a real OTLP exporter and
+    # started retrying against a collector that is not there in CI. Tracing
+    # is opt-in, and compose opts in explicitly for the container.
+    otlp_endpoint: str = ""
 
     # Kavach's own RCA model. Points DIRECTLY at Ollama, never through
     # Toxiproxy, so injecting F01/F02 into the target cannot blind the

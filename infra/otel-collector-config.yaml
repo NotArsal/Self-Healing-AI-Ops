@@ -1,9 +1,14 @@
 # OpenTelemetry Collector — the fan-out point (ARCHITECTURE.md §4.1).
 #
-# Phase 0 scope: receive OTLP and expose it to Prometheus. The otlphttp export
-# to Kavach's own /v1/traces receiver is commented out because that receiver is
-# P2 work (telemetry ingestion), and an exporter pointing at a 404 would retry
-# forever and fill the logs.
+# Receives OTLP and fans it out: metrics to Prometheus, traces to Jaeger.
+#
+# UNTIL 2026-10-19 THE TRACES PIPELINE EXPORTED TO `debug` AND NOTHING ELSE,
+# which printed each span to this container's stdout and dropped it. Combined
+# with a control plane that had no instrumentation at all, the practical
+# result was a healthy-looking collector receiving nothing and forwarding it
+# nowhere. `ADR 0016` adds the instrumentation; this adds somewhere for it to
+# go. `debug` stays on at `basic` because a silent collector and a collector
+# with no traffic look identical from outside.
 
 receivers:
   otlp:
@@ -33,7 +38,12 @@ exporters:
   debug:
     verbosity: basic
 
-  # --- Enabled in P2, when ingestion/otlp.py exists (ROADMAP P3).
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true   # one machine-local docker network, no CA to verify against
+
+  # --- Still unbuilt: Kavach ingesting its own OTLP (ROADMAP P3).
   # otlphttp/kavach:
   #   endpoint: http://api:8000/v1
   #   tls:
@@ -47,8 +57,7 @@ service:
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch]
-      exporters: [debug]
-      # P2: exporters: [debug, otlphttp/kavach]
+      exporters: [debug, otlp/jaeger]
     metrics:
       receivers: [otlp]
       processors: [memory_limiter, batch]
