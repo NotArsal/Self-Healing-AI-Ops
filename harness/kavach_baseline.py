@@ -128,6 +128,30 @@ def build(fault_class: str, client: TargetClient) -> Fault:
     return F08ConfigRegression(client, corpus_probe=corpus)
 
 
+def rca_model() -> str:
+    """WHICH model the control plane will actually diagnose with.
+
+    `/v1/system` has reported this all along; no artifact recorded it. On
+    2026-10-19 the API was rebuilt without `--env-file .env`, so compose fell
+    back to the `llama3.2` default in the compose file while `.env` said
+    `qwen2.5:7b-instruct`, and every incident for the next 83 minutes was
+    diagnosed by a model nobody had chosen. Establishing which model produced
+    the overnight bench afterwards meant querying Postgres, because the
+    artifact could not say.
+
+    `llm/client.py` already carries the rule this violates: "a result that
+    cannot say which model produced it is not a result". It applies to the
+    harness artifacts too, so they stamp it now.
+    """
+    _, sysinfo = api("/v1/system")
+    if not isinstance(sysinfo, dict):
+        return ""
+    for dep in sysinfo.get("dependencies") or []:
+        if str(dep.get("name", "")).startswith("Ollama, Kavach"):
+            return str(dep.get("detail", "")).removeprefix("model ").strip()
+    return ""
+
+
 def wait_terminal(incident_id: str, limit_s: int = 900) -> dict[str, Any]:
     terminal = {"NO_FAULT", "AWAITING_APPROVAL", "RESOLVED", "ESCALATED"}
     t0 = time.time()

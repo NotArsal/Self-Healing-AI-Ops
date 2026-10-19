@@ -9,6 +9,7 @@ would reject.
 """
 
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -567,3 +568,22 @@ def test_an_accepted_diagnosis_is_audited_too(
     assert row["model_class"] == "F06"
     assert row["deterministic_class"] == "F06"
     assert log.verify().intact
+
+
+def test_detection_stamps_the_instant_it_concluded(fast_set: Path) -> None:
+    """Without this stamp MTTD is not measurable, and was not measured.
+
+    `detected_at` is written before detection starts and the bench read its
+    clock after the loop went terminal, so the published "MTTD" spanned the
+    fast set, the LLM diagnosis and the gate. Detection is the interval
+    between these two stamps; anything else is a different metric wearing
+    the name.
+    """
+    t = FakeTarget(BAD_THRESHOLD)
+    inc = run_once(t, "http://prom", fast_set, promql_for(t), BASELINE_THRESHOLD)
+
+    concluded = inc.detection.get("concluded_at")
+    assert concluded, "detection concluded and left no timestamp"
+    started = datetime.fromisoformat(inc.detected_at)
+    assert datetime.fromisoformat(concluded) >= started, (
+        "detection cannot conclude before the incident opened")

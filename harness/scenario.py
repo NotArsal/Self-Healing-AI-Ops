@@ -86,6 +86,7 @@ from harness.kavach_baseline import (  # noqa: E402
     api,
     corpus,
     drain,
+    rca_model,
     wait_terminal,
     warm_up_f01,
 )
@@ -356,6 +357,13 @@ def main() -> int:
         say("  REFUSING: the fast set must pass before injecting anything.")
         return 1
     say("  preflight          healthy, fast set passing")
+    # NAMED ON STAGE, because on 2026-10-19 a rebuild without `--env-file
+    # .env` silently put the control plane on compose's `llama3.2` default
+    # while `.env` said qwen, and a full rehearsal failed three acts before
+    # anyone could see why. A demo that cannot say which model is reasoning
+    # is not a demo of reasoning.
+    model = rca_model()
+    say(f"  RCA model          {model or 'UNKNOWN - /v1/system did not say'}")
     say("")
     say("  NOTE: these four acts cost up to 7 incident starts, and permit()")
     say("  allows 5 an hour. ONE full run fits. A second rehearsal inside the")
@@ -417,6 +425,7 @@ def main() -> int:
     out.write_text(json.dumps({
         "at": datetime.now(UTC).isoformat(timespec="seconds"),
         "name": args.name,
+        "rca_model": model,
         "acts": [asdict(a) for a in acts],
         "corpus_before": live, "corpus_after": post,
         "target_healthy_after": healthy,

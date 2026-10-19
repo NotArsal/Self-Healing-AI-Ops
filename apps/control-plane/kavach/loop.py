@@ -288,6 +288,18 @@ def run_once(
     )
     inc.detection = detection.to_dict()
     inc.detection["pre_verification"] = pre_fast.to_dict()
+    # THE INSTANT DETECTION CONCLUDED, which nothing recorded until
+    # 2026-10-19 - so MTTD, a headline metric in PRD section 10, had never
+    # actually been measured.
+    #
+    # `detected_at` above is stamped before detection starts, and the bench
+    # read its `mttd_s` after the loop reached a terminal state. That figure
+    # therefore carried the fast set, the whole LLM diagnosis and the
+    # permit() gate inside a number labelled "time to detect", and was then
+    # compared against a < 30s target it has no relationship to. Detection is
+    # the span between these two stamps and nothing else.
+    inc.detection["concluded_at"] = datetime.now(UTC).isoformat(
+        timespec="milliseconds")
 
     if detection.verdict is det.Verdict.NO_FAULT:
         _notify(on_event, "detect", "ok",

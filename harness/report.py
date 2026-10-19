@@ -65,6 +65,7 @@ from harness.kavach_baseline import (  # noqa: E402
     corpus,
     drain,
     drive_until_detectable,
+    rca_model,
     wait_terminal,
     warm_up_f01,
 )
@@ -130,7 +131,14 @@ class Run:
     fault_class: str
     rep: int
     detected: bool = False
+    # TIME TO DETECT: injection -> the instant det.run_all returned a verdict,
+    # read from the loop's own `detection.concluded_at`. Until 2026-10-19 this
+    # field held `first_verdict_s` below, which is a different quantity.
     mttd_s: float | None = None
+    # Injection -> the loop's first terminal state. That is the fast set, the
+    # detection, the LLM diagnosis AND the permit() gate. A useful number, and
+    # not the one PRD section 10 sets a < 30s target for.
+    first_verdict_s: float | None = None
     det_class: str = ""
     llm_class: str = ""
     llm_confidence: float | None = None
@@ -190,7 +198,15 @@ def one_run(client: TargetClient, fault_class: str, rep: int,
         r.det_class = str(inc.get("fault_class") or "")
         r.detected = bool(r.det_class)
         if r.detected:
-            r.mttd_s = round(time.time() - t0, 1)
+            r.first_verdict_s = round(time.time() - t0, 1)
+            # The loop stamps this when detection returns. Absent on an image
+            # built before 2026-10-19, and then MTTD is reported as missing
+            # rather than silently falling back to `first_verdict_s` - which
+            # is the substitution that produced a four-day-old wrong number.
+            concluded = (inc.get("detection") or {}).get("concluded_at")
+            if concluded:
+                r.mttd_s = round(
+                    datetime.fromisoformat(concluded).timestamp() - t0, 1)
         r.service = str(inc.get("service") or "")
         r.action = str(inc.get("planned_action") or "")
         diag = (inc.get("rca") or {}).get("diagnosis") or {}
@@ -247,6 +263,8 @@ def one_run(client: TargetClient, fault_class: str, rep: int,
 @dataclass
 class Bench:
     at: str = ""
+    # The model that produced every figure below. See rca_model().
+    model: str = ""
     runs: list[Run] = field(default_factory=list)
     paced_wait_total_s: float = 0.0
 
@@ -295,9 +313,14 @@ def emit(bench: Bench, classes: list[str], reps: int) -> bool:
     say(f"  {'rollback correctness':<34} "
         f"{pct(sum(1 for r in unwinds if r.unwind_clean), len(unwinds)):<18} 100%")
     mttds = [r.mttd_s for r in runs if r.mttd_s is not None]
+    verdicts = [r.first_verdict_s for r in runs if r.first_verdict_s is not None]
     mttrs = [r.mttr_s for r in runs if r.mttr_s is not None]
-    say(f"  {'MTTD (median)':<34} "
-        f"{(f'{statistics.median(mttds):.1f}s' if mttds else 'n/a'):<18} < 30s")
+    mttd_txt = (f"{statistics.median(mttds):.1f}s" if mttds
+                else "n/a (image predates the stamp)")
+    say(f"  {'MTTD (median)':<34} {mttd_txt:<18} < 30s")
+    say(f"  {'  first verdict (median)':<34} "
+        f"{(f'{statistics.median(verdicts):.1f}s' if verdicts else 'n/a'):<18} "
+        f"detect+RCA+gate, no target")
     say(f"  {'MTTR (median)':<34} "
         f"{(f'{statistics.median(mttrs):.1f}s' if mttrs else 'n/a'):<18} < 180s")
     say(f"  {'audit completeness':<34} "
@@ -410,7 +433,10 @@ def main() -> int:
         f"paced under permit()'s blast radius. Unattended by design.")
     say("")
 
-    bench = Bench(at=datetime.now(UTC).isoformat(timespec="seconds"))
+    bench = Bench(at=datetime.now(UTC).isoformat(timespec="seconds"),
+                  model=rca_model())
+    say(f"  RCA model          {bench.model or 'UNKNOWN - /v1/system did not say'}")
+    say("")
     pacer = Pacer()
     for rep in range(1, args.reps + 1):
         for fc in classes:
@@ -428,6 +454,7 @@ def main() -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({
         "at": bench.at,
+        "rca_model": bench.model,
         "classes": classes,
         "reps": args.reps,
         "denominator": total,

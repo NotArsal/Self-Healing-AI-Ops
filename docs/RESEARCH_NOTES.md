@@ -336,3 +336,53 @@ on the API's read path, which is more than a fallback and more than should
 be added unprompted at the end of an unattended run. The durable data is
 safe either way, so there is no urgency and no risk in waiting for a
 decision.
+
+## 8. The control plane spent 83 minutes on a model nobody chose
+
+Found at 05:03 on 2026-10-19, while starting the P8 three-run rehearsal.
+Three of the four acts failed. The cause was not in any of them.
+
+`infra/docker-compose.yml` declares
+`KAVACH_LLM_MODEL: ${KAVACH_LLM_MODEL:-llama3.2}`. Compose reads `.env` from
+**the compose file's directory**, so a `docker compose -f infra/...` invoked
+without `--env-file .env` never sees the repo-root `.env` — and every
+defaulted variable quietly takes the fallback written in the compose file.
+The rebuild at 03:46 was issued that way. `.env` said
+`qwen2.5:7b-instruct`; the running API said `llama3.2`.
+
+`Makefile` line 18 documents this exact trap, which is why `COMPOSE` carries
+`--env-file .env`. The rebuild was done by hand, bypassing it.
+
+**What it cost, precisely.** Four incidents between 03:52 and 05:08 were
+diagnosed by the wrong model. All four escalated with nothing written, because
+`llama3.2` answered F06 to an F01 fault and the deterministic cross-check
+refused it. The target was left clean each time.
+
+**What it did not cost.** Every published figure predates the rebuild:
+
+| artifact | model recorded | when |
+|---|---|---|
+| overnight bench (20 injections) | `qwen2.5:7b-instruct` | last incident 03:23 |
+| `p6-f07-rca-qwen.json` | `qwen2.5:7b-instruct` | 2026-10-17 17:13 |
+| the three ADR 0013 A/B runs | `qwen2.5:7b-instruct` | 03:36, 03:39, 03:42 |
+
+Establishing that took a query against Postgres, because **no artifact
+recorded which model produced it.** That is the actual defect. `/v1/system`
+has reported the live model all along (`Ollama, Kavach path | model ...`) and
+nothing read it.
+
+**Fixed:** `harness/kavach_baseline.py` gains `rca_model()`, and both
+`report.py` and `scenario.py` now stamp `rca_model` into their JSON artifact
+and print it in the preflight header. `llm/client.py` already carried the rule
+this violated — *a result that cannot say which model produced it is not a
+result* — stated for `LlmResponse.provider` and never applied to the harness.
+
+**Not fixed, and worth a thought:** nothing *refuses* to run when the live
+model differs from the one `.env` names. Recording it makes the mistake
+visible afterwards; it does not prevent it. A preflight comparison would, but
+the harness does not read `.env` today and adding dotenv parsing to four
+scripts to guard one class of operator error is a worse trade than printing
+the model where a human sees it before the first act.
+
+The cheap discipline, meanwhile: bring the stack up with `make up`, never a
+bare `docker compose`.

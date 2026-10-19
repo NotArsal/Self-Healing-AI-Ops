@@ -93,17 +93,42 @@ acting as the operator, and nothing was reset, raised or disabled.
 | auto-resolution | 75% (15/20) | ≥ 70% | met |
 | **false healing** | **0% (0/20)** | ≤ 5% | met |
 | MTTR median | 124.4s (n=15) | < 180s | met |
-| **MTTD median** | **48.5s** | < 30s | **missed** |
+| **MTTD median** | **withdrawn — never measured** | < 30s | **no result** |
+| first verdict median *(see below)* | 48.5s | *no target* | — |
 | target state clean after run | 100% (20/20) | 100% | met |
 | audit chain intact | yes | yes | met |
 
-**MTTD misses its target and the target was the wrong number.** Detection is
-bounded below by the detector's own evaluation window — F06 claims on a 60s
-`empty_context_ratio` ratio and F01 on a 60s error ratio, so a sub-30s median
-across those classes is arithmetically impossible, not merely unachieved. The
-two classes that do not wait on a rate window (F07 39.4s, F08 36.4s) still sit
-above 30s because the loop polls. The honest correction is to the target, in
-the report, with the window arithmetic shown — not to the measurement.
+**MTTD is withdrawn, because this project has never measured it.** An earlier
+draft of this section argued that the < 30s target was arithmetically
+unreachable and should be restated. That argument was wrong, and so was the
+48.5s figure it defended.
+
+The harness computed `mttd_s` as wall time from injection to the loop's first
+*terminal* status (`harness/report.py`, and `wait_terminal` counts
+`AWAITING_APPROVAL` as terminal). So the figure labelled "time to detect"
+contained, in order: the F01/F06 traffic warm-up, the pre-detection fast set,
+detection itself, the **entire LLM diagnosis**, and the `permit()` gate. The
+warm-up alone has a median of 48.6s for F01 and 51.6s for F06 — recorded
+separately in the same artifact, and larger than the whole "MTTD" target.
+Nothing else was available to use: `detected_at` is stamped at the top of
+`run_once`, *before* detection runs, so the instant detection concluded was
+never written down anywhere.
+
+A metric compared against a target for three phases, where neither endpoint of
+the interval marks the event being measured, is not a missed target. It is an
+absent measurement, and it is reported here as absent.
+
+The four windows, for the restatement that is now possible but not yet
+evidenced: F01's error ratio is `rate(...[2m])` behind a `min_requests ≥ 3.0`
+gate, F06's is `rate(...[1m])`, Prometheus scrapes at 15s, and F07 and F08
+read no PromQL at all — their detectors compare a prompt hash and a config
+snapshot, so their floor is the fast set, not a metric window. That spread
+makes a single cross-class MTTD target questionable in itself. **The fix is
+instrumentation, not arithmetic:** `loop.py` now stamps
+`detection.concluded_at` the moment `run_all` returns, the harness computes
+MTTD from it, and the old quantity is reported under its true name,
+`first_verdict_s`. The number will come from the next bench run; this one
+cannot produce it retroactively.
 
 ### 4.2 F07 healed 0 times out of 5, and that is the most interesting row
 
@@ -319,7 +344,8 @@ MTTR. Every run shares one host, one Ollama and one corpus.
 trip.** The harness approves instantly; a human would not. MTTR here is a
 floor for the approval posture and is not comparable to an `AUTONOMOUS` one.
 
-**MTTD misses its target and the target is wrong, not the system.** See §4.1.
+**MTTD was never measured, and the figure is withdrawn.** The harness timed
+injection-to-first-terminal-status and called it detection. See §4.1.
 Stated as a missed target anyway, because moving a threshold after seeing the
 data is how acceptance criteria stop meaning anything.
 
@@ -357,7 +383,9 @@ development.
    window was not the cause; ADR 0013 identifies the real one. F01, F06 and
    F08 need no fixed-frame re-run: the bench already measures them on the
    current frame across twenty fresh frames, at 5/5 each.
-3. Re-state the MTTD target with its window arithmetic (§4.1)
+3. Re-run the bench for a real MTTD, now that `detection.concluded_at`
+   exists (§4.1). Only then is it worth asking whether < 30s is the right
+   target.
 4. `make scenario` — three clean runs, an hour apart
 5. Human baseline: run it, or record the decision to drop it
 6. The one-line `allowed_actions` decision for `apply_patch` (ADR 0012)
