@@ -54,9 +54,21 @@ only by the eleven additions `PRD.md` §5.2 permits, each with a decision record
 | F08 | Config regression | config hash moved + SLO breach | `rollback_config` | MEDIUM |
 | — | generated repair | *(not a class; an escalation path)* | `apply_patch` | **HIGH** |
 
-F02, F03, F05 and F09 were each dropped for a stated reason, recorded rather
-than quietly omitted. F09 was closed **on measurement** — it was not
-injectable honestly.
+**The catalogue is eight classes and four are implemented.** Every gap has a
+recorded reason rather than a quiet omission, and the IDs are stable
+identifiers, not indices — `F04`'s number is not reused, so the catalogue
+reads `F01, F02, F03, F05, F06, F07, F08, F09`: eight entries with a gap.
+
+| class | why it is not in the results |
+|---|---|
+| **F04** cache poisoning / stale cache | **Retired.** The target has no cache — no Redis, no response cache, no embedding cache — so `flush_cache` repairs nothing. Redis was **not** added to manufacture a fault for it. Building a feature in order to have something to break is the wrong direction, and a reviewer would be right to say so |
+| F09 | **Closed on measurement**, not on opinion. Three mechanisms were tried and none moved the signal enough to inject honestly: `rerank_threshold` 1.20×, verbose prompts 0.87–1.17×, and `max_tokens` is a ceiling rather than a lever |
+| F02, F05 | Dropped at the week-10 checkpoint to protect P6 and P8 |
+| F03 | Injector deferred; the class is specified but cannot be injected, so it has no denominator |
+
+The consequence is stated rather than hidden: the benchmark denominator is
+**four classes, not eight**, and every rate in §4.1 is over 20 injections.
+`PRD.md` §10's original "7 × 5 = 35" assumed seven injectable classes.
 
 **The safety engine.** A ten-step gate. Deny-list before allow-list, so adding
 an action to `allowed_actions` cannot enable a denied mutation. Four verdicts:
@@ -356,6 +368,75 @@ project is arguing for.
 - Neither baseline is large enough to support a significance claim and none
   is made.
 
+### 4.9 What the LLM layer costs — `kavach-baseline*.json`
+
+The deterministic loop (P2) and the same loop with LLM RCA in front of it
+(P3), on the same four faults, same baseline, same target.
+
+| class | deterministic resolve | with RCA | outcome with RCA |
+|---|---|---|---|
+| F08 | **60.6s** | 102.7s | resolved |
+| F07 | **63.5s** | — | escalated (both runs) |
+| F01 | **84.8s** | 127.2s | resolved |
+| F06 | **114.7s** | 160.0s | resolved |
+| | **4/4 resolved** | **4/8 resolved** | |
+
+**The deterministic loop is faster on every class and heals more often.**
+Adding the model costs 40–70% more wall time and halves the resolution rate.
+That is the honest headline and it should not be buried.
+
+#### Why that is the architecture working, not a defect
+
+RCA **cannot** widen what executes. Deterministic detection still has to find
+the fault, the plan still comes from the same literal dict, and the repair is
+the same single action (`loop.py`). The model adds a gate and an explanation;
+it cannot authorise anything. So the RCA arm resolving *at most* as often as
+the deterministic arm is structurally guaranteed. The only question a
+measurement can answer is **whether the refusals were right.**
+
+#### They were mostly right, and that "mostly" is the cost
+
+Four escalations in the RCA arm:
+
+| | model said | refused correctly? |
+|---|---|---|
+| F01 | **F06 — wrong** | **yes.** A wrong diagnosis was stopped |
+| F07 ×2 | F07 — correct | **no.** A correct diagnosis was blocked |
+| F08 | F08 — correct | **no.** A correct diagnosis was blocked |
+
+**Three of four refusals blocked a correct answer.** The cross-check is
+conservative, and this is the price: it has never let a wrong diagnosis
+drive a repair (0/20 in §4.1, 0/3 wrong diagnoses acted on), and it also
+refuses correct ones. A reviewer should see both numbers, because a gate
+that refuses everything would score perfectly on the first and be useless.
+
+#### So what is the model for
+
+Not speed and not throughput — it demonstrably costs both. On this
+catalogue, the model buys three things the deterministic path does not have:
+
+1. **A stated confidence and cited evidence** per incident, which is what
+   makes the refusal legible to an operator rather than an opaque stop.
+2. **A refusal mechanism that generalises.** The deterministic detectors
+   each recognise one fault; the cross-check compares two independent
+   derivations and can disagree on a fault neither was tuned for.
+3. **An answer at all on faults outside the catalogue**, where the
+   deterministic path returns `INSUFFICIENT_EVIDENCE` by construction.
+
+Only (1) is measured here. **(2) and (3) are untested claims** — every fault
+in this catalogue has a deterministic detector, so the configuration where
+the model would add capability is exactly the one never exercised. Stated as
+a limitation, not a result.
+
+#### Limits
+
+**n = 1 per class in the deterministic arm**, 1–2 in the RCA arm. These are
+single runs, not distributions, and the bench (§4.1) is the only large
+sample — and it has **no deterministic arm at all**. The percentages above
+are indicative of direction, not magnitude. A paired deterministic bench at
+the same 4 × 5 denominator is the measurement this section deserves and does
+not have.
+
 ## 5. What the safety engine refused
 
 | event | count |
@@ -428,6 +509,29 @@ currently sharp.
 
 It does **not** rewrite its own source, refactor the target, or do autonomous
 development.
+
+**It does not support Kubernetes, and the target's repository will suggest
+otherwise.** The target contains `k8s/` Deployment and Service manifests, a
+`kubernetes` client dependency, a LangGraph agent whose `heal_service` node
+deletes pods, and its own `ADR-002` declaring Kubernetes mandatory for
+self-healing. All of that pre-dates Kavach and none of it is Kavach.
+
+Kavach v1 does not read those manifests, does not call the Kubernetes API,
+and has no Kubernetes action in its registry. The target's own healing path
+is **unreachable** — the `POST /v1/webhook/alert` route that invoked it is
+not registered, which also closed an unauthenticated endpoint that could
+delete pods on request. The agent file is left on disk for reference,
+imported by nothing (`ADR 0003`).
+
+The reason it was disabled is `FR-15a`, writer exclusivity: two controllers
+mutating one system makes every recoverability claim void, because neither
+can know whether it caused the state it observes. The pre-existing mechanism
+also satisfies none of Kavach's safety requirements — no allow-list, no risk
+tier, no inverse, no idempotency key, no pre-state witness.
+
+Stated plainly for a reviewer: *"the target contains Kubernetes files"* and
+*"Kavach supports Kubernetes"* are different statements, and only the first
+is true.
 
 ## 8. Related work
 
