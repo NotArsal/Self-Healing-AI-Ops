@@ -119,6 +119,58 @@ describe("incident state", () => {
     expect(failed.has("gate")).toBe(true);
   });
 
+  it("maps gate: ok to the canonical gate stage", () => {
+    const gateEvents = [
+      ...fx.events,
+      {
+        seq: 5,
+        at: "2026-10-04T10:45:41+00:00",
+        incident_id: "INC-104512",
+        stage: "gate",
+        status: "ok",
+        message: "permit ALLOW_AUTO for rollback_config",
+      },
+    ];
+    const { reached, failed, inFlight } = reachedStages(gateEvents, "INC-104512");
+    expect(reached.has("gate")).toBe(true);
+    expect(failed.has("gate")).toBe(false);
+    expect(inFlight).toBe(false);
+  });
+
+  it("marks gate as failed when permit is denied after validation", () => {
+    const deniedEvents = [
+      ...fx.events,
+      {
+        seq: 5,
+        at: "2026-10-04T10:45:41+00:00",
+        incident_id: "INC-104512",
+        stage: "validate",
+        status: "ok",
+        message: "validation ACCEPTED the diagnosis",
+      },
+      {
+        seq: 6,
+        at: "2026-10-04T10:45:42+00:00",
+        incident_id: "INC-104512",
+        stage: "gate",
+        status: "failed",
+        message: "permit DENIED rollback_config: not in allowed_actions",
+      },
+    ];
+    const { reached, failed, inFlight } = reachedStages(deniedEvents, "INC-104512");
+    expect(reached.has("gate")).toBe(true);
+    expect(failed.has("gate")).toBe(true);
+    expect(inFlight).toBe(false);
+
+    const { container } = render(
+      <LoopRing reached={reached} failed={failed} inFlight={inFlight} />,
+    );
+    const failedTicks = container.querySelectorAll(
+      'circle[fill="var(--k-risk-high)"]',
+    );
+    expect(failedTicks).toHaveLength(1);
+  });
+
   it("gives the Loop Ring an accessible progress label", () => {
     const reached = new Set<LoopStage>(["collect", "diagnose"]);
     render(<LoopRing reached={reached} inFlight={false} />);

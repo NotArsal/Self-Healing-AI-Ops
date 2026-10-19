@@ -20,6 +20,7 @@ const STAGE_MAP: Record<string, LoopStage> = {
   evidence: "collect",
   diagnose: "diagnose",
   validate: "gate",
+  gate: "gate",
   plan: "plan",
   repair: "execute",
   verify: "verify",
