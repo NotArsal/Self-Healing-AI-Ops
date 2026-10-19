@@ -1,0 +1,12 @@
+# The build context is this directory, and node_modules alone is hundreds of
+# megabytes of host-platform binaries that `pnpm install` would overwrite
+# anyway. Shipping them also risks an Alpine image running a native module
+# built for Windows.
+node_modules
+.next
+tsconfig.tsbuildinfo
+
+# Never copy secrets into a build context. Nothing here reads one today, but a
+# .env that appears later must not silently end up in an image layer.
+.env
+.env.*

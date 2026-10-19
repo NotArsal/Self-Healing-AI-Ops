@@ -225,6 +225,48 @@ services:
       start_period: 15s
     networks: [kavach]
 
+  # The console (ADR 0017). It was the one part of Kavach `make up` did not
+  # start: `make dev-console` in a terminal somebody had to remember to open,
+  # running a DEVELOPMENT server, for the surface the demo spends most of its
+  # time pointed at. Now it comes up with everything else, built.
+  #
+  # `make dev-console` still exists and is still the right thing for working
+  # on the console - hot reload, no rebuild. This is for running it.
+  console:
+    build:
+      context: ../apps/console
+      dockerfile: Dockerfile
+      args:
+        # BAKED INTO THE CLIENT BUNDLE at build time, because the browser is
+        # what reads it and the browser is not on this network. A service
+        # name here would resolve inside the container and nowhere else, and
+        # would fail silently - the page loads and every call goes to the
+        # default. Must match the host port `api` publishes below.
+        NEXT_PUBLIC_KAVACH_API: http://localhost:${API_PORT:-8080}
+    container_name: kavach-console
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      # 3001 on the host, matching KAVACH_CONSOLE_ORIGIN, so the API's CORS
+      # allow-list keeps working unchanged. The target's own UI owns 3000.
+      - "${CONSOLE_PORT:-3001}:3000"
+    healthcheck:
+      # 127.0.0.1, NOT localhost. Alpine's /etc/hosts maps localhost to
+      # ::1 as well, busybox wget tries IPv6 first, and the Next server
+      # binds 0.0.0.0:3000 - IPv4 only. The container served every request
+      # on the published port while reporting itself unhealthy for 16
+      # straight checks, which would have made `depends_on` on it hang
+      # forever. The other services use localhost safely because their
+      # base images have no ::1 entry.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks: [kavach]
+
   # Read-only view over the Prometheus above (ADR 0016). Provisioned from
   # files so the dashboard is in git and survives the container: a dashboard
   # built by clicking exists only on the machine it was clicked on, which is
