@@ -23,7 +23,7 @@ COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml
 UV      := uv --directory $(CP)
 
 .DEFAULT_GOAL := help
-.PHONY: postmortem help setup up down ps logs dev-api dev-console lint format types test \
+.PHONY: postmortem help setup up down ps logs dev-api dev-console lint format types test offline \
         socket-test test-integration check migrate migration gen-client \
         target-up target-down onboard inject scenario bench
 
@@ -164,6 +164,14 @@ inject:
 # and not a bug. Space rehearsals an hour apart.
 scenario:
 	$(UV) run python -I ../../harness/scenario.py --name $(or $(NAME),demo-full) $(ARGS)
+
+# The P8 offline rehearsal: the four acts with every cloud provider key
+# forced empty, proven empty inside the container, and put back afterwards.
+# NEVER edits .env - compose resolves ${VAR:-} from the shell first, so the
+# keys are overridden rather than rewritten. Pauses for you to pull the
+# network; ARGS=--no-prompt skips that and says so in the result.
+offline:
+	bash harness/offline_rehearsal.sh $(ARGS)
 
 # The metrics table from PRD section 10, over repeated live injections.
 # PACED, NOT FAST: permit() allows five incident starts an hour and an
