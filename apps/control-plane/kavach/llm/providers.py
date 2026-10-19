@@ -214,6 +214,33 @@ def key_for(spec: Provider) -> str:
     return os.environ.get(spec.key_env, "")
 
 
+def keys_for(spec: Provider) -> list[str]:
+    """Every key configured for a provider, in the order they are tried.
+
+    One variable, comma-separated, because free tiers are rationed per key
+    and a run that dies at rep 7 of 10 on a 429 has wasted the whole run.
+    `KAVACH_GROQ_API_KEY=key_a,key_b,key_c` is three keys; no commas is one,
+    which is every existing setup unchanged.
+
+    THIS IS NOT THE FALLBACK THIS MODULE REFUSES
+    The header rule - no silent fallback between providers - exists because
+    a result whose MODEL varies between runs is unreproducible. Rotating a
+    key varies who is billed and nothing else: same provider, same model,
+    same seed, same answer. Provenance is untouched, so the objection does
+    not apply. Falling back from Groq to Gemini would still be refused.
+    """
+    raw = key_for(spec)
+    return [k.strip() for k in raw.split(",") if k.strip()]
+
+
+# A key is retired for THIS CALL on these and nothing else. 401/403 is a key
+# that is wrong or revoked and 429 is one that is out of quota; the next key
+# plausibly fixes both. A 500 or a timeout is the provider having a bad day,
+# and cycling every key through the same outage turns one failure into N,
+# empties the rotation, and reports the last one as if it were the cause.
+_ROTATE_ON = frozenset({401, 403, 429})
+
+
 class OpenAiCompatClient:
     """Any provider that speaks OpenAI chat completions.
 
@@ -240,7 +267,10 @@ class OpenAiCompatClient:
         self.provider = provider
         self.base_url = provider.base_url.rstrip("/")
         self.model = model or provider.default_model
-        self._key = api_key or key_for(provider)
+        self._keys = [api_key] if api_key else keys_for(provider)
+        # Where the next call starts. A key that works keeps being used
+        # rather than re-walking the dead ones on every request.
+        self._at = 0
         self.timeout_s = timeout_s
         if not self.model:
             raise LlmError(
@@ -248,11 +278,28 @@ class OpenAiCompatClient:
                 f"must be given explicitly (KAVACH_LLM_MODEL)"
             )
 
-    def _headers(self) -> dict[str, str]:
+    @property
+    def _key(self) -> str:
+        """The key in play. Kept as a property so the no-key check, the
+        availability probe and the scrubber all read the same thing."""
+        return self._keys[self._at] if self._at < len(self._keys) else ""
+
+    def _headers(self, key: str = "") -> dict[str, str]:
         return {
-            "Authorization": f"Bearer {self._key}",
+            "Authorization": f"Bearer {key or self._key}",
             "User-Agent": USER_AGENT,
         }
+
+    def _scrub_all(self, text: str) -> str:
+        """Every configured key, not just the one that happened to fail.
+
+        A rotation means an error body can quote a key other than the
+        current one, and a scrubber that only knows about `self._key` would
+        pass the rest straight into an append-only audit log.
+        """
+        for k in self._keys:
+            text = _scrub(text, k)
+        return text
 
     # --- availability -------------------------------------------------------
 
@@ -264,16 +311,18 @@ class OpenAiCompatClient:
         in the middle of a measurement run as a 401 that looks like a model
         problem.
         """
-        if not self._key:
-            return False
-        try:
-            req = urllib.request.Request(
-                f"{self.base_url}/models", headers=self._headers())
-            with urllib.request.urlopen(req, timeout=15) as r:
-                json.load(r)
+        for i, key in enumerate(self._keys):
+            try:
+                req = urllib.request.Request(
+                    f"{self.base_url}/models", headers=self._headers(key))
+                with urllib.request.urlopen(req, timeout=15) as r:
+                    json.load(r)
+            except Exception:
+                continue
+            # Start the next real call on the key that just answered.
+            self._at = i
             return True
-        except Exception:
-            return False
+        return False
 
     # --- the one call -------------------------------------------------------
 
@@ -284,11 +333,12 @@ class OpenAiCompatClient:
         schema: dict[str, Any],
         temperature: float = 0.0,
     ) -> LlmResponse:
-        if not self._key:
+        if not self._keys:
             raise LlmError(
                 f"no API key for {self.provider.name}: set "
-                f"{self.provider.key_env} in .env. Kavach runs on Ollama "
-                f"without any cloud key (PL-02); a cloud provider is opt-in"
+                f"{self.provider.key_env} in .env (comma-separate several "
+                f"to rotate). Kavach runs on Ollama without any cloud key "
+                f"(PL-02); a cloud provider is opt-in"
             )
         payload: dict[str, Any] = {
             "model": self.model,
@@ -320,29 +370,46 @@ class OpenAiCompatClient:
         }
         if self.provider.supports_seed:
             payload["seed"] = 42
-        req = urllib.request.Request(
-            f"{self.base_url}/chat/completions",
-            data=json.dumps(payload).encode(),
-            headers={**self._headers(), "Content-Type": "application/json"},
-            method="POST",
-        )
+        body = json.dumps(payload).encode()
         started = time.perf_counter()
-        try:
-            with urllib.request.urlopen(req, timeout=self.timeout_s) as r:
-                data = json.load(r)
-        except urllib.error.HTTPError as exc:
-            detail = ""
-            with contextlib.suppress(Exception):
-                detail = exc.read().decode("utf-8", "replace")[:300]
-            raise LlmError(
-                f"{self.provider.name} returned HTTP {exc.code}: "
-                f"{_scrub(detail, self._key)}"
-            ) from exc
-        except Exception as exc:
-            raise LlmError(
-                f"{self.provider.name} call failed: "
-                f"{_scrub(str(exc), self._key)}"
-            ) from exc
+        # Each key once, starting from the one that last worked. Only the
+        # statuses in _ROTATE_ON advance; everything else raises here, so a
+        # provider outage is still reported as a provider outage.
+        order = [(self._at + n) % len(self._keys) for n in range(len(self._keys))]
+        last = ""
+        data = None
+        for n, i in enumerate(order):
+            req = urllib.request.Request(
+                f"{self.base_url}/chat/completions",
+                data=body,
+                headers={**self._headers(self._keys[i]),
+                         "Content-Type": "application/json"},
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=self.timeout_s) as r:
+                    data = json.load(r)
+                self._at = i
+                break
+            except urllib.error.HTTPError as exc:
+                detail = ""
+                with contextlib.suppress(Exception):
+                    detail = exc.read().decode("utf-8", "replace")[:300]
+                last = (f"{self.provider.name} returned HTTP {exc.code}: "
+                        f"{self._scrub_all(detail)}")
+                if exc.code not in _ROTATE_ON or n == len(order) - 1:
+                    raise LlmError(
+                        last + (f" (all {len(order)} keys tried)"
+                                if len(order) > 1
+                                and exc.code in _ROTATE_ON else "")
+                    ) from exc
+            except Exception as exc:
+                raise LlmError(
+                    f"{self.provider.name} call failed: "
+                    f"{self._scrub_all(str(exc))}"
+                ) from exc
+        if data is None:  # pragma: no cover - the loop raises or breaks
+            raise LlmError(last or f"{self.provider.name}: no response")
         elapsed = time.perf_counter() - started
 
         try:
@@ -350,7 +417,7 @@ class OpenAiCompatClient:
         except (KeyError, IndexError, TypeError) as exc:
             raise LlmError(
                 f"unexpected {self.provider.name} response shape: "
-                f"{_scrub(str(data)[:300], self._key)}"
+                f"{self._scrub_all(str(data)[:300])}"
             ) from exc
         if content is None:
             raise LlmError(

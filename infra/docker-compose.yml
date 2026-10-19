@@ -131,6 +131,23 @@ services:
       # rather than writing, which is the correct failure.
       KAVACH_TARGET_ADMIN_TOKEN: ${KAVACH_TARGET_ADMIN_TOKEN:-}
       KAVACH_CONSOLE_ORIGIN: ${KAVACH_CONSOLE_ORIGIN:-http://localhost:3001}
+      # Cloud provider keys, all optional and all defaulting to empty.
+      #
+      # They were absent until 2026-10-19, which meant `llm/providers.py`
+      # worked from host-side harness scripts - where pydantic reads .env
+      # directly - and could not work from the control plane at all. The
+      # container saw no key, every cloud provider reported itself
+      # unavailable, and nothing said why.
+      #
+      # `:-` keeps PL-02 intact: empty is the default and a correct state,
+      # so no cloud key is REQUIRED for any v1 path. Several keys for one
+      # provider go in comma-separated and are rotated on 401/403/429.
+      KAVACH_OPENROUTER_API_KEY: ${KAVACH_OPENROUTER_API_KEY:-}
+      KAVACH_GROQ_API_KEY: ${KAVACH_GROQ_API_KEY:-}
+      KAVACH_GEMINI_API_KEY: ${KAVACH_GEMINI_API_KEY:-}
+      KAVACH_OPENCODEZEN_API_KEY: ${KAVACH_OPENCODEZEN_API_KEY:-}
+      KAVACH_OLLAMACLOUD_API_KEY: ${KAVACH_OLLAMACLOUD_API_KEY:-}
+      KAVACH_NVIDIA_API_KEY: ${KAVACH_NVIDIA_API_KEY:-}
     ports:
       - "${API_PORT:-8080}:8000"
     volumes:

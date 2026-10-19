@@ -303,3 +303,111 @@ def test_a_proxied_base_url_is_refused_for_cloud_providers_too(
     with pytest.raises(LlmError, match="fault-injection proxy"):
         providers.build("groq", model="m",
                         base_url="http://toxiproxy:21434/v1", api_key="k")
+
+
+# --- several keys for one provider -----------------------------------------
+
+
+KEY_A = "sk-key-a-111111"
+KEY_B = "sk-key-b-222222"
+
+
+def _http(code: int, body: str = "{}") -> urllib.error.HTTPError:
+    return urllib.error.HTTPError(
+        "https://x/chat/completions", code, "err", {},  # type: ignore[arg-type]
+        BytesIO(body.encode()))
+
+
+class SequencedUrlopen:
+    """A scripted reply per call, so rotation order is observable."""
+
+    def __init__(self, *outcomes: Any) -> None:
+        self.outcomes = list(outcomes)
+        self.bearers: list[str] = []
+
+    def __call__(self, req: Any, timeout: float = 0) -> Any:
+        self.bearers.append(
+            req.get_header("Authorization", "").removeprefix("Bearer "))
+        out = self.outcomes.pop(0)
+        if isinstance(out, Exception):
+            raise out
+
+        class Ctx:
+            def __enter__(self) -> Any:
+                return out
+
+            def __exit__(self, *a: Any) -> None:
+                return None
+
+        return Ctx()
+
+
+def test_one_variable_holds_several_comma_separated_keys(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(providers, "key_for",
+                        lambda spec: f"  {KEY_A} , {KEY_B} ,, ")
+    assert providers.keys_for(providers.PROVIDERS["groq"]) == [KEY_A, KEY_B]
+
+
+def test_a_rationed_key_rotates_to_the_next_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A 429 at rep 7 of 10 otherwise throws away the whole run."""
+    monkeypatch.setattr(providers, "key_for", lambda spec: f"{KEY_A},{KEY_B}")
+    fake = SequencedUrlopen(_http(429, "rate limit"), a_reply())
+    monkeypatch.setattr(urllib.request, "urlopen", fake)
+
+    client = providers.build("groq")
+    reply = client.structured("s", "u", SCHEMA)
+
+    assert reply.provider == "groq"
+    assert fake.bearers == [KEY_A, KEY_B], "did not try the second key"
+
+
+def test_the_working_key_is_the_one_tried_first_next_time(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Otherwise every later call re-walks the dead key and pays its latency."""
+    monkeypatch.setattr(providers, "key_for", lambda spec: f"{KEY_A},{KEY_B}")
+    fake = SequencedUrlopen(_http(401, "bad key"), a_reply(), a_reply())
+    monkeypatch.setattr(urllib.request, "urlopen", fake)
+
+    client = providers.build("groq")
+    client.structured("s", "u", SCHEMA)
+    client.structured("s", "u", SCHEMA)
+
+    assert fake.bearers == [KEY_A, KEY_B, KEY_B]
+
+
+def test_a_provider_outage_does_not_burn_every_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """500 is the provider having a bad day, not a key problem. Cycling
+    every key through the same outage turns one failure into N and empties
+    the rotation for the next call, which actually needs it."""
+    monkeypatch.setattr(providers, "key_for", lambda spec: f"{KEY_A},{KEY_B}")
+    fake = SequencedUrlopen(_http(500, "upstream exploded"))
+    monkeypatch.setattr(urllib.request, "urlopen", fake)
+
+    client = providers.build("groq")
+    with pytest.raises(LlmError, match="HTTP 500"):
+        client.structured("s", "u", SCHEMA)
+    assert fake.bearers == [KEY_A], "a 500 should not have advanced the key"
+
+
+def test_when_every_key_is_exhausted_it_says_so_without_naming_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(providers, "key_for", lambda spec: f"{KEY_A},{KEY_B}")
+    fake = SequencedUrlopen(_http(429, f"quota for {KEY_A}"),
+                            _http(429, f"quota for {KEY_B}"))
+    monkeypatch.setattr(urllib.request, "urlopen", fake)
+
+    client = providers.build("groq")
+    with pytest.raises(LlmError) as caught:
+        client.structured("s", "u", SCHEMA)
+
+    message = str(caught.value)
+    assert "all 2 keys tried" in message
+    assert KEY_A not in message and KEY_B not in message, "a key leaked"
