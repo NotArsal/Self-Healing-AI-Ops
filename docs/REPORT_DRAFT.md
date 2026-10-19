@@ -533,6 +533,67 @@ Stated plainly for a reviewer: *"the target contains Kubernetes files"* and
 *"Kavach supports Kubernetes"* are different statements, and only the first
 is true.
 
+## 7a. What the synopsis promised and the implementation did not deliver
+
+Found by reading `synopsis-original.md` line by line against the code on
+2026-10-19, not by anything failing. Both gaps are now decided rather than
+silent, which is the only difference between judgement and an oversight.
+
+| promised | delivered | where it is recorded |
+|---|---|---|
+| Laya decision model | cut | `ADR 0009` |
+| **Context7** — *"documentation source for code/config repair"* | **not built**, and there is nowhere to put it | `ADR 0015` |
+| **Grafana** | **was absent entirely**; now built | `ADR 0016` |
+| **OpenTelemetry** | **was a collector receiving nothing**; now instrumented | `ADR 0016` |
+| Kubernetes | never a Kavach capability | §7 above, `ADR 0003` |
+| MongoDB, Redis, CrewAI, PyTorch, Vercel/Render | never used | out of scope; the stack list was indicative |
+
+**Context7** has no insertion point because the only content a model ever
+generates in Kavach is prompt text — the target's manifest declares
+`versioned_paths: {prompts, config}` and nothing else — so there is no
+library API for documentation to ground. It was used as a development tool
+and is reported as one. Its real home would be *onboarding* a second target,
+which is future work (`ADR 0015`).
+
+## 7b. Observability, including the part that was missing
+
+**The target is thoroughly observed.** It exposes `ragapp_llm_requests_total`,
+`ragapp_retrieval_top_similarity`, `ragapp_retrieval_kept_chunks`,
+`ragapp_retrieval_empty_context_total` and `ragapp_corpus_chunks/files`;
+Prometheus scrapes every 15s; F01 and F06 detection reads those series
+directly. That half always worked and is what the results in §4 rest on.
+
+**Kavach was not observed at all, and said so nowhere.** Until 2026-10-19
+`GET /metrics` on the control plane returned 404, its Prometheus scrape job
+had been commented out since Phase 0, `opentelemetry-*` was listed in
+`pyproject.toml` as *"deliberately absent"*, and the OTel collector in
+compose was a healthy process receiving nothing from nobody — its traces
+pipeline exported to `debug`, which prints a span and drops it. A platform
+whose thesis is that observability drives healing had none of itself.
+
+`ADR 0016` closes it: five metric series — chosen to be **the figures this
+report quotes**, so the dashboard and the paper cannot disagree — one
+`kavach.heal` span per run with each loop stage as an event, Jaeger to view
+them, and a Grafana dashboard provisioned from files in git rather than
+built by clicking. The three target panels reuse the detectors' own PromQL
+verbatim, for the `ADR 0013` reason: a graph drawn from a different window
+than the detector uses is a graph of a different fault.
+
+Instrumenting it surfaced one real defect: `Settings.otlp_endpoint` defaulted
+to a URL, so the first code to read it made **every test run stand up a live
+OTLP exporter**. The default is now empty. A setting whose default turns on a
+network client is one that was written before anyone intended to read it.
+
+**Still absent, deliberately.** There is no log aggregation — `structlog` is a
+dependency with 3 call sites in 11,500 lines and `structlog.configure()` is
+never called — and no alerting rules. Neither is pretended otherwise. The
+audit log is Kavach's record of its own actions and is better than
+application logs for that purpose, because it is hash-chained and its
+integrity is checkable: 336 rows, verified intact.
+
+The honest one-line version: **Kavach scraped the target every 15 seconds for
+three weeks while answering 404 on its own `/metrics`.**
+
 ## 8. Related work
 
 - **AIOpsLab** (Microsoft Research, arXiv 2501.06706) — deploys microservice
