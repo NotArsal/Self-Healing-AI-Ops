@@ -1199,7 +1199,12 @@ The phase most teams skip and most reviewers notice.
 - [x] P2 vs. P3 extended to every class — **written up, `REPORT_DRAFT.md` §4.9.** Deterministic 4/4 resolved and faster on every class; with RCA 4/8 and 40-70% slower. That is the architecture working, not a defect: RCA cannot widen what executes, so it can only ever subtract. The measured cost is that **three of four refusals blocked a correct diagnosis**, reported next to the 0/20 false-healing result. n=1 per class, stated. The rule-engine-vs-Laya half is void: Laya was cut (`ADR 0009`)
 - [x] The eight-fault catalogue and `F04`'s retirement are stated in the report, with the reason — `REPORT_DRAFT.md` §3, as a table of every gap: F04 retired (no cache in the target, and Redis was not added to manufacture one), F09 closed on measurement, F02/F05 dropped at the week-10 checkpoint, F03's injector deferred. The denominator consequence is stated rather than hidden
 - [x] The target's Kubernetes files are explained as *not* a Kavach capability (`PRD.md` §5.3) — `REPORT_DRAFT.md` §7, with the `FR-15a` writer-exclusivity reason and the note that disabling the target's own healing route also closed an unauthenticated endpoint that could delete pods on request
-- [ ] **Demo script runs clean three times consecutively on the demo machine**
+- [x] **Demo script runs clean three times consecutively on the demo machine**
+      2026-10-19, runs spaced an hour apart for the blast-radius window:
+      `scenario-r1.json` 06:17Z, `scenario-r2.json` 07:30Z, `scenario-r3.json`
+      08:44Z. 4/4 acts in each, no limiter parks, target healthy and the
+      corpus unchanged (30 chunks / 2 files) after all three. RCA model
+      `qwen2.5:7b-instruct` recorded in each artifact.
 - [ ] Offline rehearsal — no network, local model only, no `GEMINI_API_KEY` present
 - [x] A failure path is in the demo — **two**. `make scenario` act 3 is a rollback after a repair that correctly fails, and act 4 is a refusal on a fault outside the catalogue (database stopped), proven live with legible reasoning
 
