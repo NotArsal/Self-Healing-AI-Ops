@@ -46,7 +46,7 @@ import os
 import time
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from kavach.llm.client import (
@@ -134,10 +134,43 @@ PROVIDERS: dict[str, Provider] = {
         name="opencodezen",
         base_url="https://opencode.ai/zen/v1",
         key_env="KAVACH_OPENCODEZEN_API_KEY",
-        default_model="",
-        note="base path CONFIRMED live 2026-10-18 (reached its auth layer); "
-             "no default model because the key available then had expired "
-             "before the model list could be read",
+        # RE-CHECKED 2026-10-19 and KEPT. It was up for removal on the
+        # suspicion it did not work; `GET /zen/v1/models` answers 200 with 85
+        # models, so the row was not broken - it was incomplete. The earlier
+        # expired key had stopped the list being read, and an empty
+        # `default_model` then made every call fail in a way that looked like
+        # a dead provider.
+        default_model="deepseek-v4.1-flash-free",
+        note="85 models, list is public at /zen/v1/models; the -free tier "
+             "suits PL-02's no-required-cost posture",
+    ),
+    # --- added 2026-10-19 --------------------------------------------------
+    "ollamacloud": Provider(
+        name="ollamacloud",
+        base_url="https://ollama.com/v1",
+        key_env="KAVACH_OLLAMACLOUD_API_KEY",
+        # The closest thing to the measured local configuration that is not
+        # on this machine: same engine, same structured-output behaviour,
+        # someone else's GPU. Distinct from the `ollama` provider, which is
+        # the LOCAL server and takes no key - they share a vendor and nothing
+        # else, so they are two rows.
+        default_model="gemma4:31b",
+        note="Ollama's hosted API; 22 cloud models, list is public at "
+             "https://ollama.com/api/tags. Verified 2026-10-19: "
+             "/v1/chat/completions returns an OpenAI-shaped 401 without a "
+             "key, so the path reaches the auth layer",
+    ),
+    "nvidia": Provider(
+        name="nvidia",
+        base_url="https://integrate.api.nvidia.com/v1",
+        key_env="KAVACH_NVIDIA_API_KEY",
+        # 70B instruct rather than one of the nemotron-3 reasoning models.
+        # A reasoning model spends hidden thinking tokens out of the same
+        # output budget - see `max_output_tokens` - and Gemini already cost
+        # this project an afternoon of truncated answers that way.
+        default_model="nvidia/llama-3.1-nemotron-70b-instruct",
+        note="NVIDIA NIM / build.nvidia.com; 81 models, list is public at "
+             "/v1/models without a key. Keys look like nvapi-...",
     ),
 }
 
@@ -380,8 +413,11 @@ def build(
             f"unknown provider {provider!r}; available: {names()}"
         )
     if base_url:
-        spec = Provider(
-            name=spec.name, base_url=base_url, key_env=spec.key_env,
-            default_model=spec.default_model, note=spec.note,
-        )
+        # `replace`, not a fresh Provider. Rebuilding it field by field
+        # dropped `supports_seed` and `max_output_tokens` back to their
+        # defaults, so `--base-url` against Gemini silently re-enabled the
+        # `seed` it answers 400 to and cut its budget from 8192 to 2048.
+        # Every field the table sets has a measured reason behind it; an
+        # override of one of them must not quietly revert the others.
+        spec = replace(spec, base_url=base_url)
     return OpenAiCompatClient(spec, model=model, api_key=api_key)

@@ -11,8 +11,10 @@ from __future__ import annotations
 import json
 import urllib.error
 import urllib.request
+from dataclasses import replace
 from io import BytesIO
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
@@ -89,12 +91,35 @@ def test_every_listed_provider_can_actually_be_built(
 def test_a_provider_with_no_confirmed_default_model_demands_one(
     no_settings_key: None,
 ) -> None:
-    """`opencodezen` carries no default because none was verified against a
-    live call. Guessing one would fail at the first request with an error
-    about the model rather than about the guess."""
-    assert providers.PROVIDERS["opencodezen"].default_model == ""
-    with pytest.raises(LlmError, match="no default model"):
+    """A row with no default must refuse, rather than guess a model name.
+
+    This asserted `opencodezen.default_model == ""` until 2026-10-19, when
+    its model list was read from a live `GET /zen/v1/models` (85 models,
+    public, no key) and the row got a real default. The fact changed for a
+    checked reason; the guarantee it was protecting has not, so it is tested
+    here on the mechanism instead of on one provider's data - which is what
+    it should have been doing in the first place.
+    """
+    blank = replace(providers.PROVIDERS["opencodezen"], default_model="")
+    with (
+        patch.dict(providers.PROVIDERS, {"opencodezen": blank}),
+        pytest.raises(LlmError, match="no default model"),
+    ):
         providers.build("opencodezen", api_key="x")
+
+
+def test_no_provider_ships_a_default_model_nobody_looked_up(
+    no_settings_key: None,
+) -> None:
+    """Every default in the table is a string someone read off that
+    provider's own model list, and the note says where. An invented model
+    name fails at the first request with an error about the model, which
+    reads like the provider is broken - see the `opencodezen` row, which was
+    nearly deleted on exactly that misreading."""
+    for name, spec in providers.PROVIDERS.items():
+        assert spec.note, (
+            f"{name} ships without a note saying where its endpoint and "
+            f"default model came from")
 
 
 def test_an_unknown_provider_is_refused_with_the_list(

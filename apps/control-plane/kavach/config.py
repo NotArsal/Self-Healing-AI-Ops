@@ -90,6 +90,10 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     gemini_api_key: str = ""
     opencodezen_api_key: str = ""
+    # Ollama's HOSTED api, which is a different thing from `llm_base_url`
+    # above: that one is the local server and takes no key.
+    ollamacloud_api_key: str = ""
+    nvidia_api_key: str = ""
 
     # Global default mode. SIMULATION, per PRD.md §5.4 — a project must be moved
     # out of it explicitly, after preflight passes.
