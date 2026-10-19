@@ -180,6 +180,35 @@ second time about the same live fault.
 determinism check, and it is kept only because a *failure* here would have
 invalidated everything downstream.
 
+**And the F07 row does not even survive as a determinism check** — see
+`docs/decisions/0013`. Re-run on 2026-10-19 with the same model, the same
+baseline and the same ten repetitions, it returns **0/10**. One variable
+explains it:
+
+| frame window | `num_ctx` | F07 |
+|---|---|---|
+| `[10m]` | 4096 | **10/10** |
+| `[1m]` | 4096 | **0/10** |
+| `[1m]` | 8192 | **0/10** |
+| `[10m]` | 8192 | **10/10** |
+
+The context window is exonerated. The cause is ADR 0010's correct, tested
+change moving the frame's retrieval queries from `[10m]` to `[1m]` so the
+frame and the detector read the same signal. Nobody re-measured F07, because
+F07's accuracy had no visible dependency on a retrieval metric.
+
+**The window is not being reverted.** Reverting would buy back a 10/10 by
+putting the frame and the detector out of step again — weakening a verified
+invariant to improve a number. F07's LLM path is reported as **0/10** and
+`ROADMAP.md`'s P6 F07 acceptance is **failed**. F07's deterministic path is
+untouched and still heals it.
+
+What the model does when it fails is the part worth presenting: it returns
+`fault_class: "F06"` with `fault_name: "Prompt version regression"` — and
+F07 *is* prompt version regression. It cites `EV-C08`, the one line that
+distinguishes the two classes, in 10 of 10 failing runs. It reads the right
+evidence, names the fault correctly in prose, and emits the wrong code.
+
 Two further caveats:
 
 - Validator approval tracked class agreement exactly in every run — the
@@ -324,9 +353,10 @@ development.
 ## 9. Still to do
 
 1. ~~Full `make bench`~~ — **done 2026-10-19 08:55**, §4.1/§4.2
-2. Re-measure RCA at the corrected context window. The bench's API image
-   predates the `num_ctx` fix, so its 85% carries the §6 caveat; its MTTR
-   figures do not, because repairs run on the deterministic path.
+2. ~~Re-measure RCA at the corrected context window~~ — **done.** The
+   window was not the cause; ADR 0013 identifies the real one. F01, F06 and
+   F08 need no fixed-frame re-run: the bench already measures them on the
+   current frame across twenty fresh frames, at 5/5 each.
 3. Re-state the MTTD target with its window arithmetic (§4.1)
 4. `make scenario` — three clean runs, an hour apart
 5. Human baseline: run it, or record the decision to drop it

@@ -234,8 +234,13 @@ on the missing trailing newline — and two is a pattern worth naming.
    injections, 0 false heals, target clean 20/20, chain intact. It also
    produced the finding below.
 2. ~~Postmortem renderer~~ (§3.1) — **built**, `make postmortem`
-3. Re-measure RCA accuracy at `num_ctx=8192` (see §4a); rebuild the API
-   image first, or the container keeps the old window
+3. ~~Re-measure RCA accuracy at `num_ctx=8192`~~ — **done, and the window
+   was innocent.** F07 scores 0/10 at both 4096 and 8192; the cause is the
+   evidence frame's PromQL range, not the context window. See
+   `docs/decisions/0013`. F01, F06 and F08 need no fixed-frame re-run —
+   the bench measures all three on the current frame across fresh frames and
+   scores 5/5 each, which is strictly better evidence than a frozen frame.
+   F07 is the only class the frame change broke.
 4. Report and slides — cite AIOpsLab and ITBench in related work
 5. Re-state the MTTD acceptance target with its window arithmetic. 48.5s
    median against a < 30s target, where two of four detectors claim on 60s
