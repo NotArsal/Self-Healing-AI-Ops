@@ -141,6 +141,16 @@ class DetectionEvidenceOut(BaseModel):
 
 
 class DetectionOut(BaseModel):
+    # THE INSTANT DETECTION CONCLUDED. Without it on the wire, MTTD is not
+    # measurable by anything outside the process: the loop stamped it from
+    # 2026-10-19 (ADR 0014), Postgres stored it, and this model silently
+    # dropped it - so `make bench` read None for every repetition and the
+    # overnight run would have measured nothing at all.
+    #
+    # ADR 0014 said a metric's name is the claim least likely to have been
+    # tested. This is the same failure one layer up, in the mapper between
+    # the instrument and the only consumer that reports it.
+    concluded_at: str = ""
     verdict: str
     fault_class: str | None = None
     fault_name: str | None = None

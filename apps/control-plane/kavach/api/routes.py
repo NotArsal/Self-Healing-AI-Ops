@@ -77,6 +77,7 @@ def _detection(d: dict[str, Any] | None) -> s.DetectionOut | None:
         return None
     pre = d.get("pre_verification")
     return s.DetectionOut(
+        concluded_at=str(d.get("concluded_at", "") or ""),
         verdict=str(d.get("verdict", "")),
         fault_class=d.get("fault_class"),
         fault_name=d.get("fault_name"),

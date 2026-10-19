@@ -21,7 +21,7 @@ import structlog
 
 from kavach import telemetry
 from kavach.api import alerts as alert_rules
-from kavach.api.routes import llm_calls
+from kavach.api.routes import incident_out, llm_calls
 from kavach.api.runner import LoopRunner
 from kavach.config import Settings
 from kavach.executor import catalogue  # noqa: F401 - registers the actions
@@ -273,3 +273,43 @@ def test_incidents_that_never_reached_the_model_are_not_listed() -> None:
 
     rows = asyncio.run(llm_calls(_runner_with(_incident(), _rca_incident(approved=True))))
     assert [r.incident_id for r in rows] == ["INC-000700"]
+
+
+# --- the wire carries what the instrument stamped -------------------------
+
+
+def test_detection_concluded_at_survives_the_api_mapper() -> None:
+    """MTTD is measured OUTSIDE the process, so the stamp has to reach the wire.
+
+    `loop.py` stamps `detection.concluded_at`, Postgres stores it, and
+    `DetectionOut` dropped it on the floor - so `make bench`, the only consumer
+    that reports MTTD, read None for every repetition. Caught on 2026-10-20
+    five minutes into an eight-hour overnight run that would have measured
+    nothing.
+
+    ADR 0014 withdrew MTTD because the metric measured four phases and was
+    named after one. This is the same lesson one layer up: an instrument is
+    only as good as the narrowest pipe between it and whoever reports it.
+    """
+    inc = _incident(fault_class="F01")
+    inc.detection = {
+        "verdict": "FAULT",
+        "fault_class": "F01",
+        "concluded_at": "2026-10-20T00:11:12.345+00:00",
+        "reasons": [],
+        "evidence": [],
+    }
+    out = incident_out(inc)
+    assert out.detection is not None
+    assert out.detection.concluded_at == "2026-10-20T00:11:12.345+00:00", (
+        "the stamp did not survive the mapper, so MTTD is unmeasurable again")
+
+
+def test_an_incident_detected_before_the_stamp_existed_still_maps() -> None:
+    """Older rows have no `concluded_at`. Absent must stay absent rather than
+    becoming a wrong number - the substitution ADR 0014 exists about."""
+    inc = _incident()
+    inc.detection = {"verdict": "NO_FAULT", "reasons": [], "evidence": []}
+    out = incident_out(inc)
+    assert out.detection is not None
+    assert out.detection.concluded_at == ""
