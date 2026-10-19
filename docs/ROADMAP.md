@@ -1205,7 +1205,14 @@ The phase most teams skip and most reviewers notice.
       08:44Z. 4/4 acts in each, no limiter parks, target healthy and the
       corpus unchanged (30 chunks / 2 files) after all three. RCA model
       `qwen2.5:7b-instruct` recorded in each artifact.
-- [ ] Offline rehearsal — no network, local model only, no `GEMINI_API_KEY` present
+- [x] Offline rehearsal — no network, local model only, no `GEMINI_API_KEY` present
+      2026-10-19 10:12Z, `make offline`, artifact `scenario-offline.json`.
+      All seven cloud keys forced empty and **read back out of the container**
+      to prove it, wifi physically off for the whole run, model
+      `qwen2.5:7b-instruct` on `host.docker.internal`. 4/4 acts, no limiter
+      parks, target healthy and corpus unchanged. `.env` was never written to:
+      compose resolves `${VAR:-}` from the shell before `--env-file`, so the
+      keys are overridden in place and restored by unsetting them.
 - [x] A failure path is in the demo — **two**. `make scenario` act 3 is a rollback after a repair that correctly fails, and act 4 is a refusal on a fault outside the catalogue (database stopped), proven live with legible reasoning
 
 ---

@@ -90,6 +90,7 @@ from harness.kavach_baseline import (  # noqa: E402
     wait_terminal,
     warm_up_f01,
 )
+from kavach.config import get_settings  # noqa: E402
 from kavach.target import TargetClient, TargetEndpoints  # noqa: E402
 from kavach.verification import fast  # noqa: E402
 
@@ -330,10 +331,22 @@ def main() -> int:
                     default=str(ROOT / "harness" / "reports" / "scenario.json"))
     args = ap.parse_args()
 
+    # THE ENVIRONMENT FIRST, THEN `.env`. Reading os.environ alone is why
+    # `make offline` died on a 401 from the target on 2026-10-19: no
+    # Makefile target exports this, and the three P8 runs that passed were
+    # driven by a script that happened to export it by hand. Settings is
+    # the one thing here that knows to look at the repository root and not
+    # only the cwd - see `config.py`, `_env_files`, whose docstring already
+    # records this same 401 costing time twice before.
+    admin_token = (os.environ.get("KAVACH_TARGET_ADMIN_TOKEN")
+                   or get_settings().target_admin_token)
+    if not admin_token:
+        raise SystemExit(
+            "KAVACH_TARGET_ADMIN_TOKEN is set neither in the environment nor "
+            "in .env. Every act that writes target config would answer 401.")
     client = TargetClient(TargetEndpoints(
         health=TARGET + "/healthz", chat=TARGET + "/v1/chat",
-        config=TARGET + "/v1/admin/config",
-        admin_token=os.environ.get("KAVACH_TARGET_ADMIN_TOKEN", "")))
+        config=TARGET + "/v1/admin/config", admin_token=admin_token))
 
     say("=" * 78)
     say(f"  SCENARIO: {args.name}")
