@@ -185,7 +185,7 @@ export default function ObservabilityPage() {
                   style={{
                     padding: "var(--k-space-3)",
                     border: "1px solid var(--k-border)",
-                    borderLeft: `3px solid ${SEVERITY_COLOR[a.severity]}`,
+                    borderLeft: `2px solid ${SEVERITY_COLOR[a.severity]}`,
                     borderRadius: "var(--k-radius-sm)",
                     background: "var(--k-surface)",
                   }}
@@ -300,7 +300,7 @@ export default function ObservabilityPage() {
                   style={{
                     padding: "var(--k-space-3)",
                     border: "1px solid var(--k-border)",
-                    borderLeft: "3px solid var(--k-state-escalated)",
+                    borderLeft: "2px solid var(--k-state-escalated)",
                     borderRadius: "var(--k-radius-sm)",
                   }}
                 >

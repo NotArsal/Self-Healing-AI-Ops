@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "apps/console/app/observability/page.tsx"
+        ],
+        "createdAt": "2026-10-19T12:32:49.705Z",
+        "reason": "Project's own idiom, not a generic accent: IncidentStream.tsx:103 already uses a 2px state-coloured left border on incident rows, and DESIGN_SYSTEM.md:43 states 'Colour is data. Hue means risk tier or incident state, and nothing else.' Severity here IS the data. Matched to the existing 2px weight; DESIGN_SYSTEM.md:378 'never colour alone' is satisfied because each row also carries a text severity label."
+      }
+    ]
+  }
+}
