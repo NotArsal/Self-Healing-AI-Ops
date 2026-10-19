@@ -283,3 +283,56 @@ Three consequences worth writing up:
   this failure for F01. The bench shows it is not hypothetical — it is the
   whole F07 column. **Recommended, and not done:** it changes approval
   semantics, which is the operator's call, not an overnight one.
+
+
+---
+
+## 7. Two persistence findings, one fixed and one left for you
+
+Both surfaced while rebuilding the API image for the `num_ctx` fix.
+
+### 7.1 The audit log lived in the container's writable layer — FIXED
+
+`/app/harness/audit/kavach.jsonl` had no volume and no bind mount behind
+it. `docker compose down`, `up --build`, or any rebuild would have
+destroyed the hash-chained log without a word — 213 rows at the time,
+including every incident from the overnight bench.
+
+Copied out and verified intact before anything was touched, then
+bind-mounted and migrated. A recreate and then a full rebuild took it to
+215 rows with the chain still intact, which is the test. Evidence that only
+exists inside a container is not evidence, it is a cache.
+
+A second hole came out of the same investigation and is also fixed: the
+first audit row any incident wrote was `permit`, and a diagnosis the
+cross-check refuses returns long before the gate. **Every refusal — the
+exact evidence for "no wrong diagnosis has ever driven a repair" — was
+absent from the append-only log.** There is now a `diagnose` row on both
+arms, so the denominator is recoverable from the log and not just the
+numerator.
+
+### 7.2 `GET /v1/incidents` reads memory only — NOT fixed, your call
+
+Incidents **are** durably stored. All 137 of them are in Postgres with full
+RCA payloads, on a volume, and `IncidentStore.get()` and `.recent()` both
+exist. Nothing has been lost.
+
+But neither incident route uses them:
+
+- `GET /v1/incidents` returns `runner.incidents()` — the in-memory cache
+- `GET /v1/incidents/{id}` 404s when memory misses, with the record sitting
+  in Postgres
+
+So after any API restart the console's history is empty and
+`make postmortem` prints "no incidents recorded yet", even though the data
+is right there. For a demo whose closing beat is the postmortem, that is
+worth knowing before the day.
+
+**Why it is not fixed here.** The stored payload does not validate directly
+as `IncidentOut` — `routes._detection()` and `routes._rca()` do real shape
+transformation, so the fallback needs an `Incident.from_dict()` or a
+dict-shaped path through those helpers. That is a new reconstruction layer
+on the API's read path, which is more than a fallback and more than should
+be added unprompted at the end of an unattended run. The durable data is
+safe either way, so there is no urgency and no risk in waiting for a
+decision.
