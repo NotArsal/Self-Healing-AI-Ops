@@ -94,6 +94,7 @@ class Settings(BaseSettings):
     # above: that one is the local server and takes no key.
     ollamacloud_api_key: str = ""
     nvidia_api_key: str = ""
+    tokenrouter_api_key: str = ""
 
     # Global default mode. SIMULATION, per PRD.md §5.4 — a project must be moved
     # out of it explicitly, after preflight passes.

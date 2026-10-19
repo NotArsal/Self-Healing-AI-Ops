@@ -146,11 +146,27 @@ def test_no_base_url_in_the_table_includes_the_endpoint_path() -> None:
         assert spec.base_url.startswith("https://"), name
 
 
-def test_tokenrouter_is_absent_rather_than_guessed() -> None:
-    """It was asked for and could not be confirmed to exist. A row with an
-    invented base URL fails at the first call with a misleading error, which
-    is worse than not offering it."""
-    assert "tokenrouter" not in providers.PROVIDERS
+def test_tokenrouter_is_present_but_still_refuses_to_guess_a_model(
+    no_settings_key: None,
+) -> None:
+    """This asserted `"tokenrouter" not in PROVIDERS` until 2026-10-19.
+
+    The reason was never "TokenRouter is unwelcome" - it was that no
+    endpoint had been reached, and a row with an invented base URL fails at
+    the first call with a misleading error. On 2026-10-19 `POST
+    api.tokenrouter.com/v1/chat/completions` answered an OpenAI-shaped 401,
+    so the endpoint is confirmed and the row is legitimate.
+
+    The half that has NOT changed is pinned here instead: TokenRouter routes
+    to upstream providers, so its catalogue is per-account and `/v1/models`
+    needs the key. No model name has been read off a live list, so none is
+    guessed, and the client refuses until one is given.
+    """
+    spec = providers.PROVIDERS["tokenrouter"]
+    assert spec.base_url == "https://api.tokenrouter.com/v1"
+    assert spec.default_model == "", "a model name nobody read off a live list"
+    with pytest.raises(LlmError, match="no default model"):
+        providers.build("tokenrouter", api_key="x")
 
 
 # --- the key ---------------------------------------------------------------

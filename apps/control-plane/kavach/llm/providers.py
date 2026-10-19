@@ -160,6 +160,24 @@ PROVIDERS: dict[str, Provider] = {
              "/v1/chat/completions returns an OpenAI-shaped 401 without a "
              "key, so the path reaches the auth layer",
     ),
+    "tokenrouter": Provider(
+        name="tokenrouter",
+        base_url="https://api.tokenrouter.com/v1",
+        key_env="KAVACH_TOKENROUTER_API_KEY",
+        # NO DEFAULT MODEL, on purpose. TokenRouter routes to upstream
+        # providers, so the catalogue is per-account and `/v1/models`
+        # answers 401 without a key - there is no public list to read one
+        # off. `build()` therefore refuses until a model is named, which is
+        # the honest failure; guessing would fail at the first request with
+        # an error about the model instead of about the guess.
+        #
+        # To fill this in:
+        #   curl -H "Authorization: Bearer $KAVACH_TOKENROUTER_API_KEY"         #        https://api.tokenrouter.com/v1/models
+        default_model="",
+        note="verified 2026-10-19: POST /v1/chat/completions answers an "
+             "OpenAI-shaped 401 without a key, so the path reaches the "
+             "auth layer. Model list is per-account, hence no default",
+    ),
     "nvidia": Provider(
         name="nvidia",
         base_url="https://integrate.api.nvidia.com/v1",
@@ -174,10 +192,12 @@ PROVIDERS: dict[str, Provider] = {
     ),
 }
 
-# TokenRouter is deliberately absent. It was asked for, searched for on
-# 2026-10-18, and no public API could be confirmed. Inventing a base URL
-# would produce a provider that fails at the first call with a misleading
-# error. It is one row away whenever its documentation turns up.
+# TokenRouter was deliberately absent until 2026-10-19: asked for on
+# 2026-10-18, no public API could be confirmed, and inventing a base URL
+# would have produced a provider failing at the first call with a
+# misleading error. Its documentation turned up, so it is a row now - see
+# the entry above. The rule it was waiting on is unchanged: a row goes in
+# when its endpoint has been reached, not when its name is known.
 
 
 def _scrub(text: str, key: str) -> str:
