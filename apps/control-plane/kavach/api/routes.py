@@ -24,7 +24,8 @@ from typing import Annotated, Any
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 
-from kavach import __version__, loop
+from kavach import __version__, loop, telemetry
+from kavach.api import alerts as alert_rules
 from kavach.api import schemas as s
 from kavach.api.events import bus
 from kavach.api.runner import (
@@ -486,6 +487,82 @@ async def fleet_metrics(
         available=bool(data.get("available")),
         unavailable_reason=runner.store.unavailable_reason,
     )
+
+
+@router.get("/logs", response_model=list[s.LogOut])
+async def logs(level: str = "", limit: int = 200) -> list[s.LogOut]:
+    """The control plane's own log lines, newest first.
+
+    `level` is a floor, so `?level=error` is the exceptions view and the same
+    endpoint serves both. In-process and bounded: a restart loses it, which is
+    why the durable record of what Kavach *did* is the audit trail and not
+    this.
+    """
+    return [s.LogOut(**vars(r)) for r in telemetry.recent_logs(level, limit)]
+
+
+@router.get("/llm-calls", response_model=list[s.LlmCallOut])
+async def llm_calls(
+    runner: Annotated[LoopRunner, Depends(get_runner)],
+    limit: int = 100,
+) -> list[s.LlmCallOut]:
+    """Every diagnosis the model produced, and the validator's verdict on it.
+
+    Derived from incidents already in memory rather than recorded separately:
+    an LLM call that did not belong to an incident would be a call nothing
+    acted on, and `RcaResult` already carries model, latency, tokens and the
+    validation outcome.
+    """
+    out: list[s.LlmCallOut] = []
+    for inc in runner.incidents():
+        rca = inc.rca or {}
+        if not rca:
+            continue
+        diagnosis = rca.get("diagnosis") or {}
+        validation = rca.get("validation") or {}
+        out.append(s.LlmCallOut(
+            incident_id=inc.incident_id,
+            at=str(rca.get("at", "") or inc.detected_at),
+            model=str(rca.get("model", "")),
+            provider=str(rca.get("provider", "")),
+            latency_s=float(rca.get("latency_s", 0.0) or 0.0),
+            prompt_tokens=int(rca.get("prompt_tokens", 0) or 0),
+            completion_tokens=int(rca.get("completion_tokens", 0) or 0),
+            fault_class=diagnosis.get("fault_class"),
+            confidence=diagnosis.get("confidence"),
+            approved=bool(rca.get("approved")),
+            approved_action=rca.get("approved_action"),
+            rejection_reasons=list(validation.get("reasons") or []),
+            evidence_cited=list(diagnosis.get("evidence_ids") or []),
+            error=str(rca.get("error", "") or ""),
+        ))
+        if len(out) >= max(0, limit):
+            break
+    return out
+
+
+@router.get("/alerts", response_model=list[s.AlertOut])
+async def alerts(
+    runner: Annotated[LoopRunner, Depends(get_runner)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> list[s.AlertOut]:
+    """Rules over Kavach's own state, most severe first.
+
+    Every one reads a limit `permit()` itself enforces or an invariant the
+    system claims, so each answers the operator's real question: why will the
+    next repair be refused?
+    """
+    system_out = await system(settings, runner)
+    deps = [(d.name, d.ok, d.detail) for d in system_out.dependencies]
+    chain = runner.audit.verify()
+    rows = alert_rules.evaluate(
+        safety=runner.safety,
+        incidents=runner.incidents(),
+        dependencies=deps,
+        audit_intact=chain.intact,
+        audit_broken_at=chain.broken_at,
+    )
+    return [s.AlertOut(**vars(a)) for a in rows]
 
 
 @router.get("/audit", response_model=s.AuditOut)

@@ -413,7 +413,23 @@ describe("keyboard navigation", () => {
       screen.getByRole("link", { name: "Onboarding and preflight" }),
     ).toHaveFocus();
     await user.tab();
+    expect(screen.getByRole("link", { name: "Observability" })).toHaveFocus();
+    await user.tab();
     expect(screen.getByRole("button", { name: /Switch to light theme/ })).toHaveFocus();
+  });
+
+  it("gives every rail destination an accessible name", () => {
+    // The assertion the test above could not make: it walks a FIXED number
+    // of tab stops, so a fourth nav item added without a name would sit
+    // before the toggle and only ever show up as a confusing focus
+    // failure. This counts whatever is there and names all of it.
+    render(<Rail mode="SIMULATION" modeEnforced={false} current="/" />);
+    const links = screen.getAllByRole("link");
+    expect(links.length).toBeGreaterThanOrEqual(3);
+    for (const link of links) {
+      expect(link.getAttribute("aria-label")).toBeTruthy();
+      expect(link.getAttribute("title")).toBeTruthy();
+    }
   });
 
   it("selects an incident row with the keyboard", async () => {

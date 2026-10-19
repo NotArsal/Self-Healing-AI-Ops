@@ -26,10 +26,13 @@ metric nobody checks, and `ADR 0014` is what an unchecked metric costs.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+import logging
+from collections import deque
+from collections.abc import Iterator, MutableMapping
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
@@ -138,6 +141,121 @@ def exposition() -> tuple[bytes, str]:
         return generate_latest(), CONTENT_TYPE_LATEST
     except Exception:
         return b"", CONTENT_TYPE_LATEST
+
+
+# --- logs -------------------------------------------------------------------
+#
+# A RING BUFFER, NOT A LOG STACK. There are four log calls in the whole control
+# plane, and `structlog.configure()` was never called - so the output format
+# and level were whatever structlog defaulted to, and `log_level` in
+# `config.py` was read by nothing. Loki for four lines would be a storage
+# cluster around an empty table; a bounded deque the console can read gives an
+# operator the same answer with no new container and no new failure mode.
+#
+# ponytail: in-memory and per-process, so a restart loses it and a second
+# replica would keep its own. Both are fine while Kavach is one container, and
+# neither is hidden - the audit log, not this, is the durable record of what
+# Kavach did.
+
+LOG_BUFFER_MAX = 500
+_LEVELS = ("debug", "info", "warning", "error", "critical")
+# Any key that LOOKS like a credential is replaced before it is stored.
+# AGENTS.md forbids logging secrets. Nothing currently logs one; this is here
+# so that staying true does not depend on everyone remembering.
+_SECRET_HINTS = ("token", "key", "secret", "password", "authorization", "dsn")
+
+
+@dataclass(frozen=True)
+class LogRecord:
+    at: str
+    level: str
+    event: str
+    logger: str = ""
+    incident_id: str = ""
+    detail: str = ""
+    exception: str = ""
+
+
+_log_buffer: deque[LogRecord] = deque(maxlen=LOG_BUFFER_MAX)
+
+
+def _redact(key: str, value: object) -> str:
+    if any(h in key.lower() for h in _SECRET_HINTS):
+        return "<redacted>"
+    text = str(value)
+    return text if len(text) <= 300 else text[:297] + "..."
+
+
+def _buffer_processor(
+    _logger: Any, name: str, event_dict: MutableMapping[str, Any]
+) -> MutableMapping[str, Any]:
+    """Copy each event into the ring buffer, then hand it on untouched.
+
+    A processor that raised would take down the log call that invoked it, and
+    one of the four live calls is in the `except` branch of the healing loop -
+    so a bug here would turn a failed run into a crashed worker thread.
+    """
+    try:
+        skip = {"event", "level", "timestamp", "logger", "incident_id", "exception"}
+        detail = ", ".join(
+            f"{k}={_redact(k, v)}" for k, v in event_dict.items() if k not in skip
+        )
+        _log_buffer.append(LogRecord(
+            at=str(event_dict.get("timestamp", "")),
+            level=str(event_dict.get("level", name or "info")).lower(),
+            event=str(event_dict.get("event", "")),
+            logger=str(event_dict.get("logger", "")),
+            incident_id=str(event_dict.get("incident_id", "") or ""),
+            detail=detail,
+            exception=str(event_dict.get("exception", "") or ""),
+        ))
+    except Exception:
+        pass
+    return event_dict
+
+
+def configure_logging(settings: Settings) -> None:
+    """Make `log_level` mean something, and render JSON.
+
+    `structlog.configure()` had never been called, so the setting declared in
+    `config.py` and passed by compose was read by nothing - the same dead
+    configuration as `otlp_endpoint` before `setup_tracing` (ADR 0016).
+    """
+    try:
+        import structlog
+
+        level = str(settings.log_level or "INFO").upper()
+        structlog.configure(
+            processors=[
+                structlog.contextvars.merge_contextvars,
+                structlog.processors.add_log_level,
+                structlog.processors.TimeStamper(fmt="iso", utc=True),
+                structlog.processors.StackInfoRenderer(),
+                structlog.processors.format_exc_info,
+                _buffer_processor,
+                structlog.processors.JSONRenderer(),
+            ],
+            wrapper_class=structlog.make_filtering_bound_logger(
+                getattr(logging, level, logging.INFO)),
+            cache_logger_on_first_use=True,
+        )
+    except Exception:
+        return
+
+
+def recent_logs(level: str = "", limit: int = 200) -> list[LogRecord]:
+    """Newest first. `level` is a FLOOR, so "warning" also returns errors."""
+    try:
+        rows = list(_log_buffer)
+    except Exception:
+        return []
+    wanted = level.lower().strip()
+    if wanted in _LEVELS:
+        floor = _LEVELS.index(wanted)
+        rows = [r for r in rows
+                if r.level in _LEVELS and _LEVELS.index(r.level) >= floor]
+    rows.reverse()
+    return rows[:max(0, limit)]
 
 
 # --- traces -----------------------------------------------------------------

@@ -45,6 +45,11 @@ export type Decision = NonNullable<Incident["decision"]>;
 export type Unwind = NonNullable<Incident["unwind"]>;
 export type FleetMetrics = components["schemas"]["FleetMetrics"];
 export type AuditTrail = components["schemas"]["AuditOut"];
+// The three observability views (ADR 0018). Read-only, like everything
+// else the console calls except the one parameterless run route.
+export type LogLine = components["schemas"]["LogOut"];
+export type LlmCall = components["schemas"]["LlmCallOut"];
+export type Alert = components["schemas"]["AlertOut"];
 
 /** The live event socket. Derived from API_BASE so there is one place to point. */
 export const wsUrl = (): string =>

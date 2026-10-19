@@ -243,6 +243,11 @@ services:
         # would fail silently - the page loads and every call goes to the
         # default. Must match the host port `api` publishes below.
         NEXT_PUBLIC_KAVACH_API: http://localhost:${API_PORT:-8080}
+        # Same build-time rule, same host-url reason. The observability
+        # screen links out to these rather than re-implementing a trace
+        # viewer and a metrics dashboard inside the console (ADR 0018).
+        NEXT_PUBLIC_KAVACH_JAEGER: http://localhost:${JAEGER_UI_PORT:-16686}
+        NEXT_PUBLIC_KAVACH_GRAFANA: http://localhost:${GRAFANA_PORT:-3002}
     container_name: kavach-console
     restart: unless-stopped
     depends_on:

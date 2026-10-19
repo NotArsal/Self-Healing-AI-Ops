@@ -86,6 +86,7 @@ function ThemeToggle() {
 const NAV: { href: string; label: string; icon: IconName }[] = [
   { href: "/", label: "Operations", icon: "activity" },
   { href: "/preflight", label: "Onboarding and preflight", icon: "list" },
+  { href: "/observability", label: "Observability", icon: "gauge" },
 ];
 
 export function Rail({

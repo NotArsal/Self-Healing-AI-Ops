@@ -19,8 +19,11 @@
 
 FROM node:22-alpine AS deps
 WORKDIR /app
-# corepack ships with node and pins pnpm from the lockfile's own major, so the
-# image and the developer's machine resolve the same tree.
+# corepack ships with node. WITHOUT a `packageManager` field it resolves
+# "latest" over the network on every build - an extra round trip that is
+# nondeterministic and that timed out on 2026-10-19, failing the build for
+# a reason that had nothing to do with the code. package.json pins
+# pnpm@12.4.1, so this fetches one exact version.
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
@@ -33,6 +36,10 @@ COPY . .
 
 ARG NEXT_PUBLIC_KAVACH_API=http://localhost:8080
 ENV NEXT_PUBLIC_KAVACH_API=$NEXT_PUBLIC_KAVACH_API
+ARG NEXT_PUBLIC_KAVACH_JAEGER=http://localhost:16686
+ENV NEXT_PUBLIC_KAVACH_JAEGER=$NEXT_PUBLIC_KAVACH_JAEGER
+ARG NEXT_PUBLIC_KAVACH_GRAFANA=http://localhost:3002
+ENV NEXT_PUBLIC_KAVACH_GRAFANA=$NEXT_PUBLIC_KAVACH_GRAFANA
 ENV NEXT_TELEMETRY_DISABLED=1
 # `next.config.ts` keeps `ignoreBuildErrors: false` and
 # `eslint.ignoreDuringBuilds: false`, so a type error in the console fails this

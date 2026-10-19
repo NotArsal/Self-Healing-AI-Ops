@@ -27,6 +27,71 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from kavach.config import Mode
 
+# --- observability ----------------------------------------------------------
+#
+# Three read-only views over state Kavach already holds. Nothing here is a new
+# measurement; every field is something the loop, the gate or the log buffer
+# recorded anyway and nobody could see.
+
+
+class LogOut(BaseModel):
+    """One line from the in-process ring buffer (`telemetry.LOG_BUFFER_MAX`).
+
+    `detail` arrives already redacted - keys that look like credentials are
+    replaced before the record is stored, not before it is served, so a secret
+    never reaches the buffer in the first place.
+    """
+
+    at: str
+    level: str
+    event: str
+    logger: str = ""
+    incident_id: str = ""
+    detail: str = ""
+    exception: str = ""
+
+
+class LlmCallOut(BaseModel):
+    """One diagnosis, and what the deterministic validator did with it.
+
+    THE POINT OF THIS VIEW is the pair (`fault_class`, `approved`): the model
+    proposes and `rca/validate.py` decides, and a row where a confident
+    diagnosis was refused is the architecture working rather than a failure.
+    `REPORT_DRAFT.md` quotes that relationship; this is where it is watched.
+
+    `raw_response` is NOT here, for the reason stated at the top of this
+    module: the structured diagnosis carries everything a human needs to
+    audit, and raw generations do not belong in a screenshot.
+    """
+
+    incident_id: str
+    at: str
+    model: str
+    provider: str = ""
+    latency_s: float = 0.0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    fault_class: str | None = None
+    confidence: float | None = None
+    approved: bool = False
+    approved_action: str | None = None
+    rejection_reasons: list[str] = Field(default_factory=list)
+    evidence_cited: list[str] = Field(default_factory=list)
+    error: str = ""
+    # Same statement as `RcaOut`: the number is not a calibrated probability,
+    # and the wire says so rather than trusting each client to remember.
+    confidence_is_calibrated: Literal[False] = False
+
+
+class AlertOut(BaseModel):
+    """A rule that fired over Kavach's own state. Displayed, never delivered."""
+
+    id: str
+    severity: Literal["critical", "warning", "info"]
+    title: str
+    detail: str
+    action: str = ""
+
 
 class Probe(BaseModel):
     """A named boolean outcome with its explanation. Never colour alone: the

@@ -63,6 +63,24 @@ def create_app() -> FastAPI:
     )
 
     settings = get_settings()
+    # First, so that anything logged during startup is already JSON at the
+    # configured level and already in the buffer /v1/logs serves. Until
+    # 2026-10-19 structlog.configure() was never called at all and
+    # KAVACH_LOG_LEVEL was read by nothing (ADR 0018).
+    telemetry.configure_logging(settings)
+    # The only log line that is not a failure path. It earns its place
+    # twice: an operator reading /v1/logs after a restart sees WHICH build
+    # and WHICH mode they are looking at, and its presence is the proof
+    # that logging is configured at all - the other four statements fire
+    # only when something has already gone wrong, so a silent buffer and a
+    # broken buffer looked identical.
+    logger.info(
+        "control plane started",
+        version=__version__,
+        default_mode=settings.default_mode,
+        log_level=settings.log_level,
+        tracing=telemetry.tracing_enabled(),
+    )
     if settings.console_origin:
         # Development only: the console runs on its own port under `next dev`.
         # Served from one origin in production, this middleware does nothing.
