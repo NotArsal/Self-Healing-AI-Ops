@@ -133,7 +133,12 @@ cannot produce it retroactively.
 ### 4.2 F07 healed 0 times out of 5, and that is the most interesting row
 
 F07 is the only class the bench never repaired, and it failed twice over for
-two different reasons:
+two different reasons.
+
+Read this section with **§4.8**: a human operator and a scripted runbook were
+each given F07 on the same system, and both produced a **false recovery** —
+the runbook while diagnosing it *correctly*. All three approaches fail on
+F07. Kavach is the only one that does not claim otherwise.
 
 | rep | first RCA | after approval | end |
 |---|---|---|---|
@@ -280,13 +285,76 @@ every number above meaningless, so it is measured separately.
 With the undo stack, the target is left exactly as found. With it ablated, the
 target is stranded in a third state — neither faulted nor healed.
 
-### 4.8 Human comparison — incomplete
+### 4.8 The two comparison baselines, and the thing they have in common
 
-A scripted runbook baseline (`runbook-baseline.json`) diagnosed 8/8 with a
-median of 37.5s. **It is not a human baseline** and must not be presented as
-one: a script following a written procedure has no search cost. A real human
-baseline has a protocol and an instrument but has not been run. Report it as
-missing.
+Two baselines exist and both have been run. Neither is large. Both found the
+same failure, which is why they are reported together.
+
+**The scripted runbook** — `runbook-baseline.json`, 4 classes x 2 reps, the
+documented diagnostic procedure executed as code. No person, no search cost,
+no hesitation, so its timings are a **lower bound on the manual path**: the
+best a perfectly-prepared operator could do, not a realistic one.
+
+| | result |
+|---|---|
+| diagnosis correct | **8/8** |
+| resolve verified | 7/8 |
+| median resolve | 37.5s |
+| **false recoveries** | **1/8 — F07** |
+
+A runbook scoring 8/8 on the four faults it was written for is the expected
+result and is not a finding. It would score zero on a fifth. The finding is
+the row it got *wrong while believing it was right*.
+
+**The human pilot** — `human-baseline.json`, 2026-10-18, one operator, three
+runs against blind injections, with Kavach observing the same incident in
+`SIMULATION` so each observation is **paired** rather than two unpaired
+samples.
+
+| fault | operator's diagnosis | correct | outcome | Kavach, same incident |
+|---|---|---|---|---|
+| F07 | *"idk based on provided docs"* | no | declared resolved at 104.6s, **fast set 0%** | **F07**, conf 0.95 |
+| F01 | *"i fucking dont know"* | no | gave up at 67.8s | escalated |
+| F01 | *"I think its connection issue"* | no | gave up at 26.2s | **F01**, conf 0.95 |
+
+**0/3 correct, 2 give-ups, 1 false recovery. Kavach 2/3 correct on the
+identical incidents.**
+
+#### What both baselines found, which neither was looking for
+
+Line up the three approaches on **F07**, the class §4.2 reports Kavach
+healing zero times out of five:
+
+| | diagnosed F07 | repaired it | **claimed success while broken** |
+|---|---|---|---|
+| human operator | no | no | **yes** — declared fixed at 0% pass rate |
+| scripted runbook | yes, 2/2 | 1 of 2 | **yes** — 1/2, `verified: false` |
+| Kavach | deterministic yes 5/5, model no 0/5 | no, 0/5 | **no — 0/5, target clean 5/5** |
+
+Every approach fails on F07. **Two of the three lie about it.** The runbook is
+the sharper case: it diagnosed the fault *correctly*, applied the correct
+repair action, and the system was still broken — a false recovery produced by
+a procedure that did everything right on paper.
+
+That reframes §4.2. Kavach's zero on F07 is not its weakest row against these
+baselines; it is the only one of the three that fails without claiming
+otherwise, and the mechanism that produced the difference — the deterministic
+cross-check refusing a diagnosis it could not corroborate — is the thing this
+project is arguing for.
+
+#### Limits, stated plainly
+
+- **n = 3 for the human pilot**, against a protocol that asks for 12. One
+  operator, not a panel. **F06 and F08 were never attempted by a human.** It
+  is a pilot and is reported as one; it is not a study.
+- The operator was a project author, which cuts both ways: more familiar with
+  the system than a stranger, and therefore a *conservative* baseline — a
+  neutral operator would not do better.
+- The runbook is n=2 per class, and its single F07 false recovery is 1 of 2,
+  so prompt restoration is flaky rather than reliably broken. Two runs cannot
+  tell those apart.
+- Neither baseline is large enough to support a significance claim and none
+  is made.
 
 ## 5. What the safety engine refused
 
@@ -387,5 +455,10 @@ development.
    exists (§4.1). Only then is it worth asking whether < 30s is the right
    target.
 4. `make scenario` — three clean runs, an hour apart
-5. Human baseline: run it, or record the decision to drop it
+5. ~~Human baseline: run it, or record the decision to drop it~~ —
+   **closed 2026-10-19, written up in §4.8.** It was run on 2026-10-18 and
+   the result had been sitting in `human-baseline.json` unreported. It
+   stays at n=3 against a protocol asking for 12: the decision is to report
+   a paired pilot with its limits stated rather than pad it. Padding would
+   make the number prettier and the claim no truer.
 6. The one-line `allowed_actions` decision for `apply_patch` (ADR 0012)

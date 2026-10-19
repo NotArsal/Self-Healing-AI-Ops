@@ -1193,9 +1193,9 @@ The phase most teams skip and most reviewers notice.
 - Report, slides, demo rehearsal
 
 **Acceptance**
-- [ ] Human baseline MTTR recorded per fault class — *protocol and runner ready; the session itself is not run*
+- [x] Human baseline MTTR recorded per fault class — **run 2026-10-18, n=3, written up in `REPORT_DRAFT.md` §4.8.** One operator, three paired runs: 0/3 correct, two give-ups, one false recovery (declared resolved at a 0% fast-set pass rate). Kavach 2/3 correct on the identical incidents. **Deliberately NOT extended to the protocol's 12 runs** — a paired pilot reported with its limits is honest; padding it would make the number prettier and the claim no truer. F06 and F08 were never attempted by a human, and the report says so
 - [x] Undo ablation numbers recorded — `harness/ablation_undo.py`, artifact `harness/reports/ablation-undo.json`. With undo the target is left exactly as found; without it, stranded in a third state. **Caveat carried: the undo stack had never fired in any prior live run, so this is insurance against a constructed case, not a measured improvement**
-- [~] P(heal | correct diagnosis) and P(heal | wrong diagnosis) both reported — **emitted by `make bench`** (`harness/report.py`) along with P(correct | heal). Smoke-tested on one class; **not yet run at the full 4 × 5 denominator**, which takes ~8h paced under the blast radius
+- [x] P(heal | correct diagnosis) and P(heal | wrong diagnosis) both reported — **run at the full 4 × 5 denominator overnight 2026-10-18/19** (`bench-full.json`, 13.7h of which 7.4h was blast-radius pacing). P(heal | correct) 88% (15/17), **P(heal | wrong) 0% (0/3)**, P(correct | heal) 100% (15/15). The SREGym failure mode this metric exists to detect — mitigation succeeding on a wrong diagnosis — did not occur once
 - [~] P2 vs. P3 extended to every class — **measured** (`harness/reports/kavach-baseline*.json`): deterministic F08 60.6s, F07 63.5s, F01 84.8s, F06 114.7s; with RCA 102.7s / — / 127.2s / 160.0s. **Not yet written up.** The rule-engine-vs-Laya half is void: Laya was cut (`ADR 0009`)
 - [ ] The eight-fault catalogue and `F04`'s retirement are stated in the report, with the reason
 - [ ] The target's Kubernetes files are explained as *not* a Kavach capability (`PRD.md` §5.3)
