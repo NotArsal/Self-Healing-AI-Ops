@@ -335,6 +335,29 @@ def run_once(
                     f"no usable diagnosis: {rca_result.error or 'unparseable output'}")
         inc.rca = rca_result.to_dict()
         inc.diagnosed_by = "llm_rca"
+        if audit:
+            # BEFORE the rejection branch below, which returns early.
+            #
+            # Until 2026-10-19 the first audit row any incident wrote was
+            # `permit`, so an incident the cross-check refused reached the
+            # log not at all - and those are precisely the incidents this
+            # project's central claim is made of. "No wrong diagnosis has
+            # ever driven a repair" was evidenced by harness JSON while the
+            # append-only hash-chained log, which exists to evidence exactly
+            # that kind of claim, said nothing. Found when an API rebuild
+            # discarded the in-memory incident records and the refusals had
+            # left no other trace.
+            answer = rca_result.diagnosis
+            audit.append(
+                "diagnose", incident_id=inc.incident_id,
+                deterministic_class=detection.fault_class or "",
+                model=rca_result.model or "",
+                model_class=(answer.fault_class if answer else ""),
+                confidence=(answer.confidence if answer else None),
+                approved=bool(rca_result.approved),
+                detail="; ".join(rca_result.rejection_reasons)
+                       or rca_result.error or "accepted",
+            )
         n_checks = len(rca_result.validation.checks) if rca_result.validation else 0
         if not rca_result.approved:
             _notify(on_event, "validate", "failed",

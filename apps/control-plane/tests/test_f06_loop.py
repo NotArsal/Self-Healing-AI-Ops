@@ -523,3 +523,47 @@ def test_an_action_record_can_be_splatted_into_the_audit_log(tmp_path: Path) -> 
     assert row["event"] == "execute_start"
     assert row["action"] == "rollback_config"
     assert log.verify().intact is True
+
+
+# --- found live, 2026-10-19 -------------------------------------------------
+# An incident the cross-check refused used to write NOTHING to the audit log:
+# the first row any incident produced was `permit`, which a rejected diagnosis
+# never reaches. The refusals are what "no wrong diagnosis has ever driven a
+# repair" is made of, so the one claim the hash-chained log exists to support
+# was the one it held no evidence for.
+
+
+def test_a_refused_diagnosis_is_written_to_the_audit_log(
+    fast_set: Path, tmp_path: Path
+) -> None:
+    log = AuditLog(tmp_path / "audit.jsonl")
+    t = FakeTarget(BAD_THRESHOLD)
+    low = {**_RCA_OK, "confidence": 0.2}
+    inc = run_once(t, "http://prom", fast_set, promql_for(t), BASELINE_THRESHOLD,
+                   rca=_rca_stage(low), audit=log)
+
+    assert inc.status is IncidentStatus.ESCALATED
+    assert t.writes == []
+    rows = [r for r in log.rows() if r["event"] == "diagnose"]
+    assert len(rows) == 1, "the refusal left no durable trace"
+    assert rows[0]["incident_id"] == inc.incident_id
+    assert rows[0]["approved"] is False
+    assert rows[0]["detail"], "a refusal with no recorded reason teaches nobody"
+    assert log.verify().intact
+
+
+def test_an_accepted_diagnosis_is_audited_too(
+    fast_set: Path, tmp_path: Path
+) -> None:
+    """Both arms, or the log records only failures and the denominator is
+    unrecoverable from it."""
+    log = AuditLog(tmp_path / "audit.jsonl")
+    t = FakeTarget(BAD_THRESHOLD)
+    run_once(t, "http://prom", fast_set, promql_for(t), BASELINE_THRESHOLD,
+             rca=_rca_stage(_RCA_OK), audit=log)
+
+    row = next(r for r in log.rows() if r["event"] == "diagnose")
+    assert row["approved"] is True
+    assert row["model_class"] == "F06"
+    assert row["deterministic_class"] == "F06"
+    assert log.verify().intact
