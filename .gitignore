@@ -34,6 +34,10 @@ apps/console/lib/api/generated/
 
 # Benchmark and report output
 harness/reports/
+# Runtime evidence, same class as reports: the hash-chained audit log the
+# API appends to. Bind-mounted so a container rebuild cannot destroy it
+# (infra/docker-compose.yml), not committed because it is machine output.
+harness/audit/
 
 # The sandbox's working copy of the target's prompts. Regenerated from
 # production on every seed, and the directory a model-authored patch is

@@ -144,6 +144,16 @@ services:
       # TO, and `make onboard` writes those on the host. Read-only because
       # capture is an onboarding operation, never something the API does.
       - ../harness/baselines:/app/harness/baselines:ro
+      # READ-WRITE, and it has to be. The hash-chained audit log lived in the
+      # container's writable layer until 2026-10-19, which meant `docker
+      # compose down`, `up --build`, or any image rebuild silently destroyed
+      # every incident this project has evidence for - including the twenty
+      # from the overnight bench. Found while preparing to rebuild the image
+      # for the num_ctx fix; 213 rows were one command away from gone.
+      #
+      # The log is the evidence base for the central claim. Evidence that
+      # only exists inside a container is not evidence, it is a cache.
+      - ../harness/audit:/app/harness/audit
       # Read-only, and one file rather than the repository: Kavach reads the
       # target's safety policy and must never be able to widen it. TARGET_REPO
       # is relative to THIS directory (infra/), not the repository root.
