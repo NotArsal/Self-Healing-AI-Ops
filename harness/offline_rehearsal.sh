@@ -30,6 +30,17 @@
 #
 set -u
 
+# NOT WSL. `bash` on a Windows PATH is usually WSL's, and `make` under
+# PowerShell shells out through cmd.exe, which picks exactly that one -
+# observed 2026-10-19: "wsl: Failed to translate '\?\C'". WSL sees a
+# different filesystem, has no uv and no Docker socket, so it would fail
+# several steps in, after the trap had already recreated the API. Stop here.
+if [ -n "${WSL_DISTRO_NAME:-}" ] || grep -qi microsoft /proc/version 2>/dev/null; then
+  echo "FAILED: this is WSL bash, which cannot run the rehearsal."
+  echo "        Open Git Bash in the repo and run 'make offline' there."
+  exit 1
+fi
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
 

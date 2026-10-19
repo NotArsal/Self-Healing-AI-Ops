@@ -170,6 +170,9 @@ scenario:
 # NEVER edits .env - compose resolves ${VAR:-} from the shell first, so the
 # keys are overridden rather than rewritten. Pauses for you to pull the
 # network; ARGS=--no-prompt skips that and says so in the result.
+# RUN THIS FROM GIT BASH ON WINDOWS. Under PowerShell, make shells out
+# through cmd.exe and `bash` there resolves to WSL, which cannot see the
+# Docker socket or uv. The script detects that and refuses with a pointer.
 offline:
 	bash harness/offline_rehearsal.sh $(ARGS)
 
