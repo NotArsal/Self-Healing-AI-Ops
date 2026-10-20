@@ -46,6 +46,10 @@ help:
 	@echo   socket-test       prove Docker socket access
 	@echo   check             lint + types + test. THE GATE.
 	@echo.
+	@echo   bench             the metrics table, paced under the limiter
+	@echo   figures           report figures from harness/reports
+	@echo   diagnoses         freeze the in-memory diagnoses to an artifact
+	@echo.
 	@echo   target-up         start the system under management (P1)
 
 # --- Setup -------------------------------------------------------------------
@@ -191,3 +195,18 @@ postmortem:
 
 bench:
 	$(UV) run python -I ../../harness/report.py $(ARGS)
+
+# Report figures, drawn from the artifacts in harness/reports. Paths are
+# passed explicitly because $(UV) runs with apps/control-plane as its working
+# directory, so the script's own relative defaults would miss.
+figures:
+	$(UV) run python -I ../../harness/figures.py \
+		--reports ../../harness/reports \
+		--out ../../harness/reports/figures $(ARGS)
+
+# Freezes the diagnoses behind RESEARCH_NOTES section 10 to an artifact. They
+# live in the API's in-process ring (RESEARCH_NOTES 7.2), so `make down` loses
+# them. Read-only: no injection, no gate interaction, nothing mutated.
+diagnoses:
+	$(UV) run python -I ../../harness/dump_diagnoses.py \
+		--out ../../harness/reports/diagnoses-$$(date +%Y%m%d).json $(ARGS)

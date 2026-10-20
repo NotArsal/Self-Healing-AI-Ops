@@ -56,6 +56,10 @@ dev = [
     "pytest-asyncio>=0.25",
     "httpx>=0.28",
     "types-PyYAML>=6.0",
+    # Report figures only (`make figures`). A dev extra, not a runtime
+    # dependency: the API image runs `uv pip install .` with no extras, so this
+    # does not ship. matplotlib carries py.typed, so it needs no mypy override.
+    "matplotlib>=3.10",
 ]
 
 [build-system]
