@@ -214,13 +214,15 @@ make logs SERVICE=api
 make lint                  # ruff check + eslint
 make format                # ruff format + prettier
 make types                 # mypy --strict + tsc --noEmit
-make test                  # pytest + vitest
-make test-integration      # the seven fault-loop tests, needs the stack up
+make test                  # pytest + vitest (docker-marked tests skip without a socket)
+make socket-test           # ONLY the docker-marked tests, needs a live socket
 make check                 # lint + types + test. The gate.
 
-# Database
-make migrate               # alembic upgrade head
-make migration NAME="..."  # autogenerate a revision
+# NO DATABASE MIGRATIONS. `make migrate` and `make migration` were listed here
+# and were stubs that exited 1; both are removed. There is no alembic in this
+# project (see the dependency rationale in pyproject.toml) and the schema is
+# created by `IncidentStore.init()`. `make test-integration` is removed for the
+# same reason - `make socket-test` is the target that runs live tests.
 
 # Codegen
 make gen-client            # OpenAPI → typed TS client

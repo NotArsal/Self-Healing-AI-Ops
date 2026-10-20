@@ -120,25 +120,11 @@ test:
 socket-test:
 	$(UV) run pytest -q -m docker -v
 
-test-integration:
-	@echo Not implemented until P3.
-	@exit 1
-
 # gen-client runs FIRST so `types` checks the console against a freshly
 # generated client. A backend schema change therefore fails the gate here
 # rather than at runtime in the browser.
 check: gen-client lint types test
 	@echo check: OK
-
-# --- Database ----------------------------------------------------------------
-
-migrate:
-	@echo Not implemented until P3 - no schema yet.
-	@exit 1
-
-migration:
-	@echo Not implemented until P3 - no schema yet.
-	@exit 1
 
 # --- Codegen -----------------------------------------------------------------
 
@@ -155,9 +141,13 @@ gen-client:
 onboard:
 	$(UV) run python -m kavach.onboarding.baseline $(ARGS)
 
+# Wired 2026-10-20. It had printed "Not implemented until P2" and exited 1
+# since the scaffold, while `harness/inject.py` has injected F01, F06, F07 and
+# F08 since P6 - and README.md documented `make inject` as a working command.
+# A recipe that lies about a capability the repository has is worse than an
+# absent one: it tells a reader the feature does not exist.
 inject:
-	@echo Not implemented until P2.
-	@exit 1
+	$(UV) run python -I ../../harness/inject.py $(ARGS)
 
 # The four-act demo: autonomous heal, approval heal, rollback, and a
 # refusal on a fault outside the catalogue. NAME picks the scenario, ACTS

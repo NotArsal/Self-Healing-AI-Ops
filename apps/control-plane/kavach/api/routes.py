@@ -559,7 +559,14 @@ async def alerts(
     """
     system_out = await system(settings, runner)
     deps = [(d.name, d.ok, d.detail) for d in system_out.dependencies]
-    chain = runner.audit.verify()
+    # OFF THE EVENT LOOP. `verify()` opens the audit file, reads every line,
+    # parses each payload and recomputes a SHA-256 chain - all synchronous.
+    # Called bare here it blocked the whole FastAPI process, including the
+    # incident WebSocket, for as long as the chain took to walk, and it grows
+    # with every heal. `audit_trail()` below already did this correctly; this
+    # route did not, which is the kind of divergence that only shows up under
+    # a long audit log and never in a test.
+    chain = await asyncio.to_thread(runner.audit.verify)
     # MEMORY, deliberately, where the two routes above read the store.
     # Every rule here asks "why will the NEXT repair be refused" - an
     # escalation streak, an open breaker, blast radius spent. Those are
