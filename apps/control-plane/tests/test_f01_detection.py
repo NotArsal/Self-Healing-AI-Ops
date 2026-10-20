@@ -457,13 +457,29 @@ def test_the_detector_windows_match_the_manifest_they_mirror() -> None:
             encoding="utf-8"))
     declared = {s["name"]: int(s["window_s"]) for s in manifest["slo"]}
 
-    # detector signal -> the manifest SLO it mirrors
+    from kavach.detection.endpoint_outage import QUERIES as F01_QUERIES
+
+    units = {"s": 1, "m": 60, "h": 3600}
+
+    # F01: llm_error_ratio mirrors declared availability SLO (120s)
+    if "availability" in declared:
+        windows = set(re.findall(r"\[(\d+)([smh])\]", F01_QUERIES["llm_error_ratio"]))
+        assert windows, "llm_error_ratio declares no window at all"
+        seconds = {int(n) * units[u] for n, u in windows}
+        assert len(seconds) == 1
+        assert seconds.pop() == declared["availability"], (
+            f"llm_error_ratio is read over a different window than kavach.yaml "
+            f"declares for availability ({declared['availability']}s)"
+        )
+
+    # detector signal -> the manifest SLO it mirrors (if declared in target manifest)
     mirrored = {
         "similarity_p50": "retrieval_similarity_p50",
         "empty_context_ratio": "empty_context_ratio",
     }
-    units = {"s": 1, "m": 60, "h": 3600}
     for signal, slo_name in mirrored.items():
+        if slo_name not in declared:
+            continue
         windows = set(re.findall(r"\[(\d+)([smh])\]", F06_QUERIES[signal]))
         assert windows, f"{signal} declares no window at all"
         seconds = {int(n) * units[u] for n, u in windows}
