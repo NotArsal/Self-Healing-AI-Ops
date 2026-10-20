@@ -544,3 +544,103 @@ model is unstable is **not determined** by these forty injections.
 **None of this produced a false heal.** Forty injections, forty clean targets.
 The gate caught every failure above, including the one the metrics score as
 correct, which is an argument for the gate rather than against the metric.
+
+---
+
+## 11. Kavach cannot start healing by itself, and the constraint that says so expired
+
+**Found:** 2026-10-20, surveying comparable projects on GitHub for related
+work. The survey's most useful output was not a feature to copy. It was a
+question none of them would have to answer and this project does.
+
+### The gap
+
+There is **no background detection tick and no inbound alert path.** Grepping
+the control plane for a scheduler, a repeating task, or an Alertmanager
+webhook returns nothing; the only `while True` is the event bus's per-
+subscriber queue. A loop starts exactly one way: a human or a harness calls
+`POST /v1/loop/run`.
+
+Every comparable system is triggered by the system under management:
+
+| | trigger |
+|---|---|
+| Red Hat EDA + AAP demo | Prometheus → Alertmanager → Event-Driven Ansible |
+| Kubernaut | detects signals itself, autonomous mode end to end |
+| SRE-Agent-App | continuous OODA loop |
+| **Kavach** | **an operator presses a button** |
+
+So the honest answer to *"is it autonomous?"* today is: **it executes
+autonomously once a human triggers it.** For a project whose title is
+"autonomous self-healing", that is a weak sentence to have to say.
+
+### The constraint was deliberate, and its precondition expired
+
+`ROADMAP.md`, written before the safety engine existed:
+
+> **No background detection tick, so no unattended healing.** A timer that
+> detected and healed on its own would need the mode gate, and `permit()`
+> does not exist until P6 (`docs/decisions/0006`, amendment). The loop
+> therefore runs when an operator asks it to, from the console or a harness.
+> **This is the constraint that keeps the missing safety engine honest, and it
+> must not be removed before P6 lands.**
+
+That was right. **P6 landed, and so did P8.** `permit()`, the three modes, the
+blast radius, the circuit breaker, the audit chain and the approval flow all
+exist and are measured. The condition attached to the constraint was met weeks
+ago and nobody went back to lift it — a scaffold that outlived the thing it
+was holding up, which is the same shape as `log_level` being dead
+(ADR 0018) and `otlp_endpoint` being dead (ADR 0016), one layer up.
+
+### What adding it would actually cost
+
+Small, and that is the point — every hard part is already built. The tick
+would call the same `run_once` path the console calls, so it inherits
+`permit()`, `SIMULATION` as default, the blast radius that already paces
+`make bench` to eight hours, and the audit chain. Nothing new is trusted.
+
+**It should ship disabled.** `KAVACH_DETECT_INTERVAL_S=0` meaning off, so
+unattended healing is something an operator turns on rather than something a
+deployment discovers. Shipping a genuinely unattended healer on by default,
+days before a graded demo, would be the one change in this project most likely
+to produce an unexplained incident during it.
+
+### What the survey said about the rest
+
+Ranked by value over cost, and only the first is recommended before the
+deadline:
+
+1. **Autonomous trigger** — above.
+2. **Graduate unknowns into knowns.** The strongest idea found, from a
+   practitioner write-up: *"build the feedback loop that converts unknowns to
+   knowns... continuously shrink the surface area of unknowns."* Kavach's
+   `ESCALATED` incidents are exactly that surface, and promoting a repeatedly-
+   escalated pattern into a deterministic detector would be a genuine
+   contribution rather than a feature. It is also a phase, not a weekend.
+   **Further work.**
+3. **An MCP interface** (Kubernaut, NetworkOps both expose one). Demonstrable,
+   and it adds no research value: it is another way to call routes that exist.
+4. **Evidence redaction before a cloud provider** (K8sGPT anonymises before
+   sending). Kavach's RCA normally runs against local Ollama, but
+   `harness/reports/` holds Groq and Gemini artifacts, so that path is real.
+   Credentials are already redacted on the way into the log buffer (ADR 0018);
+   whether the *evidence frame* needs the same treatment is **unchecked**, and
+   is written here as a question rather than a finding.
+
+**Two things explicitly NOT gaps.** Auto-opening a pull request with the fix
+(`carlossg/kubernetes-agent`) is forbidden by `AGENTS.md` — Kavach never
+pushes to the target's remote — so its absence is a boundary, not an
+omission. Delivering alerts to a human (the Red Hat demo emails the approval)
+was decided against in ADR 0018: alerts here are displayed, never delivered,
+because this project has no on-call rotation.
+
+### Lesson
+
+> **A constraint written with an expiry condition does not expire by itself.**
+> "Not before P6" reads as temporary and behaves as permanent, because the
+> phase that satisfies it is busy with its own work and nothing points back.
+
+The practical form: a constraint that names a release condition should name
+the file that lifts it, or it becomes architecture by default. This one was
+found by comparison with other projects, not by reading our own roadmap — and
+it had been sitting in `ROADMAP.md` in bold the whole time.

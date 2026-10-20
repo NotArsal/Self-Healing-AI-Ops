@@ -39,6 +39,16 @@ recorded inverse. The contribution is not that an LLM can diagnose an incident �
 it is that **a deterministic layer, not the model, decides whether anything is
 written**, and that this is measured rather than asserted.
 
+> **"Self-healing" here means operational remediation of a deployed service by
+> an external control plane — not query-time self-correction inside the
+> pipeline.** The term is already in wide use for the latter: agentic RAG
+> systems that rewrite a weak query, re-rank or re-retrieve when an
+> LLM-as-judge rejects an answer, all within a single request. Kavach never
+> touches a request. It changes the configuration, prompt files or endpoint of
+> the *deployed system*, between requests, with a gate, an inverse and an audit
+> record. The two share a name and nothing else: different layer, different
+> failure modes, different blast radius. Everything below concerns the second.
+
 ## 2. The claim, stated so it can fail
 
 > An LLM may propose a repair. It may never authorise one.
@@ -786,9 +796,55 @@ three weeks while answering 404 on its own `/metrics`.**
 - **AegisFlow** (arXiv 2610.06971) — the closest related system.
 - **"Stalled, Biased, and Confused"** (FORGE 2026) — independently corroborates
   the finding that small local models stall at symptoms.
-- Commercial AI-SRE vendors converge on the same boundary: *remediation is
-  genuinely automatable only in bounded cases.* Kavach built the bounded case
-  and measured it.
+
+### 8.1 Systems that gate remediation, and where Kavach differs
+
+The nearest siblings are not benchmarks but operating systems for remediation.
+All three below diagnose with an LLM and execute something; the axis that
+separates them is **what the model is allowed to author.**
+
+| system | model's role | execution | gate |
+|---|---|---|---|
+| **K8sGPT** | RCA and explanation | **none** — diagnosis only | n/a |
+| **[Kubernaut](https://github.com/jordigilh/kubernaut)** | investigate, then *select* from a workflow catalogue | yes, autonomous or interactive | escalates to a human "only when it should" |
+| **[kube-ai-sre-agent](https://github.com/aqrpole/kube-ai-sre-agent)** | correlate signals, explain, recommend | policy-gated | explicitly *"not a self-healing black box"* |
+| **Red Hat EDA + AAP demo** | **authors an Ansible playbook** for the specific fault | yes, after email approval | human reads generated code |
+| **Kavach** | select among pre-registered actions; propose a repair | yes, after `permit()` | ten deterministic checks; **the model's answer can be refused** |
+
+Kavach sits with Kubernaut and `kube-ai-sre-agent` on the selection side of
+that line, not the authoring side. The Red Hat pattern — an LLM writing the
+remediation itself — is the one this project bounded deliberately: the only
+content a model may generate here is prompt text, and even that goes through a
+sandbox (ADR 0008, ADR 0011).
+
+**Rootly, a commercial incident platform, draws the same distinction
+independently**, and states it more plainly than this report had:
+
+> *"Everything on this page describes **pre-authored** automation: a workflow a
+> human wrote, reviewed and enabled in advance... The judgment happened at
+> authoring time, which is what makes unattended execution safe... That is
+> different from an AI agent choosing an action nobody pre-authorised for that
+> situation... conflating them is how teams end up surprised."*
+
+That is the architecture argument of this project, arrived at by a vendor with
+production customers. Kavach's action registry *is* pre-authored automation —
+every action is written, reviewed, given an inverse and registered before any
+model sees it — and the LLM's contribution is restricted to choosing among
+them and being overruled when it chooses wrong.
+
+### 8.2 The safety metric is not invented here
+
+`False healing` (§4.1) is this report's central result at **0 / 40**. The
+metric has prior art: *LLM-Based Autonomous Remediation for DevSecOps
+Pipelines* evaluates on a **False Remediation Rate** alongside alert fatigue,
+and the agent-safety literature (R-Judge, TS-Bench and the 2026 agentic-NetOps
+survey) is converging on *unsafe action* as the primary axis for autonomous
+agents. Kavach therefore reports against a measure the field already uses,
+rather than one chosen to flatter the system.
+
+The same literature names the failure mode on the other side — **refusal
+storms**, an agent that declines so often it is useless. §5 reports Kavach's:
+three of four refusals blocked a *correct* answer. Both numbers, or neither.
 
 ## 9. Still to do
 
@@ -816,7 +872,17 @@ three weeks while answering 404 on its own `/metrics`.**
    make the number prettier and the claim no truer.
 6. The one-line `allowed_actions` decision for `apply_patch` (ADR 0012)
 
-**Opened 2026-10-20 by run B, and none of these is mine to close:**
+**Opened 2026-10-20, and none of these is mine to close:**
+
+7a. **Kavach has no autonomous trigger.** There is no detection tick and no
+   Alertmanager path; a loop starts only when an operator calls
+   `POST /v1/loop/run`. Every comparable system (§8.1) is triggered by the
+   system it manages. `ROADMAP.md` made this a deliberate constraint — *"must
+   not be removed before P6 lands"* — and P6 landed weeks ago, so the
+   precondition expired and nobody lifted it. Everything a tick needs already
+   exists: it would call the same `run_once` the console calls, inheriting
+   `permit()`, `SIMULATION` and the blast radius. It should ship **disabled by
+   default**. `RESEARCH_NOTES.md` §11.
 
 7. **The `fault_name` coherence check** (§4.2, `RESEARCH_NOTES.md` §10).
    Adding it rejects every F06 diagnosis: F06 5/5 → 0/5, auto-resolution
