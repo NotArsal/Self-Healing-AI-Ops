@@ -80,6 +80,10 @@ export const resolvedIncident: Incident = {
     verdict: "RETRIEVAL_COLLAPSE",
     fault_class: "F06",
     fault_name: "retrieval_collapse",
+    // The stamp MTTD is measured from. Required on the wire, not optional:
+    // a response model serialises every field, so the generated client types
+    // it as required even though `DetectionOut` defaults it to "".
+    concluded_at: "2026-10-16T10:45:22+00:00",
     service: "backend",
     reasons: ["similarity healthy at 0.658 while zero chunks were kept"],
     evidence: [],
