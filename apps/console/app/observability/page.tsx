@@ -20,6 +20,7 @@
 
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Sparkline } from "@/components/charts/Sparkline";
@@ -113,7 +114,6 @@ export default function ObservabilityPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [calls, setCalls] = useState<LlmCall[]>([]);
   const [logs, setLogs] = useState<LogLine[]>([]);
-  const [level, setLevel] = useState<"" | "warning">("");
   const [failed, setFailed] = useState("");
 
   // Filter state for AI calls table
@@ -142,9 +142,6 @@ export default function ObservabilityPage() {
     return () => clearInterval(t);
   }, [load]);
 
-  const shown = level === "warning"
-    ? logs.filter((r) => ["warning", "error", "critical"].includes(r.level))
-    : logs;
   const exceptions = logs.filter(
     (r) => r.exception || r.level === "error" || r.level === "critical",
   );
@@ -604,131 +601,186 @@ export default function ObservabilityPage() {
           )}
         </Section>
 
-        {/* --- 5. logs --- */}
+        {/* --- 5. logs summary preview --- */}
         <Section
           title="Logs"
           badge={
             <span className="k-mono-sm k-faint" style={{ fontSize: 11 }}>
-              {shown.length} lines
+              {logs.length} lines
             </span>
           }
-          hint="The control plane's own structured log, newest first. In-process and
-                bounded, so a restart clears it — the durable record of what Kavach did
-                is the hash-chained audit trail, not this. Keys that look like
-                credentials are redacted before a line is ever stored."
+          hint="The control plane's in-process structured log stream. Dedicated search, severity filters, and traceback inspections are now located on the dedicated Logs screen."
           right={
-            <button
-              type="button"
-              onClick={() => setLevel(level === "" ? "warning" : "")}
+            <Link
+              href="/logs"
               className="k-sm"
               style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
                 padding: "4px 10px",
                 borderRadius: "var(--k-radius-sm)",
                 border: "1px solid var(--k-border)",
-                background: level === "warning" ? "var(--k-surface-raised)" : "transparent",
+                background: "var(--k-surface-raised)",
                 color: "var(--k-text)",
+                textDecoration: "none",
+                fontWeight: 500,
               }}
             >
-              {level === "warning" ? "Showing warnings and above" : "Showing everything"}
-            </button>
+              Open dedicated logs stream →
+            </Link>
           }
         >
-          {shown.length === 0 ? (
+          {logs.length === 0 ? (
             <Empty>
               Nothing logged yet. The control plane is deliberately quiet — there are four
               log statements in it, and the audit trail carries the decisions.
             </Empty>
           ) : (
             <div
-              className="k-scroll"
+              className="k-card"
               style={{
-                maxHeight: 360,
-                overflow: "auto",
-                border: "1px solid var(--k-border)",
-                borderRadius: "var(--k-radius-sm)",
+                padding: "var(--k-space-3)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "var(--k-space-2)",
               }}
             >
-              <table className="k-mono k-sm" style={{ width: "100%", borderCollapse: "collapse" }}>
-                <tbody>
-                  {shown.map((r, i) => (
-                    <tr key={`${r.at}-${i}`} style={{ borderBottom: "1px solid var(--k-border)" }}>
-                      <td className="k-muted" style={{ padding: "4px 10px", whiteSpace: "nowrap", verticalAlign: "top" }}>
-                        {r.at.slice(11, 23) || r.at}
-                      </td>
-                      <td style={{ padding: "4px 10px", color: LEVEL_COLOR[r.level], verticalAlign: "top" }}>
-                        {r.level}
-                      </td>
-                      <td style={{ padding: "4px 10px", verticalAlign: "top" }}>
-                        {r.event}
-                        {r.detail && <span className="k-muted"> {r.detail}</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span
+                  style={{
+                    display: "inline-block",
+                    padding: "1px 6px",
+                    borderRadius: "var(--k-radius-sm)",
+                    background: "var(--k-surface-raised)",
+                    color: (logs[0]?.level && LEVEL_COLOR[logs[0].level]) ? LEVEL_COLOR[logs[0].level] : "var(--k-text)",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {logs[0]?.level || "info"}
+                </span>
+                <span className="k-mono-sm" style={{ fontWeight: 600 }}>
+                  {logs[0]?.event}
+                </span>
+                {logs[0]?.detail && (
+                  <span className="k-mono-sm k-muted">· {logs[0].detail}</span>
+                )}
+              </div>
+              <Link
+                href="/logs"
+                className="k-mono-sm"
+                style={{ color: "var(--k-accent)", textDecoration: "none", fontWeight: 600 }}
+              >
+                View all {logs.length} lines in /logs →
+              </Link>
             </div>
           )}
         </Section>
 
-        {/* --- 6. traces --- */}
+        {/* --- 6. traces summary preview --- */}
         <Section
           title="Traces"
-          hint="One span per loop run, with each stage as an event on its timeline.
-                Jaeger renders them; re-implementing a trace viewer here would be a
-                worse copy and a second thing to be wrong."
+          hint="One span per loop run with each stage as an event on its timeline. Distributed traces are exported via OpenTelemetry to external tracing tools."
+          right={
+            <Link
+              href="/traces"
+              className="k-sm"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "4px 10px",
+                borderRadius: "var(--k-radius-sm)",
+                border: "1px solid var(--k-border)",
+                background: "var(--k-surface-raised)",
+                color: "var(--k-text)",
+                textDecoration: "none",
+                fontWeight: 500,
+              }}
+            >
+              Open dedicated traces explorer →
+            </Link>
+          }
         >
-          <div style={{ display: "flex", gap: "var(--k-space-2)", flexWrap: "wrap" }}>
-            <a
-              href={`${JAEGER_BASE}/search?service=kavach-control-plane&operation=kavach.heal`}
-              target="_blank"
-              rel="noreferrer"
-              className="k-sm"
-              style={{
-                padding: "8px 12px",
-                border: "1px solid var(--k-border)",
-                borderRadius: "var(--k-radius-sm)",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                background: "var(--k-surface-sunken)",
-              }}
-            >
-              All heal traces in Jaeger →
-            </a>
-            <a
-              href={`${GRAFANA_BASE}/d/kavach-overview`}
-              target="_blank"
-              rel="noreferrer"
-              className="k-sm"
-              style={{
-                padding: "8px 12px",
-                border: "1px solid var(--k-border)",
-                borderRadius: "var(--k-radius-sm)",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                background: "var(--k-surface-sunken)",
-              }}
-            >
-              Metric history in Grafana →
-            </a>
-          </div>
-          {calls.length > 0 && (
-            <ul style={{ listStyle: "none", margin: "var(--k-space-3) 0 0", padding: 0, display: "grid", gap: 4 }}>
-              {calls.slice(0, 8).map((c) => (
-                <li key={`trace-${c.incident_id}`}>
+          <div
+            className="k-card"
+            style={{
+              padding: "var(--k-space-3)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--k-space-3)",
+            }}
+          >
+            <div style={{ display: "flex", gap: "var(--k-space-2)", flexWrap: "wrap" }}>
+              <a
+                href={`${JAEGER_BASE}/search?service=kavach-control-plane&operation=kavach.heal`}
+                target="_blank"
+                rel="noreferrer"
+                className="k-sm"
+                style={{
+                  padding: "6px 12px",
+                  border: "1px solid var(--k-border)",
+                  borderRadius: "var(--k-radius-sm)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  background: "var(--k-surface-sunken)",
+                  color: "var(--k-text)",
+                  textDecoration: "none",
+                }}
+              >
+                All heal traces in Jaeger →
+              </a>
+              <a
+                href={`${GRAFANA_BASE}/d/kavach-overview`}
+                target="_blank"
+                rel="noreferrer"
+                className="k-sm"
+                style={{
+                  padding: "6px 12px",
+                  border: "1px solid var(--k-border)",
+                  borderRadius: "var(--k-radius-sm)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  background: "var(--k-surface-sunken)",
+                  color: "var(--k-text)",
+                  textDecoration: "none",
+                }}
+              >
+                Metric history in Grafana →
+              </a>
+            </div>
+            {calls.length > 0 && calls[0] && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                <span className="k-mono-sm k-muted">
+                  Latest recorded trace: #{calls[0].incident_id} ({calls[0].latency_s}s)
+                </span>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                   <a
-                    href={traceUrl(c.incident_id)}
+                    href={traceUrl(calls[0].incident_id)}
                     target="_blank"
                     rel="noreferrer"
-                    className="k-mono k-sm"
+                    className="k-mono-sm"
+                    style={{ color: "var(--k-accent)", textDecoration: "none", fontWeight: 600 }}
                   >
-                    {c.incident_id} →
+                    Jaeger #{calls[0].incident_id} →
                   </a>
-                </li>
-              ))}
-            </ul>
-          )}
+                  <Link
+                    href={`/traces?incident_id=${calls[0].incident_id}`}
+                    className="k-mono-sm"
+                    style={{ color: "var(--k-text)", textDecoration: "none" }}
+                  >
+                    Investigate in /traces →
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
         </Section>
       </main>
     </div>

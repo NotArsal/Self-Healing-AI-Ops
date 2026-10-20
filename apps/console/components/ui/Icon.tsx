@@ -26,6 +26,8 @@ export type IconName =
   | "cpu"
   | "gauge"
   | "list"
+  | "terminal"
+  | "git-commit"
   | "sun"
   | "moon";
 
@@ -99,6 +101,19 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <line x1="2.5" y1="4.5" x2="2.7" y2="4.5" />
       <line x1="2.5" y1="8" x2="2.7" y2="8" />
       <line x1="2.5" y1="11.5" x2="2.7" y2="11.5" />
+    </>
+  ),
+  terminal: (
+    <>
+      <polyline points="3 5 7 8 3 11" />
+      <line x1="9" y1="11" x2="13" y2="11" />
+    </>
+  ),
+  "git-commit": (
+    <>
+      <circle cx="8" cy="8" r="3" />
+      <line x1="1" y1="8" x2="5" y2="8" />
+      <line x1="11" y1="8" x2="15" y2="8" />
     </>
   ),
   sun: (
