@@ -1,0 +1,19 @@
+{
+  "provider": "groq",
+  "model": "openai/gpt-oss-120b",
+  "requested": 10,
+  "answered": 10,
+  "applies": 4,
+  "unreached": 0,
+  "attempts": 16,
+  "apply_rate": 0.4,
+  "failures": [
+    "git apply failed (128): warning: recount: unexpected line: {context}\n\nerror: corrupt patch at C:/Users/shaik/AppData/Local/Temp/tmp55zdeguw/incident.diff:10",
+    "git apply failed (128): error: corrupt patch at C:/Users/shaik/AppData/Local/Temp/tmp_t2xtllu/incident.diff:7",
+    "git apply failed (128): error: corrupt patch at C:/Users/shaik/AppData/Local/Temp/tmpjh577l_v/incident.diff:7",
+    "git apply failed (128): error: corrupt patch at C:/Users/shaik/AppData/Local/Temp/tmpxfd5t_3e/incident.diff:7",
+    "git apply failed (128): error: corrupt patch at C:/Users/shaik/AppData/Local/Temp/tmp8v6nwtdv/incident.diff:7",
+    "git apply failed (128): error: corrupt patch at C:/Users/shaik/AppData/Local/Temp/tmp6tad71nj/incident.diff:7"
+  ],
+  "measured": "2026-10-18T18:43:33+00:00"
+}

@@ -1,0 +1,11 @@
+{
+  "started": "2026-10-18T18:47:14+00:00",
+  "provider": "gemini",
+  "model": "",
+  "production_fast_rate_under_fault": 0.0,
+  "production_passed_under_fault": false,
+  "propose_latency_s": 0.39,
+  "propose_usable": false,
+  "propose_reasons": [],
+  "verdict": "model produced no usable patch"
+}

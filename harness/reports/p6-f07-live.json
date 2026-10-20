@@ -1,0 +1,58 @@
+{
+  "at": "2026-10-17T16:54:28+00:00",
+  "results": {
+    "injected": true,
+    "config_hash_held": true,
+    "other_prompt_untouched_by_injector": true,
+    "injector_scope_respected": true,
+    "symptom_is_f07_shaped": true,
+    "diagnosed_f07": true,
+    "parked_at_awaiting": true,
+    "gate_wrote_nothing": true,
+    "executed_the_repair": true,
+    "resolved": true,
+    "wrote_only_the_drifted_prompt": true,
+    "audit_record_has_no_prompt_text": true,
+    "target_reports_known_good": true,
+    "other_prompt_untouched_by_repair": true,
+    "fast_set_passes_after_repair": true,
+    "prompts_identical_to_start": true,
+    "settings_identical": true,
+    "corpus_unchanged": true,
+    "audit_chain_intact": true
+  },
+  "proven": true,
+  "prompts_dir": "D:\\Vit\\Academics Sem-5\\EDI\\Target_RAG-App\\prompts",
+  "digests_before": {
+    "answer.txt": "d55c73a23f33",
+    "query_expansion.txt": "bbc6a7fee760"
+  },
+  "digests_after": {
+    "answer.txt": "d55c73a23f33",
+    "query_expansion.txt": "bbc6a7fee760"
+  },
+  "settings_before": {
+    "llm_base_url": "http://toxiproxy:21434",
+    "llm_model": "llama3.2",
+    "rerank_threshold": 0.35,
+    "max_tokens": 0,
+    "chaos_enabled": false,
+    "llm_timeout_s": 30.0
+  },
+  "settings_after": {
+    "llm_base_url": "http://toxiproxy:21434",
+    "llm_model": "llama3.2",
+    "rerank_threshold": 0.35,
+    "max_tokens": 0,
+    "chaos_enabled": false,
+    "llm_timeout_s": 30.0
+  },
+  "corpus_before": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "corpus_after": {
+    "chunks": 30.0,
+    "files": 2.0
+  }
+}

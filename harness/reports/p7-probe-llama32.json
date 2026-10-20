@@ -1,0 +1,13 @@
+{
+  "model": "llama3.2:latest",
+  "runs": 5,
+  "applies": 0,
+  "failures": [
+    "git apply failed (1): error: patch failed: answer.txt:1\nerror: answer.txt: patch does not apply",
+    "git apply failed (1): error: patch failed: answer.txt:1\nerror: answer.txt: patch does not apply",
+    "git apply failed (1): error: patch failed: answer.txt:1\nerror: answer.txt: patch does not apply",
+    "git apply failed (1): error: patch failed: answer.txt:1\nerror: answer.txt: patch does not apply",
+    "git apply failed (1): error: patch failed: answer.txt:1\nerror: answer.txt: patch does not apply"
+  ],
+  "measured": "2026-10-18T17:04:16+00:00"
+}

@@ -1,0 +1,10 @@
+{
+  "provider": "groq",
+  "model": "llama-3.3-70b-versatile",
+  "runs": 1,
+  "applies": 0,
+  "failures": [
+    "generation: no API key for groq: set KAVACH_GROQ_API_KEY in .env. Kavach runs on Ollama without any cloud key (PL-02); a cloud provider is opt-in"
+  ],
+  "measured": "2026-10-18T17:45:08+00:00"
+}

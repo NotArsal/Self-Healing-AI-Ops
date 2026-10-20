@@ -1,0 +1,12 @@
+{
+  "provider": "groq",
+  "model": "openai/gpt-oss-120b",
+  "requested": 10,
+  "answered": 10,
+  "applies": 10,
+  "unreached": 0,
+  "attempts": 14,
+  "apply_rate": 1.0,
+  "failures": [],
+  "measured": "2026-10-18T18:57:11+00:00"
+}

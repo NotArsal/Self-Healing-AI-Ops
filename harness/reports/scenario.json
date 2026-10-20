@@ -1,0 +1,30 @@
+{
+  "at": "2026-10-18T13:19:15+00:00",
+  "name": "demo-full",
+  "acts": [
+    {
+      "n": 2,
+      "title": "approval heal (F08, MEDIUM risk, human gates it)",
+      "passed": false,
+      "detail": "did not park: ESCALATED",
+      "seconds": 54.8
+    },
+    {
+      "n": 4,
+      "title": "unknown failure (database down - NOT in the catalogue)",
+      "passed": true,
+      "detail": "ESCALATED, no class claimed, nothing written. Reason: the fast set failed but only 0.0% of LLM calls errored, so the model is being reached and this is not an endpoint outage",
+      "seconds": 87.3
+    }
+  ],
+  "corpus_before": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "corpus_after": {
+    "chunks": 0.0,
+    "files": 2.0
+  },
+  "target_healthy_after": true,
+  "clean": false
+}

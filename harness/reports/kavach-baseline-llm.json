@@ -1,0 +1,79 @@
+{
+  "at": "2026-10-18T12:33:48+00:00",
+  "measurements": [
+    {
+      "fault_class": "F01",
+      "rca": true,
+      "drained": true,
+      "drain_s": 19.0,
+      "warmup_s": 48.5,
+      "detect_s": null,
+      "decide_s": 81.8,
+      "resolve_s": 127.2,
+      "diagnosed": "F01",
+      "correct": true,
+      "status": "RESOLVED",
+      "action": "switch_llm_endpoint",
+      "blocked_by_safety": "",
+      "state_clean": true,
+      "restored": {
+        "llm_base_url": "http://toxiproxy:21434"
+      },
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "rca": true,
+      "drained": true,
+      "drain_s": 20.3,
+      "warmup_s": 54.1,
+      "detect_s": null,
+      "decide_s": 93.5,
+      "resolve_s": 160.0,
+      "diagnosed": "F06",
+      "correct": true,
+      "status": "RESOLVED",
+      "action": "rollback_config",
+      "blocked_by_safety": "",
+      "state_clean": true,
+      "restored": {},
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "rca": true,
+      "drained": true,
+      "drain_s": 19.3,
+      "warmup_s": 0.0,
+      "detect_s": null,
+      "decide_s": 39.4,
+      "resolve_s": null,
+      "diagnosed": "F07",
+      "correct": true,
+      "status": "ESCALATED",
+      "action": "",
+      "blocked_by_safety": "",
+      "state_clean": true,
+      "restored": {},
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "rca": true,
+      "drained": true,
+      "drain_s": 23.9,
+      "warmup_s": 0.0,
+      "detect_s": null,
+      "decide_s": 39.3,
+      "resolve_s": 102.7,
+      "diagnosed": "F08",
+      "correct": true,
+      "status": "RESOLVED",
+      "action": "rollback_config",
+      "blocked_by_safety": "",
+      "state_clean": true,
+      "restored": {},
+      "error": ""
+    }
+  ]
+}

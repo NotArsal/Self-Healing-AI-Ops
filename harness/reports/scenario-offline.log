@@ -1,0 +1,100 @@
+
+shaik@Arsal MINGW64 ~
+$ cd "/d/Vit/Academics Sem-5/EDI/Self-Healing AI Ops"
+
+shaik@Arsal MINGW64 /d/Vit/Academics Sem-5/EDI/Self-Healing AI Ops (kavach/ops)
+$ make offline
+bash harness/offline_rehearsal.sh
+==============================================================================
+  OFFLINE REHEARSAL
+==============================================================================
+  provider table     7 keys, all covered
+
+
+
+
+  incidents this hour 0 of 5 (a run costs 4)
+
+--- recreating the API with every cloud key empty ---
+
+--- verifying, from inside the container ---
+    no cloud key present       7/7 empty
+
+
+
+    model                      qwen2.5:7b-instruct
+    model endpoint             http://host.docker.internal:11434
+
+  >>> DISCONNECT THE NETWORK NOW (wifi off / cable out), then press Enter.
+      Everything the demo needs is local: the target, Prometheus and
+      Ollama all run on this machine.
+
+
+==============================================================================
+  SCENARIO: offline-rehearsal
+==============================================================================
+  mode at start      APPROVAL (restored at the end)
+  corpus             {'chunks': 30.0, 'files': 2.0}
+  preflight          healthy, fast set passing
+  RCA model          qwen2.5:7b-instruct
+
+  NOTE: these four acts cost up to 7 incident starts, and permit()
+  allows 5 an hour. ONE full run fits. A second rehearsal inside the
+  same hour will hit the blast-radius limiter and park - which is
+  correct behaviour, not a bug. Space rehearsals an hour apart.
+
+==============================================================================
+  ACT 1: AUTONOMOUS HEAL
+  what to point at: no human touched it; verdict ALLOW_AUTO
+==============================================================================
+    F01 -> switch_llm_endpoint, verdict ALLOW_AUTO, status RESOLVED, no approval requested
+
+==============================================================================
+  ACT 2: APPROVAL HEAL
+  what to point at: it parked and wrote NOTHING until a human approved
+==============================================================================
+    parked: F08 -> rollback_config, tier MEDIUM, target untouched = True
+    <-- ON STAGE, PAUSE HERE. Show the plan and the inverse.
+    parked writing nothing, then approved -> RESOLVED
+
+==============================================================================
+  ACT 3: ROLLBACK
+  what to point at: the repair failed and the target went back exactly
+==============================================================================
+    repair applied and failed verification; unwound 1/1 clean=True; endpoint back at http://toxiproxy:21434
+
+==============================================================================
+  ACT 4: UNKNOWN FAILURE
+  what to point at: it refused to guess, and said why
+==============================================================================
+    <-- ON STAGE, READ THE REASON OUT. This is the system
+        declining to act on a fault it does not understand.
+    ESCALATED, no class claimed, nothing written. Reason: the fast set failed but only 29.1% of LLM calls errored, so the model is being reached and this is not an endpoint outag
+
+==============================================================================
+  SCENARIO RESULT
+==============================================================================
+  PASS  act 1 autonomous heal (F01, LOW risk, no human) (121.7s)
+  PASS  act 2 approval heal (F08, MEDIUM risk, human gates it) (160.9s)
+  PASS  act 3 rollback (both LLM paths down, so the right repair fails) (110.5s)
+  PASS  act 4 unknown failure (database down - NOT in the catalogue) (98.9s)
+  corpus {'chunks': 30.0, 'files': 2.0} -> {'chunks': 30.0, 'files': 2.0}   target healthy: True
+
+  offline-rehearsal: CLEAN
+  Acceptance asks for three consecutive clean runs. Leave an
+  hour between them, for the blast-radius reason above.
+  artifact ..\..\harness\reports\scenario-offline.json
+
+  >>> RECONNECT THE NETWORK, then press Enter.
+
+
+==============================================================================
+  OFFLINE REHEARSAL: PASS   (claim: network down + keys)
+  artifact harness/reports/scenario-offline.json
+==============================================================================
+
+--- restoring the normal configuration ---
+    API back up with its usual keys. .env was never modified.
+
+shaik@Arsal MINGW64 /d/Vit/Academics Sem-5/EDI/Self-Healing AI Ops (kavach/ops)
+$

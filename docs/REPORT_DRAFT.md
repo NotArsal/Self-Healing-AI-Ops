@@ -5,14 +5,22 @@ below is traceable to a file in `harness/reports/`, and the filename is given.
 Where a number is missing or provisional it says so rather than being filled
 in. Nothing here is estimated.
 
-`harness/reports/` is in `.gitignore`, so those files exist on the machine
-that produced them and not in a clone. For a report whose argument is
-traceability that is a gap; committing the artifacts is a one-line change to
-`.gitignore` and is left as a deliberate decision rather than made quietly.
-**The figures inherit it.** `make figures` draws them from those artifacts into
-`harness/reports/figures/` — nothing is typed into the plotting code, so a
-figure cannot drift from the file it describes, but it also does not survive a
-clone until that `.gitignore` decision is made.
+**`harness/reports/` is committed** as of 2026-10-20 — 70 files, 760K, every
+artifact named below plus the five run logs. It was ignored as "machine
+output", which was the wrong call for a document whose argument is that every
+figure is traceable to a named file: a reader could check nothing. The
+directory was scanned before its first commit — no key-shaped strings, no
+token/secret/password fields, no credentials in URLs, no settings or env
+snapshots — and anything written there later must stay that way.
+
+**The figures are drawn from those same files.** `make figures` reads the
+artifacts and nothing is typed into the plotting code, so a figure cannot
+drift from the file it describes.
+
+Still **not** committed: `harness/audit/`, the hash-chained log. It is
+append-only, so every run would carry a diff of a log, and its integrity is
+checkable where it lives (`make postmortem` verifies the chain while rendering
+an incident). That is a different kind of evidence from a measurement file.
 
 Written 2026-10-19. Updated 2026-10-20 after a **second** full `make bench`
 run (`bench-20261020-mttd.json`, finished 03:06 UTC) — the one that could
@@ -805,10 +813,9 @@ three weeks while answering 404 on its own `/metrics`.**
    incident in run B had the class right and the repair not permitted, and
    it is counted as correct. `report.py` would carry `llm_action` from
    `rca.diagnosis.candidate_repair`; it needs a bench run to populate.
-9. **`harness/reports/` is still gitignored**, so every artifact behind every
-   figure in this document — and the four PNGs themselves — exist on one
-   machine. For a report whose argument is traceability that is the largest
-   single gap, and it is one line in `.gitignore`.
+9. ~~`harness/reports/` is gitignored~~ — **closed 2026-10-20.** 70 files
+   committed, secret-scanned first. `harness/audit/` stays out, with the
+   reason stated at the top of this document.
 10. **`GET /v1/incidents` reads memory, not Postgres** (`RESEARCH_NOTES.md`
     §7.2). The console's AI-calls view empties on restart, and run B's 37
     diagnoses had to be frozen by hand (`make diagnoses`) to survive.

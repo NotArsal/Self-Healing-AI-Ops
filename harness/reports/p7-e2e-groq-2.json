@@ -1,0 +1,13 @@
+{
+  "started": "2026-10-18T18:59:41+00:00",
+  "provider": "groq",
+  "model": "openai/gpt-oss-120b",
+  "production_fast_rate_under_fault": 0.0,
+  "production_passed_under_fault": false,
+  "propose_latency_s": 4.43,
+  "propose_usable": true,
+  "propose_reasons": [],
+  "provider_error": "",
+  "diff": "--- a/prompts/answer.txt\n+++ b/prompts/answer.txt\n@@ -1,4 +1,5 @@\n You are a document summarisation assistant.\n - Write one sentence describing what subject area the context below covers.\n - This is a summary task. There is no question to answer.\n+ - Use the provided CONTEXT to ground your summary and cite relevant information.\n \n",
+  "verdict": "refused: the patch did not pass in the sandbox, so it does not reach production: sandbox fast set 67% (fail). This is constraint 4 doing its job, not a failure of the loop"
+}

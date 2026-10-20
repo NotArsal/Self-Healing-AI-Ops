@@ -1,0 +1,23 @@
+{
+  "provider": "ollama",
+  "model": "llama3.1:latest",
+  "requested": 10,
+  "answered": 10,
+  "applies": 0,
+  "unreached": 0,
+  "attempts": 10,
+  "apply_rate": 0.0,
+  "failures": [
+    "git apply failed (1): error: patch failed: answer.txt:2\nerror: answer.txt: patch does not apply",
+    "git apply failed (1): error: patch failed: answer.txt:2\nerror: answer.txt: patch does not apply",
+    "git apply failed (1): error: patch failed: answer.txt:2\nerror: answer.txt: patch does not apply",
+    "git apply failed (1): error: patch failed: answer.txt:2\nerror: answer.txt: patch does not apply",
+    "git apply failed (1): error: patch failed: answer.txt:2\nerror: answer.txt: patch does not apply",
+    "git apply failed (1): error: patch failed: answer.txt:2\nerror: answer.txt: patch does not apply",
+    "git apply failed (1): error: patch failed: answer.txt:2\nerror: answer.txt: patch does not apply",
+    "git apply failed (1): error: patch failed: answer.txt:2\nerror: answer.txt: patch does not apply",
+    "git apply failed (1): error: patch failed: answer.txt:2\nerror: answer.txt: patch does not apply",
+    "git apply failed (1): error: patch failed: answer.txt:2\nerror: answer.txt: patch does not apply"
+  ],
+  "measured": "2026-10-18T18:57:59+00:00"
+}

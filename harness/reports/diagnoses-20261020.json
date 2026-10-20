@@ -1,0 +1,960 @@
+{
+ "source": "GET /v1/incidents (in-process ring, see RESEARCH_NOTES 7.2)",
+ "api": "http://localhost:8080",
+ "since": "2026-10-19T18:54",
+ "incidents": 37,
+ "diagnoses": 37,
+ "rows": [
+  {
+   "incident_id": "INC-185551",
+   "detected_at": "2026-10-19T18:55:51+00:00",
+   "status": "AWAITING_APPROVAL",
+   "escalation_reason": "",
+   "detection_class": "F01",
+   "detection_concluded_at": "2026-10-19T18:56:03.508+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "switch_llm_endpoint",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F01",
+    "fault_name": "Primary LLM endpoint outage",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "switch_llm_endpoint",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-L02"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-185621",
+   "detected_at": "2026-10-19T18:56:21+00:00",
+   "status": "RESOLVED",
+   "escalation_reason": "",
+   "detection_class": "F01",
+   "detection_concluded_at": "2026-10-19T18:56:33.785+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "switch_llm_endpoint",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F01",
+    "fault_name": "Primary LLM endpoint outage",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "switch_llm_endpoint",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-L02"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-185843",
+   "detected_at": "2026-10-19T18:58:43+00:00",
+   "status": "AWAITING_APPROVAL",
+   "escalation_reason": "",
+   "detection_class": "F06",
+   "detection_concluded_at": "2026-10-19T18:59:02.203+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_config",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F06",
+    "fault_name": "Prompt version regression",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M02",
+     "EV-M03",
+     "EV-C07",
+     "EV-L02",
+     "EV-L04",
+     "EV-L06",
+     "EV-L08",
+     "EV-L10"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-185922",
+   "detected_at": "2026-10-19T18:59:22+00:00",
+   "status": "RESOLVED",
+   "escalation_reason": "",
+   "detection_class": "F06",
+   "detection_concluded_at": "2026-10-19T18:59:43.753+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_config",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F06",
+    "fault_name": "Prompt version regression",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M02",
+     "EV-M03",
+     "EV-C07",
+     "EV-L02",
+     "EV-L04",
+     "EV-L06",
+     "EV-L08"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-195616",
+   "detected_at": "2026-10-19T19:56:16+00:00",
+   "status": "AWAITING_APPROVAL",
+   "escalation_reason": "",
+   "detection_class": "F07",
+   "detection_concluded_at": "2026-10-19T19:56:36.533+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_prompt",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F07",
+    "fault_name": "Prompt version regression",
+    "service": "backend",
+    "confidence": 0.9,
+    "candidate_repair": "rollback_prompt",
+    "evidence_ids": [
+     "EV-C08",
+     "EV-M06",
+     "EV-M07"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-195655",
+   "detected_at": "2026-10-19T19:56:55+00:00",
+   "status": "RESOLVED",
+   "escalation_reason": "",
+   "detection_class": "F07",
+   "detection_concluded_at": "2026-10-19T19:57:19.392+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_prompt",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F07",
+    "fault_name": "Prompt version regression",
+    "service": "backend",
+    "confidence": 0.9,
+    "candidate_repair": "rollback_prompt",
+    "evidence_ids": [
+     "EV-C08",
+     "EV-M06",
+     "EV-M02"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-195904",
+   "detected_at": "2026-10-19T19:59:04+00:00",
+   "status": "AWAITING_APPROVAL",
+   "escalation_reason": "",
+   "detection_class": "F08",
+   "detection_concluded_at": "2026-10-19T19:59:22.761+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_config",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F08",
+    "fault_name": "Configuration or environment regression",
+    "service": "backend",
+    "confidence": 0.9,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-C04",
+     "EV-C07",
+     "EV-V01",
+     "EV-V02",
+     "EV-V03"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-195940",
+   "detected_at": "2026-10-19T19:59:41+00:00",
+   "status": "RESOLVED",
+   "escalation_reason": "",
+   "detection_class": "F08",
+   "detection_concluded_at": "2026-10-19T20:00:04.333+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_config",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F08",
+    "fault_name": "Configuration or environment regression",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-M07",
+     "EV-C04",
+     "EV-C07",
+     "EV-V01",
+     "EV-V02",
+     "EV-V03"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-205705",
+   "detected_at": "2026-10-19T20:57:05+00:00",
+   "status": "AWAITING_APPROVAL",
+   "escalation_reason": "",
+   "detection_class": "F01",
+   "detection_concluded_at": "2026-10-19T20:57:17.454+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "switch_llm_endpoint",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F01",
+    "fault_name": "Primary LLM endpoint outage",
+    "service": "backend",
+    "confidence": 0.9,
+    "candidate_repair": "switch_llm_endpoint",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-L02",
+     "EV-H01"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-205735",
+   "detected_at": "2026-10-19T20:57:35+00:00",
+   "status": "RESOLVED",
+   "escalation_reason": "",
+   "detection_class": "F01",
+   "detection_concluded_at": "2026-10-19T20:57:47.808+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "switch_llm_endpoint",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F01",
+    "fault_name": "Primary LLM endpoint outage",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "switch_llm_endpoint",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-L02"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-210001",
+   "detected_at": "2026-10-19T21:00:01+00:00",
+   "status": "AWAITING_APPROVAL",
+   "escalation_reason": "",
+   "detection_class": "F06",
+   "detection_concluded_at": "2026-10-19T21:00:19.549+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_config",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F06",
+    "fault_name": "Prompt version regression",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M02",
+     "EV-M03",
+     "EV-C08"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-210032",
+   "detected_at": "2026-10-19T21:00:32+00:00",
+   "status": "ESCALATED",
+   "escalation_reason": "LLM diagnosis rejected by deterministic validation: repair_permitted: proposed 'rollback_prompt', but F06 may only use 'rollback_config'",
+   "detection_class": "F06",
+   "detection_concluded_at": "2026-10-19T21:00:52.791+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": false,
+   "approved_action": null,
+   "rejection_reasons": [
+    "repair_permitted: proposed 'rollback_prompt', but F06 may only use 'rollback_config'"
+   ],
+   "diagnosis": {
+    "fault_class": "F06",
+    "fault_name": "Prompt version regression",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "rollback_prompt",
+    "evidence_ids": [
+     "EV-M02",
+     "EV-M03",
+     "EV-C08"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-215748",
+   "detected_at": "2026-10-19T21:57:48+00:00",
+   "status": "ESCALATED",
+   "escalation_reason": "LLM diagnosis rejected by deterministic validation: deterministic_agreement: LLM says F06, deterministic detection says F07",
+   "detection_class": "F07",
+   "detection_concluded_at": "2026-10-19T21:58:08.731+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": false,
+   "approved_action": null,
+   "rejection_reasons": [
+    "deterministic_agreement: LLM says F06, deterministic detection says F07"
+   ],
+   "diagnosis": {
+    "fault_class": "F06",
+    "fault_name": "Prompt version regression",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M02",
+     "EV-M06",
+     "EV-C08"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-215856",
+   "detected_at": "2026-10-19T21:58:57+00:00",
+   "status": "AWAITING_APPROVAL",
+   "escalation_reason": "",
+   "detection_class": "F08",
+   "detection_concluded_at": "2026-10-19T21:59:15.487+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_config",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F08",
+    "fault_name": "Configuration or environment regression",
+    "service": "backend",
+    "confidence": 0.85,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-C04",
+     "EV-C07"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-215933",
+   "detected_at": "2026-10-19T21:59:33+00:00",
+   "status": "RESOLVED",
+   "escalation_reason": "",
+   "detection_class": "F08",
+   "detection_concluded_at": "2026-10-19T21:59:55.205+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_config",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F08",
+    "fault_name": "Configuration or environment regression",
+    "service": "backend",
+    "confidence": 0.85,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-M07",
+     "EV-C04",
+     "EV-C07",
+     "EV-V01",
+     "EV-V02",
+     "EV-V03"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-220215",
+   "detected_at": "2026-10-19T22:02:15+00:00",
+   "status": "AWAITING_APPROVAL",
+   "escalation_reason": "",
+   "detection_class": "F01",
+   "detection_concluded_at": "2026-10-19T22:02:27.823+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "switch_llm_endpoint",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F01",
+    "fault_name": "Primary LLM endpoint outage",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "switch_llm_endpoint",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-L02",
+     "EV-H01"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-220248",
+   "detected_at": "2026-10-19T22:02:49+00:00",
+   "status": "RESOLVED",
+   "escalation_reason": "",
+   "detection_class": "F01",
+   "detection_concluded_at": "2026-10-19T22:03:01.143+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "switch_llm_endpoint",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F01",
+    "fault_name": "Primary LLM endpoint outage",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "switch_llm_endpoint",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-L02"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-230014",
+   "detected_at": "2026-10-19T23:00:14+00:00",
+   "status": "AWAITING_APPROVAL",
+   "escalation_reason": "",
+   "detection_class": "F06",
+   "detection_concluded_at": "2026-10-19T23:00:32.059+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_config",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F06",
+    "fault_name": "Prompt version regression",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M02",
+     "EV-M03",
+     "EV-C07",
+     "EV-L02",
+     "EV-L04",
+     "EV-L06",
+     "EV-L08",
+     "EV-L10"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-230050",
+   "detected_at": "2026-10-19T23:00:50+00:00",
+   "status": "ESCALATED",
+   "escalation_reason": "LLM diagnosis rejected by deterministic validation: deterministic_agreement: LLM says F07, deterministic detection says F06",
+   "detection_class": "F06",
+   "detection_concluded_at": "2026-10-19T23:01:12.270+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": false,
+   "approved_action": null,
+   "rejection_reasons": [
+    "deterministic_agreement: LLM says F07, deterministic detection says F06"
+   ],
+   "diagnosis": {
+    "fault_class": "F07",
+    "fault_name": "Prompt version regression",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "rollback_prompt",
+    "evidence_ids": [
+     "EV-C07",
+     "EV-M02",
+     "EV-M03"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-230239",
+   "detected_at": "2026-10-19T23:02:40+00:00",
+   "status": "ESCALATED",
+   "escalation_reason": "LLM diagnosis rejected by deterministic validation: repair_permitted: proposed 'rollback_prompt', but F06 may only use 'rollback_config'; deterministic_agreement: LLM says F06, deterministic detection says F07",
+   "detection_class": "F07",
+   "detection_concluded_at": "2026-10-19T23:02:59.916+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": false,
+   "approved_action": null,
+   "rejection_reasons": [
+    "repair_permitted: proposed 'rollback_prompt', but F06 may only use 'rollback_config'",
+    "deterministic_agreement: LLM says F06, deterministic detection says F07"
+   ],
+   "diagnosis": {
+    "fault_class": "F06",
+    "fault_name": "Prompt version regression",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "rollback_prompt",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-C08",
+     "EV-V00",
+     "EV-V01",
+     "EV-V02",
+     "EV-V03"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-230342",
+   "detected_at": "2026-10-19T23:03:42+00:00",
+   "status": "AWAITING_APPROVAL",
+   "escalation_reason": "",
+   "detection_class": "F08",
+   "detection_concluded_at": "2026-10-19T23:04:01.464+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_config",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F08",
+    "fault_name": "Configuration or environment regression",
+    "service": "backend",
+    "confidence": 0.9,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-C04",
+     "EV-C07",
+     "EV-V01",
+     "EV-V02",
+     "EV-V03"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-230421",
+   "detected_at": "2026-10-19T23:04:21+00:00",
+   "status": "RESOLVED",
+   "escalation_reason": "",
+   "detection_class": "F08",
+   "detection_concluded_at": "2026-10-19T23:04:45.465+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_config",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F08",
+    "fault_name": "Configuration or environment regression",
+    "service": "backend",
+    "confidence": 0.85,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-M07",
+     "EV-C04",
+     "EV-C07",
+     "EV-V01",
+     "EV-V02",
+     "EV-V03"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-000223",
+   "detected_at": "2026-10-20T00:02:23+00:00",
+   "status": "AWAITING_APPROVAL",
+   "escalation_reason": "",
+   "detection_class": "F01",
+   "detection_concluded_at": "2026-10-20T00:02:36.015+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "switch_llm_endpoint",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F01",
+    "fault_name": "Primary LLM endpoint outage",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "switch_llm_endpoint",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-L02",
+     "EV-H01"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-000257",
+   "detected_at": "2026-10-20T00:02:57+00:00",
+   "status": "RESOLVED",
+   "escalation_reason": "",
+   "detection_class": "F01",
+   "detection_concluded_at": "2026-10-20T00:03:09.290+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "switch_llm_endpoint",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F01",
+    "fault_name": "Primary LLM endpoint outage",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "switch_llm_endpoint",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-L02",
+     "EV-H01"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-000515",
+   "detected_at": "2026-10-20T00:05:15+00:00",
+   "status": "AWAITING_APPROVAL",
+   "escalation_reason": "",
+   "detection_class": "F06",
+   "detection_concluded_at": "2026-10-20T00:05:33.351+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_config",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F06",
+    "fault_name": "Prompt version regression",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M02",
+     "EV-M03",
+     "EV-C08"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-000552",
+   "detected_at": "2026-10-20T00:05:52+00:00",
+   "status": "RESOLVED",
+   "escalation_reason": "",
+   "detection_class": "F06",
+   "detection_concluded_at": "2026-10-20T00:06:28.931+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_config",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F06",
+    "fault_name": "Prompt version regression",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M02",
+     "EV-M03",
+     "EV-C07",
+     "EV-L02",
+     "EV-L06",
+     "EV-L10"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-010248",
+   "detected_at": "2026-10-20T01:02:48+00:00",
+   "status": "ESCALATED",
+   "escalation_reason": "LLM diagnosis rejected by deterministic validation: repair_permitted: proposed 'rollback_prompt', but F06 may only use 'rollback_config'; deterministic_agreement: LLM says F06, deterministic detection says F07",
+   "detection_class": "F07",
+   "detection_concluded_at": "2026-10-20T01:03:08.288+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": false,
+   "approved_action": null,
+   "rejection_reasons": [
+    "repair_permitted: proposed 'rollback_prompt', but F06 may only use 'rollback_config'",
+    "deterministic_agreement: LLM says F06, deterministic detection says F07"
+   ],
+   "diagnosis": {
+    "fault_class": "F06",
+    "fault_name": "Prompt version regression",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "rollback_prompt",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-M02",
+     "EV-C08"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-010352",
+   "detected_at": "2026-10-20T01:03:52+00:00",
+   "status": "AWAITING_APPROVAL",
+   "escalation_reason": "",
+   "detection_class": "F08",
+   "detection_concluded_at": "2026-10-20T01:04:10.888+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_config",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F08",
+    "fault_name": "Configuration or environment regression",
+    "service": "backend",
+    "confidence": 0.8,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-M07",
+     "EV-C04",
+     "EV-C07",
+     "EV-V01",
+     "EV-V02",
+     "EV-V03"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-010434",
+   "detected_at": "2026-10-20T01:04:34+00:00",
+   "status": "RESOLVED",
+   "escalation_reason": "",
+   "detection_class": "F08",
+   "detection_concluded_at": "2026-10-20T01:04:57.322+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_config",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F08",
+    "fault_name": "Configuration or environment regression",
+    "service": "backend",
+    "confidence": 0.9,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-M07",
+     "EV-C04",
+     "EV-C07"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-010702",
+   "detected_at": "2026-10-20T01:07:03+00:00",
+   "status": "AWAITING_APPROVAL",
+   "escalation_reason": "",
+   "detection_class": "F01",
+   "detection_concluded_at": "2026-10-20T01:07:15.214+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "switch_llm_endpoint",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F01",
+    "fault_name": "Primary LLM endpoint outage",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "switch_llm_endpoint",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-L02",
+     "EV-H01"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-010733",
+   "detected_at": "2026-10-20T01:07:33+00:00",
+   "status": "RESOLVED",
+   "escalation_reason": "",
+   "detection_class": "F01",
+   "detection_concluded_at": "2026-10-20T01:07:45.533+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "switch_llm_endpoint",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F01",
+    "fault_name": "Primary LLM endpoint outage",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "switch_llm_endpoint",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-L02",
+     "EV-H01"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-020508",
+   "detected_at": "2026-10-20T02:05:08+00:00",
+   "status": "AWAITING_APPROVAL",
+   "escalation_reason": "",
+   "detection_class": "F06",
+   "detection_concluded_at": "2026-10-20T02:05:27.090+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_config",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F06",
+    "fault_name": "Prompt version regression",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M02",
+     "EV-M03",
+     "EV-C07",
+     "EV-V01",
+     "EV-V02",
+     "EV-V03"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-020548",
+   "detected_at": "2026-10-20T02:05:48+00:00",
+   "status": "RESOLVED",
+   "escalation_reason": "",
+   "detection_class": "F06",
+   "detection_concluded_at": "2026-10-20T02:06:09.352+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_config",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F06",
+    "fault_name": "Prompt version regression",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M02",
+     "EV-M03",
+     "EV-C08"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-020731",
+   "detected_at": "2026-10-20T02:07:31+00:00",
+   "status": "AWAITING_APPROVAL",
+   "escalation_reason": "",
+   "detection_class": "F07",
+   "detection_concluded_at": "2026-10-20T02:07:51.908+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_prompt",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F07",
+    "fault_name": "Prompt version regression",
+    "service": "backend",
+    "confidence": 0.9,
+    "candidate_repair": "rollback_prompt",
+    "evidence_ids": [
+     "EV-C08",
+     "EV-M06",
+     "EV-M02"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-020810",
+   "detected_at": "2026-10-20T02:08:10+00:00",
+   "status": "ESCALATED",
+   "escalation_reason": "LLM diagnosis rejected by deterministic validation: deterministic_agreement: LLM says F06, deterministic detection says F07",
+   "detection_class": "F07",
+   "detection_concluded_at": "2026-10-20T02:08:33.309+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": false,
+   "approved_action": null,
+   "rejection_reasons": [
+    "deterministic_agreement: LLM says F06, deterministic detection says F07"
+   ],
+   "diagnosis": {
+    "fault_class": "F06",
+    "fault_name": "Prompt version regression",
+    "service": "backend",
+    "confidence": 0.95,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-M02",
+     "EV-C08"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-030533",
+   "detected_at": "2026-10-20T03:05:33+00:00",
+   "status": "AWAITING_APPROVAL",
+   "escalation_reason": "",
+   "detection_class": "F08",
+   "detection_concluded_at": "2026-10-20T03:05:51.249+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_config",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F08",
+    "fault_name": "Configuration or environment regression",
+    "service": "backend",
+    "confidence": 0.85,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-M07",
+     "EV-C04",
+     "EV-C07",
+     "EV-V01",
+     "EV-V02",
+     "EV-V03"
+    ]
+   }
+  },
+  {
+   "incident_id": "INC-030615",
+   "detected_at": "2026-10-20T03:06:15+00:00",
+   "status": "RESOLVED",
+   "escalation_reason": "",
+   "detection_class": "F08",
+   "detection_concluded_at": "2026-10-20T03:06:38.312+00:00",
+   "model": "qwen2.5:7b-instruct",
+   "approved": true,
+   "approved_action": "rollback_config",
+   "rejection_reasons": [],
+   "diagnosis": {
+    "fault_class": "F08",
+    "fault_name": "Configuration or environment regression",
+    "service": "backend",
+    "confidence": 0.9,
+    "candidate_repair": "rollback_config",
+    "evidence_ids": [
+     "EV-M06",
+     "EV-M07",
+     "EV-C04",
+     "EV-C07",
+     "EV-V01",
+     "EV-V02",
+     "EV-V03"
+    ]
+   }
+  }
+ ]
+}

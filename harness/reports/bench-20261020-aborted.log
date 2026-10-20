@@ -1,0 +1,14 @@
+uv --directory apps/control-plane run python -I ../../harness/report.py --json-out 'D:/Vit/Academics Sem-5/EDI/Self-Healing AI Ops/harness/reports/bench-20261020-mttd.json'
+==============================================================================
+make bench - live metrics over repeated injections
+==============================================================================
+  mode               APPROVAL
+  corpus             {'chunks': 30.0, 'files': 2.0}
+  plan               4 classes x 5 reps = 20 injections
+  estimated runtime  ~8.0h, paced under permit()'s blast radius. Unattended by design.
+
+  RCA model          qwen2.5:7b-instruct
+
+  rep 1 F01  detect=Nones llm=F01(0.9) resolved=True mttr=124.2 false_heal=False clean=True
+  rep 1 F06  detect=Nones llm=F06(0.95) resolved=True mttr=157.8 false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 55.1 min for the window to slide. Nothing is being reset.

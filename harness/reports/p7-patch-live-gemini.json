@@ -1,0 +1,23 @@
+{
+  "started": "2026-10-18T18:44:08+00:00",
+  "provider": "gemini",
+  "model": "",
+  "production_fast_rate_under_fault": 0.0,
+  "production_passed_under_fault": false,
+  "propose_latency_s": 48.93,
+  "propose_usable": true,
+  "propose_reasons": [],
+  "diff": "--- a/prompts/answer.txt\n+++ b/prompts/answer.txt\n@@ -1,6 +1,6 @@\n-You are a document summarisation assistant.\n-- Write one sentence describing what subject area the context below covers.\n-- This is a summary task. There is no question to answer.\n+Answer the question based on the context below.\n+- Ground your answer in the context.\n+- Cite the context in your answer.\n \n CONTEXT:\n {context}\n",
+  "sandbox_trial": {
+    "ran": true,
+    "applied": true,
+    "pass_rate": 1.0,
+    "passed": true,
+    "detail": "sandbox fast set 100% (pass)"
+  },
+  "risk_tier": "HIGH",
+  "idempotency_key": "1968ae580f4a41c7fcd5",
+  "production_untouched": true,
+  "executed": false,
+  "verdict": "PASS"
+}

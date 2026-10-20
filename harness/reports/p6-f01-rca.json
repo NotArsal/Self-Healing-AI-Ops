@@ -1,0 +1,216 @@
+{
+  "at": "2026-10-16T13:11:02+00:00",
+  "model": "llama3.2",
+  "reps": 10,
+  "correct_f01": 10,
+  "classes": {
+    "F01": 10
+  },
+  "validator_approved": 10,
+  "latency_s": [
+    8.6,
+    8.3,
+    8.5,
+    8.5,
+    8.4,
+    8.5,
+    8.5,
+    8.4,
+    8.4,
+    8.4
+  ],
+  "old_strings_copied_in": [],
+  "skeleton_defaults_in": [],
+  "named_expected_repair": 10,
+  "corpus_before": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "corpus_after": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "passed": true,
+  "runs": [
+    {
+      "rep": 1,
+      "fault_class": "F01",
+      "service": "backend",
+      "confidence": 1.0,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.6,
+      "cited": [
+        "EV-M01",
+        "EV-L01",
+        "EV-L02",
+        "EV-L03",
+        "EV-L04",
+        "EV-L05"
+      ],
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 is MISSING, which rules out F06. EV-L01 shows backend_log = raise ConnectionError(e, request=request), which rules out"
+    },
+    {
+      "rep": 2,
+      "fault_class": "F01",
+      "service": "backend",
+      "confidence": 1.0,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.3,
+      "cited": [
+        "EV-M01",
+        "EV-L01",
+        "EV-L02",
+        "EV-L03",
+        "EV-L04",
+        "EV-L05"
+      ],
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 is MISSING, which rules out F06. EV-L01 shows backend_log = raise ConnectionError(e, request=request), which rules out"
+    },
+    {
+      "rep": 3,
+      "fault_class": "F01",
+      "service": "backend",
+      "confidence": 1.0,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.5,
+      "cited": [
+        "EV-M01",
+        "EV-L01",
+        "EV-L02",
+        "EV-L03",
+        "EV-L04",
+        "EV-L05"
+      ],
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 is MISSING, which rules out F06. EV-L01 shows backend_log = raise ConnectionError(e, request=request), which rules out"
+    },
+    {
+      "rep": 4,
+      "fault_class": "F01",
+      "service": "backend",
+      "confidence": 1.0,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.5,
+      "cited": [
+        "EV-M01",
+        "EV-L01",
+        "EV-L02",
+        "EV-L03",
+        "EV-L04",
+        "EV-L05"
+      ],
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 is MISSING, which rules out F06. EV-L01 shows backend_log = raise ConnectionError(e, request=request), which rules out"
+    },
+    {
+      "rep": 5,
+      "fault_class": "F01",
+      "service": "backend",
+      "confidence": 1.0,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.4,
+      "cited": [
+        "EV-M01",
+        "EV-L01",
+        "EV-L02",
+        "EV-L03",
+        "EV-L04",
+        "EV-L05"
+      ],
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 is MISSING, which rules out F06. EV-L01 shows backend_log = raise ConnectionError(e, request=request), which rules out"
+    },
+    {
+      "rep": 6,
+      "fault_class": "F01",
+      "service": "backend",
+      "confidence": 1.0,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.5,
+      "cited": [
+        "EV-M01",
+        "EV-L01",
+        "EV-L02",
+        "EV-L03",
+        "EV-L04",
+        "EV-L05"
+      ],
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 is MISSING, which rules out F06. EV-L01 shows backend_log = raise ConnectionError(e, request=request), which rules out"
+    },
+    {
+      "rep": 7,
+      "fault_class": "F01",
+      "service": "backend",
+      "confidence": 1.0,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.5,
+      "cited": [
+        "EV-M01",
+        "EV-L01",
+        "EV-L02",
+        "EV-L03",
+        "EV-L04",
+        "EV-L05"
+      ],
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 is MISSING, which rules out F06. EV-L01 shows backend_log = raise ConnectionError(e, request=request), which rules out"
+    },
+    {
+      "rep": 8,
+      "fault_class": "F01",
+      "service": "backend",
+      "confidence": 1.0,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.4,
+      "cited": [
+        "EV-M01",
+        "EV-L01",
+        "EV-L02",
+        "EV-L03",
+        "EV-L04",
+        "EV-L05"
+      ],
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 is MISSING, which rules out F06. EV-L01 shows backend_log = raise ConnectionError(e, request=request), which rules out"
+    },
+    {
+      "rep": 9,
+      "fault_class": "F01",
+      "service": "backend",
+      "confidence": 1.0,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.4,
+      "cited": [
+        "EV-M01",
+        "EV-L01",
+        "EV-L02",
+        "EV-L03",
+        "EV-L04",
+        "EV-L05"
+      ],
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 is MISSING, which rules out F06. EV-L01 shows backend_log = raise ConnectionError(e, request=request), which rules out"
+    },
+    {
+      "rep": 10,
+      "fault_class": "F01",
+      "service": "backend",
+      "confidence": 1.0,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.4,
+      "cited": [
+        "EV-M01",
+        "EV-L01",
+        "EV-L02",
+        "EV-L03",
+        "EV-L04",
+        "EV-L05"
+      ],
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 is MISSING, which rules out F06. EV-L01 shows backend_log = raise ConnectionError(e, request=request), which rules out"
+    }
+  ]
+}

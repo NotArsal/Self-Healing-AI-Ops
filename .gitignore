@@ -25,6 +25,12 @@ next-env.d.ts
 
 # Local state
 *.log
+# ...except the harness's own run logs, which are evidence, not local state.
+# scenario-offline.log is the only record that all seven cloud keys were
+# proven empty inside the container, and the bench logs carry the per-rep
+# lines and the pacing waits that no JSON field holds. Scanned: they report
+# counts ("7/7 empty"), never values.
+!harness/reports/*.log
 .DS_Store
 Thumbs.db
 Desktop.ini
@@ -32,11 +38,24 @@ Desktop.ini
 # Generated API client (produced by `make gen-client`)
 apps/console/lib/api/generated/
 
-# Benchmark and report output
-harness/reports/
-# Runtime evidence, same class as reports: the hash-chained audit log the
-# API appends to. Bind-mounted so a container rebuild cannot destroy it
-# (infra/docker-compose.yml), not committed because it is machine output.
+# BENCHMARK AND REPORT OUTPUT IS COMMITTED, DELIBERATELY (2026-10-20).
+#
+# It was ignored as "machine output". That was the wrong call for this
+# repository: REPORT_DRAFT.md's whole argument is that every figure is
+# traceable to a named file, and a clone contained none of those files. A
+# reviewer could read the claim and not check it, which is the opposite of
+# what the document is for.
+#
+# Scanned before the first commit of it: no key-shaped strings, no
+# token/secret/password fields, no credentials in URLs, no settings or env
+# snapshots. 772K across 69 files. Anything written here later must stay
+# that way - AGENTS.md forbids committing secrets, and an artifact is not
+# an exception because a harness produced it.
+#
+# harness/audit/ stays ignored for now: it is append-only, so every run
+# rewrites the tail and every commit carries a diff of a log. Its integrity
+# is checkable on the machine that holds it (`make postmortem` verifies the
+# chain), which is a different kind of evidence from a measurement file.
 harness/audit/
 
 # The sandbox's working copy of the target's prompts. Regenerated from

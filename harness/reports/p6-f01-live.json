@@ -1,0 +1,29 @@
+{
+  "at": "2026-10-16T09:29:58+00:00",
+  "results": {
+    "injected": true,
+    "backup_untouched": true,
+    "fault_is_detectable": true,
+    "diagnosed_f01": true,
+    "parked_at_awaiting": true,
+    "gate_wrote_nothing": true,
+    "approved_run_executed": true,
+    "approved_run_resolved": true,
+    "allow_auto": true,
+    "autonomous_executed": true,
+    "autonomous_resolved": true,
+    "no_human_involved": true,
+    "audit_chain_intact": true,
+    "corpus_unchanged": true
+  },
+  "proven": true,
+  "pre_endpoint": "http://toxiproxy:21434",
+  "corpus_before": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "corpus_after": {
+    "chunks": 30.0,
+    "files": 2.0
+  }
+}

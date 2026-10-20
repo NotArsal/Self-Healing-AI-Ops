@@ -1,0 +1,15 @@
+{
+  "started": "2026-10-18T18:49:48+00:00",
+  "provider": "groq",
+  "model": "openai/gpt-oss-120b",
+  "production_fast_rate_under_fault": 0.0,
+  "production_passed_under_fault": false,
+  "propose_latency_s": 4.25,
+  "propose_usable": false,
+  "propose_reasons": [
+    "the patch does not apply to the file as it stands now: git apply failed (128): error: corrupt patch at C:/Users/shaik/AppData/Local/Temp/tmpurlohlhe/incident.diff:8. If the file moved since the witness was taken, the right answer is to escalate rather than overwrite it"
+  ],
+  "provider_error": "",
+  "diff": "--- a/prompts/answer.txt\n+++ b/prompts/answer.txt\n@@ -2,5 +2,6 @@\n - Write one sentence describing what subject area the context below covers.\n - This is a summary task. There is no question to answer.\n+ - Ground your summary in the CONTEXT and cite relevant information.\n \n CONTEXT:",
+  "verdict": "model produced no usable patch"
+}

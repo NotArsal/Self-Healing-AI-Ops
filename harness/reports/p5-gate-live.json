@@ -1,0 +1,48 @@
+{
+  "at": "2026-10-18T10:20:08+00:00",
+  "mode": {
+    "mode": "APPROVAL",
+    "enforced": true,
+    "manifest_mode": "APPROVAL",
+    "overridden": false,
+    "allowed_actions": [
+      "rollback_config",
+      "rollback_prompt",
+      "switch_llm_endpoint"
+    ],
+    "denied_mutations": [
+      "data_delete",
+      "database_drop",
+      "embed_model_change",
+      "migration",
+      "scale_to_zero"
+    ],
+    "confidence_threshold": 0.75
+  },
+  "results": {
+    "injected": true,
+    "fault_is_detectable": true,
+    "run_reports_approval_mode": true,
+    "parked_at_awaiting": true,
+    "gate_wrote_nothing": true,
+    "approve_accepted": true,
+    "approve_cites_source": true,
+    "executed_the_repair": true,
+    "resolved": true,
+    "unwound_cleanly_when_verification_failed": true,
+    "approval_is_single_use": true,
+    "audit_chain_intact": true,
+    "audit_records_the_execution": true
+  },
+  "gate_proven": true,
+  "corpus_before": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "corpus_after": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "pre_threshold": 0.35,
+  "pre_config_hash": "de4cfaed14a8bb98"
+}

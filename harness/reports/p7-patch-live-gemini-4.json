@@ -1,0 +1,12 @@
+{
+  "started": "2026-10-18T18:48:05+00:00",
+  "provider": "gemini",
+  "model": "",
+  "production_fast_rate_under_fault": 0.0,
+  "production_passed_under_fault": false,
+  "propose_latency_s": 0.45,
+  "propose_usable": false,
+  "propose_reasons": [],
+  "provider_error": "LlmError: gemini returned HTTP 429: [{\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \\n* Quota e",
+  "verdict": "model produced no usable patch"
+}

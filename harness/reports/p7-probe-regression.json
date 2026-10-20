@@ -1,0 +1,11 @@
+{
+  "provider": "ollama",
+  "model": "llama3.2:latest",
+  "runs": 2,
+  "applies": 0,
+  "failures": [
+    "git apply failed (1): error: patch failed: answer.txt:1\nerror: answer.txt: patch does not apply",
+    "git apply failed (1): error: patch failed: answer.txt:1\nerror: answer.txt: patch does not apply"
+  ],
+  "measured": "2026-10-18T17:45:00+00:00"
+}

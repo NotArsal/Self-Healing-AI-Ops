@@ -1,0 +1,1326 @@
+{
+  "at": "2026-10-03T18:32:07+00:00",
+  "model": "llama3.2",
+  "healthy_clean": true,
+  "rca_approved": 3,
+  "rca_reps": 3,
+  "classes": [
+    "F06"
+  ],
+  "services": [
+    "backend"
+  ],
+  "latency_s": [
+    2.2281038999990415,
+    1.7432978999986517,
+    1.7131058000013581
+  ],
+  "corpus_start": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "corpus_end": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "final_fast_set_passed": true,
+  "comparison": [
+    {
+      "mode": "deterministic",
+      "status": "RESOLVED",
+      "fault_class": "F06",
+      "service": "backend",
+      "confidence": null,
+      "cited": [],
+      "rca_latency_s": 0.0,
+      "total_s": 55.29225240000051,
+      "resolved": true,
+      "diagnosis_correct": true,
+      "corpus_unchanged": true,
+      "detail": "resolved: rerank_threshold 0.999 -> 0.35 (restored from baseline)"
+    },
+    {
+      "mode": "llm_rca",
+      "status": "RESOLVED",
+      "fault_class": "F06",
+      "service": "backend",
+      "confidence": 0.9,
+      "cited": [
+        "EV-M02",
+        "EV-M06",
+        "EV-C01"
+      ],
+      "rca_latency_s": 2.47,
+      "total_s": 56.80654549999963,
+      "resolved": true,
+      "diagnosis_correct": true,
+      "corpus_unchanged": true,
+      "detail": "resolved: rerank_threshold 0.999 -> 0.35 (restored from baseline)"
+    }
+  ],
+  "diagnoses": [
+    {
+      "at": "2026-10-03T18:29:51+00:00",
+      "model": "llama3.2",
+      "latency_s": 2.23,
+      "prompt_tokens": 2394,
+      "completion_tokens": 157,
+      "approved": true,
+      "approved_action": "rollback_config",
+      "error": "",
+      "diagnosis": {
+        "fault_class": "F06",
+        "fault_name": "retrieval_collapse",
+        "service": "backend",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "EV-M02",
+          "EV-L06"
+        ],
+        "reasoning": "EV-M02 shows zero chunks kept, so retrieval works and the filter is discarding everything. EV-L06 shows the filter is discarding everything, as it shows 0 chunks kept matching threshold >= 0.999.",
+        "candidate_repair": "rollback_config",
+        "rejected_alternatives": [
+          {
+            "fault_class": "F01",
+            "reason": "EV-M06 shows llm_error_ratio 0.0, the endpoint is serving"
+          }
+        ]
+      },
+      "validation": {
+        "outcome": "ACCEPTED",
+        "approved_action": "rollback_config",
+        "rejection_reasons": [],
+        "checks": [
+          {
+            "name": "schema_valid",
+            "passed": true,
+            "detail": "parsed and schema-validated"
+          },
+          {
+            "name": "actionable_claim",
+            "passed": true,
+            "detail": "fault_class F06"
+          },
+          {
+            "name": "fault_class_supported",
+            "passed": true,
+            "detail": "F06"
+          },
+          {
+            "name": "confidence_threshold",
+            "passed": true,
+            "detail": "0.90 >= 0.75"
+          },
+          {
+            "name": "citations_resolve",
+            "passed": true,
+            "detail": "2 cited, all resolve: ['EV-M02', 'EV-L06']"
+          },
+          {
+            "name": "service_declared",
+            "passed": true,
+            "detail": "backend"
+          },
+          {
+            "name": "repair_permitted",
+            "passed": true,
+            "detail": "rollback_config"
+          },
+          {
+            "name": "deterministic_agreement",
+            "passed": true,
+            "detail": "both agree: F06 on backend"
+          },
+          {
+            "name": "baseline_available",
+            "passed": true,
+            "detail": "rerank_threshold 0.35"
+          },
+          {
+            "name": "corpus_intact",
+            "passed": true,
+            "detail": "30 chunks"
+          }
+        ]
+      },
+      "evidence": {
+        "collected_at": "2026-10-03T18:29:50+00:00",
+        "problems": [],
+        "items": [
+          {
+            "eid": "EV-S01",
+            "kind": "service",
+            "name": "application_service",
+            "value": "backend",
+            "expected": "",
+            "note": "the FastAPI service that serves /v1/chat and owns retrieval; use this exact name when the fault is in the application"
+          },
+          {
+            "eid": "EV-S02",
+            "kind": "service",
+            "name": "declared_services",
+            "value": "backend, db, frontend, toxiproxy, prometheus",
+            "expected": "",
+            "note": "the only valid values for the service field"
+          },
+          {
+            "eid": "EV-M01",
+            "kind": "metric",
+            "name": "retrieval_top_similarity_p50",
+            "value": 0.6611,
+            "expected": ">= 0.50 (measured healthy 0.658)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M02",
+            "kind": "metric",
+            "name": "retrieval_kept_chunks_mean",
+            "value": 1.3333,
+            "expected": ">= 1.0 (measured healthy 2.73)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M03",
+            "kind": "metric",
+            "name": "retrieval_empty_context_ratio",
+            "value": 0.5,
+            "expected": "< 0.20 (measured healthy 0.0)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M04",
+            "kind": "metric",
+            "name": "corpus_chunks",
+            "value": 30.0,
+            "expected": "30 (the onboarded corpus)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M05",
+            "kind": "metric",
+            "name": "corpus_files",
+            "value": 2.0,
+            "expected": "2 (919.pdf, 1662.pdf)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M06",
+            "kind": "metric",
+            "name": "llm_error_ratio",
+            "value": 0.0,
+            "expected": "< 0.20 (measured healthy 0.0)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M07",
+            "kind": "metric",
+            "name": "llm_generation_latency_p95",
+            "value": 0.94,
+            "expected": "< 4.0s (measured healthy 0.94s)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M08",
+            "kind": "metric",
+            "name": "db_pool_in_use",
+            "value": 0.0,
+            "expected": "well under the max of 10 (measured healthy 0)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M09",
+            "kind": "metric",
+            "name": "chat_error_ratio",
+            "value": 0.0,
+            "expected": "< 0.05 (measured healthy 0.0)",
+            "note": ""
+          },
+          {
+            "eid": "EV-C01",
+            "kind": "config",
+            "name": "rerank_threshold",
+            "value": 0.999,
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C02",
+            "kind": "config",
+            "name": "llm_model",
+            "value": "llama3.2",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C03",
+            "kind": "config",
+            "name": "llm_base_url",
+            "value": "http://toxiproxy:21434",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C04",
+            "kind": "config",
+            "name": "max_tokens",
+            "value": 0,
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C05",
+            "kind": "config",
+            "name": "chaos_enabled",
+            "value": false,
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C06",
+            "kind": "config",
+            "name": "llm_timeout_s",
+            "value": 30.0,
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C07",
+            "kind": "config",
+            "name": "config_hash",
+            "value": "383a51b120ada7c3",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C08",
+            "kind": "config",
+            "name": "prompt_file_hashes",
+            "value": {
+              "answer.txt": "d55c73a23f33",
+              "query_expansion.txt": "bbc6a7fee760"
+            },
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-B01",
+            "kind": "baseline",
+            "name": "baseline_rerank_threshold",
+            "value": 0.35,
+            "expected": "",
+            "note": "captured known-good value; the repair restores this exact number"
+          },
+          {
+            "eid": "EV-V00",
+            "kind": "verification",
+            "name": "fast_set_overall",
+            "value": "FAIL (0% of cases)",
+            "expected": "PASS (100%)",
+            "note": ""
+          },
+          {
+            "eid": "EV-V01",
+            "kind": "verification",
+            "name": "fast_case_fv-01",
+            "value": "FAIL keyword=False non_refusal=False grounded=False 5.4s",
+            "expected": "PASS with keyword present, non-refusal, and a Sources block",
+            "note": "grounded=False means the answer carried no retrieved context"
+          },
+          {
+            "eid": "EV-V02",
+            "kind": "verification",
+            "name": "fast_case_fv-02",
+            "value": "FAIL keyword=False non_refusal=False grounded=False 5.4s",
+            "expected": "PASS with keyword present, non-refusal, and a Sources block",
+            "note": "grounded=False means the answer carried no retrieved context"
+          },
+          {
+            "eid": "EV-V03",
+            "kind": "verification",
+            "name": "fast_case_fv-03",
+            "value": "FAIL keyword=False non_refusal=False grounded=False 5.5s",
+            "expected": "PASS with keyword present, non-refusal, and a Sources block",
+            "note": "grounded=False means the answer carried no retrieved context"
+          },
+          {
+            "eid": "EV-H01",
+            "kind": "health",
+            "name": "healthz",
+            "value": "ok (skipped)",
+            "expected": "ok with database and ollama both ok",
+            "note": ""
+          },
+          {
+            "eid": "EV-L01",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:03,657 [INFO] rag: Generated 3 expansion queries.",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L02",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:08,223 [INFO] rag: Reranked 23 chunks; kept 2 chunks matching threshold >= 0.35",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L03",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:09,284 [INFO] rag: Generated 3 expansion queries.",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L04",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:13,981 [INFO] rag: Reranked 23 chunks; kept 2 chunks matching threshold >= 0.35",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L05",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:14,957 [INFO] rag: Generated 3 expansion queries.",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L06",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:20,026 [INFO] rag: Reranked 25 chunks; kept 0 chunks matching threshold >= 0.999",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L07",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:20,679 [INFO] rag: Generated 3 expansion queries.",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L08",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:25,428 [INFO] rag: Reranked 23 chunks; kept 0 chunks matching threshold >= 0.999",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L09",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:26,119 [INFO] rag: Generated 3 expansion queries.",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L10",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:30,927 [INFO] rag: Reranked 23 chunks; kept 0 chunks matching threshold >= 0.999",
+            "expected": "",
+            "note": ""
+          }
+        ]
+      },
+      "deterministic": {
+        "verdict": "RETRIEVAL_COLLAPSE",
+        "fault_class": "F06",
+        "fault_name": "retrieval_collapse",
+        "service": "backend",
+        "reasons": [
+          "grounding is lost while raw similarity stays healthy: chunks are being retrieved and then filtered out, which is the rerank threshold",
+          "the fast set confirms the user-visible symptom"
+        ],
+        "evidence": [
+          {
+            "kind": "fast_verification",
+            "source": "kavach/verification/fast_set.yaml",
+            "value": "0% pass",
+            "expected": "100% pass",
+            "supports_fault": true
+          },
+          {
+            "kind": "kept_chunks",
+            "source": "ragapp_retrieval_kept_chunks",
+            "value": 1.333,
+            "expected": ">= 1.0",
+            "supports_fault": false
+          },
+          {
+            "kind": "empty_context_ratio",
+            "source": "ragapp_retrieval_empty_context_total",
+            "value": 0.5,
+            "expected": "< 0.2",
+            "supports_fault": true
+          },
+          {
+            "kind": "similarity_p50",
+            "source": "ragapp_retrieval_top_similarity (pre-rerank)",
+            "value": 0.661,
+            "expected": ">= 0.5 (healthy similarity means the filter is at fault, not the embeddings)",
+            "supports_fault": true
+          },
+          {
+            "kind": "corpus_chunks",
+            "source": "ragapp_corpus_chunks",
+            "value": 30,
+            "expected": "> 0",
+            "supports_fault": false
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-10-03T18:29:53+00:00",
+      "model": "llama3.2",
+      "latency_s": 1.74,
+      "prompt_tokens": 2394,
+      "completion_tokens": 157,
+      "approved": true,
+      "approved_action": "rollback_config",
+      "error": "",
+      "diagnosis": {
+        "fault_class": "F06",
+        "fault_name": "retrieval_collapse",
+        "service": "backend",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "EV-M02",
+          "EV-L06"
+        ],
+        "reasoning": "EV-M02 shows zero chunks kept, so retrieval works and the filter is discarding everything. EV-L06 shows the filter is discarding everything, as it shows 0 chunks kept matching threshold >= 0.999.",
+        "candidate_repair": "rollback_config",
+        "rejected_alternatives": [
+          {
+            "fault_class": "F01",
+            "reason": "EV-M06 shows llm_error_ratio 0.0, the endpoint is serving"
+          }
+        ]
+      },
+      "validation": {
+        "outcome": "ACCEPTED",
+        "approved_action": "rollback_config",
+        "rejection_reasons": [],
+        "checks": [
+          {
+            "name": "schema_valid",
+            "passed": true,
+            "detail": "parsed and schema-validated"
+          },
+          {
+            "name": "actionable_claim",
+            "passed": true,
+            "detail": "fault_class F06"
+          },
+          {
+            "name": "fault_class_supported",
+            "passed": true,
+            "detail": "F06"
+          },
+          {
+            "name": "confidence_threshold",
+            "passed": true,
+            "detail": "0.90 >= 0.75"
+          },
+          {
+            "name": "citations_resolve",
+            "passed": true,
+            "detail": "2 cited, all resolve: ['EV-M02', 'EV-L06']"
+          },
+          {
+            "name": "service_declared",
+            "passed": true,
+            "detail": "backend"
+          },
+          {
+            "name": "repair_permitted",
+            "passed": true,
+            "detail": "rollback_config"
+          },
+          {
+            "name": "deterministic_agreement",
+            "passed": true,
+            "detail": "both agree: F06 on backend"
+          },
+          {
+            "name": "baseline_available",
+            "passed": true,
+            "detail": "rerank_threshold 0.35"
+          },
+          {
+            "name": "corpus_intact",
+            "passed": true,
+            "detail": "30 chunks"
+          }
+        ]
+      },
+      "evidence": {
+        "collected_at": "2026-10-03T18:29:53+00:00",
+        "problems": [],
+        "items": [
+          {
+            "eid": "EV-S01",
+            "kind": "service",
+            "name": "application_service",
+            "value": "backend",
+            "expected": "",
+            "note": "the FastAPI service that serves /v1/chat and owns retrieval; use this exact name when the fault is in the application"
+          },
+          {
+            "eid": "EV-S02",
+            "kind": "service",
+            "name": "declared_services",
+            "value": "backend, db, frontend, toxiproxy, prometheus",
+            "expected": "",
+            "note": "the only valid values for the service field"
+          },
+          {
+            "eid": "EV-M01",
+            "kind": "metric",
+            "name": "retrieval_top_similarity_p50",
+            "value": 0.6611,
+            "expected": ">= 0.50 (measured healthy 0.658)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M02",
+            "kind": "metric",
+            "name": "retrieval_kept_chunks_mean",
+            "value": 1.3333,
+            "expected": ">= 1.0 (measured healthy 2.73)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M03",
+            "kind": "metric",
+            "name": "retrieval_empty_context_ratio",
+            "value": 0.5,
+            "expected": "< 0.20 (measured healthy 0.0)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M04",
+            "kind": "metric",
+            "name": "corpus_chunks",
+            "value": 30.0,
+            "expected": "30 (the onboarded corpus)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M05",
+            "kind": "metric",
+            "name": "corpus_files",
+            "value": 2.0,
+            "expected": "2 (919.pdf, 1662.pdf)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M06",
+            "kind": "metric",
+            "name": "llm_error_ratio",
+            "value": 0.0,
+            "expected": "< 0.20 (measured healthy 0.0)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M07",
+            "kind": "metric",
+            "name": "llm_generation_latency_p95",
+            "value": 0.94,
+            "expected": "< 4.0s (measured healthy 0.94s)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M08",
+            "kind": "metric",
+            "name": "db_pool_in_use",
+            "value": 0.0,
+            "expected": "well under the max of 10 (measured healthy 0)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M09",
+            "kind": "metric",
+            "name": "chat_error_ratio",
+            "value": 0.0,
+            "expected": "< 0.05 (measured healthy 0.0)",
+            "note": ""
+          },
+          {
+            "eid": "EV-C01",
+            "kind": "config",
+            "name": "rerank_threshold",
+            "value": 0.999,
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C02",
+            "kind": "config",
+            "name": "llm_model",
+            "value": "llama3.2",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C03",
+            "kind": "config",
+            "name": "llm_base_url",
+            "value": "http://toxiproxy:21434",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C04",
+            "kind": "config",
+            "name": "max_tokens",
+            "value": 0,
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C05",
+            "kind": "config",
+            "name": "chaos_enabled",
+            "value": false,
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C06",
+            "kind": "config",
+            "name": "llm_timeout_s",
+            "value": 30.0,
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C07",
+            "kind": "config",
+            "name": "config_hash",
+            "value": "383a51b120ada7c3",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C08",
+            "kind": "config",
+            "name": "prompt_file_hashes",
+            "value": {
+              "answer.txt": "d55c73a23f33",
+              "query_expansion.txt": "bbc6a7fee760"
+            },
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-B01",
+            "kind": "baseline",
+            "name": "baseline_rerank_threshold",
+            "value": 0.35,
+            "expected": "",
+            "note": "captured known-good value; the repair restores this exact number"
+          },
+          {
+            "eid": "EV-V00",
+            "kind": "verification",
+            "name": "fast_set_overall",
+            "value": "FAIL (0% of cases)",
+            "expected": "PASS (100%)",
+            "note": ""
+          },
+          {
+            "eid": "EV-V01",
+            "kind": "verification",
+            "name": "fast_case_fv-01",
+            "value": "FAIL keyword=False non_refusal=False grounded=False 5.4s",
+            "expected": "PASS with keyword present, non-refusal, and a Sources block",
+            "note": "grounded=False means the answer carried no retrieved context"
+          },
+          {
+            "eid": "EV-V02",
+            "kind": "verification",
+            "name": "fast_case_fv-02",
+            "value": "FAIL keyword=False non_refusal=False grounded=False 5.4s",
+            "expected": "PASS with keyword present, non-refusal, and a Sources block",
+            "note": "grounded=False means the answer carried no retrieved context"
+          },
+          {
+            "eid": "EV-V03",
+            "kind": "verification",
+            "name": "fast_case_fv-03",
+            "value": "FAIL keyword=False non_refusal=False grounded=False 5.5s",
+            "expected": "PASS with keyword present, non-refusal, and a Sources block",
+            "note": "grounded=False means the answer carried no retrieved context"
+          },
+          {
+            "eid": "EV-H01",
+            "kind": "health",
+            "name": "healthz",
+            "value": "ok (skipped)",
+            "expected": "ok with database and ollama both ok",
+            "note": ""
+          },
+          {
+            "eid": "EV-L01",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:03,657 [INFO] rag: Generated 3 expansion queries.",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L02",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:08,223 [INFO] rag: Reranked 23 chunks; kept 2 chunks matching threshold >= 0.35",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L03",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:09,284 [INFO] rag: Generated 3 expansion queries.",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L04",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:13,981 [INFO] rag: Reranked 23 chunks; kept 2 chunks matching threshold >= 0.35",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L05",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:14,957 [INFO] rag: Generated 3 expansion queries.",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L06",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:20,026 [INFO] rag: Reranked 25 chunks; kept 0 chunks matching threshold >= 0.999",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L07",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:20,679 [INFO] rag: Generated 3 expansion queries.",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L08",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:25,428 [INFO] rag: Reranked 23 chunks; kept 0 chunks matching threshold >= 0.999",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L09",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:26,119 [INFO] rag: Generated 3 expansion queries.",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L10",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:30,927 [INFO] rag: Reranked 23 chunks; kept 0 chunks matching threshold >= 0.999",
+            "expected": "",
+            "note": ""
+          }
+        ]
+      },
+      "deterministic": {
+        "verdict": "RETRIEVAL_COLLAPSE",
+        "fault_class": "F06",
+        "fault_name": "retrieval_collapse",
+        "service": "backend",
+        "reasons": [
+          "grounding is lost while raw similarity stays healthy: chunks are being retrieved and then filtered out, which is the rerank threshold",
+          "the fast set confirms the user-visible symptom"
+        ],
+        "evidence": [
+          {
+            "kind": "fast_verification",
+            "source": "kavach/verification/fast_set.yaml",
+            "value": "0% pass",
+            "expected": "100% pass",
+            "supports_fault": true
+          },
+          {
+            "kind": "kept_chunks",
+            "source": "ragapp_retrieval_kept_chunks",
+            "value": 1.333,
+            "expected": ">= 1.0",
+            "supports_fault": false
+          },
+          {
+            "kind": "empty_context_ratio",
+            "source": "ragapp_retrieval_empty_context_total",
+            "value": 0.5,
+            "expected": "< 0.2",
+            "supports_fault": true
+          },
+          {
+            "kind": "similarity_p50",
+            "source": "ragapp_retrieval_top_similarity (pre-rerank)",
+            "value": 0.661,
+            "expected": ">= 0.5 (healthy similarity means the filter is at fault, not the embeddings)",
+            "supports_fault": true
+          },
+          {
+            "kind": "corpus_chunks",
+            "source": "ragapp_corpus_chunks",
+            "value": 30,
+            "expected": "> 0",
+            "supports_fault": false
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-10-03T18:29:55+00:00",
+      "model": "llama3.2",
+      "latency_s": 1.71,
+      "prompt_tokens": 2394,
+      "completion_tokens": 157,
+      "approved": true,
+      "approved_action": "rollback_config",
+      "error": "",
+      "diagnosis": {
+        "fault_class": "F06",
+        "fault_name": "retrieval_collapse",
+        "service": "backend",
+        "confidence": 0.9,
+        "evidence_ids": [
+          "EV-M02",
+          "EV-L06"
+        ],
+        "reasoning": "EV-M02 shows zero chunks kept, so retrieval works and the filter is discarding everything. EV-L06 shows the filter is discarding everything, as it shows 0 chunks kept matching threshold >= 0.999.",
+        "candidate_repair": "rollback_config",
+        "rejected_alternatives": [
+          {
+            "fault_class": "F01",
+            "reason": "EV-M06 shows llm_error_ratio 0.0, the endpoint is serving"
+          }
+        ]
+      },
+      "validation": {
+        "outcome": "ACCEPTED",
+        "approved_action": "rollback_config",
+        "rejection_reasons": [],
+        "checks": [
+          {
+            "name": "schema_valid",
+            "passed": true,
+            "detail": "parsed and schema-validated"
+          },
+          {
+            "name": "actionable_claim",
+            "passed": true,
+            "detail": "fault_class F06"
+          },
+          {
+            "name": "fault_class_supported",
+            "passed": true,
+            "detail": "F06"
+          },
+          {
+            "name": "confidence_threshold",
+            "passed": true,
+            "detail": "0.90 >= 0.75"
+          },
+          {
+            "name": "citations_resolve",
+            "passed": true,
+            "detail": "2 cited, all resolve: ['EV-M02', 'EV-L06']"
+          },
+          {
+            "name": "service_declared",
+            "passed": true,
+            "detail": "backend"
+          },
+          {
+            "name": "repair_permitted",
+            "passed": true,
+            "detail": "rollback_config"
+          },
+          {
+            "name": "deterministic_agreement",
+            "passed": true,
+            "detail": "both agree: F06 on backend"
+          },
+          {
+            "name": "baseline_available",
+            "passed": true,
+            "detail": "rerank_threshold 0.35"
+          },
+          {
+            "name": "corpus_intact",
+            "passed": true,
+            "detail": "30 chunks"
+          }
+        ]
+      },
+      "evidence": {
+        "collected_at": "2026-10-03T18:29:55+00:00",
+        "problems": [],
+        "items": [
+          {
+            "eid": "EV-S01",
+            "kind": "service",
+            "name": "application_service",
+            "value": "backend",
+            "expected": "",
+            "note": "the FastAPI service that serves /v1/chat and owns retrieval; use this exact name when the fault is in the application"
+          },
+          {
+            "eid": "EV-S02",
+            "kind": "service",
+            "name": "declared_services",
+            "value": "backend, db, frontend, toxiproxy, prometheus",
+            "expected": "",
+            "note": "the only valid values for the service field"
+          },
+          {
+            "eid": "EV-M01",
+            "kind": "metric",
+            "name": "retrieval_top_similarity_p50",
+            "value": 0.6611,
+            "expected": ">= 0.50 (measured healthy 0.658)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M02",
+            "kind": "metric",
+            "name": "retrieval_kept_chunks_mean",
+            "value": 1.3333,
+            "expected": ">= 1.0 (measured healthy 2.73)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M03",
+            "kind": "metric",
+            "name": "retrieval_empty_context_ratio",
+            "value": 0.5,
+            "expected": "< 0.20 (measured healthy 0.0)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M04",
+            "kind": "metric",
+            "name": "corpus_chunks",
+            "value": 30.0,
+            "expected": "30 (the onboarded corpus)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M05",
+            "kind": "metric",
+            "name": "corpus_files",
+            "value": 2.0,
+            "expected": "2 (919.pdf, 1662.pdf)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M06",
+            "kind": "metric",
+            "name": "llm_error_ratio",
+            "value": 0.0,
+            "expected": "< 0.20 (measured healthy 0.0)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M07",
+            "kind": "metric",
+            "name": "llm_generation_latency_p95",
+            "value": 0.94,
+            "expected": "< 4.0s (measured healthy 0.94s)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M08",
+            "kind": "metric",
+            "name": "db_pool_in_use",
+            "value": 0.0,
+            "expected": "well under the max of 10 (measured healthy 0)",
+            "note": ""
+          },
+          {
+            "eid": "EV-M09",
+            "kind": "metric",
+            "name": "chat_error_ratio",
+            "value": 0.0,
+            "expected": "< 0.05 (measured healthy 0.0)",
+            "note": ""
+          },
+          {
+            "eid": "EV-C01",
+            "kind": "config",
+            "name": "rerank_threshold",
+            "value": 0.999,
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C02",
+            "kind": "config",
+            "name": "llm_model",
+            "value": "llama3.2",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C03",
+            "kind": "config",
+            "name": "llm_base_url",
+            "value": "http://toxiproxy:21434",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C04",
+            "kind": "config",
+            "name": "max_tokens",
+            "value": 0,
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C05",
+            "kind": "config",
+            "name": "chaos_enabled",
+            "value": false,
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C06",
+            "kind": "config",
+            "name": "llm_timeout_s",
+            "value": 30.0,
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C07",
+            "kind": "config",
+            "name": "config_hash",
+            "value": "383a51b120ada7c3",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-C08",
+            "kind": "config",
+            "name": "prompt_file_hashes",
+            "value": {
+              "answer.txt": "d55c73a23f33",
+              "query_expansion.txt": "bbc6a7fee760"
+            },
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-B01",
+            "kind": "baseline",
+            "name": "baseline_rerank_threshold",
+            "value": 0.35,
+            "expected": "",
+            "note": "captured known-good value; the repair restores this exact number"
+          },
+          {
+            "eid": "EV-V00",
+            "kind": "verification",
+            "name": "fast_set_overall",
+            "value": "FAIL (0% of cases)",
+            "expected": "PASS (100%)",
+            "note": ""
+          },
+          {
+            "eid": "EV-V01",
+            "kind": "verification",
+            "name": "fast_case_fv-01",
+            "value": "FAIL keyword=False non_refusal=False grounded=False 5.4s",
+            "expected": "PASS with keyword present, non-refusal, and a Sources block",
+            "note": "grounded=False means the answer carried no retrieved context"
+          },
+          {
+            "eid": "EV-V02",
+            "kind": "verification",
+            "name": "fast_case_fv-02",
+            "value": "FAIL keyword=False non_refusal=False grounded=False 5.4s",
+            "expected": "PASS with keyword present, non-refusal, and a Sources block",
+            "note": "grounded=False means the answer carried no retrieved context"
+          },
+          {
+            "eid": "EV-V03",
+            "kind": "verification",
+            "name": "fast_case_fv-03",
+            "value": "FAIL keyword=False non_refusal=False grounded=False 5.5s",
+            "expected": "PASS with keyword present, non-refusal, and a Sources block",
+            "note": "grounded=False means the answer carried no retrieved context"
+          },
+          {
+            "eid": "EV-H01",
+            "kind": "health",
+            "name": "healthz",
+            "value": "ok (skipped)",
+            "expected": "ok with database and ollama both ok",
+            "note": ""
+          },
+          {
+            "eid": "EV-L01",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:03,657 [INFO] rag: Generated 3 expansion queries.",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L02",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:08,223 [INFO] rag: Reranked 23 chunks; kept 2 chunks matching threshold >= 0.35",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L03",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:09,284 [INFO] rag: Generated 3 expansion queries.",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L04",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:13,981 [INFO] rag: Reranked 23 chunks; kept 2 chunks matching threshold >= 0.35",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L05",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:14,957 [INFO] rag: Generated 3 expansion queries.",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L06",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:20,026 [INFO] rag: Reranked 25 chunks; kept 0 chunks matching threshold >= 0.999",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L07",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:20,679 [INFO] rag: Generated 3 expansion queries.",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L08",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:25,428 [INFO] rag: Reranked 23 chunks; kept 0 chunks matching threshold >= 0.999",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L09",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:26,119 [INFO] rag: Generated 3 expansion queries.",
+            "expected": "",
+            "note": ""
+          },
+          {
+            "eid": "EV-L10",
+            "kind": "log",
+            "name": "backend_log",
+            "value": "2026-10-03 18:29:30,927 [INFO] rag: Reranked 23 chunks; kept 0 chunks matching threshold >= 0.999",
+            "expected": "",
+            "note": ""
+          }
+        ]
+      },
+      "deterministic": {
+        "verdict": "RETRIEVAL_COLLAPSE",
+        "fault_class": "F06",
+        "fault_name": "retrieval_collapse",
+        "service": "backend",
+        "reasons": [
+          "grounding is lost while raw similarity stays healthy: chunks are being retrieved and then filtered out, which is the rerank threshold",
+          "the fast set confirms the user-visible symptom"
+        ],
+        "evidence": [
+          {
+            "kind": "fast_verification",
+            "source": "kavach/verification/fast_set.yaml",
+            "value": "0% pass",
+            "expected": "100% pass",
+            "supports_fault": true
+          },
+          {
+            "kind": "kept_chunks",
+            "source": "ragapp_retrieval_kept_chunks",
+            "value": 1.333,
+            "expected": ">= 1.0",
+            "supports_fault": false
+          },
+          {
+            "kind": "empty_context_ratio",
+            "source": "ragapp_retrieval_empty_context_total",
+            "value": 0.5,
+            "expected": "< 0.2",
+            "supports_fault": true
+          },
+          {
+            "kind": "similarity_p50",
+            "source": "ragapp_retrieval_top_similarity (pre-rerank)",
+            "value": 0.661,
+            "expected": ">= 0.5 (healthy similarity means the filter is at fault, not the embeddings)",
+            "supports_fault": true
+          },
+          {
+            "kind": "corpus_chunks",
+            "source": "ragapp_corpus_chunks",
+            "value": 30,
+            "expected": "> 0",
+            "supports_fault": false
+          }
+        ]
+      }
+    }
+  ]
+}

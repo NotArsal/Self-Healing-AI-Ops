@@ -1,0 +1,109 @@
+uv --directory apps/control-plane run python -I ../../harness/report.py --json-out 'D:/Vit/Academics Sem-5/EDI/Self-Healing AI Ops/harness/reports/bench-20261020-mttd.json'
+==============================================================================
+make bench - live metrics over repeated injections
+==============================================================================
+  mode               APPROVAL
+  corpus             {'chunks': 30.0, 'files': 2.0}
+  plan               4 classes x 5 reps = 20 injections
+  estimated runtime  ~8.0h, paced under permit()'s blast radius. Unattended by design.
+
+  RCA model          qwen2.5:7b-instruct
+
+  rep 1 F01  detect=48.7s llm=F01(0.95) resolved=True mttr=112.0 false_heal=False clean=True
+  rep 1 F06  detect=74.4s llm=F06(0.95) resolved=True mttr=155.2 false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 55.2 min for the window to slide. Nothing is being reset.
+  rep 1 F07  detect=20.1s llm=F07(0.9) resolved=True mttr=102.9 false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 0.4 min for the window to slide. Nothing is being reset.
+  rep 1 F08  detect=18.3s llm=F08(0.9) resolved=True mttr=106.0 false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 55.1 min for the window to slide. Nothing is being reset.
+  rep 2 F01  detect=36.5s llm=F01(0.9) resolved=True mttr=96.9 false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 0.5 min for the window to slide. Nothing is being reset.
+  rep 2 F06  detect=53.6s llm=F06(0.95) resolved=False mttr=None false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 56.0 min for the window to slide. Nothing is being reset.
+  rep 2 F07  detect=20.4s llm=F06(0.95) resolved=False mttr=None false_heal=False clean=True
+  rep 2 F08  detect=18.5s llm=F08(0.85) resolved=True mttr=109.0 false_heal=False clean=True
+  rep 3 F01  detect=61.3s llm=F01(0.95) resolved=True mttr=127.8 false_heal=False clean=True
+    pacing: 5 incidents in the last hour, limit 5. Waiting 53.9 min for the window to slide. Nothing is being reset.
+    pacing: 4 incidents in the last hour, limit 5. Waiting 1.1 min for the window to slide. Nothing is being reset.
+  rep 3 F06  detect=71.2s llm=F06(0.95) resolved=False mttr=None false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 0.8 min for the window to slide. Nothing is being reset.
+  rep 3 F07  detect=20.0s llm=F06(0.95) resolved=False mttr=None false_heal=False clean=True
+  rep 3 F08  detect=19.1s llm=F08(0.9) resolved=True mttr=114.9 false_heal=False clean=True
+    pacing: 5 incidents in the last hour, limit 5. Waiting 54.3 min for the window to slide. Nothing is being reset.
+    pacing: 4 incidents in the last hour, limit 5. Waiting 0.6 min for the window to slide. Nothing is being reset.
+  rep 4 F01  detect=62.0s llm=F01(0.95) resolved=True mttr=128.5 false_heal=False clean=True
+  rep 4 F06  detect=72.1s llm=F06(0.95) resolved=True mttr=169.3 false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 54.9 min for the window to slide. Nothing is being reset.
+  rep 4 F07  detect=19.7s llm=F06(0.95) resolved=False mttr=None false_heal=False clean=True
+  rep 4 F08  detect=18.8s llm=F08(0.8) resolved=True mttr=102.9 false_heal=False clean=True
+  rep 5 F01  detect=60.8s llm=F01(0.95) resolved=True mttr=124.2 false_heal=False clean=True
+    pacing: 5 incidents in the last hour, limit 5. Waiting 54.2 min for the window to slide. Nothing is being reset.
+    pacing: 4 incidents in the last hour, limit 5. Waiting 1.1 min for the window to slide. Nothing is being reset.
+  rep 5 F06  detect=70.8s llm=F06(0.95) resolved=True mttr=155.2 false_heal=False clean=True
+  rep 5 F07  detect=20.5s llm=F07(0.9) resolved=False mttr=None false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 56.4 min for the window to slide. Nothing is being reset.
+  rep 5 F08  detect=18.2s llm=F08(0.85) resolved=True mttr=114.9 false_heal=False clean=True
+
+==============================================================================
+METRICS  (PRD section 10)
+==============================================================================
+  DENOMINATOR: 4 fault classes x 5 reps = 20 injections, 20 usable
+  Classes: F01, F06, F07, F08. Four, not the seven PRD section 6
+  assumed: F02/F05 dropped, F03 never had an injector, F09 closed
+  on measurement as not injectable.
+
+  metric                             value              target
+  detection rate                     100% (20/20)       >= 95%
+  localization (service)             100% (20/20)       >= 80%
+  RCA accuracy (LLM own answer)      85% (17/20)        >= 75%
+  auto-resolution rate               70% (14/20)        >= 70% of LOW
+  FALSE HEALING                      0% (0/20)          <= 5%
+  rollback correctness               n/a                100%
+  MTTD (median)                      28.5s              < 30s
+    first verdict (median)           50.0s              detect+RCA+gate, no target
+  MTTR (median)                      114.9s             < 180s
+  audit completeness                 100% (14/14)       100%
+  audit chain intact                 True               True
+  target state clean after run       100% (20/20)       100%
+
+------------------------------------------------------------------------------
+CONDITIONALS (PRD section 10.1) - the part a reviewer asks about
+------------------------------------------------------------------------------
+  P(heal | diagnosis correct)  82% (14/17)
+  P(heal | diagnosis WRONG)    0% (0/3)
+  P(diagnosis correct | heal)  100% (14/14)
+
+  A high auto-resolution rate next to a high P(heal | wrong) means a
+  symptom-matcher with an LLM attached. Report both or neither.
+
+------------------------------------------------------------------------------
+LOCALIZATION, WITH ITS DENOMINATOR (PRD section 10.2)
+------------------------------------------------------------------------------
+  Every implemented fault lands on `backend`, so this is a 1-way
+  choice dressed as a 4-way one. Stated first because a reviewer
+  finds it in one question.
+    F01 -> backend    5
+    F06 -> backend    5
+    F07 -> backend    5
+    F08 -> backend    5
+
+------------------------------------------------------------------------------
+DETERMINISTIC CROSS-CHECK
+------------------------------------------------------------------------------
+  LLM diagnoses refused: 3/20
+    F07: model said F06 at 0.95; detector said F07. Nothing written.
+    F07: model said F06 at 0.95; detector said F07. Nothing written.
+    F07: model said F06 at 0.95; detector said F07. Nothing written.
+
+------------------------------------------------------------------------------
+THROUGHPUT CEILING (FR-16), measured not assumed
+------------------------------------------------------------------------------
+  permit() allows 5 incident starts per sliding
+  hour and an approved heal costs 2. This bench
+  waited 445 minutes in total to stay
+  underneath it. Nothing was reset, raised or disabled.
+  => Kavach performs at most 2 approved heals per hour
+     and halts rather than widening. That is a demo constraint as
+     much as an operational one.
+
+  artifact D:\Vit\Academics Sem-5\EDI\Self-Healing AI Ops\harness\reports\bench-20261020-mttd.json

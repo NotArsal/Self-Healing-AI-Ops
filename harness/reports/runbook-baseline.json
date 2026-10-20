@@ -1,0 +1,111 @@
+{
+  "at": "2026-10-18T11:28:58+00:00",
+  "what_this_is": "scripted runbook procedure, NOT a human baseline",
+  "baseline": "baseline-simple-rag-20261017T163257+0000.json",
+  "runs": [
+    {
+      "fault_class": "F01",
+      "detected_s": 12.1,
+      "diagnosed": "F01",
+      "signal": "healthz unreachable",
+      "diagnosed_s": 12.2,
+      "correct": true,
+      "fix_applied": "llm_base_url -> http://toxiproxy:21435",
+      "resolved_s": 31.1,
+      "verified": true,
+      "false_recovery": false,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "detected_s": 18.0,
+      "diagnosed": "F06",
+      "signal": "rerank_threshold moved",
+      "diagnosed_s": 18.1,
+      "correct": true,
+      "fix_applied": "restored {'rerank_threshold': 0.35}",
+      "resolved_s": 37.8,
+      "verified": true,
+      "false_recovery": false,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "detected_s": 20.1,
+      "diagnosed": "F07",
+      "signal": "prompt digest moved",
+      "diagnosed_s": 20.2,
+      "correct": true,
+      "fix_applied": "restored ['answer.txt']",
+      "resolved_s": 38.9,
+      "verified": true,
+      "false_recovery": false,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "detected_s": 18.2,
+      "diagnosed": "F08",
+      "signal": "a setting moved",
+      "diagnosed_s": 18.3,
+      "correct": true,
+      "fix_applied": "restored {'max_tokens': 0}",
+      "resolved_s": 37.2,
+      "verified": true,
+      "false_recovery": false,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "detected_s": 12.1,
+      "diagnosed": "F01",
+      "signal": "healthz unreachable",
+      "diagnosed_s": 12.1,
+      "correct": true,
+      "fix_applied": "llm_base_url -> http://toxiproxy:21435",
+      "resolved_s": 30.7,
+      "verified": true,
+      "false_recovery": false,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "detected_s": 18.0,
+      "diagnosed": "F06",
+      "signal": "rerank_threshold moved",
+      "diagnosed_s": 18.2,
+      "correct": true,
+      "fix_applied": "restored {'rerank_threshold': 0.35}",
+      "resolved_s": 37.5,
+      "verified": true,
+      "false_recovery": false,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "detected_s": 20.1,
+      "diagnosed": "F07",
+      "signal": "prompt digest moved",
+      "diagnosed_s": 20.2,
+      "correct": true,
+      "fix_applied": "restored ['answer.txt']",
+      "resolved_s": null,
+      "verified": false,
+      "false_recovery": true,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "detected_s": 19.9,
+      "diagnosed": "F08",
+      "signal": "a setting moved",
+      "diagnosed_s": 20.0,
+      "correct": true,
+      "fix_applied": "restored {'max_tokens': 0}",
+      "resolved_s": 39.4,
+      "verified": true,
+      "false_recovery": false,
+      "error": ""
+    }
+  ]
+}

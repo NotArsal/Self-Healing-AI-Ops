@@ -1,0 +1,43 @@
+{
+  "at": "2026-10-16T13:46:40+00:00",
+  "results": {
+    "injected": true,
+    "hash_moved": true,
+    "diagnosed_f08": true,
+    "parked_at_awaiting": true,
+    "gate_wrote_nothing": true,
+    "executed_the_repair": true,
+    "resolved": true,
+    "rolled_back_only_the_drifted_key": true,
+    "hash_restored": true,
+    "settings_identical": true,
+    "corpus_unchanged": true,
+    "audit_chain_intact": true
+  },
+  "proven": true,
+  "bad_max_tokens": 2,
+  "settings_before": {
+    "llm_base_url": "http://toxiproxy:21434",
+    "llm_model": "llama3.2",
+    "rerank_threshold": 0.35,
+    "max_tokens": 0,
+    "chaos_enabled": false,
+    "llm_timeout_s": 30.0
+  },
+  "settings_after": {
+    "llm_base_url": "http://toxiproxy:21434",
+    "llm_model": "llama3.2",
+    "rerank_threshold": 0.35,
+    "max_tokens": 0,
+    "chaos_enabled": false,
+    "llm_timeout_s": 30.0
+  },
+  "corpus_before": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "corpus_after": {
+    "chunks": 30.0,
+    "files": 2.0
+  }
+}

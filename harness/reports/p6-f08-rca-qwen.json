@@ -1,0 +1,193 @@
+{
+  "at": "2026-10-17T17:17:54+00:00",
+  "model": "qwen2.5:7b-instruct",
+  "reps": 10,
+  "correct_f01": 10,
+  "classes": {
+    "F08": 10
+  },
+  "validator_approved": 10,
+  "latency_s": [
+    19.1,
+    9.3,
+    9.7,
+    7.6,
+    7.6,
+    14.4,
+    22.6,
+    9.2,
+    17.4,
+    14.1
+  ],
+  "old_strings_copied_in": [],
+  "skeleton_defaults_in": [],
+  "named_expected_repair": 10,
+  "corpus_before": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "corpus_after": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "passed": true,
+  "runs": [
+    {
+      "rep": 1,
+      "fault_class": "F08",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": true,
+      "latency_s": 19.1,
+      "cited": [
+        "EV-M06",
+        "EV-M07",
+        "EV-C04",
+        "EV-C07",
+        "EV-V01",
+        "EV-V02",
+        "EV-V03"
+      ],
+      "reasoning": "LLM error ratio is 0.0, indicating the model was reached. Grounding is intact as kept_chunks_mean is 2.7 and empty_context_ratio is 0.0. The similarity is normal at 0.6656. However, the max_tokens setting (EV-C04) and config_hash (EV-C07) have drifted from their baselines, and all fast_case verification cases (EV-V01, EV-V02, EV-V03) show grounded=False, indicating the retrieval context is lost. This rules out F06, F07, and F01. F08 is the most likely cause as a setting change has degraded the behavior."
+    },
+    {
+      "rep": 2,
+      "fault_class": "F08",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": true,
+      "latency_s": 9.3,
+      "cited": [
+        "EV-M06",
+        "EV-C04",
+        "EV-C07",
+        "EV-V01",
+        "EV-V02",
+        "EV-V03"
+      ],
+      "reasoning": "LLM error ratio is 0.0, indicating the model was reached. Grounding is intact, as kept_chunks_mean is 2.7 and empty_context_ratio is 0.0. The similarity is normal, with retrieval_top_similarity_p50 at 0.6656. However, the max_tokens setting (EV-C04) has drifted from its baseline of 0 to 2, and the config_hash (EV-C07) has also changed, indicating a configuration change. The verification logs (EV-V01, EV-V02, EV-V03) show that the answers are grounded=False, meaning the retrieval context is lost, which aligns with the config change. This rules out F01, F06, and F07, as the model was reached and grounding is intact."
+    },
+    {
+      "rep": 3,
+      "fault_class": "F08",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": true,
+      "latency_s": 9.7,
+      "cited": [
+        "EV-M06",
+        "EV-C04",
+        "EV-C07"
+      ],
+      "reasoning": "EV-M06 shows llm_error_ratio is 0.0, which is near zero. EV-M02 shows retrieval_kept_chunks_mean is 2.7, which is intact. EV-C07 shows max_tokens has changed from 0 to 2, which is marked as DIFFERS. EV-C08 shows no prompt file hashes have changed. This rules out F07. The change in max_tokens is the only setting that has drifted, ruling out F08."
+    },
+    {
+      "rep": 4,
+      "fault_class": "F08",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": true,
+      "latency_s": 7.6,
+      "cited": [
+        "EV-M06",
+        "EV-C04",
+        "EV-C07"
+      ],
+      "reasoning": "EV-M06 shows llm_error_ratio is 0.0, which is near zero. EV-M02 shows retrieval_kept_chunks_mean is 2.7, which is intact. EV-C07 shows max_tokens has changed from 0 to 2, which is marked DIFFERS. EV-C08 shows no prompt file hashes have changed. This rules out F07. The evidence does not indicate an outage or database issues, ruling out F01 and F05. The grounding is intact, ruling out F06. The evidence strongly suggests a configuration change, specifically the max_tokens setting, which is a regression."
+    },
+    {
+      "rep": 5,
+      "fault_class": "F08",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": true,
+      "latency_s": 7.6,
+      "cited": [
+        "EV-M06",
+        "EV-C04",
+        "EV-C07"
+      ],
+      "reasoning": "EV-M06 shows llm_error_ratio is 0.0, which is near zero. EV-M02 shows retrieval_kept_chunks_mean is 2.7, which is intact. EV-C07 shows max_tokens has changed from 0 to 2, which is marked DIFFERS. EV-C08 shows no prompt file hashes have changed. This rules out F07. The evidence does not indicate an outage or database issues, ruling out F01 and F05. The grounding is intact, ruling out F06. The evidence strongly suggests a configuration change, specifically the max_tokens setting, which is a regression."
+    },
+    {
+      "rep": 6,
+      "fault_class": "F08",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": true,
+      "latency_s": 14.4,
+      "cited": [
+        "EV-M06",
+        "EV-C04",
+        "EV-C07"
+      ],
+      "reasoning": "EV-M06 shows llm_error_ratio is 0.0, which is near zero. EV-M02 shows retrieval_kept_chunks_mean is 2.7, which is intact. EV-C07 shows max_tokens has changed from 0 to 2, which is marked DIFFERS. EV-C08 shows no prompt file hashes have changed. This rules out F07. The evidence does not indicate an outage or database issues, ruling out F01 and F05. The grounding is intact, ruling out F06. The evidence strongly suggests a configuration change, specifically the max_tokens setting, which is a regression."
+    },
+    {
+      "rep": 7,
+      "fault_class": "F08",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": true,
+      "latency_s": 22.6,
+      "cited": [
+        "EV-M06",
+        "EV-C04",
+        "EV-C07"
+      ],
+      "reasoning": "EV-M06 shows llm_error_ratio is 0.0, which is near zero. EV-M02 shows retrieval_kept_chunks_mean is 2.7, which is intact. EV-C07 shows max_tokens has changed from 0 to 2, which is marked DIFFERS. EV-C08 shows no prompt file hashes have changed. This rules out F07. The evidence does not indicate an outage or database issues, ruling out F01 and F05. The grounding is intact, ruling out F06. The evidence strongly suggests a configuration change, specifically the max_tokens setting, which is a regression."
+    },
+    {
+      "rep": 8,
+      "fault_class": "F08",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": true,
+      "latency_s": 9.2,
+      "cited": [
+        "EV-M06",
+        "EV-C04",
+        "EV-C07"
+      ],
+      "reasoning": "EV-M06 shows llm_error_ratio is 0.0, which is near zero. EV-M02 shows retrieval_kept_chunks_mean is 2.7, which is intact. EV-C07 shows max_tokens has changed from 0 to 2, which is marked DIFFERS. EV-C08 shows no prompt file hashes have changed. This rules out F07. The evidence does not indicate an outage or database issues, ruling out F01 and F05. The grounding is intact, ruling out F06. The evidence strongly suggests a configuration change, specifically the max_tokens setting, which is a regression."
+    },
+    {
+      "rep": 9,
+      "fault_class": "F08",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": true,
+      "latency_s": 17.4,
+      "cited": [
+        "EV-M06",
+        "EV-C04",
+        "EV-C07"
+      ],
+      "reasoning": "EV-M06 shows llm_error_ratio is 0.0, which is near zero. EV-M02 shows retrieval_kept_chunks_mean is 2.7, which is intact. EV-C07 shows max_tokens has changed from 0 to 2, which is marked DIFFERS. EV-C08 shows no prompt file hashes have changed. This rules out F07. The evidence does not indicate an outage or database issues, ruling out F01 and F05. The grounding is intact, ruling out F06. The evidence strongly suggests a configuration change, specifically the max_tokens setting, which is a regression."
+    },
+    {
+      "rep": 10,
+      "fault_class": "F08",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": true,
+      "latency_s": 14.1,
+      "cited": [
+        "EV-M06",
+        "EV-C04",
+        "EV-C07"
+      ],
+      "reasoning": "EV-M06 shows llm_error_ratio is 0.0, which is near zero. EV-M02 shows retrieval_kept_chunks_mean is 2.7, which is intact. EV-C07 shows max_tokens has changed from 0 to 2, which is marked DIFFERS. EV-C08 shows no prompt file hashes have changed. This rules out F07. The evidence does not indicate an outage or database issues, ruling out F01 and F05. The grounding is intact, ruling out F06. The evidence strongly suggests a configuration change, specifically the max_tokens setting, which is a regression."
+    }
+  ]
+}

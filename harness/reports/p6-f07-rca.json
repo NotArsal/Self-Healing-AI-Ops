@@ -1,0 +1,231 @@
+{
+  "at": "2026-10-17T17:11:03+00:00",
+  "model": "llama3.2",
+  "reps": 10,
+  "correct_f07": 0,
+  "classes": {
+    "F06": 10
+  },
+  "validator_approved": 0,
+  "cited_ev_c08": 9,
+  "latency_s": [
+    6.2,
+    4.4,
+    10.6,
+    12.6,
+    9.0,
+    4.4,
+    4.4,
+    4.4,
+    4.4,
+    4.4
+  ],
+  "baseline": "baseline-simple-rag-20261017T163257+0000.json",
+  "old_strings_copied_in": [],
+  "skeleton_defaults_in": [],
+  "named_expected_repair": 0,
+  "corpus_before": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "corpus_after": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "passed": false,
+  "runs": [
+    {
+      "rep": 1,
+      "fault_class": "F06",
+      "service": "backend",
+      "confidence": 1.0,
+      "repair": "rollback_config",
+      "approved": false,
+      "latency_s": 6.2,
+      "cited": [
+        "EV-M01",
+        "EV-M02",
+        "EV-M03",
+        "EV-M04",
+        "EV-M05",
+        "EV-M06",
+        "EV-M07",
+        "EV-M08",
+        "EV-M09"
+      ],
+      "cited_ev_c08": false,
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 = 0.6633 (healthy: >= 0.50), EV-M02 shows retrieval_kept_chunks_mean = 2.6667 (healthy: >= 1.0), EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), EV-M04 shows corpus_chunks = 30.0 (healthy: 30), EV-M05 shows corpus_files = 2.0 (healthy: 2), EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20), EV-M07 shows llm_generation_latency_p95 = 0.9661 (healthy: < 4.0s), EV-M08 shows db_pool_in_use = 0.0 (healthy: well under the max of 10), EV-M09 shows chat_error_ratio = 0.0 (healthy: < 0.05). These signals indicate retrieval is working correctly, but the rerank filter is discarding retrieved chunks, resulting in answers arriving with no grounding. This rules out F01, F02, F03, F05, and F09. It also rules out F07 because EV-M01 shows retrieval_top_similarity_p50 is healthy, and EV-M07 shows llm_generation_latency_p95 is healthy. Therefore, the diagnosis is F06: Retrieval collapse."
+    },
+    {
+      "rep": 2,
+      "fault_class": "F06",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": false,
+      "latency_s": 4.4,
+      "cited": [
+        "EV-M01",
+        "EV-M03",
+        "EV-M06",
+        "EV-C01",
+        "EV-C07",
+        "EV-C08"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 = 0.6633 (healthy: >= 0.50), EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), and EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20). These rules out F01 and F02. EV-C01 shows rerank_threshold = 0.35 (healthy: baseline 0.35), and EV-C07 shows config_hash = de4cfaed14a8bb98 (healthy: baseline 'de4cfaed14a8bb98'). These rules out F07. EV-C08 shows prompt_file_hashes = {'answer.txt': '159392695894'} (healthy: baseline {'answer.txt': 'd55c73a23f33', 'query_expansion.txt': 'bbc6a7fee760'}  <-- DIFFERS: ['answer.txt']), which rules out F08. Therefore, the evidence supports F06: Retrieval collapse."
+    },
+    {
+      "rep": 3,
+      "fault_class": "F06",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": false,
+      "latency_s": 10.6,
+      "cited": [
+        "EV-M01",
+        "EV-M03",
+        "EV-M06",
+        "EV-C01",
+        "EV-C07",
+        "EV-C08"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 = 0.6633 (healthy: >= 0.50), EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), and EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20). These rules out F01 and F02. EV-C01 shows rerank_threshold = 0.35 (healthy: baseline 0.35), and EV-C07 shows config_hash = de4cfaed14a8bb98 (healthy: baseline 'de4cfaed14a8bb98'). These rules out F07. EV-C08 shows prompt_file_hashes = {'answer.txt': '159392695894'} (healthy: baseline {'answer.txt': 'd55c73a23f33', 'query_expansion.txt': 'bbc6a7fee760'}  <-- DIFFERS: ['answer.txt']), which rules out F08. Therefore, the evidence supports F06: Retrieval collapse."
+    },
+    {
+      "rep": 4,
+      "fault_class": "F06",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": false,
+      "latency_s": 12.6,
+      "cited": [
+        "EV-M01",
+        "EV-M03",
+        "EV-M06",
+        "EV-C01",
+        "EV-C07",
+        "EV-C08"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 = 0.6633 (healthy: >= 0.50), EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), and EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20). These rules out F01 and F02. EV-C01 shows rerank_threshold = 0.35 (healthy: baseline 0.35), and EV-C07 shows config_hash = de4cfaed14a8bb98 (healthy: baseline 'de4cfaed14a8bb98'). These rules out F07. EV-C08 shows prompt_file_hashes = {'answer.txt': '159392695894'} (healthy: baseline {'answer.txt': 'd55c73a23f33', 'query_expansion.txt': 'bbc6a7fee760'}  <-- DIFFERS: ['answer.txt']), which rules out F08. Therefore, the evidence supports F06: Retrieval collapse."
+    },
+    {
+      "rep": 5,
+      "fault_class": "F06",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": false,
+      "latency_s": 9.0,
+      "cited": [
+        "EV-M01",
+        "EV-M03",
+        "EV-M06",
+        "EV-C01",
+        "EV-C07",
+        "EV-C08"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 = 0.6633 (healthy: >= 0.50), EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), and EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20). These rules out F01 and F02. EV-C01 shows rerank_threshold = 0.35 (healthy: baseline 0.35), and EV-C07 shows config_hash = de4cfaed14a8bb98 (healthy: baseline 'de4cfaed14a8bb98'). These rules out F07. EV-C08 shows prompt_file_hashes = {'answer.txt': '159392695894'} (healthy: baseline {'answer.txt': 'd55c73a23f33', 'query_expansion.txt': 'bbc6a7fee760'}  <-- DIFFERS: ['answer.txt']), which rules out F08. Therefore, the evidence supports F06: Retrieval collapse."
+    },
+    {
+      "rep": 6,
+      "fault_class": "F06",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": false,
+      "latency_s": 4.4,
+      "cited": [
+        "EV-M01",
+        "EV-M03",
+        "EV-M06",
+        "EV-C01",
+        "EV-C07",
+        "EV-C08"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 = 0.6633 (healthy: >= 0.50), EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), and EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20). These rules out F01 and F02. EV-C01 shows rerank_threshold = 0.35 (healthy: baseline 0.35), and EV-C07 shows config_hash = de4cfaed14a8bb98 (healthy: baseline 'de4cfaed14a8bb98'). These rules out F07. EV-C08 shows prompt_file_hashes = {'answer.txt': '159392695894'} (healthy: baseline {'answer.txt': 'd55c73a23f33', 'query_expansion.txt': 'bbc6a7fee760'}  <-- DIFFERS: ['answer.txt']), which rules out F08. Therefore, the evidence supports F06: Retrieval collapse."
+    },
+    {
+      "rep": 7,
+      "fault_class": "F06",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": false,
+      "latency_s": 4.4,
+      "cited": [
+        "EV-M01",
+        "EV-M03",
+        "EV-M06",
+        "EV-C01",
+        "EV-C07",
+        "EV-C08"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 = 0.6633 (healthy: >= 0.50), EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), and EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20). These rules out F01 and F02. EV-C01 shows rerank_threshold = 0.35 (healthy: baseline 0.35), and EV-C07 shows config_hash = de4cfaed14a8bb98 (healthy: baseline 'de4cfaed14a8bb98'). These rules out F07. EV-C08 shows prompt_file_hashes = {'answer.txt': '159392695894'} (healthy: baseline {'answer.txt': 'd55c73a23f33', 'query_expansion.txt': 'bbc6a7fee760'}  <-- DIFFERS: ['answer.txt']), which rules out F08. Therefore, the evidence supports F06: Retrieval collapse."
+    },
+    {
+      "rep": 8,
+      "fault_class": "F06",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": false,
+      "latency_s": 4.4,
+      "cited": [
+        "EV-M01",
+        "EV-M03",
+        "EV-M06",
+        "EV-C01",
+        "EV-C07",
+        "EV-C08"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 = 0.6633 (healthy: >= 0.50), EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), and EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20). These rules out F01 and F02. EV-C01 shows rerank_threshold = 0.35 (healthy: baseline 0.35), and EV-C07 shows config_hash = de4cfaed14a8bb98 (healthy: baseline 'de4cfaed14a8bb98'). These rules out F07. EV-C08 shows prompt_file_hashes = {'answer.txt': '159392695894'} (healthy: baseline {'answer.txt': 'd55c73a23f33', 'query_expansion.txt': 'bbc6a7fee760'}  <-- DIFFERS: ['answer.txt']), which rules out F08. Therefore, the evidence supports F06: Retrieval collapse."
+    },
+    {
+      "rep": 9,
+      "fault_class": "F06",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": false,
+      "latency_s": 4.4,
+      "cited": [
+        "EV-M01",
+        "EV-M03",
+        "EV-M06",
+        "EV-C01",
+        "EV-C07",
+        "EV-C08"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 = 0.6633 (healthy: >= 0.50), EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), and EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20). These rules out F01 and F02. EV-C01 shows rerank_threshold = 0.35 (healthy: baseline 0.35), and EV-C07 shows config_hash = de4cfaed14a8bb98 (healthy: baseline 'de4cfaed14a8bb98'). These rules out F07. EV-C08 shows prompt_file_hashes = {'answer.txt': '159392695894'} (healthy: baseline {'answer.txt': 'd55c73a23f33', 'query_expansion.txt': 'bbc6a7fee760'}  <-- DIFFERS: ['answer.txt']), which rules out F08. Therefore, the evidence supports F06: Retrieval collapse."
+    },
+    {
+      "rep": 10,
+      "fault_class": "F06",
+      "service": "backend",
+      "confidence": 0.8,
+      "repair": "rollback_config",
+      "approved": false,
+      "latency_s": 4.4,
+      "cited": [
+        "EV-M01",
+        "EV-M03",
+        "EV-M06",
+        "EV-C01",
+        "EV-C07",
+        "EV-C08"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-M01 shows retrieval_top_similarity_p50 = 0.6633 (healthy: >= 0.50), EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), and EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20). These rules out F01 and F02. EV-C01 shows rerank_threshold = 0.35 (healthy: baseline 0.35), and EV-C07 shows config_hash = de4cfaed14a8bb98 (healthy: baseline 'de4cfaed14a8bb98'). These rules out F07. EV-C08 shows prompt_file_hashes = {'answer.txt': '159392695894'} (healthy: baseline {'answer.txt': 'd55c73a23f33', 'query_expansion.txt': 'bbc6a7fee760'}  <-- DIFFERS: ['answer.txt']), which rules out F08. Therefore, the evidence supports F06: Retrieval collapse."
+    }
+  ]
+}

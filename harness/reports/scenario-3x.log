@@ -1,0 +1,173 @@
+=== waiting for the blast-radius window to clear ===
+=== window clear 2026-10-19T06:08:50Z ===
+=== RUN 1 START 2026-10-19T06:08:50Z ===
+==============================================================================
+  SCENARIO: demo-full-r1
+==============================================================================
+  mode at start      APPROVAL (restored at the end)
+  corpus             {'chunks': 30.0, 'files': 2.0}
+  preflight          healthy, fast set passing
+  RCA model          qwen2.5:7b-instruct
+
+  NOTE: these four acts cost up to 7 incident starts, and permit()
+  allows 5 an hour. ONE full run fits. A second rehearsal inside the
+  same hour will hit the blast-radius limiter and park - which is
+  correct behaviour, not a bug. Space rehearsals an hour apart.
+
+==============================================================================
+  ACT 1: AUTONOMOUS HEAL
+  what to point at: no human touched it; verdict ALLOW_AUTO
+==============================================================================
+    F01 -> switch_llm_endpoint, verdict ALLOW_AUTO, status RESOLVED, no approval requested
+
+==============================================================================
+  ACT 2: APPROVAL HEAL
+  what to point at: it parked and wrote NOTHING until a human approved
+==============================================================================
+    parked: F08 -> rollback_config, tier MEDIUM, target untouched = True
+    <-- ON STAGE, PAUSE HERE. Show the plan and the inverse.
+    parked writing nothing, then approved -> RESOLVED
+
+==============================================================================
+  ACT 3: ROLLBACK
+  what to point at: the repair failed and the target went back exactly
+==============================================================================
+    repair applied and failed verification; unwound 1/1 clean=True; endpoint back at http://toxiproxy:21434
+
+==============================================================================
+  ACT 4: UNKNOWN FAILURE
+  what to point at: it refused to guess, and said why
+==============================================================================
+    <-- ON STAGE, READ THE REASON OUT. This is the system
+        declining to act on a fault it does not understand.
+    ESCALATED, no class claimed, nothing written. Reason: the fast set failed but only 25.3% of LLM calls errored, so the model is being reached and this is not an endpoint outag
+
+==============================================================================
+  SCENARIO RESULT
+==============================================================================
+  PASS  act 1 autonomous heal (F01, LOW risk, no human) (115.5s)
+  PASS  act 2 approval heal (F08, MEDIUM risk, human gates it) (144.3s)
+  PASS  act 3 rollback (both LLM paths down, so the right repair fails) (111.4s)
+  PASS  act 4 unknown failure (database down - NOT in the catalogue) (102.0s)
+  corpus {'chunks': 30.0, 'files': 2.0} -> {'chunks': 30.0, 'files': 2.0}   target healthy: True
+
+  demo-full-r1: CLEAN
+  Acceptance asks for three consecutive clean runs. Leave an
+  hour between them, for the blast-radius reason above.
+  artifact ..\..\harness\reports\scenario-r1.json
+=== RUN 1 EXIT=0 AT 2026-10-19T06:17:14Z ===
+--- sleeping 65 min for the blast-radius window ---
+=== RUN 2 START 2026-10-19T07:22:14Z ===
+==============================================================================
+  SCENARIO: demo-full-r2
+==============================================================================
+  mode at start      APPROVAL (restored at the end)
+  corpus             {'chunks': 30.0, 'files': 2.0}
+  preflight          healthy, fast set passing
+  RCA model          qwen2.5:7b-instruct
+
+  NOTE: these four acts cost up to 7 incident starts, and permit()
+  allows 5 an hour. ONE full run fits. A second rehearsal inside the
+  same hour will hit the blast-radius limiter and park - which is
+  correct behaviour, not a bug. Space rehearsals an hour apart.
+
+==============================================================================
+  ACT 1: AUTONOMOUS HEAL
+  what to point at: no human touched it; verdict ALLOW_AUTO
+==============================================================================
+    F01 -> switch_llm_endpoint, verdict ALLOW_AUTO, status RESOLVED, no approval requested
+
+==============================================================================
+  ACT 2: APPROVAL HEAL
+  what to point at: it parked and wrote NOTHING until a human approved
+==============================================================================
+    parked: F08 -> rollback_config, tier MEDIUM, target untouched = True
+    <-- ON STAGE, PAUSE HERE. Show the plan and the inverse.
+    parked writing nothing, then approved -> RESOLVED
+
+==============================================================================
+  ACT 3: ROLLBACK
+  what to point at: the repair failed and the target went back exactly
+==============================================================================
+    repair applied and failed verification; unwound 1/1 clean=True; endpoint back at http://toxiproxy:21434
+
+==============================================================================
+  ACT 4: UNKNOWN FAILURE
+  what to point at: it refused to guess, and said why
+==============================================================================
+    <-- ON STAGE, READ THE REASON OUT. This is the system
+        declining to act on a fault it does not understand.
+    ESCALATED, no class claimed, nothing written. Reason: the fast set failed but only 29.5% of LLM calls errored, so the model is being reached and this is not an endpoint outag
+
+==============================================================================
+  SCENARIO RESULT
+==============================================================================
+  PASS  act 1 autonomous heal (F01, LOW risk, no human) (109.4s)
+  PASS  act 2 approval heal (F08, MEDIUM risk, human gates it) (148.3s)
+  PASS  act 3 rollback (both LLM paths down, so the right repair fails) (111.3s)
+  PASS  act 4 unknown failure (database down - NOT in the catalogue) (126.3s)
+  corpus {'chunks': 30.0, 'files': 2.0} -> {'chunks': 30.0, 'files': 2.0}   target healthy: True
+
+  demo-full-r2: CLEAN
+  Acceptance asks for three consecutive clean runs. Leave an
+  hour between them, for the blast-radius reason above.
+  artifact ..\..\harness\reports\scenario-r2.json
+=== RUN 2 EXIT=0 AT 2026-10-19T07:30:53Z ===
+--- sleeping 65 min for the blast-radius window ---
+=== RUN 3 START 2026-10-19T08:35:53Z ===
+==============================================================================
+  SCENARIO: demo-full-r3
+==============================================================================
+  mode at start      APPROVAL (restored at the end)
+  corpus             {'chunks': 30.0, 'files': 2.0}
+  preflight          healthy, fast set passing
+  RCA model          qwen2.5:7b-instruct
+
+  NOTE: these four acts cost up to 7 incident starts, and permit()
+  allows 5 an hour. ONE full run fits. A second rehearsal inside the
+  same hour will hit the blast-radius limiter and park - which is
+  correct behaviour, not a bug. Space rehearsals an hour apart.
+
+==============================================================================
+  ACT 1: AUTONOMOUS HEAL
+  what to point at: no human touched it; verdict ALLOW_AUTO
+==============================================================================
+    F01 -> switch_llm_endpoint, verdict ALLOW_AUTO, status RESOLVED, no approval requested
+
+==============================================================================
+  ACT 2: APPROVAL HEAL
+  what to point at: it parked and wrote NOTHING until a human approved
+==============================================================================
+    parked: F08 -> rollback_config, tier MEDIUM, target untouched = True
+    <-- ON STAGE, PAUSE HERE. Show the plan and the inverse.
+    parked writing nothing, then approved -> RESOLVED
+
+==============================================================================
+  ACT 3: ROLLBACK
+  what to point at: the repair failed and the target went back exactly
+==============================================================================
+    repair applied and failed verification; unwound 1/1 clean=True; endpoint back at http://toxiproxy:21434
+
+==============================================================================
+  ACT 4: UNKNOWN FAILURE
+  what to point at: it refused to guess, and said why
+==============================================================================
+    <-- ON STAGE, READ THE REASON OUT. This is the system
+        declining to act on a fault it does not understand.
+    ESCALATED, no class claimed, nothing written. Reason: the fast set failed but only 25.4% of LLM calls errored, so the model is being reached and this is not an endpoint outag
+
+==============================================================================
+  SCENARIO RESULT
+==============================================================================
+  PASS  act 1 autonomous heal (F01, LOW risk, no human) (119.7s)
+  PASS  act 2 approval heal (F08, MEDIUM risk, human gates it) (171.2s)
+  PASS  act 3 rollback (both LLM paths down, so the right repair fails) (111.2s)
+  PASS  act 4 unknown failure (database down - NOT in the catalogue) (98.6s)
+  corpus {'chunks': 30.0, 'files': 2.0} -> {'chunks': 30.0, 'files': 2.0}   target healthy: True
+
+  demo-full-r3: CLEAN
+  Acceptance asks for three consecutive clean runs. Leave an
+  hour between them, for the blast-radius reason above.
+  artifact ..\..\harness\reports\scenario-r3.json
+=== RUN 3 EXIT=0 AT 2026-10-19T08:44:36Z ===
+=== ALL THREE DONE 2026-10-19T08:44:36Z ===

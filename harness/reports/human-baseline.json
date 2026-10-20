@@ -1,0 +1,99 @@
+{
+  "updated_at": "2026-10-18T11:18:32+00:00",
+  "protocol": "docs/HUMAN_BASELINE.md",
+  "runs": [
+    {
+      "operator": "Arsalan",
+      "fault_class": "F07",
+      "started_at": "2026-10-18T11:13:18+00:00",
+      "mttd_s": 81.4,
+      "diagnosis_s": 100.8,
+      "resolve_s": null,
+      "operator_diagnosis": "idk based on provided docs",
+      "operator_action": "backend ig",
+      "diagnosis_correct": false,
+      "declared_resolved_at_s": 104.6,
+      "verified": false,
+      "false_recovery": true,
+      "pass_rate_at_declaration": 0.0,
+      "gave_up": false,
+      "notes": "",
+      "corpus_before": {
+        "chunks": 30.0,
+        "files": 2.0
+      },
+      "corpus_after": {
+        "chunks": 30.0,
+        "files": 2.0
+      },
+      "kavach_incident_id": "INC-111413",
+      "kavach_fault_class": "F07",
+      "kavach_status": "ESCALATED",
+      "kavach_confidence": 0.95,
+      "kavach_correct": true,
+      "kavach_seconds": null
+    },
+    {
+      "operator": "Arsalan",
+      "fault_class": "F01",
+      "started_at": "2026-10-18T11:16:34+00:00",
+      "mttd_s": 47.4,
+      "diagnosis_s": 58.0,
+      "resolve_s": null,
+      "operator_diagnosis": "i fucking dont know",
+      "operator_action": "",
+      "diagnosis_correct": false,
+      "declared_resolved_at_s": 67.8,
+      "verified": false,
+      "false_recovery": false,
+      "pass_rate_at_declaration": null,
+      "gave_up": true,
+      "notes": "",
+      "corpus_before": {
+        "chunks": 30.0,
+        "files": 2.0
+      },
+      "corpus_after": {
+        "chunks": 30.0,
+        "files": 2.0
+      },
+      "kavach_incident_id": "INC-111644",
+      "kavach_fault_class": "",
+      "kavach_status": "ESCALATED",
+      "kavach_confidence": null,
+      "kavach_correct": false,
+      "kavach_seconds": null
+    },
+    {
+      "operator": "Arsalan",
+      "fault_class": "F01",
+      "started_at": "2026-10-18T11:18:00+00:00",
+      "mttd_s": 14.3,
+      "diagnosis_s": 21.4,
+      "resolve_s": null,
+      "operator_diagnosis": "I think its connection issue",
+      "operator_action": "",
+      "diagnosis_correct": false,
+      "declared_resolved_at_s": 26.2,
+      "verified": false,
+      "false_recovery": false,
+      "pass_rate_at_declaration": null,
+      "gave_up": true,
+      "notes": "",
+      "corpus_before": {
+        "chunks": 30.0,
+        "files": 2.0
+      },
+      "corpus_after": {
+        "chunks": 30.0,
+        "files": 2.0
+      },
+      "kavach_incident_id": "INC-111802",
+      "kavach_fault_class": "F01",
+      "kavach_status": "AWAITING_APPROVAL",
+      "kavach_confidence": 0.95,
+      "kavach_correct": true,
+      "kavach_seconds": null
+    }
+  ]
+}

@@ -1,0 +1,198 @@
+{
+  "at": "2026-10-19T03:42:34+00:00",
+  "model": "qwen2.5:7b-instruct",
+  "reps": 10,
+  "correct_f07": 10,
+  "classes": {
+    "F07": 10
+  },
+  "validator_approved": 10,
+  "cited_ev_c08": 10,
+  "latency_s": [
+    18.2,
+    7.9,
+    7.9,
+    8.0,
+    8.0,
+    8.2,
+    8.0,
+    8.1,
+    8.1,
+    8.1
+  ],
+  "baseline": "baseline-simple-rag-20261017T163257+0000.json",
+  "old_strings_copied_in": [],
+  "skeleton_defaults_in": [],
+  "named_expected_repair": 10,
+  "corpus_before": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "corpus_after": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "passed": true,
+  "runs": [
+    {
+      "rep": 1,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.95,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 18.2,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt file 'answer.txt' has a different hash ('159392695894' instead of the baseline 'd55c73a23f33'), indicating a change. EV-M06 shows that the llm_error_ratio is 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.75, indicating that retrieval worked. These observations rule out F01, F06, and F08, leaving F07 as the most likely cause."
+    },
+    {
+      "rep": 2,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.95,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 7.9,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt file 'answer.txt' has a different hash ('159392695894' instead of the baseline 'd55c73a23f33'), indicating a change. EV-M06 shows that the llm_error_ratio is 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.75, indicating that retrieval worked. These observations rule out F01, F06, and F08, leaving F07 as the most likely cause."
+    },
+    {
+      "rep": 3,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.95,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 7.9,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt file 'answer.txt' has a different hash ('159392695894' instead of the baseline 'd55c73a23f33'), indicating a change. EV-M06 shows that the llm_error_ratio is 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.75, indicating that retrieval worked. These observations rule out F01, F06, and F08, leaving F07 as the most likely cause."
+    },
+    {
+      "rep": 4,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.95,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 8.0,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt file 'answer.txt' has a different hash ('159392695894' instead of the baseline 'd55c73a23f33'), indicating a change. EV-M06 shows that the llm_error_ratio is 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.75, indicating that retrieval worked. These observations rule out F01, F06, and F08, leaving F07 as the most likely cause."
+    },
+    {
+      "rep": 5,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.95,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 8.0,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt file 'answer.txt' has a different hash ('159392695894' instead of the baseline 'd55c73a23f33'), indicating a change. EV-M06 shows that the llm_error_ratio is 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.75, indicating that retrieval worked. These observations rule out F01, F06, and F08, leaving F07 as the most likely cause."
+    },
+    {
+      "rep": 6,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.95,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 8.2,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt file 'answer.txt' has a different hash ('159392695894' instead of the baseline 'd55c73a23f33'), indicating a change. EV-M06 shows that the llm_error_ratio is 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.75, indicating that retrieval worked. These observations rule out F01, F06, and F08, leaving F07 as the most likely cause."
+    },
+    {
+      "rep": 7,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.95,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 8.0,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt file 'answer.txt' has a different hash ('159392695894' instead of the baseline 'd55c73a23f33'), indicating a change. EV-M06 shows that the llm_error_ratio is 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.75, indicating that retrieval worked. These observations rule out F01, F06, and F08, leaving F07 as the most likely cause."
+    },
+    {
+      "rep": 8,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.95,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 8.1,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt file 'answer.txt' has a different hash ('159392695894' instead of the baseline 'd55c73a23f33'), indicating a change. EV-M06 shows that the llm_error_ratio is 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.75, indicating that retrieval worked. These observations rule out F01, F06, and F08, leaving F07 as the most likely cause."
+    },
+    {
+      "rep": 9,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.95,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 8.1,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt file 'answer.txt' has a different hash ('159392695894' instead of the baseline 'd55c73a23f33'), indicating a change. EV-M06 shows that the llm_error_ratio is 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.75, indicating that retrieval worked. These observations rule out F01, F06, and F08, leaving F07 as the most likely cause."
+    },
+    {
+      "rep": 10,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.95,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 8.1,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt file 'answer.txt' has a different hash ('159392695894' instead of the baseline 'd55c73a23f33'), indicating a change. EV-M06 shows that the llm_error_ratio is 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.75, indicating that retrieval worked. These observations rule out F01, F06, and F08, leaving F07 as the most likely cause."
+    }
+  ]
+}

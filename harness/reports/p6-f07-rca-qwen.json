@@ -1,0 +1,198 @@
+{
+  "at": "2026-10-17T17:13:36+00:00",
+  "model": "qwen2.5:7b-instruct",
+  "reps": 10,
+  "correct_f07": 10,
+  "classes": {
+    "F07": 10
+  },
+  "validator_approved": 10,
+  "cited_ev_c08": 10,
+  "latency_s": [
+    17.0,
+    6.3,
+    6.4,
+    6.4,
+    6.4,
+    6.4,
+    6.5,
+    11.9,
+    19.2,
+    8.1
+  ],
+  "baseline": "baseline-simple-rag-20261017T163257+0000.json",
+  "old_strings_copied_in": [],
+  "skeleton_defaults_in": [],
+  "named_expected_repair": 10,
+  "corpus_before": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "corpus_after": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "passed": true,
+  "runs": [
+    {
+      "rep": 1,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 17.0,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt_file_hashes for 'answer.txt' differ from the baseline, indicating a change in the prompt file. EV-M06 reports a llm_error_ratio of 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.6471, which is intact. This rules out F06. The prompt change is the only factor that could have caused the degradation in answer quality."
+    },
+    {
+      "rep": 2,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 6.3,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt_file_hashes for 'answer.txt' differ from the baseline, indicating a change in the prompt file. EV-M06 reports a llm_error_ratio of 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.6471, which is intact. This rules out F06. The prompt change is the only factor that could have caused the degradation in answer quality."
+    },
+    {
+      "rep": 3,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 6.4,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt_file_hashes for 'answer.txt' differ from the baseline, indicating a change in the prompt file. EV-M06 reports a llm_error_ratio of 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.6471, which is intact. This rules out F06. The prompt change is the only factor that could have caused the degradation in answer quality."
+    },
+    {
+      "rep": 4,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 6.4,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt_file_hashes for 'answer.txt' differ from the baseline, indicating a change in the prompt file. EV-M06 reports a llm_error_ratio of 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.6471, which is intact. This rules out F06. The prompt change is the only factor that could have caused the degradation in answer quality."
+    },
+    {
+      "rep": 5,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 6.4,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt_file_hashes for 'answer.txt' differ from the baseline, indicating a change in the prompt file. EV-M06 reports a llm_error_ratio of 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.6471, which is intact. This rules out F06. The prompt change is the only factor that could have caused the degradation in answer quality."
+    },
+    {
+      "rep": 6,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 6.4,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt_file_hashes for 'answer.txt' differ from the baseline, indicating a change in the prompt file. EV-M06 reports a llm_error_ratio of 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.6471, which is intact. This rules out F06. The prompt change is the only factor that could have caused the degradation in answer quality."
+    },
+    {
+      "rep": 7,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 6.5,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt_file_hashes for 'answer.txt' differ from the baseline, indicating a change in the prompt file. EV-M06 reports a llm_error_ratio of 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.6471, which is intact. This rules out F06. The prompt change is the only factor that could have caused the degradation in answer quality."
+    },
+    {
+      "rep": 8,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 11.9,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt_file_hashes for 'answer.txt' differ from the baseline, indicating a change in the prompt file. EV-M06 reports a llm_error_ratio of 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.6471, which is intact. This rules out F06. The prompt change is the only factor that could have caused the degradation in answer quality."
+    },
+    {
+      "rep": 9,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 19.2,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt_file_hashes for 'answer.txt' differ from the baseline, indicating a change in the prompt file. EV-M06 reports a llm_error_ratio of 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.6471, which is intact. This rules out F06. The prompt change is the only factor that could have caused the degradation in answer quality."
+    },
+    {
+      "rep": 10,
+      "fault_class": "F07",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "rollback_prompt",
+      "approved": true,
+      "latency_s": 8.1,
+      "cited": [
+        "EV-C08",
+        "EV-M06",
+        "EV-M02"
+      ],
+      "cited_ev_c08": true,
+      "reasoning": "EV-C08 shows that the prompt_file_hashes for 'answer.txt' differ from the baseline, indicating a change in the prompt file. EV-M06 reports a llm_error_ratio of 0.0, meaning the model answered, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.6471, which is intact. This rules out F06. The prompt change is the only factor that could have caused the degradation in answer quality."
+    }
+  ]
+}

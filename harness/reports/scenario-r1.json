@@ -1,0 +1,49 @@
+{
+  "at": "2026-10-19T06:17:13+00:00",
+  "name": "demo-full-r1",
+  "rca_model": "qwen2.5:7b-instruct",
+  "acts": [
+    {
+      "n": 1,
+      "title": "autonomous heal (F01, LOW risk, no human)",
+      "passed": true,
+      "detail": "F01 -> switch_llm_endpoint, verdict ALLOW_AUTO, status RESOLVED, no approval requested",
+      "seconds": 115.5,
+      "limiter": false
+    },
+    {
+      "n": 2,
+      "title": "approval heal (F08, MEDIUM risk, human gates it)",
+      "passed": true,
+      "detail": "parked writing nothing, then approved -> RESOLVED",
+      "seconds": 144.3,
+      "limiter": false
+    },
+    {
+      "n": 3,
+      "title": "rollback (both LLM paths down, so the right repair fails)",
+      "passed": true,
+      "detail": "repair applied and failed verification; unwound 1/1 clean=True; endpoint back at http://toxiproxy:21434",
+      "seconds": 111.4,
+      "limiter": false
+    },
+    {
+      "n": 4,
+      "title": "unknown failure (database down - NOT in the catalogue)",
+      "passed": true,
+      "detail": "ESCALATED, no class claimed, nothing written. Reason: the fast set failed but only 25.3% of LLM calls errored, so the model is being reached and this is not an endpoint outag",
+      "seconds": 102.0,
+      "limiter": false
+    }
+  ],
+  "corpus_before": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "corpus_after": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "target_healthy_after": true,
+  "clean": true
+}

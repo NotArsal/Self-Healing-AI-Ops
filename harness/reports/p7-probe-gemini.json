@@ -1,0 +1,16 @@
+{
+  "provider": "gemini",
+  "model": "gemini-3.8-flash",
+  "requested": 10,
+  "answered": 10,
+  "applies": 7,
+  "unreached": 0,
+  "attempts": 10,
+  "apply_rate": 0.7,
+  "failures": [
+    "git apply failed (128): error: corrupt patch at C:/Users/shaik/AppData/Local/Temp/tmpnch5hugk/incident.diff:11",
+    "git apply failed (128): error: corrupt patch at C:/Users/shaik/AppData/Local/Temp/tmpnhhchkkr/incident.diff:11",
+    "git apply failed (128): error: corrupt patch at C:/Users/shaik/AppData/Local/Temp/tmpvdd_la9y/incident.diff:11"
+  ],
+  "measured": "2026-10-18T18:40:56+00:00"
+}

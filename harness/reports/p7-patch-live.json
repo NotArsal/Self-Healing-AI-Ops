@@ -1,0 +1,13 @@
+{
+  "started": "2026-10-18T16:59:29+00:00",
+  "model": "llama3.1:latest",
+  "production_fast_rate_under_fault": 0.0,
+  "production_passed_under_fault": false,
+  "propose_latency_s": 13.71,
+  "propose_usable": false,
+  "propose_reasons": [
+    "the patch does not apply to the file as it stands now: git apply failed (1): error: patch failed: prompts/answer.txt:2\nerror: prompts/answer.txt: patch does not apply. If the file moved since the witness was taken, the right answer is to escalate rather than overwrite it"
+  ],
+  "diff": "--- a/prompts/answer.txt\n+++ b/prompts/answer.txt\n@@ -2,6 +2,7 @@\n You are a document summarisation assistant.\n - Write one sentence describing what subject area the context below covers.\n + Write one sentence describing what subject area the context below covers, and cite the context.\n - This is a summary task. There is no question to answer.\n\n CONTEXT:\n {context}\n\n QUESTION:\n {question}\n\n ANSWER:\n",
+  "verdict": "model produced no usable patch"
+}

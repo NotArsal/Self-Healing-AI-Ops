@@ -1,0 +1,38 @@
+{
+  "at": "2026-10-18T10:29:51+00:00",
+  "scenario": "both toxiproxy listeners disabled; F01 repair cannot work",
+  "unwind_events_before_this_run": 0,
+  "arms": [
+    {
+      "undo_enabled": true,
+      "status": "ESCALATED",
+      "fault_class": "F01",
+      "action": "switch_llm_endpoint",
+      "executed": true,
+      "unwind_attempted": 1,
+      "unwind_restored": 1,
+      "unwind_clean": true,
+      "endpoint_before": "http://toxiproxy:21434",
+      "endpoint_after": "http://toxiproxy:21434",
+      "restored_to_pre_state": true,
+      "outcome": "NOT resolved - repair executed, verification failed, prior state restored and verified",
+      "error": ""
+    },
+    {
+      "undo_enabled": false,
+      "status": "ESCALATED",
+      "fault_class": "F01",
+      "action": "switch_llm_endpoint",
+      "executed": true,
+      "unwind_attempted": 0,
+      "unwind_restored": 0,
+      "unwind_clean": false,
+      "endpoint_before": "http://toxiproxy:21434",
+      "endpoint_after": "http://toxiproxy:21435",
+      "restored_to_pre_state": false,
+      "outcome": "NOT resolved - repair executed, verification failed, prior state NOT fully restored: ABLATED: undo disabled; 1 action(s) left applied",
+      "error": ""
+    }
+  ],
+  "difference_observed": true
+}
