@@ -24,7 +24,7 @@ from __future__ import annotations
 import contextlib
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -143,6 +143,35 @@ class Incident:
         d = dict(self.__dict__)
         d["status"] = str(self.status)
         return d
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> Incident:
+        """The inverse of `to_dict`, for a record read back out of Postgres.
+
+        `IncidentStore` persists `to_dict()` verbatim, so this closes the loop
+        and the API's read path needs no reconstruction layer of its own: the
+        same `incident_out`/`incident_summary` helpers serve a live incident
+        and a restored one.
+
+        Deliberately tolerant in one direction only. Unknown keys are dropped
+        and missing ones take their dataclass default, so a record written by
+        an older image still loads - `concluded_at` arrived on
+        `detection` mid-bench, and a stricter reader would have 500'd on every
+        row written before it. A record is never *invented*: a field that was
+        not stored stays at its default rather than being inferred, which is
+        the substitution ADR 0014 exists about.
+
+        A restored incident is READ-ONLY in practice, and not by politeness:
+        `approve()` and `reject()` gate on `self._awaiting`, which lives in
+        memory and is never repopulated from the store. An incident that was
+        awaiting approval before a restart cannot be approved after one - it
+        can only be read. That is the correct behaviour, because the plan it
+        was parked with was derived from a world that has since moved.
+        """
+        known = {f.name for f in fields(cls)}
+        kwargs = {k: v for k, v in d.items() if k in known}
+        kwargs["status"] = IncidentStatus(str(d.get("status") or "DETECTED"))
+        return cls(**kwargs)
 
     def render(self) -> str:
         lines = [

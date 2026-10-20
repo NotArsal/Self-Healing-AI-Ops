@@ -286,6 +286,51 @@ class LoopRunner:
         """Newest first, from the database. Survives a restart."""
         return self.store.recent(limit)
 
+    def history(self, limit: int = HISTORY_MAX) -> list[loop.Incident]:
+        """Newest first, from the database, topped up from memory.
+
+        What `GET /v1/incidents` reads. Incidents were always persisted - the
+        rows, the RCA payloads, all of it - but both incident routes read the
+        in-process ring, so an API restart emptied the console's history and
+        `make postmortem` printed "no incidents recorded yet" with the data
+        sitting in Postgres (`RESEARCH_NOTES.md` §7.2).
+
+        MEMORY WINS ON A COLLISION, and the order matters. `_remember` writes
+        to the store best-effort, so if the database is briefly unreachable
+        mid-incident the memory copy is the newer one. Preferring the stored
+        row would show a stale status for an incident still running.
+
+        A store that is down degrades to exactly the old behaviour rather
+        than failing: an unreachable database must never cost a read, as it
+        must never stop a heal.
+        """
+        out: list[loop.Incident] = []
+        seen: set[str] = set()
+        for inc in self.incidents():          # memory, newest first
+            out.append(inc)
+            seen.add(inc.incident_id)
+        for record in self.store.recent(limit):
+            incident_id = str(record.get("incident_id") or "")
+            if not incident_id or incident_id in seen:
+                continue
+            seen.add(incident_id)
+            out.append(loop.Incident.from_dict(record))
+        out.sort(key=lambda i: i.detected_at, reverse=True)
+        return out[:limit]
+
+    def find(self, incident_id: str) -> loop.Incident | None:
+        """`incident()`, falling back to the store. Read paths only.
+
+        Not used by `approve()` or `reject()`: those gate on `_awaiting`,
+        which is memory and is never repopulated here, so a restored incident
+        cannot be acted on. See `Incident.from_dict`.
+        """
+        found = self.incident(incident_id)
+        if found is not None:
+            return found
+        record = self.store.get(incident_id)
+        return loop.Incident.from_dict(record) if record else None
+
     def fleet_metrics(self) -> dict[str, Any]:
         return self.store.fleet_metrics()
 

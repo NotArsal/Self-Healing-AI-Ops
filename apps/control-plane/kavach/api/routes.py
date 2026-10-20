@@ -348,7 +348,7 @@ async def get_preflight(
 async def list_incidents(
     runner: Annotated[LoopRunner, Depends(get_runner)],
 ) -> list[s.IncidentSummary]:
-    return [incident_summary(i) for i in runner.incidents()]
+    return [incident_summary(i) for i in runner.history()]
 
 
 @router.get("/incidents/{incident_id}", response_model=s.IncidentOut)
@@ -356,7 +356,7 @@ async def get_incident(
     incident_id: str,
     runner: Annotated[LoopRunner, Depends(get_runner)],
 ) -> s.IncidentOut:
-    inc = runner.incident(incident_id)
+    inc = runner.find(incident_id)
     if inc is None:
         raise HTTPException(status_code=404, detail=f"no incident {incident_id}")
     return incident_out(inc)
@@ -509,13 +509,17 @@ async def llm_calls(
 ) -> list[s.LlmCallOut]:
     """Every diagnosis the model produced, and the validator's verdict on it.
 
-    Derived from incidents already in memory rather than recorded separately:
+    Derived from the incidents themselves rather than recorded separately:
     an LLM call that did not belong to an incident would be a call nothing
     acted on, and `RcaResult` already carries model, latency, tokens and the
     validation outcome.
+
+    Reads `history()`, so it survives a restart. It did not until 2026-10-20,
+    and an overnight bench's thirty-seven diagnoses had to be dumped to an
+    artifact by hand to keep them (`harness/dump_diagnoses.py`).
     """
     out: list[s.LlmCallOut] = []
-    for inc in runner.incidents():
+    for inc in runner.history(limit):
         rca = inc.rca or {}
         if not rca:
             continue
@@ -556,6 +560,12 @@ async def alerts(
     system_out = await system(settings, runner)
     deps = [(d.name, d.ok, d.detail) for d in system_out.dependencies]
     chain = runner.audit.verify()
+    # MEMORY, deliberately, where the two routes above read the store.
+    # Every rule here asks "why will the NEXT repair be refused" - an
+    # escalation streak, an open breaker, blast radius spent. Those are
+    # claims about now. Evaluated over a restored history they would fire on
+    # three escalations from last week and train an operator to ignore the
+    # panel, which is worse than an empty one.
     rows = alert_rules.evaluate(
         safety=runner.safety,
         incidents=runner.incidents(),
