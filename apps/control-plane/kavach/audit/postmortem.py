@@ -32,6 +32,8 @@ without checking would be worse than one that omits the claim.
 from __future__ import annotations
 
 import contextlib
+import io
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -319,8 +321,39 @@ def _main() -> int:
         Path(args.out).write_text(text, encoding="utf-8", newline="")
         print(f"wrote {args.out}")
     else:
-        print(text)
+        _print_utf8(text)
     return 0
+
+
+def _print_utf8(text: str) -> None:
+    """Print a report that contains arrows and em dashes on a cp1252 console.
+
+    `make postmortem` crashed on Windows with
+
+        UnicodeEncodeError: 'charmap' codec can't encode character '\\u2192'
+
+    after rendering 1.5KB of a report nobody got to see. The rendered text is
+    not at fault - the Markdown is correct and `--out` always wrote it fine.
+    The default console encoding is, and the demo's closing beat runs without
+    `--out`.
+
+    Reconfigure first so the report prints as written. If the stream will not
+    take UTF-8 at all, substitute rather than raise: a postmortem with an
+    arrow turned into `?` is still a postmortem, and a traceback is not.
+    """
+    stream = sys.stdout
+    # A real narrowing, not a silenced one: `reconfigure` is on
+    # `TextIOWrapper`, and `sys.stdout` is only typed `TextIO`. AGENTS.md
+    # forbids `type: ignore`, and an isinstance check is also honest about
+    # the case where stdout has been replaced by something else entirely.
+    if isinstance(stream, io.TextIOWrapper):
+        with contextlib.suppress(ValueError, OSError):
+            stream.reconfigure(encoding="utf-8")
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        encoding = getattr(stream, "encoding", None) or "ascii"
+        print(text.encode(encoding, errors="replace").decode(encoding))
 
 
 if __name__ == "__main__":

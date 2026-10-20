@@ -70,6 +70,12 @@ from harness.kavach_baseline import (  # noqa: E402
     warm_up_f01,
 )
 from kavach.config import get_settings  # noqa: E402
+
+# The SAME lookup `validate.py`'s `repair_permitted` rule consults, so this
+# harness cannot score a repair against a table that has drifted from the
+# gate's. Derived from the detector registry, so adding a fault class is one
+# line there and nothing here changes.
+from kavach.rca.validate import permitted_repair  # noqa: E402
 from kavach.target import TargetClient, TargetEndpoints  # noqa: E402
 from kavach.verification import fast  # noqa: E402
 
@@ -142,8 +148,19 @@ class Run:
     first_verdict_s: float | None = None
     det_class: str = ""
     llm_class: str = ""
+    # THE REPAIR THE MODEL PROPOSED, which is a second answer scored nowhere
+    # until 2026-10-20. A diagnosis carries a class AND a candidate repair;
+    # `RCA accuracy` only ever counted the class. Run B found an incident
+    # (INC-210032) where the class was right, the agreement rule passed, and
+    # the model asked for `rollback_prompt` on a retrieval collapse - counted
+    # as a correct diagnosis, and it healed nothing. See RESEARCH_NOTES 10.
+    llm_action: str = ""
     llm_confidence: float | None = None
     llm_approved: bool | None = None
+    # The validator's own words, verbatim, rather than this harness's
+    # reconstruction of why a diagnosis was refused. The two can disagree,
+    # and only one of them is the system under test.
+    escalation_reason: str = ""
     service: str = ""
     action: str = ""
     executed: bool = False
@@ -162,6 +179,24 @@ class Run:
         """The LLM's own answer. NEVER `incident.fault_class`, which is the
         deterministic verdict and sits in the same record."""
         return self.llm_class == self.fault_class
+
+    @property
+    def action_correct(self) -> bool:
+        """The repair the model proposed, against the one the INJECTED class
+        permits.
+
+        Scored against the injected class, not against the class the model
+        named, and the difference is the whole point. A model that says F06
+        and proposes `rollback_config` is self-consistent and still wrong
+        about the world; scoring it against its own claim would mark that
+        correct and measure nothing but internal coherence.
+
+        `permitted_repair()` is the registry `validate.py` itself consults,
+        imported rather than re-typed - a copied lookup table that drifted is
+        exactly how `RCA accuracy` came to read the wrong field once already.
+        """
+        expected = permitted_repair().get(self.fault_class)
+        return bool(expected) and self.llm_action == expected
 
     @property
     def localization_correct(self) -> bool:
@@ -213,6 +248,7 @@ def one_run(client: TargetClient, fault_class: str, rep: int,
         diag = (inc.get("rca") or {}).get("diagnosis") or {}
         if diag:
             r.llm_class = str(diag.get("fault_class") or "")
+            r.llm_action = str(diag.get("candidate_repair") or "")
             conf = diag.get("confidence")
             r.llm_confidence = float(conf) if conf is not None else None
             r.llm_approved = bool((inc.get("rca") or {}).get("approved"))
@@ -226,6 +262,11 @@ def one_run(client: TargetClient, fault_class: str, rep: int,
 
         r.executed = bool((inc.get("action") or {}).get("executed"))
         r.resolved = inc.get("status") == "RESOLVED"
+        # Read here, not above: `approve()` re-detects and re-diagnoses, so
+        # `inc` is the SECOND incident by this point and its reason is the one
+        # that decided the outcome. `llm_class` deliberately stays the first
+        # draw; the two differing is itself a result (RESEARCH_NOTES 10).
+        r.escalation_reason = str(inc.get("escalation_reason") or "")
         if r.resolved:
             r.mttr_s = round(time.time() - t0, 1)
         if inc.get("unwind"):
@@ -291,6 +332,7 @@ def emit(bench: Bench, classes: list[str], reps: int) -> bool:
     detected = sum(1 for r in runs if r.detected)
     loc = sum(1 for r in runs if r.detected and r.localization_correct)
     rca_ok = sum(1 for r in runs if r.diagnosis_correct)
+    action_ok = sum(1 for r in runs if r.action_correct)
     resolved = sum(1 for r in runs if r.resolved)
     false_heal = sum(1 for r in runs if r.false_healing)
     unwinds = [r for r in runs if r.unwind_clean is not None]
@@ -309,6 +351,8 @@ def emit(bench: Bench, classes: list[str], reps: int) -> bool:
     say(f"  {'detection rate':<34} {pct(detected, n):<18} >= 95%")
     say(f"  {'localization (service)':<34} {pct(loc, detected):<18} >= 80%")
     say(f"  {'RCA accuracy (LLM own answer)':<34} {pct(rca_ok, n):<18} >= 75%")
+    say(f"  {'  of which: fault class named':<34} {pct(rca_ok, n):<18} the figure above")
+    say(f"  {'  repair action proposed':<34} {pct(action_ok, n):<18} no target yet")
     say(f"  {'auto-resolution rate':<34} {pct(resolved, n):<18} >= 70% of LOW")
     say(f"  {'FALSE HEALING':<34} {pct(false_heal, n):<18} <= 5%")
     say(f"  {'rollback correctness':<34} "
@@ -371,6 +415,43 @@ def emit(bench: Bench, classes: list[str], reps: int) -> bool:
     for r in rejected:
         say(f"    {r.fault_class}: model said {r.llm_class} at "
             f"{r.llm_confidence}; detector said {r.det_class}. Nothing written.")
+
+    # --- TWO ANSWERS, SCORED SEPARATELY ------------------------------------
+    # A diagnosis names a fault class AND proposes a repair. Until 2026-10-20
+    # only the class was scored, and the cell below that nobody could see -
+    # class right, action wrong - was being counted as a correct diagnosis.
+    say("")
+    say("-" * 78)
+    say("CLASS ACCURACY IS NOT ACTION ACCURACY")
+    say("-" * 78)
+    joint = Counter(
+        (r.diagnosis_correct, r.action_correct)
+        for r in runs if r.llm_class)
+    say(f"  {'':<22}{'action right':<16}{'action wrong':<16}")
+    for cls_ok, label in ((True, "class right"), (False, "class wrong")):
+        say(f"  {label:<22}"
+            f"{joint[(cls_ok, True)]:<16}{joint[(cls_ok, False)]:<16}")
+    say("")
+    say("  `RCA accuracy` is the class row totals. The top-right cell is the")
+    say("  one it cannot see: a correct fault class with a repair that class")
+    say("  may not use. The gate catches it; the metric scores it correct.")
+
+    wrong_action = [r for r in runs if r.llm_class
+                    and r.diagnosis_correct and not r.action_correct]
+    for r in wrong_action:
+        expected = permitted_repair().get(r.fault_class)
+        say(f"    {r.fault_class}: class correct, proposed {r.llm_action!r}, "
+            f"permitted {expected!r}")
+
+    # The validator's own words, for anything refused. This harness used to
+    # paraphrase the reason; the two can disagree and only one of them is the
+    # system under test.
+    reasons = [r for r in runs if r.escalation_reason]
+    if reasons:
+        say("")
+        say("  Escalation reasons, verbatim from the validator:")
+        for r in reasons:
+            say(f"    {r.fault_class} rep {r.rep}: {r.escalation_reason}")
 
     # --- the throughput ceiling, reported rather than engineered around ----
     say("")
@@ -454,7 +535,8 @@ def main() -> int:
             r = one_run(client, fc, rep, pacer)
             bench.runs.append(r)
             say(f"  rep {rep} {fc}  detect={r.mttd_s}s llm={r.llm_class or '-'}"
-                f"({r.llm_confidence}) resolved={r.resolved} "
+                f"({r.llm_confidence})->{r.llm_action or '-'} "
+                f"resolved={r.resolved} "
                 f"mttr={r.mttr_s} false_heal={r.false_healing} "
                 f"clean={r.state_clean}"
                 + (f"  {r.error[:70]}" if r.error else ""))
