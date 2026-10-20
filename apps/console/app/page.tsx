@@ -27,6 +27,7 @@ import {
   reachedStages,
 } from "@/components/incident/IncidentStream";
 import { LoopRing } from "@/components/incident/LoopRing";
+import { LoopStageBar } from "@/components/incident/LoopStageBar";
 import { Timeline } from "@/components/incident/Timeline";
 import { ApprovalPanel } from "@/components/safety/ApprovalPanel";
 import { ModeSwitch } from "@/components/safety/ModeSwitch";
@@ -243,6 +244,13 @@ export default function OperationsPage() {
               {startError}
             </p>
           )}
+
+          <LoopStageBar
+            events={scopedEvents}
+            incidentId={selectedId}
+            incident={selected}
+            busy={busy}
+          />
 
           <div
             className="k-panel"
