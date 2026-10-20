@@ -156,10 +156,8 @@ export default function OperationsPage() {
             style={{
               padding: "var(--k-space-4)",
               display: "flex",
-              gap: "var(--k-space-4)",
-              alignItems: "center",
-              // The 2px gradient top border is permitted only on the active
-              // incident panel (§2.4).
+              flexDirection: "column",
+              gap: "var(--k-space-3)",
               borderTop: busy ? "2px solid transparent" : undefined,
               backgroundImage: busy
                 ? "linear-gradient(var(--k-surface), var(--k-surface)), var(--k-loop-gradient)"
@@ -168,64 +166,187 @@ export default function OperationsPage() {
               backgroundClip: busy ? "padding-box, border-box" : undefined,
             }}
           >
-            <LoopRing
-              reached={ring.reached}
-              failed={ring.failed}
-              inFlight={ring.inFlight && busy}
-              size={72}
-            />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <h1 style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-                {selected?.fault_class ? (
-                  <>
-                    <span className="k-mono">{selected.fault_class}</span>
-                    <span>{(selected.fault_name ?? "").replace(/_/g, " ")}</span>
-                  </>
-                ) : (
-                  "No active incident"
-                )}
-              </h1>
-              <p className="k-mono-sm k-faint" style={{ margin: "4px 0 0" }}>
-                {selected ? (
-                  <>
-                    {selected.incident_id}
-                    {selected.service ? ` · ${selected.service}` : ""}
-                    {selected.detected_at
-                      ? ` · detected ${selected.detected_at.slice(11, 19)}`
-                      : ""}
-                    {selected.diagnosed_by ? ` · ${selected.diagnosed_by}` : ""}
-                  </>
-                ) : (
-                  "Inject F06, then start a run to watch the loop"
-                )}
-              </p>
+            {/* Stitch-guided Top Banner Status Bar when incident active */}
+            {selected && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "var(--k-space-2)",
+                  paddingBottom: "var(--k-space-2)",
+                  borderBottom: "1px solid var(--k-border-subtle)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span
+                    className="k-mono-sm"
+                    style={{
+                      padding: "2px 8px",
+                      borderRadius: "var(--k-radius-sm)",
+                      background: selected.status === "ESCALATED" ? "var(--k-risk-high-bg)" : "var(--k-surface-raised)",
+                      border: `1px solid ${selected.status === "ESCALATED" ? "var(--k-risk-high)" : "var(--k-border)"}`,
+                      color: selected.status === "ESCALATED" ? "var(--k-risk-high)" : "var(--k-text)",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {(selected.decision?.risk_tier ?? selected.action?.risk_tier) ? `TIER: ${selected.decision?.risk_tier ?? selected.action?.risk_tier}` : "INCIDENT ACTIVE"}
+                  </span>
+                  <span className="k-mono-sm" style={{ fontWeight: 600, color: "var(--k-text)" }}>
+                    #{selected.incident_id}
+                  </span>
+                  {selected.service && (
+                    <span className="k-mono-sm k-muted" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      · <Icon name="cpu" size={13} /> {selected.service}
+                    </span>
+                  )}
+                  {selected.detected_at && (
+                    <span className="k-mono-sm k-faint">
+                      · detected {selected.detected_at.slice(11, 19)} UTC
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {selected.awaiting_approval && (
+                    <span
+                      className="k-mono-sm"
+                      style={{
+                        padding: "2px 8px",
+                        borderRadius: "var(--k-radius-sm)",
+                        background: "var(--k-risk-med-bg)",
+                        border: "1px solid var(--k-risk-med)",
+                        color: "var(--k-risk-med)",
+                        fontSize: 11,
+                        fontWeight: 600,
+                      }}
+                    >
+                      GATED AT STEP 4
+                    </span>
+                  )}
+                  <span
+                    className="k-mono-sm"
+                    style={{
+                      padding: "2px 8px",
+                      borderRadius: "var(--k-radius-sm)",
+                      background: "var(--k-surface-sunken)",
+                      border: "1px solid var(--k-border)",
+                      color: "var(--k-text-muted)",
+                      fontSize: 11,
+                      fontWeight: 600,
+                    }}
+                  >
+                    MODE: {system?.mode ?? "SIMULATION"}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Core Header Row */}
+            <div style={{ display: "flex", gap: "var(--k-space-4)", alignItems: "center" }}>
+              <LoopRing
+                reached={ring.reached}
+                failed={ring.failed}
+                inFlight={ring.inFlight && busy}
+                size={72}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h1 style={{ display: "flex", alignItems: "baseline", gap: 10, margin: 0 }}>
+                  {selected?.fault_class ? (
+                    <>
+                      <span className="k-mono">{selected.fault_class}</span>
+                      <span>{(selected.fault_name ?? "").replace(/_/g, " ")}</span>
+                    </>
+                  ) : (
+                    "No active incident"
+                  )}
+                </h1>
+                <p className="k-mono-sm k-faint" style={{ margin: "4px 0 0" }}>
+                  {selected ? (
+                    <>
+                      {selected.incident_id}
+                      {selected.service ? ` · ${selected.service}` : ""}
+                      {selected.detected_at
+                        ? ` · detected ${selected.detected_at.slice(11, 19)}`
+                        : ""}
+                      {selected.diagnosed_by ? ` · ${selected.diagnosed_by}` : ""}
+                    </>
+                  ) : (
+                    "Inject F06, then start a run to watch the loop"
+                  )}
+                </p>
+              </div>
+              {selected && <StatePill status={selected.status} />}
+              <button
+                type="button"
+                onClick={() => void run()}
+                disabled={busy}
+                title={
+                  busy
+                    ? "A loop run is already in flight. One writer at a time."
+                    : "Run one pass of detect, diagnose, validate, repair and verify"
+                }
+                style={{
+                  minHeight: 40,
+                  padding: "0 var(--k-space-4)",
+                  borderRadius: "var(--k-radius-md)",
+                  border: "none",
+                  background: "var(--k-loop-gradient)",
+                  color: "var(--k-text-inverse)",
+                  fontWeight: 600,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  cursor: busy ? "default" : "pointer",
+                }}
+              >
+                <Icon name={busy ? "pending" : "activity"} size={15} />
+                {busy ? "Running" : "Run loop"}
+              </button>
             </div>
-            {selected && <StatePill status={selected.status} />}
-            <button
-              type="button"
-              onClick={() => void run()}
-              disabled={busy}
-              title={
-                busy
-                  ? "A loop run is already in flight. One writer at a time."
-                  : "Run one pass of detect, diagnose, validate, repair and verify"
-              }
-              style={{
-                minHeight: 40,
-                padding: "0 var(--k-space-4)",
-                borderRadius: "var(--k-radius-md)",
-                border: "none",
-                background: "var(--k-loop-gradient)",
-                color: "var(--k-text-inverse)",
-                fontWeight: 600,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <Icon name={busy ? "pending" : "activity"} size={15} />
-              {busy ? "Running" : "Run loop"}
-            </button>
+
+            {/* Quick Incident Metadata Strip when incident active */}
+            {selected && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+                  gap: "var(--k-space-2)",
+                  padding: "var(--k-space-2) var(--k-space-3)",
+                  background: "var(--k-surface-sunken)",
+                  borderRadius: "var(--k-radius-sm)",
+                  border: "1px solid var(--k-border-subtle)",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <span className="k-xs k-faint">Orchestrator</span>
+                  <span className="k-mono-sm" style={{ fontWeight: 600 }}>
+                    {selected.diagnosed_by || "Autonomous Loop"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <span className="k-xs k-faint">Fault Class</span>
+                  <span className="k-mono-sm" style={{ fontWeight: 600 }}>
+                    {selected.fault_class || "—"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <span className="k-xs k-faint">Trigger</span>
+                  <span className="k-mono-sm" style={{ fontWeight: 600 }}>
+                    {selected.detection?.verdict || "telemetry anomaly"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  <span className="k-xs k-faint">Lifecycle Outcome</span>
+                  <span className="k-mono-sm" style={{ fontWeight: 600, color: "var(--k-text-muted)" }}>
+                    {selected.outcome || selected.status}
+                  </span>
+                </div>
+              </div>
+            )}
           </header>
 
           {startError && (
