@@ -13,6 +13,7 @@
  * would make a two-probe verification look like a three-probe one.
  */
 
+import { Sparkline } from "../charts/Sparkline";
 import { Icon } from "../ui/Icon";
 import { ProbePill } from "../ui/pills";
 import type { Incident, Verification } from "@/lib/api";
@@ -64,6 +65,58 @@ export function VerificationStrip({
 
       {v && (
         <>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "var(--k-space-2) var(--k-space-3)",
+              background: "var(--k-surface-sunken)",
+              border: "1px solid var(--k-border-subtle)",
+              borderRadius: "var(--k-radius-sm)",
+              gap: "var(--k-space-2)",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <span className="k-xs k-faint">Fast quality budget</span>
+              <span className="k-mono-sm">
+                {v.total_s}s <span className="k-faint">/ {v.budget_s}s budget</span>
+              </span>
+            </div>
+            <Sparkline
+              type="bullet"
+              data={[v.total_s]}
+              threshold={v.budget_s}
+              max={Math.max(v.budget_s, v.total_s * 1.15)}
+              label="Quality evaluation duration"
+              unit="s"
+              width={110}
+              height={8}
+            />
+          </div>
+
+          {v.cases.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                margin: "2px 0",
+              }}
+            >
+              <span className="k-xs k-faint">Case latencies</span>
+              <Sparkline
+                type="bar"
+                data={v.cases.map((c) => c.latency_s)}
+                label="Case probe latencies"
+                unit="s"
+                width={70}
+                height={14}
+                color="var(--k-state-healing)"
+              />
+            </div>
+          )}
+
           <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
             {v.cases.map((c) => (
               <li
