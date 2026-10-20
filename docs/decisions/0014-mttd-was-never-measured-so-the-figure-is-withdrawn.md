@@ -7,6 +7,7 @@ computes MTTD from it and renames the old quantity `first_verdict_s`.
 **Supersedes the claim in:** `REPORT_DRAFT.md` §4.1 (MTTD 48.5s, "missed"),
 and the earlier conclusion that the `PRD.md` §10 target was the thing at fault
 **Related:** [ADR 0013](0013-f07-llm-diagnosis-was-bought-by-a-promql-window.md)
+**Open question answered by:** [ADR 0019](0019-mttd-is-measured-and-the-target-stays-but-per-class.md) — measured 2026-10-20 over 20 injections; `< 30s` stays, reported per class
 
 ## Context
 
@@ -69,6 +70,12 @@ Instrumentation, not arithmetic:
   in the first place.
 
 ## What is still open, and deliberately not decided here
+
+> **Closed 2026-10-20 by [ADR 0019](0019-mttd-is-measured-and-the-target-stays-but-per-class.md).**
+> The bench ran on this stamp. The windows tabulated below turned out to
+> split the twenty samples into two populations with nothing between them
+> — 18-20s for the two classes that read no PromQL, 54-74s for the two that
+> wait on a `rate()`. The target was left unchanged.
 
 Whether **< 30s is the right target** is now an open question that cannot be
 answered until a bench runs on the new stamp. The windows that bound it, for

@@ -418,3 +418,110 @@ written, run successfully, and committed - because the author's shell
 happened to have the variable exported. A script that works only in the
 environment it was written in is not reproducible, and nothing in
 `make check` can see the difference.
+
+---
+
+## 10. Every F06 diagnosis contradicts itself, and nothing checks
+
+**Found:** 2026-10-20, investigating why F06 dropped from 5/5 to 3/5 between
+the two benches (`bench-20261020-mttd.json`, report draft §4.1). The anomaly
+was real. What it led to is bigger than the anomaly.
+
+### The observation
+
+`Diagnosis` (`rca/schema.py`) requires the model to emit **both** a
+`fault_class` code and a `fault_name`. `diagnose.txt` line 149 asks for *"the
+short name from the list above"*, and the list twenty lines earlier reads
+`F06  Retrieval collapse` and `F07  Prompt version regression`. Both names
+are correct in the prompt.
+
+Every diagnosis in run B, grouped by the class code the model emitted:
+
+| code emitted | n | `fault_name` emitted | correct? |
+|---|---|---|---|
+| F01 | 10 | Primary LLM endpoint outage | **10/10** |
+| F07 | 4 | Prompt version regression | **4/4** |
+| F08 | 10 | Configuration or environment regression | **10/10** |
+| **F06** | **13** | **Prompt version regression** | **0/13** |
+
+Thirty-seven diagnoses in all: twenty first draws plus the seventeen second
+draws that approval produced.
+
+`F06` + *"Prompt version regression"* is not a valid pair in the catalogue the
+model was given. It emitted that pair **thirteen times out of thirteen** — in
+the three F06 incidents that **resolved successfully**, as well as in the ones
+that escalated. There is no lookup table to blame: `fault_name` is a required
+field of the model's own constrained output, and no code in `kavach/` derives
+or rewrites it.
+
+### Why it matters more than the F06 anomaly it came from
+
+**1. It is a free confusion signal that nothing reads.** The deterministic
+validator has ten checks and `deterministic_agreement` compares the *code* to
+the detector. Nothing compares `fault_name` to the catalogue entry for the code
+beside it. A one-line check would have flagged **every F06 diagnosis in this
+bench**, including the ones that healed.
+
+**2. `F06 5/5` is a weaker result than it reads as.** F06's class accuracy is
+5/5 first-draw in both benches. But by the model's own prose it understood all
+five as *prompt regression* — it wrote F07's name, and in `INC-210032` it also
+proposed F07's repair (`rollback_prompt`, rejected by `repair_permitted`,
+below). The code field was right while the stated understanding was not. That
+is the ADR 0013 confusion present at **13/13**, where the escalation rate shows
+it at 2/5.
+
+**3. Fixing it would invert the headline numbers, so it is not being fixed
+here.** A `fault_name` coherence check added to the validator would reject
+every F06 diagnosis, taking F06 from 5/5 to 0/5 and auto-resolution from 70% to
+55%, days before a demo. That is a decision for the project owner, not a
+quiet tightening — **it is recorded, not applied.** `AGENTS.md` forbids
+weakening a check to make something pass; it does not license adding one whose
+effect on the results has not been agreed.
+
+Recommendation if there is time: add the check, re-run the bench, and report
+the *before* and *after*. The finding is that Kavach can heal correctly from a
+diagnosis that contradicts itself, and the honest version of that is two
+numbers, not one.
+
+### The second gap, from the same investigation
+
+**The bench scores the class the model names, not the repair it picks.**
+`harness/report.py` records `llm_class` only; `candidate_repair` is on the wire
+and unread. The validator does check it, as `repair_permitted`. Run B's six
+escalations split:
+
+| rules that fired | n | what the model did |
+|---|---|---|
+| agreement only | 3 | named the wrong class |
+| agreement **+** repair permitted | 2 | wrong class **and** an action that class may not use |
+| **repair permitted only** | **1** | **right class, wrong repair** |
+
+`INC-210032` is that last row: detection F06, diagnosis F06 at 0.95, agreement
+satisfied — and `rollback_prompt` proposed for a retrieval collapse. **The
+harness counts it in the 17/20 as a correct diagnosis.** It healed nothing.
+
+To measure it: `report.py`'s `Run` would carry `llm_action` from
+`rca.diagnosis.candidate_repair` and `escalation_reason` verbatim, and report
+**class accuracy** and **action accuracy** separately with the joint cell
+`(class right, action wrong)` called out, because that is the cell a reviewer
+asks about. Both fields already come back from `GET /v1/incidents/{id}` —
+which is how this note exists.
+
+### Two smaller things run B settles
+
+**The F06/F07 confusion is bidirectional.** ADR 0013 recorded it one way.
+`INC-230050` is the reverse: detector F06, model F07 at 0.95, with
+`rollback_prompt` proposed. Both faults present as lost grounding and the model
+is choosing between them on evidence that does not separate them.
+
+**The second draw is where classes lose, not the first.** `runner.approve()`
+re-detects and re-diagnoses by design. F06 is 5/5 on the first draw in both
+benches and both of its run-B failures were second draws; F07 is 2/5 first-draw
+in both, and of four correct first draws across the two runs, one survived the
+second. The frames are not identical — the second is rebuilt after detection
+and the pre-fast set have run — so whether the second draw is harder or the
+model is unstable is **not determined** by these forty injections.
+
+**None of this produced a false heal.** Forty injections, forty clean targets.
+The gate caught every failure above, including the one the metrics score as
+correct, which is an argument for the gate rather than against the metric.
