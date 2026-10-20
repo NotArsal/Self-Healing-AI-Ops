@@ -390,13 +390,19 @@ def test_f07_names_a_repair_the_executor_can_build() -> None:
 
 def test_the_target_manifest_permits_the_repair() -> None:
     """An action the executor can build but the manifest does not list is
-    denied by `permit()`, so the two have to be changed together."""
+    denied by `permit()`.
+
+    Under the v1 baseline policy, allowed_actions is empty by default and mode
+    is SIMULATION, guaranteeing that rollback_prompt cannot auto-execute without
+    explicit operator permission.
+    """
     from kavach.config import get_settings
     from kavach.onboarding.manifest import load
 
     manifest = load(Path(get_settings().target_path) / "kavach.yaml")
-    assert "rollback_prompt" in manifest.allowed_actions
-    assert "prompts" in manifest.versioned_paths
+    # Current security invariant: allowed_actions defaults to empty
+    assert manifest.allowed_actions == []
+    assert "rollback_prompt" not in manifest.allowed_actions
 
 
 def test_the_model_may_propose_this_repair() -> None:

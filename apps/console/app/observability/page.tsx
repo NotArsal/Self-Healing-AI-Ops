@@ -20,11 +20,13 @@
 
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { Sparkline } from "@/components/charts/Sparkline";
+import { SystemHealth } from "@/components/safety/SystemHealth";
 import { Icon } from "@/components/ui/Icon";
 import { Rail } from "@/components/ui/Rail";
-import { SystemHealth } from "@/components/safety/SystemHealth";
 import { api, type Alert, type LlmCall, type LogLine } from "@/lib/api";
 import { useSystem } from "@/lib/live";
 
@@ -58,11 +60,13 @@ function Section({
   hint,
   children,
   right,
+  badge,
 }: {
   title: string;
   hint: string;
   children: React.ReactNode;
   right?: React.ReactNode;
+  badge?: React.ReactNode;
 }) {
   return (
     <section style={{ marginBottom: "var(--k-space-5)", maxWidth: 1040 }}>
@@ -75,7 +79,10 @@ function Section({
           marginBottom: "var(--k-space-2)",
         }}
       >
-        <h2 style={{ margin: 0 }}>{title}</h2>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <h2 style={{ margin: 0 }}>{title}</h2>
+          {badge}
+        </div>
         {right}
       </header>
       <p className="k-sm k-muted" style={{ margin: "0 0 var(--k-space-3)", maxWidth: "76ch" }}>
@@ -107,8 +114,11 @@ export default function ObservabilityPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [calls, setCalls] = useState<LlmCall[]>([]);
   const [logs, setLogs] = useState<LogLine[]>([]);
-  const [level, setLevel] = useState<"" | "warning">("");
   const [failed, setFailed] = useState("");
+
+  // Filter state for AI calls table
+  const [modelFilter, setModelFilter] = useState("all");
+  const [verdictFilter, setVerdictFilter] = useState<"all" | "approved" | "refused">("all");
 
   const load = useCallback(async () => {
     const [a, c, l] = await Promise.all([
@@ -132,12 +142,56 @@ export default function ObservabilityPage() {
     return () => clearInterval(t);
   }, [load]);
 
-  const shown = level === "warning"
-    ? logs.filter((r) => ["warning", "error", "critical"].includes(r.level))
-    : logs;
   const exceptions = logs.filter(
     (r) => r.exception || r.level === "error" || r.level === "critical",
   );
+
+  // Available models in calls for filtering
+  const availableModels = useMemo(() => {
+    const set = new Set<string>();
+    calls.forEach((c) => {
+      if (c.model) set.add(c.model);
+    });
+    return Array.from(set);
+  }, [calls]);
+
+  // Filtered AI calls
+  const filteredCalls = useMemo(() => {
+    return calls.filter((c) => {
+      if (modelFilter !== "all" && c.model !== modelFilter) return false;
+      if (verdictFilter === "approved" && !c.approved) return false;
+      if (verdictFilter === "refused" && c.approved) return false;
+      return true;
+    });
+  }, [calls, modelFilter, verdictFilter]);
+
+  // Derived telemetry metrics from real samples
+  const callTelemetry = useMemo(() => {
+    if (calls.length === 0) return null;
+    const latencies = calls
+      .map((c) => c.latency_s)
+      .filter((n) => typeof n === "number" && Number.isFinite(n));
+    const tokenSeries = calls.map((c) => (c.prompt_tokens || 0) + (c.completion_tokens || 0));
+    const approvedCount = calls.filter((c) => c.approved).length;
+    const refusedCount = calls.length - approvedCount;
+    const avgLatency = latencies.length
+      ? (latencies.reduce((a, b) => a + b, 0) / latencies.length).toFixed(1)
+      : null;
+    const avgTokens = tokenSeries.length
+      ? Math.round(tokenSeries.reduce((a, b) => a + b, 0) / tokenSeries.length)
+      : null;
+    const approvalPct = Math.round((approvedCount / calls.length) * 100);
+
+    return {
+      latencies,
+      tokenSeries,
+      avgLatency,
+      avgTokens,
+      approvedCount,
+      refusedCount,
+      approvalPct,
+    };
+  }, [calls]);
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden" }}>
@@ -170,6 +224,23 @@ export default function ObservabilityPage() {
         {/* --- 1. alerts --- */}
         <Section
           title="Alerts"
+          badge={
+            alerts.length > 0 ? (
+              <span
+                className="k-mono-sm"
+                style={{
+                  padding: "1px 8px",
+                  borderRadius: "var(--k-radius-sm)",
+                  background: "var(--k-risk-high-bg)",
+                  color: "var(--k-risk-high)",
+                  fontSize: 11,
+                  fontWeight: 600,
+                }}
+              >
+                {alerts.length} firing
+              </span>
+            ) : undefined
+          }
           hint="Rules over Kavach's own state, most severe first. Every one reads a
                 limit permit() itself enforces or an invariant the system claims, so
                 each answers the same question: why will the next repair be refused?
@@ -185,12 +256,29 @@ export default function ObservabilityPage() {
                   style={{
                     padding: "var(--k-space-3)",
                     border: "1px solid var(--k-border)",
-                    borderLeft: `2px solid ${SEVERITY_COLOR[a.severity]}`,
+                    borderLeft: `3px solid ${SEVERITY_COLOR[a.severity] ?? "var(--k-border)"}`,
                     borderRadius: "var(--k-radius-sm)",
                     background: "var(--k-surface)",
                   }}
                 >
                   <div style={{ display: "flex", gap: "var(--k-space-2)", alignItems: "center" }}>
+                    <span
+                      style={{
+                        display: "flex",
+                        color: SEVERITY_COLOR[a.severity] ?? "var(--k-text-muted)",
+                      }}
+                    >
+                      <Icon
+                        name={
+                          a.severity === "critical"
+                            ? "ban"
+                            : a.severity === "warning"
+                              ? "shield-alert"
+                              : "info"
+                        }
+                        size={14}
+                      />
+                    </span>
                     <span className="k-mono k-sm" style={{ color: SEVERITY_COLOR[a.severity] }}>
                       {a.severity.toUpperCase()}
                     </span>
@@ -198,7 +286,9 @@ export default function ObservabilityPage() {
                   </div>
                   <p className="k-sm" style={{ margin: "6px 0 0" }}>{a.detail}</p>
                   {a.action && (
-                    <p className="k-sm k-muted" style={{ margin: "4px 0 0" }}>→ {a.action}</p>
+                    <p className="k-mono-sm k-faint" style={{ margin: "4px 0 0" }}>
+                      Refusal: {a.action}
+                    </p>
                   )}
                 </li>
               ))}
@@ -219,6 +309,13 @@ export default function ObservabilityPage() {
         {/* --- 3. AI calls --- */}
         <Section
           title="AI calls"
+          badge={
+            calls.length > 0 ? (
+              <span className="k-mono-sm k-faint" style={{ fontSize: 11 }}>
+                {calls.length} recorded
+              </span>
+            ) : undefined
+          }
           hint="Every diagnosis the model produced, and what the deterministic validator
                 did with it. The pair that matters is the fault class and the verdict:
                 a confident diagnosis that was refused is the architecture working, not
@@ -227,58 +324,221 @@ export default function ObservabilityPage() {
           {calls.length === 0 ? (
             <Empty>No LLM diagnosis yet. RCA runs only after deterministic detection finds a fault.</Empty>
           ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table className="k-sm" style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ textAlign: "left", color: "var(--k-text-muted)" }}>
-                    <th style={{ padding: "6px 10px 6px 0" }}>Incident</th>
-                    <th style={{ padding: "6px 10px" }}>Model</th>
-                    <th style={{ padding: "6px 10px" }}>Latency</th>
-                    <th style={{ padding: "6px 10px" }}>Tokens</th>
-                    <th style={{ padding: "6px 10px" }}>Said</th>
-                    <th style={{ padding: "6px 10px" }}>Confidence</th>
-                    <th style={{ padding: "6px 10px" }}>Validator</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {calls.map((c) => (
-                    <tr key={`${c.incident_id}-${c.at}`} style={{ borderTop: "1px solid var(--k-border)" }}>
-                      <td className="k-mono" style={{ padding: "8px 10px 8px 0" }}>{c.incident_id}</td>
-                      <td className="k-mono" style={{ padding: "8px 10px" }}>{c.model || "—"}</td>
-                      <td style={{ padding: "8px 10px" }}>{c.latency_s ? `${c.latency_s.toFixed(1)}s` : "—"}</td>
-                      <td style={{ padding: "8px 10px" }}>
-                        {c.prompt_tokens || c.completion_tokens
-                          ? `${c.prompt_tokens} / ${c.completion_tokens}`
-                          : "—"}
-                      </td>
-                      <td className="k-mono" style={{ padding: "8px 10px" }}>
-                        {c.error ? <span style={{ color: "var(--k-state-escalated)" }}>error</span> : (c.fault_class ?? "—")}
-                      </td>
-                      <td style={{ padding: "8px 10px" }} title="Not a calibrated probability">
-                        {c.confidence == null ? "—" : `${c.confidence.toFixed(2)}*`}
-                      </td>
-                      <td style={{ padding: "8px 10px" }}>
-                        {c.approved ? (
-                          <span style={{ color: "var(--k-state-resolved)" }}>
-                            <Icon name="check" size={12} /> {c.approved_action ?? "accepted"}
-                          </span>
-                        ) : (
-                          <span
-                            style={{ color: "var(--k-risk-med)" }}
-                            title={(c.rejection_reasons ?? []).join("; ") || c.error}
-                          >
-                            <Icon name="ban" size={12} /> refused
-                          </span>
-                        )}
-                      </td>
+            <div style={{ display: "flex", flexDirection: "column", gap: "var(--k-space-3)" }}>
+              {/* Telemetry Summary Cards */}
+              {callTelemetry && (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                    gap: "var(--k-space-3)",
+                    marginBottom: "var(--k-space-2)",
+                  }}
+                >
+                  {/* Card 1: Latency trend */}
+                  <div
+                    className="k-panel"
+                    style={{
+                      padding: "var(--k-space-3)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 4,
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                      <span className="k-xs k-faint">Latency Trend</span>
+                      <span className="k-mono-sm" style={{ fontWeight: 600 }}>
+                        {callTelemetry.avgLatency ? `${callTelemetry.avgLatency}s avg` : "—"}
+                      </span>
+                    </div>
+                    <Sparkline
+                      data={callTelemetry.latencies}
+                      label="Diagnosis latency trend"
+                      unit="s"
+                      height={32}
+                      showEndpoints={true}
+                    />
+                  </div>
+
+                  {/* Card 2: Token distribution */}
+                  <div
+                    className="k-panel"
+                    style={{
+                      padding: "var(--k-space-3)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 4,
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                      <span className="k-xs k-faint">Tokens / Call</span>
+                      <span className="k-mono-sm" style={{ fontWeight: 600 }}>
+                        {callTelemetry.avgTokens ? `${callTelemetry.avgTokens} avg` : "—"}
+                      </span>
+                    </div>
+                    <Sparkline
+                      data={callTelemetry.tokenSeries}
+                      type="bar"
+                      label="Tokens per call"
+                      unit=" tok"
+                      height={32}
+                      color="var(--k-loop-accent)"
+                      showEndpoints={true}
+                    />
+                  </div>
+
+                  {/* Card 3: Validator rate */}
+                  <div
+                    className="k-panel"
+                    style={{
+                      padding: "var(--k-space-3)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 4,
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                      <span className="k-xs k-faint">Validator Accepted</span>
+                      <span className="k-mono-sm" style={{ fontWeight: 600 }}>
+                        {callTelemetry.approvalPct}% ({callTelemetry.approvedCount}/{calls.length})
+                      </span>
+                    </div>
+                    <Sparkline
+                      type="bullet"
+                      data={[callTelemetry.approvalPct]}
+                      max={100}
+                      label="Validator acceptance rate"
+                      unit="%"
+                      height={10}
+                      color="var(--k-risk-low)"
+                    />
+                    <span className="k-mono-sm k-faint" style={{ fontSize: 10, marginTop: 2 }}>
+                      {callTelemetry.refusedCount} refused by safety validator
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Interactive Filters Bar */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "var(--k-space-2)",
+                  padding: "var(--k-space-2) var(--k-space-3)",
+                  background: "var(--k-surface-sunken)",
+                  borderRadius: "var(--k-radius-sm)",
+                  border: "1px solid var(--k-border-subtle)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--k-space-3)", flexWrap: "wrap" }}>
+                  <label className="k-xs k-faint" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    Verdict:
+                    <select
+                      value={verdictFilter}
+                      onChange={(e) => setVerdictFilter(e.target.value as "all" | "approved" | "refused")}
+                      className="k-mono-sm"
+                      style={{
+                        padding: "2px 6px",
+                        background: "var(--k-surface)",
+                        color: "var(--k-text)",
+                        border: "1px solid var(--k-border)",
+                        borderRadius: "var(--k-radius-sm)",
+                      }}
+                    >
+                      <option value="all">All verdicts</option>
+                      <option value="approved">Accepted only</option>
+                      <option value="refused">Refused only</option>
+                    </select>
+                  </label>
+
+                  {availableModels.length > 1 && (
+                    <label className="k-xs k-faint" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      Model:
+                      <select
+                        value={modelFilter}
+                        onChange={(e) => setModelFilter(e.target.value)}
+                        className="k-mono-sm"
+                        style={{
+                          padding: "2px 6px",
+                          background: "var(--k-surface)",
+                          color: "var(--k-text)",
+                          border: "1px solid var(--k-border)",
+                          borderRadius: "var(--k-radius-sm)",
+                        }}
+                      >
+                        <option value="all">All models</option>
+                        {availableModels.map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                </div>
+
+                <span className="k-mono-sm k-faint" style={{ fontSize: 11 }}>
+                  Showing {filteredCalls.length} of {calls.length} calls
+                </span>
+              </div>
+
+              {/* Calls Table */}
+              <div style={{ overflowX: "auto" }}>
+                <table className="k-sm" style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ textAlign: "left", color: "var(--k-text-muted)" }}>
+                      <th style={{ padding: "6px 10px 6px 0" }}>Incident</th>
+                      <th style={{ padding: "6px 10px" }}>Model</th>
+                      <th style={{ padding: "6px 10px" }}>Latency</th>
+                      <th style={{ padding: "6px 10px" }}>Tokens</th>
+                      <th style={{ padding: "6px 10px" }}>Said</th>
+                      <th style={{ padding: "6px 10px" }}>Confidence</th>
+                      <th style={{ padding: "6px 10px" }}>Validator</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p className="k-sm k-muted" style={{ margin: "var(--k-space-2) 0 0" }}>
-                * confidence is the model&apos;s own number and is not calibrated. It gates
-                execution at 0.75; it is not a probability of being right.
-              </p>
+                  </thead>
+                  <tbody>
+                    {filteredCalls.map((c) => (
+                      <tr key={`${c.incident_id}-${c.at}`} style={{ borderTop: "1px solid var(--k-border)" }}>
+                        <td className="k-mono" style={{ padding: "8px 10px 8px 0" }}>{c.incident_id}</td>
+                        <td className="k-mono" style={{ padding: "8px 10px" }}>{c.model || "—"}</td>
+                        <td style={{ padding: "8px 10px" }}>{c.latency_s ? `${c.latency_s.toFixed(1)}s` : "—"}</td>
+                        <td style={{ padding: "8px 10px" }}>
+                          {c.prompt_tokens || c.completion_tokens
+                            ? `${c.prompt_tokens} / ${c.completion_tokens}`
+                            : "—"}
+                        </td>
+                        <td className="k-mono" style={{ padding: "8px 10px" }}>
+                          {c.error ? <span style={{ color: "var(--k-state-escalated)" }}>error</span> : (c.fault_class ?? "—")}
+                        </td>
+                        <td style={{ padding: "8px 10px" }} title="Not a calibrated probability">
+                          {c.confidence == null ? "—" : `${c.confidence.toFixed(2)}*`}
+                        </td>
+                        <td style={{ padding: "8px 10px" }}>
+                          {c.approved ? (
+                            <span style={{ color: "var(--k-state-resolved)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                              <Icon name="check" size={12} /> {c.approved_action ?? "accepted"}
+                            </span>
+                          ) : (
+                            <span
+                              style={{ color: "var(--k-risk-med)", display: "inline-flex", alignItems: "center", gap: 4 }}
+                              title={(c.rejection_reasons ?? []).join("; ") || c.error}
+                            >
+                              <Icon name="ban" size={12} /> refused
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="k-sm k-muted" style={{ margin: "var(--k-space-2) 0 0" }}>
+                  * confidence is the model&apos;s own number and is not calibrated. It gates
+                  execution at 0.75; it is not a probability of being right.
+                </p>
+              </div>
             </div>
           )}
         </Section>
@@ -286,6 +546,23 @@ export default function ObservabilityPage() {
         {/* --- 4. exceptions --- */}
         <Section
           title="Exceptions"
+          badge={
+            exceptions.length > 0 ? (
+              <span
+                className="k-mono-sm"
+                style={{
+                  padding: "1px 8px",
+                  borderRadius: "var(--k-radius-sm)",
+                  background: "var(--k-risk-high-bg)",
+                  color: "var(--k-risk-high)",
+                  fontSize: 11,
+                  fontWeight: 600,
+                }}
+              >
+                {exceptions.length}
+              </span>
+            ) : undefined
+          }
           hint="Errors and tracebacks from the control plane itself. Distinct from an
                 escalated incident, which is Kavach deciding not to act — that is on the
                 operations screen and is not a fault."
@@ -302,6 +579,7 @@ export default function ObservabilityPage() {
                     border: "1px solid var(--k-border)",
                     borderLeft: "2px solid var(--k-state-escalated)",
                     borderRadius: "var(--k-radius-sm)",
+                    background: "var(--k-surface)",
                   }}
                 >
                   <div className="k-mono k-sm">
@@ -323,118 +601,186 @@ export default function ObservabilityPage() {
           )}
         </Section>
 
-        {/* --- 5. logs --- */}
+        {/* --- 5. logs summary preview --- */}
         <Section
           title="Logs"
-          hint="The control plane's own structured log, newest first. In-process and
-                bounded, so a restart clears it — the durable record of what Kavach did
-                is the hash-chained audit trail, not this. Keys that look like
-                credentials are redacted before a line is ever stored."
+          badge={
+            <span className="k-mono-sm k-faint" style={{ fontSize: 11 }}>
+              {logs.length} lines
+            </span>
+          }
+          hint="The control plane's in-process structured log stream. Dedicated search, severity filters, and traceback inspections are now located on the dedicated Logs screen."
           right={
-            <button
-              type="button"
-              onClick={() => setLevel(level === "" ? "warning" : "")}
+            <Link
+              href="/logs"
               className="k-sm"
               style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
                 padding: "4px 10px",
                 borderRadius: "var(--k-radius-sm)",
                 border: "1px solid var(--k-border)",
-                background: level === "warning" ? "var(--k-surface-raised)" : "transparent",
+                background: "var(--k-surface-raised)",
                 color: "var(--k-text)",
+                textDecoration: "none",
+                fontWeight: 500,
               }}
             >
-              {level === "warning" ? "Showing warnings and above" : "Showing everything"}
-            </button>
+              Open dedicated logs stream →
+            </Link>
           }
         >
-          {shown.length === 0 ? (
+          {logs.length === 0 ? (
             <Empty>
               Nothing logged yet. The control plane is deliberately quiet — there are four
               log statements in it, and the audit trail carries the decisions.
             </Empty>
           ) : (
             <div
-              className="k-scroll"
+              className="k-card"
               style={{
-                maxHeight: 360,
-                overflow: "auto",
-                border: "1px solid var(--k-border)",
-                borderRadius: "var(--k-radius-sm)",
+                padding: "var(--k-space-3)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "var(--k-space-2)",
               }}
             >
-              <table className="k-mono k-sm" style={{ width: "100%", borderCollapse: "collapse" }}>
-                <tbody>
-                  {shown.map((r, i) => (
-                    <tr key={`${r.at}-${i}`} style={{ borderBottom: "1px solid var(--k-border)" }}>
-                      <td className="k-muted" style={{ padding: "4px 10px", whiteSpace: "nowrap", verticalAlign: "top" }}>
-                        {r.at.slice(11, 23) || r.at}
-                      </td>
-                      <td style={{ padding: "4px 10px", color: LEVEL_COLOR[r.level], verticalAlign: "top" }}>
-                        {r.level}
-                      </td>
-                      <td style={{ padding: "4px 10px", verticalAlign: "top" }}>
-                        {r.event}
-                        {r.detail && <span className="k-muted"> {r.detail}</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span
+                  style={{
+                    display: "inline-block",
+                    padding: "1px 6px",
+                    borderRadius: "var(--k-radius-sm)",
+                    background: "var(--k-surface-raised)",
+                    color: (logs[0]?.level && LEVEL_COLOR[logs[0].level]) ? LEVEL_COLOR[logs[0].level] : "var(--k-text)",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {logs[0]?.level || "info"}
+                </span>
+                <span className="k-mono-sm" style={{ fontWeight: 600 }}>
+                  {logs[0]?.event}
+                </span>
+                {logs[0]?.detail && (
+                  <span className="k-mono-sm k-muted">· {logs[0].detail}</span>
+                )}
+              </div>
+              <Link
+                href="/logs"
+                className="k-mono-sm"
+                style={{ color: "var(--k-accent)", textDecoration: "none", fontWeight: 600 }}
+              >
+                View all {logs.length} lines in /logs →
+              </Link>
             </div>
           )}
         </Section>
 
-        {/* --- 6. traces --- */}
+        {/* --- 6. traces summary preview --- */}
         <Section
           title="Traces"
-          hint="One span per loop run, with each stage as an event on its timeline.
-                Jaeger renders them; re-implementing a trace viewer here would be a
-                worse copy and a second thing to be wrong."
+          hint="One span per loop run with each stage as an event on its timeline. Distributed traces are exported via OpenTelemetry to external tracing tools."
+          right={
+            <Link
+              href="/traces"
+              className="k-sm"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "4px 10px",
+                borderRadius: "var(--k-radius-sm)",
+                border: "1px solid var(--k-border)",
+                background: "var(--k-surface-raised)",
+                color: "var(--k-text)",
+                textDecoration: "none",
+                fontWeight: 500,
+              }}
+            >
+              Open dedicated traces explorer →
+            </Link>
+          }
         >
-          <div style={{ display: "flex", gap: "var(--k-space-2)", flexWrap: "wrap" }}>
-            <a
-              href={`${JAEGER_BASE}/search?service=kavach-control-plane&operation=kavach.heal`}
-              target="_blank"
-              rel="noreferrer"
-              className="k-sm"
-              style={{
-                padding: "8px 12px",
-                border: "1px solid var(--k-border)",
-                borderRadius: "var(--k-radius-sm)",
-              }}
-            >
-              All heal traces in Jaeger →
-            </a>
-            <a
-              href={`${GRAFANA_BASE}/d/kavach-overview`}
-              target="_blank"
-              rel="noreferrer"
-              className="k-sm"
-              style={{
-                padding: "8px 12px",
-                border: "1px solid var(--k-border)",
-                borderRadius: "var(--k-radius-sm)",
-              }}
-            >
-              Metric history in Grafana →
-            </a>
-          </div>
-          {calls.length > 0 && (
-            <ul style={{ listStyle: "none", margin: "var(--k-space-3) 0 0", padding: 0, display: "grid", gap: 4 }}>
-              {calls.slice(0, 8).map((c) => (
-                <li key={`trace-${c.incident_id}`}>
+          <div
+            className="k-card"
+            style={{
+              padding: "var(--k-space-3)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--k-space-3)",
+            }}
+          >
+            <div style={{ display: "flex", gap: "var(--k-space-2)", flexWrap: "wrap" }}>
+              <a
+                href={`${JAEGER_BASE}/search?service=kavach-control-plane&operation=kavach.heal`}
+                target="_blank"
+                rel="noreferrer"
+                className="k-sm"
+                style={{
+                  padding: "6px 12px",
+                  border: "1px solid var(--k-border)",
+                  borderRadius: "var(--k-radius-sm)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  background: "var(--k-surface-sunken)",
+                  color: "var(--k-text)",
+                  textDecoration: "none",
+                }}
+              >
+                All heal traces in Jaeger →
+              </a>
+              <a
+                href={`${GRAFANA_BASE}/d/kavach-overview`}
+                target="_blank"
+                rel="noreferrer"
+                className="k-sm"
+                style={{
+                  padding: "6px 12px",
+                  border: "1px solid var(--k-border)",
+                  borderRadius: "var(--k-radius-sm)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  background: "var(--k-surface-sunken)",
+                  color: "var(--k-text)",
+                  textDecoration: "none",
+                }}
+              >
+                Metric history in Grafana →
+              </a>
+            </div>
+            {calls.length > 0 && calls[0] && (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                <span className="k-mono-sm k-muted">
+                  Latest recorded trace: #{calls[0].incident_id} ({calls[0].latency_s}s)
+                </span>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                   <a
-                    href={traceUrl(c.incident_id)}
+                    href={traceUrl(calls[0].incident_id)}
                     target="_blank"
                     rel="noreferrer"
-                    className="k-mono k-sm"
+                    className="k-mono-sm"
+                    style={{ color: "var(--k-accent)", textDecoration: "none", fontWeight: 600 }}
                   >
-                    {c.incident_id} →
+                    Jaeger #{calls[0].incident_id} →
                   </a>
-                </li>
-              ))}
-            </ul>
-          )}
+                  <Link
+                    href={`/traces?incident_id=${calls[0].incident_id}`}
+                    className="k-mono-sm"
+                    style={{ color: "var(--k-text)", textDecoration: "none" }}
+                  >
+                    Investigate in /traces →
+                  </Link>
+                </div>
+              </div>
+            )}
+          </div>
         </Section>
       </main>
     </div>

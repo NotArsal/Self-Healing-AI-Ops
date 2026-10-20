@@ -87,6 +87,8 @@ const NAV: { href: string; label: string; icon: IconName }[] = [
   { href: "/", label: "Operations", icon: "activity" },
   { href: "/preflight", label: "Onboarding and preflight", icon: "list" },
   { href: "/observability", label: "Observability", icon: "gauge" },
+  { href: "/logs", label: "Logs", icon: "terminal" },
+  { href: "/traces", label: "Traces", icon: "git-commit" },
 ];
 
 export function Rail({

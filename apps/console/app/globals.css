@@ -1,95 +1,105 @@
 @import "tailwindcss";
 
-/* Kavach console design tokens — DESIGN_SYSTEM.md §2–§5, §9.
+/* Kavach console design tokens — Midnight Operations foundation.
+   DESIGN_SYSTEM.md §2–§5, §9.
    Dark is the primary theme and is correct first; light is the same token
    names remapped, never new tokens (§2.6). */
 
 :root,
 :root[data-theme="dark"] {
-  /* Ground — blue-black, not neutral grey. The hue keeps signal colours readable. */
-  --k-bg: #0a0e16;
-  --k-surface: #121a26;
-  --k-surface-raised: #1b2634;
-  --k-surface-sunken: #070a11;
+  /* Ground — deep charcoal/slate, not flat black or neutral grey.
+     The subtle slate hue keeps signal colours readable and surfaces layered. */
+  --k-bg: #070a11;
+  --k-surface: #0f1724;
+  --k-surface-raised: #162032;
+  --k-surface-sunken: #05080e;
 
-  --k-border: #27364a;
-  --k-border-strong: #3a4c66;
-  --k-border-subtle: #1a2434;
+  /* Structure — quiet borders for surfaces, stronger for active/focus states. */
+  --k-border: #223249;
+  --k-border-strong: #354c6d;
+  --k-border-subtle: #172335;
 
-  --k-text: #e8eff9;
-  --k-text-muted: #8fa3bf;
-  --k-text-faint: #5a6b85;
-  --k-text-inverse: #0a0e16;
+  /* Typography — crisp high-contrast primary text and readable muted metadata. */
+  --k-text: #f0f4fc;
+  --k-text-muted: #94a7c1;
+  --k-text-faint: #627794;
+  --k-text-inverse: #070a11;
 
   /* Risk — the user's primary anxiety, so the most separable hues. */
   --k-risk-low: #3dd68c;
-  --k-risk-low-bg: #0e2a1e;
-  --k-risk-med: #f2b33d;
-  --k-risk-med-bg: #2e2412;
-  --k-risk-high: #f2605c;
-  --k-risk-high-bg: #2e1618;
+  --k-risk-low-bg: #09261a;
+  --k-risk-med: #f59e0b;
+  --k-risk-med-bg: #291b07;
+  --k-risk-high: #f43f5e;
+  --k-risk-high-bg: #2c0e14;
   --k-risk-denied: #8fa3bf;
-  --k-risk-denied-bg: #1b2634;
+  --k-risk-denied-bg: #162032;
 
   /* Incident state — a different hue family from risk on purpose, so
      "dangerous" is never confused with "in progress". */
-  --k-state-detected: #4cb8f5;
-  --k-state-collecting: #4cb8f5;
+  --k-state-detected: #38bdf8;
+  --k-state-collecting: #38bdf8;
   --k-state-diagnosing: #9b8cfa;
-  --k-state-awaiting: #f2b33d;
+  --k-state-awaiting: #f59e0b;
   --k-state-healing: #22d3ee;
   --k-state-verifying: #7c7cf5;
   --k-state-resolved: #3dd68c;
   --k-state-rolledback: #f58a47;
-  --k-state-escalated: #f2605c;
+  --k-state-escalated: #f43f5e;
 
   /* The ONE gradient. Loop Ring stroke, primary button fill, and the 2px top
-     border of the active incident panel. Nowhere else (§2.4). */
+     border of the active incident panel. Nowhere else (§2.4).
+     Cyan (#22d3ee) to Indigo (#7c7cf5). */
   --k-loop-gradient: linear-gradient(135deg, #22d3ee 0%, #7c7cf5 100%);
 
   /* Confidence is never a hue — a red "low confidence" would collide with
      high risk (§2.5). */
-  --k-confidence-track: #27364a;
-  --k-confidence-fill: #e8eff9;
+  --k-confidence-track: #223249;
+  --k-confidence-fill: #f0f4fc;
+
+  /* Focus & active glow — restrained, purposeful highlighting without gaming neon. */
+  --k-glow-subtle: 0 0 16px -2px rgba(34, 211, 238, 0.2);
 }
 
 :root[data-theme="light"] {
-  --k-bg: #fbfcfe;
+  --k-bg: #f8fafc;
   --k-surface: #ffffff;
-  --k-surface-raised: #f4f7fb;
-  --k-surface-sunken: #eef2f8;
+  --k-surface-raised: #f1f5f9;
+  --k-surface-sunken: #e2e8f0;
 
-  --k-border: #dce4ef;
-  --k-border-strong: #b4c2d6;
-  --k-border-subtle: #ebf0f7;
+  --k-border: #cbd5e1;
+  --k-border-strong: #94a3b8;
+  --k-border-subtle: #e2e8f0;
 
-  --k-text: #0f1826;
-  --k-text-muted: #51627b;
-  --k-text-faint: #8295af;
+  --k-text: #0f172a;
+  --k-text-muted: #475569;
+  --k-text-faint: #64748b;
   --k-text-inverse: #ffffff;
 
-  --k-risk-low: #10915c;
-  --k-risk-low-bg: #e6f5ee;
-  --k-risk-med: #a86e06;
-  --k-risk-med-bg: #fdf3e0;
-  --k-risk-high: #c53831;
-  --k-risk-high-bg: #fdecea;
-  --k-risk-denied: #51627b;
-  --k-risk-denied-bg: #f4f7fb;
+  --k-risk-low: #059669;
+  --k-risk-low-bg: #ecfdf5;
+  --k-risk-med: #d97706;
+  --k-risk-med-bg: #fffbeb;
+  --k-risk-high: #e11d48;
+  --k-risk-high-bg: #fff1f2;
+  --k-risk-denied: #64748b;
+  --k-risk-denied-bg: #f1f5f9;
 
   /* State colours darken by the same amount, keeping ≥4.5:1 on --k-surface. */
-  --k-state-detected: #0b6fa8;
-  --k-state-collecting: #0b6fa8;
-  --k-state-diagnosing: #5b45c7;
-  --k-state-awaiting: #a86e06;
-  --k-state-healing: #0e7490;
-  --k-state-verifying: #4c43c4;
-  --k-state-resolved: #10915c;
-  --k-state-rolledback: #b4541a;
-  --k-state-escalated: #c53831;
+  --k-state-detected: #0284c7;
+  --k-state-collecting: #0284c7;
+  --k-state-diagnosing: #6366f1;
+  --k-state-awaiting: #d97706;
+  --k-state-healing: #0891b2;
+  --k-state-verifying: #4f46e5;
+  --k-state-resolved: #059669;
+  --k-state-rolledback: #ea580c;
+  --k-state-escalated: #e11d48;
 
-  --k-confidence-track: #dce4ef;
-  --k-confidence-fill: #0f1826;
+  --k-confidence-track: #e2e8f0;
+  --k-confidence-fill: #0f172a;
+
+  --k-glow-subtle: 0 0 16px -2px rgba(14, 116, 144, 0.15);
 }
 
 :root {
@@ -211,6 +221,7 @@ table,
   outline: 2px solid var(--k-border-strong);
   outline-offset: 2px;
   border-radius: var(--k-radius-sm);
+  box-shadow: var(--k-glow-subtle);
 }
 
 button {
@@ -228,6 +239,7 @@ button:disabled {
   background: var(--k-surface);
   border: 1px solid var(--k-border);
   border-radius: var(--k-radius-lg);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.25);
 }
 .k-card {
   background: var(--k-surface);

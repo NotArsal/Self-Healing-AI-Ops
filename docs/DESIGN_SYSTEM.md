@@ -24,7 +24,7 @@ One consequence worth stating because it looks like an inconsistency otherwise: 
 
 ---
 
-## 1. Brand direction
+## 1. Visual identity: Midnight Operations
 
 **What this product is:** an instrument panel for a machine that is allowed to change your production system without asking. The person looking at it is deciding whether to trust it.
 
@@ -34,9 +34,16 @@ One consequence worth stating because it looks like an inconsistency otherwise: 
 2. How sure is the system, and on what evidence?
 3. What is it about to do to me, and can it be undone?
 
-**Direction:** a dark, dense, high-signal console in the lineage of a developer tool — deep blue-black ground, restrained surfaces, type-led hierarchy, and colour used as *data* rather than decoration. The reference point is a code editor's chrome, not a marketing dashboard.
+**Direction — Midnight Operations:**
+- **Surfaces:** Deep charcoal and deep-slate surfaces (`#070a11`, `#0f1724`, `#162032`) instead of flat black or generic gray backgrounds.
+- **Accents:** Cyan (`#22d3ee`) and teal (`#14b8a6`) accents for primary actions, selected navigation, active telemetry, and interactive focus.
+- **Secondary Accent:** Indigo (`#7c7cf5`) as a restrained secondary accent in the Loop Ring gradient and diagnostic reasoning.
+- **Typography:** Refined typography with clear hierarchy, consistent spacing, subtle borders, and carefully controlled depth (GeistSans display and body, JetBrains Mono for machine tokens and tabular numbers).
+- **Telemetry & Charts:** High-quality metrics with readable axes, useful tooltips, clear time ranges, and restrained grid lines.
+- **Semantic Operational Colors:** Green for verified healthy states (`#3dd68c`), amber for warnings, degraded performance, and mitigated debt (`#f59e0b`), and red for genuine failures and escalations (`#f43f5e`).
+- **Depth & Restrained Glow:** Subtle depth and controlled glow (`box-shadow: 0 0 16px -2px rgba(34, 211, 238, 0.2)`) only around selected active or highlighted elements. Avoid excessive neon, glowing borders everywhere, or a gaming-style appearance.
 
-**The one bold thing:** the **Loop Ring**. A single cyan→indigo gradient ring that sits on the active incident and advances through the seven loop stages. It is the only gradient in the product and the only non-user-triggered motion. Everything else is flat, quiet, and gets out of its way. If you are tempted to add a second gradient, a second animated element, or a glow on a card — don't. That is the accessory to remove before leaving the house.
+**The signature element:** the **Loop Ring**. A single cyan→indigo gradient ring (`linear-gradient(135deg, #22d3ee 0%, #7c7cf5 100%)`) that sits on the active incident and advances through the seven loop stages. It is the primary gradient in the product and its rotation is the only non-user-triggered motion.
 
 ### 1.1 Rules that follow from the direction
 
@@ -54,23 +61,27 @@ Dark is the primary theme and must be correct first. Light theme is a secondary 
 ### 2.1 Base palette
 
 ```css
+:root,
 :root[data-theme="dark"] {
-  /* Ground — blue-black, not neutral grey. Hue keeps the signal colours readable. */
-  --k-bg:            #0A0E16;   /* page */
-  --k-surface:       #121A26;   /* panels, cards */
-  --k-surface-raised:#1B2634;   /* popovers, modals, hovered rows */
-  --k-surface-sunken:#070A11;   /* log streams, code, diffs */
+  /* Ground — deep charcoal/slate, not flat black or neutral grey. */
+  --k-bg:            #070a11;   /* page floor */
+  --k-surface:       #0f1724;   /* panels, cards */
+  --k-surface-raised:#162032;   /* popovers, modals, active/hovered rows */
+  --k-surface-sunken:#05080e;   /* log streams, code, diffs, inset panes */
 
   /* Structure */
-  --k-border:        #27364A;   /* default divider */
-  --k-border-strong: #3A4C66;   /* focused / active object */
-  --k-border-subtle: #1A2434;   /* internal rules inside a panel */
+  --k-border:        #223249;   /* quiet default border */
+  --k-border-strong: #354c6d;   /* focused / active object, input borders */
+  --k-border-subtle: #172335;   /* internal rules inside a panel */
 
   /* Type */
-  --k-text:          #E8EFF9;   /* primary */
-  --k-text-muted:    #8FA3BF;   /* secondary, labels */
-  --k-text-faint:    #5A6B85;   /* timestamps, disabled, placeholder */
-  --k-text-inverse:  #0A0E16;   /* on filled signal surfaces */
+  --k-text:          #f0f4fc;   /* crisp primary text */
+  --k-text-muted:    #94a7c1;   /* secondary labels, metadata */
+  --k-text-faint:    #627794;   /* timestamps, disabled, placeholder */
+  --k-text-inverse:  #070a11;   /* on filled signal surfaces */
+
+  /* Focus & active glow */
+  --k-glow-subtle:   0 0 16px -2px rgba(34, 211, 238, 0.2);
 }
 ```
 
@@ -79,14 +90,14 @@ Dark is the primary theme and must be correct first. Light theme is a secondary 
 Risk is the user's primary anxiety. It gets the clearest, most separable hues.
 
 ```css
-  --k-risk-low:      #3DD68C;   /* auto-executable */
-  --k-risk-low-bg:   #0E2A1E;
-  --k-risk-med:      #F2B33D;   /* sandbox / approval */
-  --k-risk-med-bg:   #2E2412;
-  --k-risk-high:     #F2605C;   /* human only */
-  --k-risk-high-bg:  #2E1618;
-  --k-risk-denied:   #8FA3BF;   /* blocked by allow-list or breaker */
-  --k-risk-denied-bg:#1B2634;
+  --k-risk-low:      #3dd68c;   /* auto-executable · verified healthy */
+  --k-risk-low-bg:   #09261a;
+  --k-risk-med:      #f59e0b;   /* sandbox / approval · degraded / warning */
+  --k-risk-med-bg:   #291b07;
+  --k-risk-high:     #f43f5e;   /* human only · breach / failure */
+  --k-risk-high-bg:  #2c0e14;
+  --k-risk-denied:   #8fa3bf;   /* blocked by allow-list or breaker */
+  --k-risk-denied-bg:#162032;
 ```
 
 ### 2.3 Signal palette — incident state
@@ -94,15 +105,15 @@ Risk is the user's primary anxiety. It gets the clearest, most separable hues.
 Deliberately a different hue family from risk, so a user never confuses "this is dangerous" with "this is in progress."
 
 ```css
-  --k-state-detected:  #4CB8F5;  /* breach raised */
-  --k-state-collecting:#4CB8F5;
-  --k-state-diagnosing:#9B8CFA;  /* the LLM is reasoning */
-  --k-state-awaiting:  #F2B33D;  /* blocked on a human */
-  --k-state-healing:   #22D3EE;  /* executing */
-  --k-state-verifying: #7C7CF5;  /* probing */
-  --k-state-resolved:  #3DD68C;
-  --k-state-rolledback:#F58A47;  /* distinct from both resolved and escalated */
-  --k-state-escalated: #F2605C;
+  --k-state-detected:  #38bdf8;  /* breach raised */
+  --k-state-collecting:#38bdf8;
+  --k-state-diagnosing:#9b8cfa;  /* the LLM is reasoning */
+  --k-state-awaiting:  #f59e0b;  /* blocked on a human */
+  --k-state-healing:   #22d3ee;  /* executing */
+  --k-state-verifying: #7c7cf5;  /* probing */
+  --k-state-resolved:  #3dd68c;
+  --k-state-rolledback:#f58a47;  /* distinct from both resolved and escalated */
+  --k-state-escalated: #f43f5e;
 ```
 
 ### 2.4 The one gradient
@@ -118,8 +129,8 @@ Permitted uses, exhaustively: the Loop Ring stroke, the primary action button fi
 Confidence is **never** encoded as a hue — a red "low confidence" would collide with high risk. It is a 5-segment bar in `--k-text-muted`, filled in `--k-text`, with the numeric value always shown beside it.
 
 ```css
-  --k-confidence-track: #27364A;
-  --k-confidence-fill:  #E8EFF9;
+  --k-confidence-track: #223249;
+  --k-confidence-fill:  #f0f4fc;
 ```
 
 ### 2.6 Light theme
@@ -128,12 +139,22 @@ Same token names, remapped. Do not invent new tokens for light.
 
 ```css
 :root[data-theme="light"] {
-  --k-bg: #FBFCFE;  --k-surface: #FFFFFF;  --k-surface-raised: #F4F7FB;
-  --k-surface-sunken: #EEF2F8;
-  --k-border: #DCE4EF;  --k-border-strong: #B4C2D6;  --k-border-subtle: #EBF0F7;
-  --k-text: #0F1826;  --k-text-muted: #51627B;  --k-text-faint: #8295AF;
-  --k-risk-low: #10915C;  --k-risk-med: #A86E06;  --k-risk-high: #C53831;
-  /* state colours darken by the same amount; keep ≥4.5:1 on --k-surface */
+  --k-bg: #f8fafc;  --k-surface: #ffffff;  --k-surface-raised: #f1f5f9;
+  --k-surface-sunken: #e2e8f0;
+  --k-border: #cbd5e1;  --k-border-strong: #94a3b8;  --k-border-subtle: #e2e8f0;
+  --k-text: #0f172a;  --k-text-muted: #475569;  --k-text-faint: #64748b;
+  --k-text-inverse: #ffffff;
+  --k-risk-low: #059669;  --k-risk-low-bg: #ecfdf5;
+  --k-risk-med: #d97706;  --k-risk-med-bg: #fffbeb;
+  --k-risk-high: #e11d48; --k-risk-high-bg: #fff1f2;
+  --k-risk-denied: #64748b; --k-risk-denied-bg: #f1f5f9;
+  --k-state-detected: #0284c7;  --k-state-collecting: #0284c7;
+  --k-state-diagnosing: #6366f1; --k-state-awaiting: #d97706;
+  --k-state-healing: #0891b2;   --k-state-verifying: #4f46e5;
+  --k-state-resolved: #059669;  --k-state-rolledback: #ea580c;
+  --k-state-escalated: #e11d48;
+  --k-confidence-track: #e2e8f0; --k-confidence-fill: #0f172a;
+  --k-glow-subtle: 0 0 16px -2px rgba(14, 116, 144, 0.15);
 }
 ```
 
