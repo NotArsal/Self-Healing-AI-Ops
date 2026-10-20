@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import statistics
 import sys
 import time
@@ -76,6 +77,30 @@ from kavach.config import get_settings  # noqa: E402
 # gate's. Derived from the detector registry, so adding a fault class is one
 # line there and nothing here changes.
 from kavach.rca.validate import permitted_repair  # noqa: E402
+
+
+def _prompt_catalogue() -> dict[str, str]:
+    """`fault_class` -> `fault_name`, read from `diagnose.txt` itself.
+
+    PARSED, not re-typed. This list exists in the prompt because the model is
+    told to copy a name out of it, so the prompt is the only authority on what
+    a correct pair looks like; a constant here would be a fourth copy (there
+    are already two, in `dump_diagnoses.py` and `figures.py`) and copies of
+    this table are exactly how `RCA accuracy` once came to read the wrong
+    field. Returns {} rather than raising if the format moves - a measurement
+    that cannot be taken is reported as absent, never as zero.
+    """
+    path = (CONTROL_PLANE / "kavach" / "llm" / "prompts" / "diagnose.txt")
+    try:
+        text = path.read_text(encoding="utf-8")
+        block = text.split("Choose exactly one fault_class:")[1]
+        block = block.split("Or one of these")[0]
+    except (OSError, IndexError):
+        return {}
+    return dict(re.findall(r"^\s{2}(F\d\d)\s+([^.]+)\.", block, re.M))
+
+
+CATALOGUE = _prompt_catalogue()
 from kavach.target import TargetClient, TargetEndpoints  # noqa: E402
 from kavach.verification import fast  # noqa: E402
 
@@ -155,6 +180,13 @@ class Run:
     # the model asked for `rollback_prompt` on a retrieval collapse - counted
     # as a correct diagnosis, and it healed nothing. See RESEARCH_NOTES 10.
     llm_action: str = ""
+    # THE NAME THE MODEL WROTE BESIDE ITS OWN CLASS CODE. `Diagnosis` requires
+    # both and `diagnose.txt` gives the catalogue to copy from, so the pair is
+    # the model's own and an incoherent one is self-contradiction, not a
+    # mapping error. MEASURED, NOT ENFORCED: nothing in the gate reads this,
+    # and the 2026-10-20 replay found every F06 diagnosis - 13 of 13,
+    # including three that healed correctly - carrying F07's name.
+    llm_fault_name: str = ""
     llm_confidence: float | None = None
     llm_approved: bool | None = None
     # The validator's own words, verbatim, rather than this harness's
@@ -179,6 +211,26 @@ class Run:
         """The LLM's own answer. NEVER `incident.fault_class`, which is the
         deterministic verdict and sits in the same record."""
         return self.llm_class == self.fault_class
+
+    @property
+    def fault_name_coherent(self) -> bool | None:
+        """Does the name the model wrote match the class code it emitted?
+
+        Scored against the model's OWN class, not the injected one: this asks
+        whether the answer contradicts itself, which is a different question
+        from whether it is right. A model that says F07 for an injected F06
+        and names it "Prompt version regression" is wrong about the world and
+        coherent about its own claim.
+
+        None when it cannot be judged - no diagnosis, or a class the prompt
+        catalogue does not list. Absent, never silently False.
+        """
+        if not self.llm_class or not self.llm_fault_name:
+            return None
+        expected = CATALOGUE.get(self.llm_class)
+        if not expected:
+            return None
+        return self.llm_fault_name.strip().lower() == expected.strip().lower()
 
     @property
     def action_correct(self) -> bool:
@@ -249,6 +301,7 @@ def one_run(client: TargetClient, fault_class: str, rep: int,
         if diag:
             r.llm_class = str(diag.get("fault_class") or "")
             r.llm_action = str(diag.get("candidate_repair") or "")
+            r.llm_fault_name = str(diag.get("fault_name") or "")
             conf = diag.get("confidence")
             r.llm_confidence = float(conf) if conf is not None else None
             r.llm_approved = bool((inc.get("rca") or {}).get("approved"))
@@ -353,6 +406,11 @@ def emit(bench: Bench, classes: list[str], reps: int) -> bool:
     say(f"  {'RCA accuracy (LLM own answer)':<34} {pct(rca_ok, n):<18} >= 75%")
     say(f"  {'  of which: fault class named':<34} {pct(rca_ok, n):<18} the figure above")
     say(f"  {'  repair action proposed':<34} {pct(action_ok, n):<18} no target yet")
+    judged = [r for r in runs if r.fault_name_coherent is not None]
+    coherent = sum(1 for r in judged if r.fault_name_coherent)
+    say(f"  {'  answer is self-consistent':<34} "
+        f"{(pct(coherent, len(judged)) if judged else 'n/a'):<18} "
+        f"measured, NOT enforced")
     say(f"  {'auto-resolution rate':<34} {pct(resolved, n):<18} >= 70% of LOW")
     say(f"  {'FALSE HEALING':<34} {pct(false_heal, n):<18} <= 5%")
     say(f"  {'rollback correctness':<34} "
@@ -435,6 +493,29 @@ def emit(bench: Bench, classes: list[str], reps: int) -> bool:
     say("  `RCA accuracy` is the class row totals. The top-right cell is the")
     say("  one it cannot see: a correct fault class with a repair that class")
     say("  may not use. The gate catches it; the metric scores it correct.")
+
+    # --- SELF-CONSISTENCY, reported and deliberately not gated --------------
+    if judged:
+        incoherent = [r for r in judged if not r.fault_name_coherent]
+        say("")
+        say(f"  fault_name matches its own class code: {coherent}/{len(judged)}")
+        if incoherent:
+            seen: set[tuple[str, str]] = set()
+            for r in incoherent:
+                pair = (r.llm_class, r.llm_fault_name)
+                if pair in seen:
+                    continue
+                seen.add(pair)
+                say(f"    {r.llm_class} emitted with name "
+                    f"{r.llm_fault_name!r} (catalogue says "
+                    f"{CATALOGUE.get(r.llm_class, '?')!r})")
+            say("")
+            say("  NOTHING IN THE GATE READS THIS. `deterministic_agreement`")
+            say("  compares the class CODE; no check compares the name beside")
+            say("  it. An incoherent pair is the model contradicting itself,")
+            say("  and it can still heal correctly - which is the finding.")
+            say("  Enforcing it would reject those diagnoses; that is a")
+            say("  decision about the system, not a measurement of it.")
 
     wrong_action = [r for r in runs if r.llm_class
                     and r.diagnosis_correct and not r.action_correct]

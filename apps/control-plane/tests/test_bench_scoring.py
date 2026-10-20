@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from harness.report import Run  # noqa: E402
+from harness.report import CATALOGUE, Run  # noqa: E402
 
 from kavach.rca.validate import permitted_repair  # noqa: E402
 
@@ -129,3 +129,69 @@ def test_replaying_run_b_reproduces_the_joint_distribution() -> None:
     assert action_ok > class_ok, (
         "the finding is that the proposed repair was right MORE often than "
         "the fault class; if that inverts, the report's framing is stale")
+
+
+# --- self-consistency: measured, never gated --------------------------------
+
+
+def _named(llm_class: str, fault_name: str) -> Run:
+    r = Run(rep=1, fault_class="F06")
+    r.llm_class = llm_class
+    r.llm_fault_name = fault_name
+    return r
+
+
+def test_the_catalogue_is_parsed_from_the_prompt_the_model_reads() -> None:
+    """Not re-typed. `diagnose.txt` is the list the model is told to copy a
+    name out of, so it is the only authority on a correct pair; a constant
+    here would be a copy that can drift from the prompt in use."""
+    assert CATALOGUE["F06"] == "Retrieval collapse"
+    assert CATALOGUE["F07"] == "Prompt version regression"
+    assert {"F01", "F06", "F07", "F08"} <= set(CATALOGUE)
+
+
+def test_an_answer_that_contradicts_itself_is_flagged() -> None:
+    """The exact pair run B emitted thirteen times out of thirteen: the F06
+    class code with F07's name beside it."""
+    assert _named("F06", "Retrieval collapse").fault_name_coherent is True
+    assert _named("F06", "Prompt version regression").fault_name_coherent is False
+    assert _named("F07", "Prompt version regression").fault_name_coherent is True
+
+
+def test_unjudgeable_is_none_and_never_false() -> None:
+    """A diagnosis that never happened, or a class the catalogue does not
+    list, is ABSENT. Reporting it as incoherent would invent a finding, which
+    is the substitution ADR 0014 exists about."""
+    assert _named("", "").fault_name_coherent is None
+    assert _named("F06", "").fault_name_coherent is None
+    assert _named("F99", "Something").fault_name_coherent is None
+
+
+def test_coherence_is_scored_against_the_models_own_class_not_the_injected_one() -> None:
+    """A different question from accuracy. This one asks only whether the
+    answer agrees with itself: wrong about the world, right about its own
+    claim, still counts as coherent."""
+    r = _named("F07", "Prompt version regression")   # injected F06, so WRONG
+    assert r.fault_class == "F06" and not r.diagnosis_correct
+    assert r.fault_name_coherent is True
+
+
+@pytest.mark.skipif(not ARTIFACT.exists(), reason="run B artifact not present")
+def test_replaying_run_b_reproduces_thirteen_self_contradictions() -> None:
+    """Pins the finding against the real file: every F06 diagnosis in the
+    2026-10-20 bench carried F07's name, including three that healed."""
+    rows: list[dict[str, Any]] = json.loads(
+        ARTIFACT.read_text(encoding="utf-8"))["rows"]
+    judged = incoherent = 0
+    for row in rows:
+        diag = row.get("diagnosis")
+        if not diag:
+            continue
+        r = _named(str(diag.get("fault_class") or ""),
+                   str(diag.get("fault_name") or ""))
+        if r.fault_name_coherent is None:
+            continue
+        judged += 1
+        if not r.fault_name_coherent:
+            incoherent += 1
+    assert (judged, incoherent) == (37, 13), (judged, incoherent)
