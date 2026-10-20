@@ -779,7 +779,12 @@ three weeks while answering 404 on its own `/metrics`.**
    [ADR 0019](decisions/0019-mttd-is-measured-and-the-target-stays-but-per-class.md):
    `< 30s` stays, reported per class. What run B opened instead is
    **action-selection accuracy**, which nothing measures (§4.2).
-4. `make scenario` — three clean runs, an hour apart
+4. ~~`make scenario` — three clean runs, an hour apart~~ — **done
+   2026-10-19**, `scenario-r1/r2/r3.json` at 06:17, 07:30 and 08:44 UTC.
+   4/4 acts each, **zero limiter parks**, same `rca_model`, corpus unchanged.
+   Plus the offline rehearsal (`scenario-offline.json`, 10:12 UTC), which
+   proved the strong claim — network down *and* all seven cloud keys empty
+   inside the container, `.env` never written.
 5. ~~Human baseline: run it, or record the decision to drop it~~ —
    **closed 2026-10-19, written up in §4.8.** It was run on 2026-10-18 and
    the result had been sitting in `human-baseline.json` unreported. It
@@ -787,3 +792,23 @@ three weeks while answering 404 on its own `/metrics`.**
    a paired pilot with its limits stated rather than pad it. Padding would
    make the number prettier and the claim no truer.
 6. The one-line `allowed_actions` decision for `apply_patch` (ADR 0012)
+
+**Opened 2026-10-20 by run B, and none of these is mine to close:**
+
+7. **The `fault_name` coherence check** (§4.2, `RESEARCH_NOTES.md` §10).
+   Adding it rejects every F06 diagnosis: F06 5/5 → 0/5, auto-resolution
+   70% → 55%. It is the honest check and it costs the prettiest column in
+   the table, so it is recorded and not applied. Adding it properly means
+   re-running the bench and reporting before *and* after — about 8 hours.
+8. **Action-selection accuracy is unmeasured** (§4.2). `RCA accuracy 85%`
+   counts the class the model names, never the repair it proposes. One
+   incident in run B had the class right and the repair not permitted, and
+   it is counted as correct. `report.py` would carry `llm_action` from
+   `rca.diagnosis.candidate_repair`; it needs a bench run to populate.
+9. **`harness/reports/` is still gitignored**, so every artifact behind every
+   figure in this document — and the four PNGs themselves — exist on one
+   machine. For a report whose argument is traceability that is the largest
+   single gap, and it is one line in `.gitignore`.
+10. **`GET /v1/incidents` reads memory, not Postgres** (`RESEARCH_NOTES.md`
+    §7.2). The console's AI-calls view empties on restart, and run B's 37
+    diagnoses had to be frozen by hand (`make diagnoses`) to survive.
