@@ -386,3 +386,35 @@ the model where a human sees it before the first act.
 
 The cheap discipline, meanwhile: bring the stack up with `make up`, never a
 bare `docker compose`.
+
+## 9. Thirteen harness scripts cannot run from a clean shell
+
+**Found:** 2026-10-20, auditing after the same bug hit twice.
+
+`report.py` and `scenario.py` both read `KAVACH_TARGET_ADMIN_TOKEN` from
+`os.environ` only. No Makefile target exports it, so both 401'd on their
+first config write - `make offline` died on it, and `make bench` would have
+wasted an eight-hour overnight run. Both now read through `Settings`, which
+anchors to the repository root (`config.py`, `_env_files`).
+
+A full audit found **thirteen more** with the same defect and no
+`--admin-token` flag to work around it:
+
+> `ablation_undo`, `human_baseline`, `kavach_baseline`, `p5_gate_live`,
+> `p6_f01_live`, `p6_f07_live`, `p6_f08_live`, `rca_f01_live`,
+> `rca_f07_live`, `rca_f08_live`, `runbook_baseline`, `stability_f07`,
+> `window_sweep_f06`
+
+Only `patch_live.py` reads `settings.target_admin_token` directly.
+
+**Deliberately not fixed.** Each has already produced its artifact, and the
+two on the critical path - the bench and the demo - are repaired. The
+consequence is recorded rather than patched: **anyone reproducing these
+results must export `KAVACH_TARGET_ADMIN_TOKEN` first**, or they will see a
+401 that looks like a target fault.
+
+The pattern is worth more than the fix. Every one of these scripts was
+written, run successfully, and committed - because the author's shell
+happened to have the variable exported. A script that works only in the
+environment it was written in is not reproducible, and nothing in
+`make check` can see the difference.
