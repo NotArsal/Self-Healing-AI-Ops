@@ -311,7 +311,17 @@ absent from the append-only log.** There is now a `diagnose` row on both
 arms, so the denominator is recoverable from the log and not just the
 numerator.
 
-### 7.2 `GET /v1/incidents` reads memory only — NOT fixed, your call
+### 7.2 `GET /v1/incidents` reads memory only — ~~NOT fixed, your call~~ **FIXED 2026-10-20**
+
+> **Closed by [ADR 0020](decisions/0020-incidents-are-read-from-the-store-and-the-bench-scores-two-answers.md).**
+> `Incident.from_dict` inverts what the store persists, so the existing API
+> mappers serve a restored incident and the reconstruction layer this note
+> worried about was not needed. Verified against a real container restart:
+> 50 incidents and 89 LLM calls where there were 0, and `make postmortem`
+> renders an incident that exists only in Postgres. A restored incident is
+> readable and **cannot be approved** — `_awaiting` is memory and is never
+> repopulated. Alerts still read memory, on purpose; the reasoning is in the
+> ADR.
 
 Incidents **are** durably stored. All 137 of them are in Postgres with full
 RCA payloads, on a volume, and `IncidentStore.get()` and `.recent()` both
@@ -483,7 +493,16 @@ the *before* and *after*. The finding is that Kavach can heal correctly from a
 diagnosis that contradicts itself, and the honest version of that is two
 numbers, not one.
 
-### The second gap, from the same investigation
+### The second gap, from the same investigation — **FIXED 2026-10-20**
+
+> **Closed by [ADR 0020](decisions/0020-incidents-are-read-from-the-store-and-the-bench-scores-two-answers.md).**
+> `report.py` now records `llm_action` and `escalation_reason`, scores the
+> repair against the **injected** class, and prints the joint table. Replayed
+> over run B's 37 diagnoses it found what is written below **and one more
+> thing nobody predicted**: two incidents where the class was WRONG and the
+> repair was RIGHT. Action accuracy 33/37 beats class accuracy 32/37 — the
+> repair the model reached for was right more often than the label it wrote.
+> The rest of this section is the state before that measurement.
 
 **The bench scores the class the model names, not the repair it picks.**
 `harness/report.py` records `llm_class` only; `candidate_repair` is on the wire

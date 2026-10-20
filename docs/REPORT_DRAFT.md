@@ -270,7 +270,22 @@ F06 may not use. `repair_permitted` fired **on its own**, the only time in
 either run. The consequence for the report is a measurement gap, not a bug:
 
 > **`RCA accuracy 85%` measures diagnosis-class accuracy only. Action-selection
-> accuracy is a second, different number, and nothing measures it.**
+> accuracy is a second, different number.**
+
+It is measured now ([ADR 0020](decisions/0020-incidents-are-read-from-the-store-and-the-bench-scores-two-answers.md)).
+Scoring run B's 37 diagnoses on both answers at once:
+
+| | action right | action wrong |
+|---|---|---|
+| **class right** | 31 | **1** |
+| **class wrong** | **2** | 3 |
+
+**Action accuracy (33/37) is higher than class accuracy (32/37).** Both
+off-diagonal cells are populated and the second was not predicted: on two
+injected F07s the model named F06 and still proposed `rollback_prompt`, the
+correct F07 repair. The repair it reached for was right more often than the
+label it wrote, which means these are not one number with noise in it — and
+the weaker of the two is the one the report has been quoting.
 
 The same incoherence shows up inside the wrong answers too — in F07 reps 3 and
 4 the model claimed **F06** and then proposed **`rollback_prompt`**, the F07
@@ -808,14 +823,13 @@ three weeks while answering 404 on its own `/metrics`.**
    70% → 55%. It is the honest check and it costs the prettiest column in
    the table, so it is recorded and not applied. Adding it properly means
    re-running the bench and reporting before *and* after — about 8 hours.
-8. **Action-selection accuracy is unmeasured** (§4.2). `RCA accuracy 85%`
-   counts the class the model names, never the repair it proposes. One
-   incident in run B had the class right and the repair not permitted, and
-   it is counted as correct. `report.py` would carry `llm_action` from
-   `rca.diagnosis.candidate_repair`; it needs a bench run to populate.
+8. ~~Action-selection accuracy is unmeasured~~ — **closed 2026-10-20**,
+   ADR 0020. Scored separately now, and replaying run B found action accuracy
+   *higher* than class accuracy (§4.2). The next bench reports both live.
 9. ~~`harness/reports/` is gitignored~~ — **closed 2026-10-20.** 70 files
    committed, secret-scanned first. `harness/audit/` stays out, with the
    reason stated at the top of this document.
-10. **`GET /v1/incidents` reads memory, not Postgres** (`RESEARCH_NOTES.md`
-    §7.2). The console's AI-calls view empties on restart, and run B's 37
-    diagnoses had to be frozen by hand (`make diagnoses`) to survive.
+10. ~~`GET /v1/incidents` reads memory, not Postgres~~ — **closed
+    2026-10-20**, ADR 0020. Verified across a real container restart: 50
+    incidents and 89 LLM calls where there were 0, and `make postmortem`
+    renders from Postgres alone.
