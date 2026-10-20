@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from kavach.executor.adapters import docker as docker_adapter
 from kavach.target import TargetClient, TargetError
 from kavach.verification.fast import FastVerificationResult
 
@@ -167,16 +168,13 @@ def _recent_logs(container: str, tail: int = 60, keep: int = 10) -> list[str]:
 
     Read-only: it reads a log stream and never execs into the container.
     """
-    try:
-        import docker
-
-        client = docker.from_env()
-        try:
-            c = client.containers.get(container)
-            raw = c.logs(tail=tail).decode("utf-8", "replace")
-        finally:
-            client.close()
-    except Exception:
+    # Through the adapter, not a client of our own. This opened its own
+    # `docker.from_env()` until 2026-10-20, which broke `AGENTS.md` rule 14:
+    # the SDK is imported in one module so the socket has one place to audit.
+    # `container_logs` keeps the same contract - it returns "" rather than
+    # raising, because a thin evidence frame beats a failed diagnosis.
+    raw = docker_adapter.container_logs(container, tail=tail)
+    if not raw:
         return []
 
     out: list[str] = []

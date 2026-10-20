@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlparse
 
+from kavach.executor.adapters import docker as docker_adapter
 from kavach.onboarding.manifest import Manifest, load
 
 
@@ -221,22 +222,14 @@ def check_ownership(
 
 
 def _docker_ps() -> list[dict[str, str | None]]:
-    import docker
+    """Containers and their compose labels, through the adapter.
 
-    client = docker.from_env()
-    try:
-        client.ping()
-        out: list[dict[str, str | None]] = []
-        for c in client.containers.list(all=True):
-            labels = c.labels or {}
-            out.append({
-                "name": c.name,
-                "project": labels.get("com.docker.compose.project"),
-                "service": labels.get("com.docker.compose.service"),
-            })
-        return out
-    finally:
-        client.close()
+    This opened its own `docker.from_env()` client until 2026-10-20, which
+    broke `AGENTS.md` rule 14 - the docker SDK is imported in exactly one
+    module so that the most dangerous privilege in the system has one place
+    to audit. The listing itself is unchanged.
+    """
+    return docker_adapter.list_containers()
 
 
 def check_slo_expressions(m: Manifest, prometheus_url: str) -> list[CheckResult]:

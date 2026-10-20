@@ -266,6 +266,11 @@ def endpoints() -> TargetEndpoints:
     """
     import os
 
+    # Matches the fallback in `infra/sandbox-compose.yml` ON PURPOSE: compose
+    # sets this inside the sandbox container and this client authenticates
+    # against it, so the two defaults must be the same literal or the sandbox
+    # is unusable when the variable is unset. See that file for why a default
+    # is appropriate for the sandbox and not for `target_admin_token`.
     return TargetEndpoints(
         health=SANDBOX_HEALTH, chat=SANDBOX_CHAT, config=SANDBOX_CONFIG,
         admin_token=os.environ.get("KAVACH_ADMIN_TOKEN", "local-dev-token"),

@@ -76,6 +76,24 @@ services:
       LLM_TIMEOUT_SECONDS: "30"
       CHAOS_ENABLED: "false"
       PROMPTS_DIR: /app/prompts
+      # A FALLBACK IS CORRECT HERE, and the reasoning is worth keeping because
+      # a 2026-10-20 audit flagged it as equivalent to `target_admin_token`
+      # having no default. It is not the same risk.
+      #
+      # `target_admin_token` authenticates against the REAL target: a default
+      # there would let a misconfigured control plane write to production
+      # while looking configured. This token belongs to a throwaway container
+      # on a private compose network that exists for the seconds of a patch
+      # trial, and it is read by BOTH sides - compose sets it inside the
+      # sandbox, `sandbox._endpoints()` authenticates against it - so the two
+      # must agree or the sandbox is unusable.
+      #
+      # Removing the fallback was tried and reverted: `.env` is loaded by
+      # pydantic Settings, not exported to `os.environ`, so neither compose
+      # nor the client ever sees a value set there without threading it
+      # through the compose invocation. That is real plumbing for a secret
+      # that guards nothing, and it broke `make check` while it was in place.
+      # Overriding `KAVACH_ADMIN_TOKEN` in the environment still works.
       KAVACH_ADMIN_TOKEN: ${KAVACH_ADMIN_TOKEN:-local-dev-token}
     ports:
       - "18000:8000"

@@ -69,3 +69,6 @@ harness/baselines/
 
 # Generated OpenAPI document (produced by `make gen-client`)
 apps/console/lib/api/openapi.json
+
+
+graphify-out

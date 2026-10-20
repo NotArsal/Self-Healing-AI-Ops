@@ -78,12 +78,34 @@ line-length = 100
 src = ["."]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM", "ARG", "PTH", "RUF"]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM", "ARG", "PTH", "RUF", "TID"]
 # ARG is kept on deliberately: an unused argument in a graph node or adapter is
 # usually a sign the signature drifted from the protocol.
+#
+# TID ADDED 2026-10-20 to enforce AGENTS.md security rule 14, which has said
+# since it was written that the docker-SDK chokepoint is "enforced by a lint
+# rule, not convention". NO SUCH RULE EXISTED. The convention had been broken
+# in two places - `onboarding/preflight.py` and `rca/evidence.py` each opened
+# their own client - and an audit found it, which is precisely what the rule
+# was supposed to make unnecessary.
+#
+# A documented control that does not run is worse than an undocumented one:
+# it is read as a guarantee by everyone downstream, including this project's
+# own report. The rule now exists and `make check` fails on the next import.
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"docker".msg = "AGENTS.md rule 14: the docker SDK is imported ONLY in kavach/executor/adapters/docker.py. Add a helper there and call it."
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["ARG"]
+# The adapter IS the chokepoint, so it is the one module allowed to import the
+# SDK. `test_docker_socket.py` imports it to prove the socket works at all,
+# which is a Phase 0 acceptance check rather than control-plane code.
+"kavach/executor/adapters/docker.py" = ["TID251"]
+"tests/test_docker_socket.py" = ["TID251", "ARG"]
+# conftest probes the socket to decide whether to SKIP the docker-marked
+# tests. Detecting the daemon is the one thing it has to do itself.
+"tests/conftest.py" = ["TID251"]
 
 [tool.mypy]
 python_version = "3.12"

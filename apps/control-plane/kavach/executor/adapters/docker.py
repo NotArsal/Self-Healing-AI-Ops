@@ -204,3 +204,71 @@ def read_from(container: str, *argv: str, timeout_s: float = 300.0) -> str:
             f"{(proc.stderr or proc.stdout)[-300:]}"
         )
     return proc.stdout
+
+
+# --- read-only inspection ----------------------------------------------------
+#
+# ADDED 2026-10-20, because rule 14 was being broken in two places.
+#
+# `onboarding/preflight.py` and `rca/evidence.py` each did their own
+# `import docker; docker.from_env()`. Both are READS - preflight lists
+# containers to check compose-project ownership, evidence reads the target's
+# recent log lines - but both opened an unconstrained client, and rule 14 is
+# about the import, not the intent: a module holding a live docker client can
+# do anything the socket allows, whatever it currently chooses to do.
+#
+# They are separated from the mutation surface above rather than folded into
+# it: `_check_project` refuses everything outside `kavach-sandbox`, and these
+# two legitimately have to see the target. Being unable to reuse that guard is
+# the reason they are their own, explicitly read-only, functions.
+#
+# Rule 14 also claimed to be "enforced by a lint rule, not convention". It was
+# not - there was no such rule. One now exists in `pyproject.toml`
+# (`flake8-tidy-imports` banned-api), so the next violation fails `make check`
+# instead of waiting for an audit.
+
+
+def list_containers() -> list[dict[str, str | None]]:
+    """Every container with its compose project and service labels.
+
+    Read-only and unscoped BY DESIGN: preflight's whole job is to notice
+    containers that are not ours, so a sandbox-scoped listing would hide the
+    exact thing it checks for.
+    """
+    import docker
+
+    client = docker.from_env()
+    try:
+        client.ping()
+        out: list[dict[str, str | None]] = []
+        for c in client.containers.list(all=True):
+            labels = c.labels or {}
+            out.append({
+                "name": c.name,
+                "project": labels.get("com.docker.compose.project"),
+                "service": labels.get("com.docker.compose.service"),
+            })
+        return out
+    finally:
+        client.close()
+
+
+def container_logs(container: str, tail: int = 60) -> str:
+    """The tail of one container's log stream. Never execs, never writes.
+
+    Returns "" rather than raising: this feeds the RCA evidence frame, and a
+    missing log section is a thinner frame, while an exception here would
+    fail a diagnosis over a container that was merely restarting.
+    """
+    import docker
+
+    try:
+        client = docker.from_env()
+        try:
+            c = client.containers.get(container)
+            raw: bytes = c.logs(tail=tail)
+        finally:
+            client.close()
+    except Exception:          # evidence degrades, never fails
+        return ""
+    return raw.decode("utf-8", "replace")
