@@ -25,7 +25,9 @@ an incident). That is a different kind of evidence from a measurement file.
 Written 2026-10-19. Updated 2026-10-20 after a **second** full `make bench`
 run (`bench-20261020-mttd.json`, finished 03:06 UTC) — the one that could
 measure MTTD, and therefore also a replication of §4.1 at the same denominator.
-§4.1 and §4.2 report all three runs; sixty injections in total.
+Updated again 2026-10-21 after a **third** (`bench-20261020-night.json`,
+finished 02:03 UTC), the first to record `fault_name` coherence live rather
+than by replay. §4.1 and §4.2 report all three runs; sixty injections in total.
 
 ---
 
