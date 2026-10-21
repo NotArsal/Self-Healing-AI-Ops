@@ -53,7 +53,12 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        # Version comes from `packageManager` in apps/console/package.json.
+        with:
+          # REQUIRED, not decoration. The action reads `packageManager` from
+          # the repo ROOT package.json by default, and there is no package.json
+          # at the root of this repo - the console is a subdirectory. Without
+          # this it fails with "No pnpm version is specified".
+          package_json_file: apps/console/package.json
 
       - uses: actions/setup-node@v4
         with:
