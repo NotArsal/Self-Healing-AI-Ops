@@ -21,6 +21,15 @@ DEV_API_PORT ?= 8081
 # every var had one. `make setup` creates .env, so this path always exists.
 COMPOSE := docker compose --env-file .env -f infra/docker-compose.yml
 UV      := uv --directory $(CP)
+# Extra pytest flags. CI passes -m "not docker".
+#
+# NOT a way to make the gate quieter. The docker-marked tests need a
+# provisioned target application and a local Ollama, not merely a reachable
+# socket - and a GitHub runner HAS a socket, so `conftest.py`'s probe does not
+# skip them there and they fail on a missing ../Target_RAG-App. Excluding them
+# by marker states that plainly in the workflow; loosening the probe to make
+# them disappear would hide them on developer machines too.
+PYTEST_ARGS ?=
 
 .DEFAULT_GOAL := help
 .PHONY: postmortem help setup up down ps logs dev-api dev-console lint format types test offline \
@@ -114,7 +123,7 @@ types:
 	cd $(CONSOLE) && pnpm types
 
 test:
-	$(UV) run pytest -q
+	$(UV) run pytest -q $(PYTEST_ARGS)
 	cd $(CONSOLE) && pnpm test
 
 socket-test:

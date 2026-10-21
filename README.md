@@ -3,9 +3,11 @@
 **Autonomous Self-Healing AI Operations Platform**
 VIT · CSE-AI (E) · Group 14 · Engineering Research & Innovation · AY 2026-27
 
+[![CI](https://github.com/NotArsal/Self-Healing-AI-Ops/actions/workflows/ci.yml/badge.svg?branch=kavach%2Fops)](https://github.com/NotArsal/Self-Healing-AI-Ops/actions/workflows/ci.yml)
+
 Kavach watches an AI application, works out why it broke, fixes it, and proves the fix worked — without waking anyone up.
 
-**Status: P0–P8 complete.** Detection, LLM root-cause analysis, a ten-check safety gate, a reversible executor, a console and a measured benchmark all run. `make check` is the gate: **506 Python tests, 82 TypeScript tests.**
+**Status: P0–P8 complete.** Detection, LLM root-cause analysis, a ten-check safety gate, a reversible executor, a console and a measured benchmark all run. `make check` is the gate: **511 Python tests, 82 TypeScript tests.** CI runs it on every pull request; the 5 Docker-marked tests are deselected there because a runner has a socket but no target application — run `make socket-test` locally for those.
 
 > **Work happens on `kavach/ops`, not on `main`.** This repository also contains an unrelated earlier implementation of the same project under `archive/first-implementation`. It shares no commit with this branch, its claims are not this project's claims, and nothing in the report is derived from it.
 

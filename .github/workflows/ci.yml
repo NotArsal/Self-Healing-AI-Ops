@@ -1,0 +1,79 @@
+# The gate, run on every pull request.
+#
+# `AGENTS.md` says "`make check` is the gate", so this workflow runs exactly
+# that and nothing else. Re-listing ruff, mypy, pytest and vitest as separate
+# steps would be a second definition of the gate that can drift from the
+# Makefile - and the Makefile is the one a contributor runs locally.
+#
+# NO SECRETS ARE USED OR NEEDED. `PL-02` forbids any test requiring a cloud
+# API key, so the suite runs offline. That is also what makes this safe for
+# pull requests from forks, which GitHub gives a read-only token and no access
+# to repository secrets.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [kavach/ops]
+
+# A second push to the same PR cancels the first. The gate takes a few
+# minutes and only the latest commit's result means anything.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: make check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: apps/control-plane/uv.lock
+
+      - name: Install Python
+        # Pinned by `requires-python = ">=3.12,<3.13"`; mypy is configured for
+        # 3.12 and --strict results are version-sensitive, so this is not a
+        # free choice.
+        run: uv python install 3.12
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        # Version comes from `packageManager` in apps/console/package.json.
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/console/pnpm-lock.yaml
+
+      - name: Install dependencies
+        # `make setup` also creates .env from .env.example, which compose
+        # needs to exist. Nothing in the gate reads a real credential from it.
+        run: make setup
+
+      - name: make check
+        # -m "not docker" excludes 5 of 511 tests. They need a provisioned
+        # target application and a local Ollama, not merely a Docker socket -
+        # and a GitHub runner HAS a socket, so `conftest.py`'s probe does not
+        # skip them here. Excluded explicitly rather than by weakening the
+        # probe, which would hide them on developer machines too.
+        run: make check PYTEST_ARGS='-m "not docker"'
+
+      - name: Note what this run did not cover
+        if: always()
+        run: |
+          echo "::notice title=Not covered by CI::5 docker-marked tests were \
+          deselected (they need ../Target_RAG-App and a local Ollama). Run \
+          'make socket-test' locally to exercise them. No live-target bench \
+          runs in CI; see harness/reports for those artifacts."
