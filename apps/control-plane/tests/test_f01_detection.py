@@ -427,6 +427,7 @@ def test_the_frame_and_the_detector_read_kept_chunks_identically() -> None:
     )
 
 
+@pytest.mark.target_repo
 def test_the_detector_windows_match_the_manifest_they_mirror() -> None:
     """A signal with a declared `window_s` must be read over that window.
 

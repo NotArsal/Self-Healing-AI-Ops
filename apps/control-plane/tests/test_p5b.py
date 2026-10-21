@@ -82,6 +82,7 @@ def test_the_override_cannot_widen_the_allow_list() -> None:
     assert "embed_model_change" in policy.denied_mutations
 
 
+@pytest.mark.target_repo
 def test_set_mode_is_audited(tmp_path: Path) -> None:
     """An unrecorded move to AUTONOMOUS is indistinguishable from a compromise."""
     runner = a_runner(tmp_path)

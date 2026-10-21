@@ -82,7 +82,10 @@ jobs:
       - name: Note what this run did not cover
         if: always()
         run: |
-          echo "::notice title=Not covered by CI::5 docker-marked tests were \
-          deselected (they need ../Target_RAG-App and a local Ollama). Run \
-          'make socket-test' locally to exercise them. No live-target bench \
-          runs in CI; see harness/reports for those artifacts."
+          echo "::notice title=Not covered by CI::5 docker-marked tests are \
+          deselected and 3 target_repo-marked tests skip, because the target \
+          application is a SEPARATE repository that is not checked out here \
+          and a runner has no Ollama. 503 of 511 Python tests and all 82 \
+          TypeScript tests ran. Run 'make check' and 'make socket-test' \
+          locally with ../Target_RAG-App present for full coverage. No \
+          live-target bench runs in CI; see harness/reports for those."

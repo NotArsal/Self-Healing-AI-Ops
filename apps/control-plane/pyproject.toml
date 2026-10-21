@@ -135,4 +135,5 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
     "docker: requires a reachable Docker socket; skipped when absent",
+    "target_repo: reads the target repository's kavach.yaml; skipped when absent",
 ]

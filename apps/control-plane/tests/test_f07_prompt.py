@@ -388,6 +388,7 @@ def test_f07_names_a_repair_the_executor_can_build() -> None:
     assert actions.tier("rollback_prompt") == "MEDIUM"
 
 
+@pytest.mark.target_repo
 def test_the_target_manifest_permits_the_repair() -> None:
     """An action the executor can build but the manifest does not list is
     denied by `permit()`, so the two have to be changed together."""
