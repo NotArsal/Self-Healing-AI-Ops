@@ -1,0 +1,143 @@
+uv --directory apps/control-plane run python -I ../../harness/report.py --json-out 'D:/Vit/Academics Sem-5/EDI/Self-Healing AI Ops/harness/reports/bench-20261020-night.json'
+==============================================================================
+make bench - live metrics over repeated injections
+==============================================================================
+  mode               APPROVAL
+  corpus             {'chunks': 30.0, 'files': 2.0}
+  plan               4 classes x 5 reps = 20 injections
+  estimated runtime  ~8.0h, paced under permit()'s blast radius. Unattended by design.
+
+  RCA model          qwen2.5:7b-instruct
+
+  rep 1 F01  detect=48.7s llm=F01(0.9)->switch_llm_endpoint resolved=True mttr=109.1 false_heal=False clean=True
+  rep 1 F06  detect=75.4s llm=F06(0.95)->rollback_config resolved=True mttr=159.5 false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 55.2 min for the window to slide. Nothing is being reset.
+  rep 1 F07  detect=29.5s llm=F07(0.9)->rollback_prompt resolved=True mttr=141.9 false_heal=False clean=True
+  rep 1 F08  detect=20.7s llm=F08(0.9)->rollback_config resolved=True mttr=123.9 false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 54.5 min for the window to slide. Nothing is being reset.
+  rep 2 F01  detect=36.6s llm=F01(0.95)->switch_llm_endpoint resolved=True mttr=97.2 false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 0.7 min for the window to slide. Nothing is being reset.
+  rep 2 F06  detect=55.8s llm=F06(0.95)->rollback_config resolved=False mttr=None false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 55.4 min for the window to slide. Nothing is being reset.
+  rep 2 F07  detect=20.0s llm=F07(0.9)->rollback_prompt resolved=True mttr=112.0 false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 0.6 min for the window to slide. Nothing is being reset.
+  rep 2 F08  detect=19.3s llm=F08(0.9)->rollback_config resolved=True mttr=106.0 false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 54.8 min for the window to slide. Nothing is being reset.
+  rep 3 F01  detect=36.6s llm=F01(0.95)->switch_llm_endpoint resolved=True mttr=100.1 false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 0.8 min for the window to slide. Nothing is being reset.
+  rep 3 F06  detect=73.2s llm=F06(0.95)->rollback_config resolved=True mttr=160.5 false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 54.3 min for the window to slide. Nothing is being reset.
+  rep 3 F07  detect=21.0s llm=F07(0.9)->rollback_prompt resolved=True mttr=105.9 false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 1.1 min for the window to slide. Nothing is being reset.
+  rep 3 F08  detect=19.0s llm=F08(0.8)->rollback_config resolved=True mttr=112.0 false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 54.3 min for the window to slide. Nothing is being reset.
+  rep 4 F01  detect=36.5s llm=F01(0.95)->switch_llm_endpoint resolved=True mttr=103.1 false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 1.1 min for the window to slide. Nothing is being reset.
+  rep 4 F06  detect=54.9s llm=F06(0.95)->rollback_prompt resolved=False mttr=None false_heal=False clean=True
+  rep 4 F07  detect=21.1s llm=F06(0.95)->rollback_prompt resolved=False mttr=None false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 54.3 min for the window to slide. Nothing is being reset.
+  rep 4 F08  detect=18.0s llm=F06(0.95)->rollback_prompt resolved=False mttr=None false_heal=False clean=True
+  rep 5 F01  detect=61.0s llm=F01(0.95)->switch_llm_endpoint resolved=True mttr=124.6 false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 1.3 min for the window to slide. Nothing is being reset.
+  rep 5 F06  detect=73.8s llm=F06(0.95)->rollback_config resolved=True mttr=154.7 false_heal=False clean=True
+    pacing: 5 incidents in the last hour, limit 5. Waiting 52.1 min for the window to slide. Nothing is being reset.
+    pacing: 4 incidents in the last hour, limit 5. Waiting 1.8 min for the window to slide. Nothing is being reset.
+  rep 5 F07  detect=19.7s llm=F06(0.95)->rollback_prompt resolved=False mttr=None false_heal=False clean=True
+  rep 5 F08  detect=19.6s llm=F08(0.9)->rollback_config resolved=True mttr=109.1 false_heal=False clean=True
+
+==============================================================================
+METRICS  (PRD section 10)
+==============================================================================
+  DENOMINATOR: 4 fault classes x 5 reps = 20 injections, 20 usable
+  Classes: F01, F06, F07, F08. Four, not the seven PRD section 6
+  assumed: F02/F05 dropped, F03 never had an injector, F09 closed
+  on measurement as not injectable.
+
+  metric                             value              target
+  detection rate                     100% (20/20)       >= 95%
+  localization (service)             100% (20/20)       >= 80%
+  RCA accuracy (LLM own answer)      85% (17/20)        >= 75%
+    of which: fault class named      85% (17/20)        the figure above
+    repair action proposed           90% (18/20)        no target yet
+    answer is self-consistent        60% (12/20)        measured, NOT enforced
+  auto-resolution rate               75% (15/20)        >= 70% of LOW
+  FALSE HEALING                      0% (0/20)          <= 5%
+  rollback correctness               n/a                100%
+  MTTD (median)                      33.0s              < 30s
+    first verdict (median)           53.1s              detect+RCA+gate, no target
+  MTTR (median)                      112.0s             < 180s
+  audit completeness                 100% (15/15)       100%
+  audit chain intact                 True               True
+  target state clean after run       100% (20/20)       100%
+
+------------------------------------------------------------------------------
+CONDITIONALS (PRD section 10.1) - the part a reviewer asks about
+------------------------------------------------------------------------------
+  P(heal | diagnosis correct)  88% (15/17)
+  P(heal | diagnosis WRONG)    0% (0/3)
+  P(diagnosis correct | heal)  100% (15/15)
+
+  A high auto-resolution rate next to a high P(heal | wrong) means a
+  symptom-matcher with an LLM attached. Report both or neither.
+
+------------------------------------------------------------------------------
+LOCALIZATION, WITH ITS DENOMINATOR (PRD section 10.2)
+------------------------------------------------------------------------------
+  Every implemented fault lands on `backend`, so this is a 1-way
+  choice dressed as a 4-way one. Stated first because a reviewer
+  finds it in one question.
+    F01 -> backend    5
+    F06 -> backend    5
+    F07 -> backend    5
+    F08 -> backend    5
+
+------------------------------------------------------------------------------
+DETERMINISTIC CROSS-CHECK
+------------------------------------------------------------------------------
+  LLM diagnoses refused: 4/20
+    F06: model said F06 at 0.95; detector said F06. Nothing written.
+    F07: model said F06 at 0.95; detector said F07. Nothing written.
+    F08: model said F06 at 0.95; detector said F08. Nothing written.
+    F07: model said F06 at 0.95; detector said F07. Nothing written.
+
+------------------------------------------------------------------------------
+CLASS ACCURACY IS NOT ACTION ACCURACY
+------------------------------------------------------------------------------
+                        action right    action wrong    
+  class right           16              1               
+  class wrong           2               1               
+
+  `RCA accuracy` is the class row totals. The top-right cell is the
+  one it cannot see: a correct fault class with a repair that class
+  may not use. The gate catches it; the metric scores it correct.
+
+  fault_name matches its own class code: 12/20
+    F06 emitted with name 'Prompt version regression' (catalogue says 'Retrieval collapse')
+
+  NOTHING IN THE GATE READS THIS. `deterministic_agreement`
+  compares the class CODE; no check compares the name beside
+  it. An incoherent pair is the model contradicting itself,
+  and it can still heal correctly - which is the finding.
+  Enforcing it would reject those diagnoses; that is a
+  decision about the system, not a measurement of it.
+    F06: class correct, proposed 'rollback_prompt', permitted 'rollback_config'
+
+  Escalation reasons, verbatim from the validator:
+    F06 rep 2: LLM diagnosis rejected by deterministic validation: repair_permitted: proposed 'rollback_prompt', but F06 may only use 'rollback_config'
+    F06 rep 4: LLM diagnosis rejected by deterministic validation: repair_permitted: proposed 'rollback_prompt', but F06 may only use 'rollback_config'
+    F07 rep 4: LLM diagnosis rejected by deterministic validation: repair_permitted: proposed 'rollback_prompt', but F06 may only use 'rollback_config'; deterministic_agreement: LLM says F06, deterministic detection says F07
+    F08 rep 4: LLM diagnosis rejected by deterministic validation: repair_permitted: proposed 'rollback_prompt', but F06 may only use 'rollback_config'; deterministic_agreement: LLM says F06, deterministic detection says F08
+    F07 rep 5: LLM diagnosis rejected by deterministic validation: repair_permitted: proposed 'rollback_prompt', but F06 may only use 'rollback_config'; deterministic_agreement: LLM says F06, deterministic detection says F07
+
+------------------------------------------------------------------------------
+THROUGHPUT CEILING (FR-16), measured not assumed
+------------------------------------------------------------------------------
+  permit() allows 5 incident starts per sliding
+  hour and an approved heal costs 2. This bench
+  waited 443 minutes in total to stay
+  underneath it. Nothing was reset, raised or disabled.
+  => Kavach performs at most 2 approved heals per hour
+     and halts rather than widening. That is a demo constraint as
+     much as an operational one.
+
+  artifact D:\Vit\Academics Sem-5\EDI\Self-Healing AI Ops\harness\reports\bench-20261020-night.json

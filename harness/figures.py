@@ -198,24 +198,41 @@ def fig_conditionals(benches: dict[str, Rows], out: Path) -> None:
     ax.set_ylim(0, 112)
     ax.legend(frameon=False, fontsize=9, loc="upper center")
     ax.grid(axis="y", color="#e8e8ea", lw=0.8)
-    ax.set_title("Forty injections, and the model's wrong answers drove a "
+    # Counted, not typed: this read "Forty injections" for a run and a half
+    # after run C landed. A denominator in prose is a denominator that rots.
+    total = sum(len(rows) for rows in benches.values())
+    ax.set_title(f"{total} injections, and the model's wrong answers drove a "
                  "repair zero times.\nA high left bar beside a high right bar "
                  "would be a symptom-matcher with an LLM attached.",
                  fontsize=10, color=INK, loc="left", pad=12)
     save(fig, out, "fig3-safety-conditionals.png")
 
 
-def fig_coherence(rows: Rows, out: Path) -> None:
+def coherence_pairs(obj: dict[str, Any]) -> list[tuple[str, str]]:
+    """(class code, fault_name) out of EITHER artifact shape.
+
+    Two files carry the same pair under different names: `dump_diagnoses.py`
+    nests it under `rows[].diagnosis`, and a bench artifact written after
+    2026-10-20 carries it flat as `runs[].llm_fault_name`. Normalising here
+    lets figure 4 pool runs instead of re-stating one of them.
+    """
+    if "runs" in obj:
+        return [(str(r.get("llm_class") or ""), str(r.get("llm_fault_name") or ""))
+                for r in obj["runs"] if r.get("llm_class")]
+    return [(str((r.get("diagnosis") or {}).get("fault_class") or ""),
+             str((r.get("diagnosis") or {}).get("fault_name") or ""))
+            for r in obj.get("rows", []) if r.get("diagnosis")]
+
+
+def fig_coherence(pairs: list[tuple[str, str]], out: Path) -> None:
     """Figure 4 - the model's own name beside the model's own class code."""
     counts: dict[str, list[int]] = {}
-    for r in rows:
-        d = r.get("diagnosis")
-        if not d:
+    for code, name in pairs:
+        if not code:
             continue
-        code = str(d.get("fault_class") or "")
-        ok = d.get("fault_name") == CATALOGUE.get(code)
+        matches = name == CATALOGUE.get(code)
         tally = counts.setdefault(code, [0, 0])
-        tally[0 if ok else 1] += 1
+        tally[0 if matches else 1] += 1
 
     order = sorted(counts, key=lambda c: -sum(counts[c]))
     fig, ax = plt.subplots(figsize=(7.0, 3.0))
@@ -235,9 +252,11 @@ def fig_coherence(rows: Rows, out: Path) -> None:
     ax.set_xlabel("diagnoses emitting that class code", fontsize=9)
     ax.legend(frameon=False, fontsize=9, loc="lower right")
     ax.grid(axis="x", color="#e8e8ea", lw=0.8)
-    ax.set_title("Every F06 diagnosis carried F07's name - including the three "
+    f06 = counts.get("F06", [0, 0])
+    ax.set_title("Every F06 diagnosis carried F07's name - including the ones "
                  "that healed correctly.\nNo check compares the two fields, so "
-                 "F06's 5/5 class accuracy hides a 0/13 on its own prose.",
+                 f"F06's 5/5 class accuracy hides a 0/{sum(f06)} on its own "
+                 "prose, across two independent runs.",
                  fontsize=10, color=INK, loc="left", pad=12)
     save(fig, out, "fig4-diagnosis-self-consistency.png")
 
@@ -259,13 +278,24 @@ def main() -> int:
     run_a_path = reports / "bench-full.json"
     if run_a_path.exists():
         benches = {"run A (2026-10-19)": load(run_a_path)["runs"], **benches}
+    run_c_path = reports / "bench-20261020-night.json"
+    if run_c_path.exists():
+        benches["run C (2026-10-21)"] = load(run_c_path)["runs"]
     fig_conditionals(benches, out)
 
-    diag = reports / "diagnoses-20261020.json"
-    if diag.exists():
-        fig_coherence(load(diag)["rows"], out)
+    # Figure 4 POOLS the two sources that recorded a fault_name: run B's
+    # memory-ring dump and run C, the first bench to carry the field itself.
+    # Pooled rather than averaged - each pair is one diagnosis either way.
+    pairs: list[tuple[str, str]] = []
+    for name in ("diagnoses-20261020.json", "bench-20261020-night.json"):
+        path = reports / name
+        if path.exists():
+            pairs += coherence_pairs(load(path))
+    if pairs:
+        fig_coherence(pairs, out)
     else:
-        print(f"  skipped fig4: {diag} not found - run harness/dump_diagnoses.py")
+        print("  skipped fig4: no artifact carries fault_name - run "
+              "harness/dump_diagnoses.py")
     return 0
 
 

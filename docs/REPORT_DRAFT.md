@@ -25,7 +25,7 @@ an incident). That is a different kind of evidence from a measurement file.
 Written 2026-10-19. Updated 2026-10-20 after a **second** full `make bench`
 run (`bench-20261020-mttd.json`, finished 03:06 UTC) — the one that could
 measure MTTD, and therefore also a replication of §4.1 at the same denominator.
-§4.1 and §4.2 report both runs; forty injections in total.
+§4.1 and §4.2 report all three runs; sixty injections in total.
 
 ---
 
@@ -107,52 +107,82 @@ incident from it, and verifies the chain while doing so.
 
 ## 4. Results
 
-### 4.1 The bench — two runs at the same denominator
+### 4.1 The bench — three runs at the same denominator
 
-Two full `make bench` runs, each **4 classes x 5 reps = 20 injections**,
-unattended in `APPROVAL` mode. The second exists because the first could not
-measure MTTD ([ADR 0014](decisions/0014-mttd-was-never-measured-so-the-figure-is-withdrawn.md)),
-so it doubles as a replication of everything else at the same denominator.
+Three full `make bench` runs, each **4 classes x 5 reps = 20 injections**,
+unattended in `APPROVAL` mode. Run B exists because run A could not measure
+MTTD ([ADR 0014](decisions/0014-mttd-was-never-measured-so-the-figure-is-withdrawn.md));
+run C exists because `fault_name` coherence was only wired as a measurement
+after run B ([ADR 0020](decisions/0020-incidents-are-read-from-the-store-and-the-bench-scores-two-answers.md)),
+and it had been scored by *replaying* run B's diagnoses rather than observed
+live. Each therefore doubles as a replication of everything before it.
 
-| | run A | run B |
-|---|---|---|
-| artifact | `bench-full.json` | `bench-20261020-mttd.json` |
-| window (UTC) | 2026-10-18 19:12 to 10-19 08:55 | 2026-10-19 18:55 to 10-20 03:06 |
-| wall clock | 13.7h | 8.2h |
-| of which paced waiting | 7.4h | 7.4h (445 min) |
-| MTTD | **not measurable** | **measured** |
+| | run A | run B | run C |
+|---|---|---|---|
+| artifact | `bench-full.json` | `bench-20261020-mttd.json` | `bench-20261020-night.json` |
+| window (UTC) | 2026-10-18 19:12 to 10-19 08:55 | 2026-10-19 18:55 to 10-20 03:06 | 2026-10-20 17:52 to 10-21 02:03 |
+| wall clock | 13.7h | 8.2h | 8.2h |
+| of which paced waiting | 7.4h | 7.4h (445 min) | 7.4h (443 min) |
+| MTTD | **not measurable** | **measured** | **measured** |
+| `fault_name` coherence | not recorded | replayed from the memory ring | **recorded live** |
 
 Every injection was real, every approval was issued by the harness acting as
-the operator, and in neither run was anything reset, raised or disabled. Both
-ran on one host, one Ollama (`qwen2.5:7b-instruct`) and one 30-chunk corpus.
+the operator, and in none of the three was anything reset, raised or disabled.
+All ran on one host, one Ollama (`qwen2.5:7b-instruct`) and one 30-chunk corpus.
 
-#### Per class — run B, the only run with a valid MTTD
+#### Per class — runs B and C, the two with a valid MTTD
 
-| class | detector reads | **MTTD** median [min-max] | first verdict | MTTR median | healed |
-|---|---|---|---|---|---|
-| F08 config regression | live settings vs. snapshot, **no PromQL** | **18.5s** [18.2-19.1] | 39.3s | **109.0s** | 5/5 |
-| F07 prompt regression | prompt hash vs. baseline, **no PromQL** | **20.1s** [19.7-20.5] | 39.3s | 102.9s *(n=1)* | **1/5** |
-| F01 endpoint outage | `rate(llm_requests[2m])`, `min_requests >= 3` | 60.8s [36.5-62.0] | 78.8s | **124.2s** | 5/5 |
-| F06 retrieval collapse | `rate(empty_context[1m])` | 71.2s [53.6-74.4] | 90.7s | **155.2s** | **3/5** |
-
-#### Headline metrics, both runs
-
-| metric | run A | **run B** | `PRD.md` §10 target | |
+| class | detector reads | **MTTD** median [min-max] | MTTR median | healed |
 |---|---|---|---|---|
-| detection rate | 100% (20/20) | 100% (20/20) | >= 95% | met |
-| localisation | 100% (20/20) | 100% (20/20) | >= 80% | met *(one-way, see §6)* |
-| RCA accuracy, the model's own answer | 85% (17/20) | 85% (17/20) | >= 75% | met |
-| auto-resolution | 75% (15/20) | 70% (14/20) | >= 70% | met |
-| **false healing** | **0% (0/20)** | **0% (0/20)** | <= 5% | met |
-| MTTR median | 124.4s (n=15) | **114.9s** (n=14) | < 180s | met |
-| **MTTD median** | withdrawn — never measured | **28.5s** | < 30s | **met, but see below** |
-| first verdict median | 48.5s | 50.0s | *no target* | — |
-| target state clean after run | 100% (20/20) | 100% (20/20) | 100% | met |
-| audit completeness | 100% | 100% (14/14) | 100% | met |
-| audit chain intact | yes | yes | yes | met |
+| F08 config regression | live settings vs. snapshot, **no PromQL** | B **18.5s** [18.2-19.1] · C **19.3s** [18.0-20.7] | B 109.0s · C 110.5s | B 5/5 · C 4/5 |
+| F07 prompt regression | prompt hash vs. baseline, **no PromQL** | B **20.1s** [19.7-20.5] · C **21.0s** [19.7-29.5] | B 102.9s *(n=1)* · C 112.0s | B **1/5** · C 3/5 |
+| F01 endpoint outage | `rate(llm_requests[2m])`, `min_requests >= 3` | B 60.8s [36.5-62.0] · C 36.6s [36.5-61.0] | B 124.2s · C 103.1s | B 5/5 · C 5/5 |
+| F06 retrieval collapse | `rate(empty_context[1m])` | B 71.2s [53.6-74.4] · C 73.2s [54.9-75.4] | B **155.2s** · C **159.5s** | B 3/5 · C 3/5 |
 
-**Forty injections, zero false heals.** That is the claim the whole
-architecture exists to support, and it now has a two-run denominator.
+The two no-PromQL classes replicate to within a second across both runs. The
+two that wait on a `rate()` replicate in *range* but not in median — F01's
+median moved 24s between runs while its range barely moved:
+
+| | the five F01 samples |
+|---|---|
+| run B | 36.5 · 48.7 · 60.8 · 61.3 · 62.0 |
+| run C | 36.5 · 36.6 · 36.6 · 48.7 · 61.0 |
+
+The same three values recur — roughly 36.5, 48.7 and 61 — in both runs, about
+12.2s apart. **F01's MTTD is not a continuous distribution; it lands on a
+ladder**, and which rung depends on where in the scrape cycle the fault is
+injected. The median is then just a count of which rungs the five samples
+happened to hit, which is why it moved 24s on an unchanged system. We have not
+isolated the step to a specific mechanism — 12.2s is close to, but not equal
+to, the 15s Prometheus scrape interval, so that remains a hypothesis rather
+than a measurement.
+
+#### Headline metrics, all three runs
+
+| metric | run A | run B | **run C** | `PRD.md` §10 target | |
+|---|---|---|---|---|---|
+| detection rate | 100% (20/20) | 100% (20/20) | 100% (20/20) | >= 95% | met |
+| localisation | 100% (20/20) | 100% (20/20) | 100% (20/20) | >= 80% | met *(one-way, see §6)* |
+| RCA accuracy, the model's own answer | 85% (17/20) | 85% (17/20) | 85% (17/20) | >= 75% | met |
+| repair action proposed | — | — | 90% (18/20) | *no target* | — |
+| answer is self-consistent | — | *(replayed)* | **60% (12/20)** | *measured, not enforced* | — |
+| auto-resolution | 75% (15/20) | 70% (14/20) | 75% (15/20) | >= 70% | met |
+| **false healing** | **0% (0/20)** | **0% (0/20)** | **0% (0/20)** | <= 5% | met |
+| MTTR median | 124.4s (n=15) | 114.9s (n=14) | **112.0s** (n=15) | < 180s | met |
+| **MTTD median** | withdrawn — never measured | **28.5s** | **33.0s** | < 30s | **B met, C missed** |
+| first verdict median | 48.5s | 50.0s | 53.1s | *no target* | — |
+| target state clean after run | 100% (20/20) | 100% (20/20) | 100% (20/20) | 100% | met |
+| audit completeness | 100% | 100% (14/14) | 100% (15/15) | 100% | met |
+| audit chain intact | yes | yes | yes | yes | met |
+
+**Sixty injections, zero false heals.** That is the claim the whole
+architecture exists to support, and it now has a three-run denominator.
+
+Every other metric replicated across all three runs. RCA accuracy came in at
+exactly 17/20 three times from three independent draws, which is the kind of
+agreement that invites a check that the harness is not re-reading one file —
+the three artifacts have different timestamps, different MTTRs and different
+per-class breakdowns, so the agreement is in the quantity, not the data.
 
 #### MTTD: measured, and the aggregate is the least useful true thing about it
 
@@ -163,11 +193,14 @@ diagnosis**, and the `permit()` gate. `loop.py` now stamps
 `detection.concluded_at` the instant `run_all` returns, and run B computes MTTD
 from that stamp.
 
-The aggregate median is **28.5s against a < 30s target**, and reporting that
-alone would be misleading.
+The aggregate median is **28.5s in run B and 33.0s in run C**, against a
+`< 30s` target. The same unchanged system therefore **met the target on one run
+and missed it on the next**, which is the clearest possible statement of why
+reporting the aggregate alone would be misleading.
 [ADR 0019](decisions/0019-mttd-is-measured-and-the-target-stays-but-per-class.md)
 records why, and the decision not to touch the target. In short: the twenty
-samples are **bimodal with nothing in between.**
+samples are **bimodal with nothing in between**, so the median is decided by
+which side of the gap the middle sample falls on, not by how fast detection is.
 
 ![MTTD per class against the < 30s target](../harness/reports/figures/fig1-mttd-per-class.png)
 
@@ -182,12 +215,19 @@ two that wait on a `rate()` behind a 15s scrape come in at roughly one window
 plus the fast set. **The detectors are not slow; the evidence is not yet
 available when they run.**
 
-So the 28.5s median sits in an empty gap between two populations, one sample
-either side of the boundary. Change which four classes are injectable and the
-same unchanged system reports a missed target. The figure is therefore reported
-**per class, with its window beside it**, and `< 30s` is left in `PRD.md`
-exactly as written — two of four classes miss it, and they are reported as
-missing it.
+So the median sits in an empty gap between two populations, one sample either
+side of the boundary. ADR 0019 predicted that this made the aggregate unstable
+and that changing which four classes are injectable would flip the verdict.
+**Run C flipped it without changing anything at all** — same four classes, same
+detectors, same model, same corpus, 28.5s to 33.0s, met to missed. The
+prediction was conservative: the aggregate is not merely sensitive to the
+choice of classes, it is unstable across repetitions of an identical run.
+
+The figure is therefore reported **per class, with its window beside it**, and
+`< 30s` is left in `PRD.md` exactly as written — two of four classes miss it in
+both runs, and they are reported as missing it. Per class the result is stable
+to within a second for F07 and F08 and within the ladder described above for
+F01 and F06; it is only the aggregate that moves.
 
 **One more thing run B settles about run A.** Run A's mislabelled "MTTD" per
 class was 36.4 / 39.4 / 78.9 / 87.9s for F08 / F07 / F01 / F06. Run B's
@@ -196,20 +236,25 @@ class was 36.4 / 39.4 / 78.9 / 87.9s for F08 / F07 / F01 / F06. Run B's
 seconds. It was **precise and measuring the wrong quantity**, which is the only
 reason nobody noticed for four days.
 
-### 4.2 F07 healed once in ten, and the second draw is why
+### 4.2 F07 is the unstable class, and the second draw is part of why
 
-Across both runs F07 was repaired **1 time in 10**. Read this section with
-**§4.8**: a human operator and a scripted runbook were each given F07 on the
-same system, and both produced a **false recovery** — the runbook while
-diagnosing it *correctly*. All three approaches fail on F07. Kavach is the only
-one that does not claim otherwise.
+Across three runs F07 was repaired **0/5, 1/5 and 3/5 — 4 times in 15**.
+Nothing in the detection, diagnosis or repair path changed between those runs,
+so the spread is sampling variance around a low and unstable rate, not
+improvement. **F07 is the class we cannot give a reliable number for**, and
+that is the honest result. Read this section with **§4.8**: a human operator
+and a scripted runbook were each given F07 on the same system, and both
+produced a **false recovery** — the runbook while diagnosing it *correctly*.
+All three approaches struggle on F07. Kavach is the only one that does not
+claim otherwise.
 
 `runner.approve()` **re-detects and re-diagnoses** rather than replaying a
 stored plan. That is deliberate: the world may have moved while the approval
 dialog was open, and a replayed plan would restore a value that was true when
 it opened. The cost is that **an approved incident must be diagnosed correctly
-twice**, and the bench records only the first draw as `llm_class`. Both runs
-show the same thing — the second draw is where the model loses.
+twice**, and the bench records only the first draw as `llm_class`. Runs A and B
+both lost F07 incidents on that second draw; run C lost none. The mechanism is
+a real exposure, not a reliable one.
 
 #### F07, per repetition
 
@@ -227,15 +272,24 @@ show the same thing — the second draw is where the model loses.
 | 3 | F06 ✗ | — | escalated | agreement **+ repair permitted** |
 | 4 | F06 ✗ | — | escalated | agreement **+ repair permitted** |
 | 5 | F07 ✓ *(0.9)* | **F06 ✗** | escalated | deterministic agreement |
+| **run C** | | | | |
+| 1 | F07 ✓ | F07 ✓ | **resolved** | — |
+| 2 | F07 ✓ | F07 ✓ | **resolved** | — |
+| 3 | F07 ✓ | F07 ✓ | **resolved** | — |
+| 4 | F06 ✗ | — | escalated | agreement **+ repair permitted** |
+| 5 | F06 ✗ | — | escalated | agreement **+ repair permitted** |
 
 ![first diagnosis correct versus repaired, per class](../harness/reports/figures/fig2-where-the-classes-lose.png)
 
 *Figure 2 — the gap between the two bars in each class is a second draw the
-gate refused.*
+gate refused. Plotted from run B.*
 
-First-draw accuracy is **2/5 in both runs** — the model is reproducibly
-unreliable on F07, not noisily so. Of the four correct first draws across the
-two runs, **one survived the second draw.**
+First-draw accuracy is **2/5, 2/5 and 3/5** — the model is unreliable on F07
+in a stable way, missing roughly half of them in every run. What is *not*
+stable is what happens next: of the eight correct first draws across three
+runs, **four survived the second draw** — none in run A, one of two in run B,
+and all three in run C. The double exposure is a real cost with a rate we
+cannot pin down at n=5 per run.
 
 #### The same failure hit F06, which run A healed 5/5
 
@@ -250,14 +304,28 @@ This is the finding run B adds, and it is the reason F06 dropped from 5/5 to
 | 4 | F06 ✓ | F06 ✓ | resolved | — |
 | 5 | F06 ✓ | F06 ✓ | resolved | — |
 
-F06's first-draw accuracy is **5/5 in both runs**. Every one of its losses is a
-second draw. So the double-exposure cost is **not a property of F07** — it is a
-property of re-diagnosing on approval, and F07 was simply the class fragile
-enough to show it first.
+Run C reproduced F06 at **3/5** with the same first-draw class accuracy, but
+the two losses split differently:
+
+| rep | first RCA | after approval | end | which validator rule |
+|---|---|---|---|---|
+| 1 | F06 ✓ → `rollback_config` | F06 ✓ | resolved | — |
+| 2 | F06 ✓ → `rollback_config` | F06 ✓, **but proposed `rollback_prompt`** | **escalated** | **repair permitted, alone** |
+| 3 | F06 ✓ → `rollback_config` | F06 ✓ | resolved | — |
+| 4 | F06 ✓ → **`rollback_prompt`** | — | **escalated** | **repair permitted, on the FIRST draw** |
+| 5 | F06 ✓ → `rollback_config` | F06 ✓ | resolved | — |
+
+F06's first-draw **class** accuracy is **5/5 in all three runs** — the most
+stable figure in the bench. Its losses in run B were both second draws; in run
+C one was a second draw and one was a first draw that named the right class and
+reached for the wrong repair. So the double-exposure cost is **not a property
+of F07** — it is a property of re-diagnosing on approval, and F07 was simply
+the class fragile enough to show it first. But it is not the *only* way F06
+loses, and run C is what shows that.
 
 F06 also rules out the simplest model of it. If the two draws were independent
 samples of equal accuracy *p*, an approved heal would succeed at *p²* — which
-fits F07 loosely (p = 0.4, p² = 0.16, observed 1/10) but cannot fit F06 at all:
+fits F07 loosely (p = 0.47, p² = 0.22, observed 4/15) but cannot fit F06 at all:
 5/5 on the first draw and 3/5 on the second is not two draws from one
 distribution. **The second frame is a different frame** — it is rebuilt after
 detection and the pre-fast set have already run, so it carries more traffic and
@@ -323,27 +391,96 @@ F06 incidents that **healed successfully**. Nothing derives that field; it is
 part of the model's own constrained output, and no check in the validator
 compares it to the code beside it.
 
-![fault_name against fault_class, all 37 diagnoses](../harness/reports/figures/fig4-diagnosis-self-consistency.png)
+#### Run C confirms it on independent data, and the prediction was exact
 
-*Figure 4 — `diagnoses-20261020.json`, written by `make diagnoses` before the
-API's in-process ring could lose it.*
+Run B's table above was produced by **replaying** diagnoses that had already
+been written. A replay cannot distinguish a real property of the model from an
+artefact of one night's sampling, so before run C started we recorded the
+prediction it would have to satisfy: *F06 comes back ~0/5 coherent and the
+other three ~5/5.* `fault_name` was then wired into the bench as a
+**measurement that nothing gates on** (commit `495daa0`) and run C observed it
+live.
 
-So **F06's 5/5 class accuracy is a weaker result than it reads as.** By its own
-prose the model understood all of them as prompt regression; the code field was
-right while the stated understanding was not. The ADR 0013 confusion is present
-at 13/13 where the escalation rate shows it at 2/5.
+| code emitted | run B (replayed) | **run C (live)** | pooled |
+|---|---|---|---|
+| F01 | 10/10 | 5/5 | **15/15** |
+| F07 | 4/4 | 3/3 | **7/7** |
+| F08 | 10/10 | 4/4 | **14/14** |
+| **F06** | **0/13** | **0/8** | **0/21** |
+
+**Twenty-one F06 diagnoses across two independent runs, twenty-one carrying
+F07's name, and not one incoherent pair anywhere else.** The prediction was
+not approximately right, it was exact. This is a reproducible property of
+`qwen2.5:7b-instruct` on this prompt, not a sampling accident.
+
+![fault_name against fault_class, all 57 pooled diagnoses](../harness/reports/figures/fig4-diagnosis-self-consistency.png)
+
+*Figure 4 — pooled over `diagnoses-20261020.json` (run B, written by
+`make diagnoses` before the API's in-process ring could lose it) and
+`bench-20261020-night.json` (run C, which records the field directly). 57
+diagnoses.*
+
+So **F06's 5/5 class accuracy is a weaker result than it reads as**, in both
+runs. By its own prose the model understood all of them as prompt regression;
+the code field was right while the stated understanding was not. The ADR 0013
+confusion is present at 21/21 where the escalation rate shows it at 2/5.
 
 **This is recorded and not fixed.** A `fault_name` coherence check would reject
-every F06 diagnosis — F06 from 5/5 to 0/5, auto-resolution from 70% to 55% —
+every F06 diagnosis — F06 from 5/5 to 0/5, auto-resolution from 75% to 55% —
 days before a demo. `AGENTS.md` forbids weakening a check to make something
 pass; it does not license adding one whose effect on the published numbers has
-not been agreed. `RESEARCH_NOTES.md` §10 has the full tabulation, the
-recommendation, and what it would take to measure action accuracy as a figure
-in its own right.
+not been agreed. The decision is the user's and it is still open.
+`RESEARCH_NOTES.md` §10 has the full tabulation and the recommendation.
+
+#### The F06 attractor, which only run C is large enough to show
+
+Run C's wrong answers are not scattered. **Every single one of them is the same
+answer:** `F06` at confidence 0.95 proposing `rollback_prompt`.
+
+| injected | rep | model said | gate |
+|---|---|---|---|
+| F06 | 4 | F06 (0.95) → `rollback_prompt` | refused — F06 may only use `rollback_config` |
+| F07 | 4 | F06 (0.95) → `rollback_prompt` | refused — and class disagrees with the detector |
+| F08 | 4 | F06 (0.95) → `rollback_prompt` | refused — and class disagrees with the detector |
+| F07 | 5 | F06 (0.95) → `rollback_prompt` | refused — and class disagrees with the detector |
+
+Three of those four are **consecutive injections** (rep 4, across F06, F07 and
+F08). Whatever the model was doing at that point in the night, it answered
+`F06 + rollback_prompt` to three different faults in a row at 0.95 confidence,
+and then partially recovered. We have not isolated the cause and will not
+speculate in the report; what matters for the claim is the next sentence.
+
+**All four were refused and nothing was written.** Two were caught by
+`repair_permitted` alone — the model named the right class and reached for a
+repair that class may not use — and three by `deterministic_agreement` as well.
+This is the single clearest demonstration in sixty injections of why the
+deterministic cross-check is not ceremony: the LLM's confidence was *highest*
+(0.95) exactly where it was most wrong, so any policy keyed on self-reported
+confidence would have executed all four.
+
+#### One row contains two different diagnoses of the same fault
+
+F06 rep 2 is worth stating on its own, because it is the within-incident form
+of the §4.2 second-draw finding rather than the between-incident form:
+
+| field | value |
+|---|---|
+| first diagnosis | `F06` → `rollback_config` — **correct**, passed the gate |
+| planned action | `rollback_config` |
+| then | approved by the harness → `approve()` re-detects and re-diagnoses |
+| second diagnosis | `F06` → `rollback_prompt` — **refused** by `repair_permitted` |
+| executed | **nothing** |
+| resolved | no |
+
+One incident, one injected fault, two diagnoses from the same model that
+disagree with each other, recorded in a single artifact row. `report.py` keeps
+`llm_class`/`llm_action` as the first draw and reads `escalation_reason` from
+the second deliberately, so the disagreement survives into the artifact instead
+of being averaged away.
 
 #### Three things follow, and all three belong in the report
 
-1. **The cross-check held, forty injections running.** Every failure above is
+1. **The cross-check held, sixty injections running.** Every failure above is
    an escalation with nothing written and the target left as found. A system
    that healed F07 by acting on an F06 diagnosis would have scored better on
    these tables and been worse.
@@ -364,10 +501,10 @@ in its own right.
 | P(heal \| diagnosis **wrong**) | **0% (0/3)** | **0% (0/3)** |
 | P(diagnosis correct \| heal) | **100% (15/15)** | **100% (14/14)** |
 
-![P(heal | correct) against P(heal | wrong), both runs](../harness/reports/figures/fig3-safety-conditionals.png)
+![P(heal | correct) against P(heal | wrong), all three runs](../harness/reports/figures/fig3-safety-conditionals.png)
 
-*Figure 3 — the right-hand bar is the one that has to be zero. It is, in both
-runs, across forty injections.*
+*Figure 3 — the right-hand bar is the one that has to be zero. It is, in all
+three runs, across sixty injections.*
 
 A high auto-resolution rate next to a high P(heal | wrong) would mean a
 symptom-matcher with an LLM bolted on. Both are reported, or neither is worth
@@ -515,7 +652,7 @@ identical incidents.**
 #### What both baselines found, which neither was looking for
 
 Line up the three approaches on **F07**, the class §4.2 reports Kavach
-healing once in ten:
+healing 4 times in 15:
 
 | | diagnosed F07 | repaired it | **claimed success while broken** |
 |---|---|---|---|
@@ -523,6 +660,7 @@ healing once in ten:
 | scripted runbook | yes, 2/2 | 1 of 2 | **yes** — 1/2, `verified: false` |
 | Kavach, run A | deterministic yes 5/5, model 2/5 | no, 0/5 | **no — 0/5, target clean 5/5** |
 | Kavach, run B | deterministic yes 5/5, model 2/5 | 1/5 | **no — 0/5, target clean 5/5** |
+| Kavach, run C | deterministic yes 5/5, model 3/5 | 3/5 | **no — 0/5, target clean 5/5** |
 
 Every approach fails on F07. **Two of the three lie about it.** The runbook is
 the sharper case: it diagnosed the fault *correctly*, applied the correct
@@ -620,15 +758,20 @@ not have.
 
 ## 5. What the safety engine refused
 
-| event | count |
-|---|---|
-| wrong diagnoses rejected by the cross-check | 26 / 26 |
-| of those, from this bench | 5 / 5 |
-| F07 incidents escalated rather than guessed | 5 / 5 |
-| generated patches refused before production | all of them |
-| patches refused *by the sandbox after passing every static check* | 2 |
-| incidents leaving the target unclean | **0 / 20** |
-| false healings — resolved while still broken | **0 / 20** |
+| event | count | counted over |
+|---|---|---|
+| wrong diagnoses rejected by the cross-check | 26 / 26 | everything before run C |
+| of those, from the run B bench | 5 / 5 | run B |
+| wrong diagnoses rejected in run C | **5 / 5** | run C |
+| F07 incidents escalated rather than guessed | 5 / 5 · 4 / 5 · 2 / 5 | runs A · B · C |
+| generated patches refused before production | all of them | §4.5 |
+| patches refused *by the sandbox after passing every static check* | 2 | §4.5 |
+| incidents leaving the target unclean | **0 / 60** | all three runs |
+| false healings — resolved while still broken | **0 / 60** | all three runs |
+
+The last two rows are recomputed directly from the three artifacts rather than
+carried forward; `state_clean` and `false_healing` are false on none of the
+sixty rows.
 
 False healing is checked by an **independent** fast-set run after the loop
 declares `RESOLVED`, not by the loop's own verification, because a
@@ -639,6 +782,13 @@ denominator is one diagnosis per run. Two more were refused on the
 post-approval re-runs of F07 reps 1 and 3, which that denominator does not
 see — 22 diagnoses were issued across 20 injections. Five were wrong and five
 were refused.
+
+Run C prints `LLM diagnoses refused: 4/20` for the same reason and records
+**five** escalation reasons, the fifth being F06 rep 2 — whose *first* draw was
+accepted and whose second was refused, so the first-draw denominator cannot see
+it. Run C is the first run whose artifact carries `escalation_reason` at all;
+runs A and B have the field empty, and their validator-rule attributions in
+§4.2 come from the research log rather than from the artifact.
 
 ## 6. Threats to validity — read this before quoting §4
 
