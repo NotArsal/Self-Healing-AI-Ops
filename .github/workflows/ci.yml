@@ -16,6 +16,10 @@ on:
   pull_request:
   push:
     branches: [kavach/ops]
+  # Lets the gate be re-run from the Actions tab without an empty commit,
+  # which is what you want when a run failed for an infrastructure reason
+  # rather than a code one.
+  workflow_dispatch:
 
 # A second push to the same PR cancels the first. The gate takes a few
 # minutes and only the latest commit's result means anything.
