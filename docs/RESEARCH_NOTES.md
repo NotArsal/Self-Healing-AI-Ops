@@ -464,6 +464,58 @@ that escalated. There is no lookup table to blame: `fault_name` is a required
 field of the model's own constrained output, and no code in `kavach/` derives
 or rewrites it.
 
+### CONFIRMED on independent data, 2026-10-21
+
+The table above was produced by **replaying** diagnoses already written to the
+memory ring. A replay cannot distinguish a property of the model from an
+artefact of one night's sampling, so this section recorded the prediction run C
+would have to satisfy — *F06 ~0/5, the other three ~5/5* — before run C
+started. `fault_name` was then wired into `report.py` as a measurement
+**nothing gates on** (commit `495daa0`) so that observing it could not change
+any published figure, and run C measured it live.
+
+| code emitted | run B (replayed) | **run C (live)** | pooled |
+|---|---|---|---|
+| F01 | 10/10 | 5/5 | **15/15** |
+| F07 | 4/4 | 3/3 | **7/7** |
+| F08 | 10/10 | 4/4 | **14/14** |
+| **F06** | **0/13** | **0/8** | **0/21** |
+
+**Twenty-one for twenty-one, and not one incoherent pair in the other 36.**
+The prediction was exact rather than approximate. This is a reproducible
+property of `qwen2.5:7b-instruct` on `diagnose.txt`, and it should be reported
+as such rather than as an observation from a single bench.
+
+What this does *not* establish: whether the cause is the prompt's ordering, the
+catalogue's wording, the model's tokenisation of the two similar descriptions,
+or something else. Nothing here isolates it, and §10's recommendation is
+unchanged by the confirmation — it is now better evidenced, not different.
+
+### A second finding from run C: the F06 attractor
+
+Run C's four wrong answers were **the same wrong answer**: `F06` at confidence
+**0.95** proposing `rollback_prompt`, given to injected F06, F07 **and** F08 —
+three of them on consecutive injections (rep 4), with a fourth on F07 rep 5.
+
+| injected | rep | model said | refused by |
+|---|---|---|---|
+| F06 | 4 | F06 (0.95) → `rollback_prompt` | `repair_permitted` |
+| F07 | 4 | F06 (0.95) → `rollback_prompt` | `repair_permitted` + `deterministic_agreement` |
+| F08 | 4 | F06 (0.95) → `rollback_prompt` | `repair_permitted` + `deterministic_agreement` |
+| F07 | 5 | F06 (0.95) → `rollback_prompt` | `repair_permitted` + `deterministic_agreement` |
+
+Two things follow and only the second is a claim.
+
+**Not claimed:** why. Three consecutive injections collapsing to one answer
+looks time-correlated rather than random, but nothing here isolates a cause and
+the report says so rather than speculating.
+
+**Claimed:** the model's self-reported confidence was at its **maximum exactly
+where it was most wrong**. Any gating policy keyed on confidence — a threshold,
+a weighted vote, an "auto-approve above 0.9" shortcut — executes all four of
+these. This is the concrete argument against the most natural simplification
+anyone proposes to the gate, and it is now measured rather than asserted.
+
 ### Why it matters more than the F06 anomaly it came from
 
 **1. It is a free confusion signal that nothing reads.** The deterministic
