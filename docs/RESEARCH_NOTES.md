@@ -696,3 +696,90 @@ The practical form: a constraint that names a release condition should name
 the file that lifts it, or it becomes architecture by default. This one was
 found by comparison with other projects, not by reading our own roadmap — and
 it had been sitting in `ROADMAP.md` in bold the whole time.
+
+## 12. The corpus the whole verification layer rests on was never in git
+
+**Found:** 2026-11-01, rebuilding the environment after the laptop's SSD was
+formatted at a service centre. The repository restored from backup intact and
+every test passed. The corpus did not come back, and it cannot be recovered
+from this repository or the target's.
+
+### What is actually missing
+
+`verification/fast_set.yaml` pins the corpus it was built against:
+
+```yaml
+corpus_fingerprint:
+  chunks: 30
+  files: ["919.pdf", "1662.pdf"]
+```
+
+Those two PDFs were uploaded through the target's `POST /v1/upload` and lived
+only in two places: the target's Postgres volume (`target_rag-app_pgdata`) and
+its `uploads/` directory. **The volume went with the format, and `uploads/*`
+is in the target's `.gitignore`** - only `.gitkeep` is tracked. Neither file
+exists anywhere on the machine any more. `RAG Documentation.pdf`, which IS
+tracked in the target repository, is a different document and does not produce
+either fingerprint.
+
+### Why it is worse than losing test data
+
+All three fast-set cases read from those two files:
+
+| case | question | keyword | source |
+|---|---|---|---|
+| fv-01 | ROC-AUC the LSTM model achieved | `0.91` | 1662.pdf |
+| fv-02 | clips in the PhysioCheck feasibility evaluation | `339` | 919.pdf |
+| fv-03 | Stage-2 accuracy for Arm Raise | `91.2` | 919.pdf |
+
+The fast set is not a test suite - it is the **post-repair verification the
+loop itself runs** before it may return `RESOLVED`, and the independent check
+the bench uses to score false healing. With the wrong corpus it returns FAIL
+on a healthy system, so a correct detection and a correct repair still end in
+`escalated`.
+
+This is not a prediction. `PRD.md` §12 records it happening on 2026-10-16,
+when the corpus had drifted to 13 chunks / 1 file: `fv-01` retrieved zero
+chunks, the set returned 2/3, and **no F06 cycle could return RESOLVED** -
+the repair executed correctly and verification failed for a corpus reason.
+It was fixed by re-ingesting `1662.pdf` and nothing else.
+
+### The check that would have caught it does not exist
+
+§12 of `PRD.md` already names this, in the resolution of that same incident:
+
+> **One finding from this is NOT fixed and is carried to P6:** no check
+> compares the live corpus against the manifest fingerprint. The loop's corpus
+> guard only compares before/after *within* one incident, so absolute drift
+> between sessions stays invisible, and the fingerprint is written down but
+> never asserted.
+
+It was carried to P6; P6 landed; nothing was built. The corpus has now drifted
+three times - 162/3 on 2026-10-04, 13/1 on 2026-10-16, and 0/0 today - and on
+all three occasions the system that exists to notice failures did not notice
+this one. A preflight comparing live `ragapp_corpus_chunks` and
+`ragapp_corpus_files` against `fast_set.yaml`'s `corpus_fingerprint`, refusing
+to run rather than reporting a number built on the wrong corpus, would have
+caught every one.
+
+### What this costs, stated plainly
+
+Two things that are true at once, and the report should say both:
+
+1. **The measurements already taken stand.** Runs A, B and C were taken on the
+   30/2 corpus, verified against the fingerprint at the time, and their
+   artifacts are committed. Losing the input does not retroactively invalidate
+   a recorded measurement.
+2. **They cannot currently be reproduced.** A reviewer who clones this
+   repository cannot rebuild the corpus from it, because the corpus was never
+   in it. For a project whose §4 opens by saying every figure is traceable to
+   a named file, that is a real gap and belongs in §6 threats to validity, not
+   in a footnote.
+
+### The lesson, which is not "back up your files"
+
+The fingerprint was **written down and never asserted**. Three drifts, one
+documented remediation, an explicit carry-forward in the PRD - and the check
+still did not exist, because recording a constraint felt like handling it.
+That is the same shape as §11: a condition captured in prose that nothing in
+the system reads. Prose does not fail a build.
