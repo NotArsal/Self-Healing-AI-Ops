@@ -1,19 +1,17 @@
 /**
- * The diagnosis card — DESIGN_SYSTEM.md §7.5.
+ * The RCA card — DESIGN_SYSTEM.md §7.5.
  *
- * Confidence is a 5-segment bar with the number beside it, never a hue: a red
- * "low confidence" would collide with high risk (§2.5).
+ * Primary visual emphasis is on the fault class and the target service.
+ * Confidence is rendered as a 5-segment bar, labelled as uncalibrated so the
+ * operator is not misled into treating it as a calibrated probability.
  *
- * THE UNCALIBRATED LABEL IS LOAD-BEARING
- * `confidence` is raw model output. No reliability diagram, no ECE, nothing
- * fitted against observed correctness (ARCHITECTURE.md §6.4). So the number is
- * shown as a number and explicitly marked uncalibrated — it is never rendered
- * as "90% likely to be correct", and the backend states the same thing on the
- * wire via `confidence_is_calibrated: false`.
+ * Validation checks are collapsed by default; the summary line shows the pass
+ * count so an operator scanning the card knows whether there was any dispute.
  *
- * An INSUFFICIENT_EVIDENCE result is not an error state. Styling the system's
- * honesty as a failure would train the operator to distrust it, which is the
- * one behaviour we most want to encourage.
+ * Stitch refinement:
+ *   - Forensic Assessment badge & Midnight Operations surface treatment
+ *   - Enhanced cited evidence chips and ruled-out alternatives disclosure
+ *   - Preserves uncalibrated confidence text, aria-labels, and test contracts
  */
 
 "use client";
@@ -45,6 +43,7 @@ function ConfidenceBar({ value }: { value: number }) {
               index < filled
                 ? "var(--k-confidence-fill)"
                 : "var(--k-confidence-track)",
+            boxShadow: index < filled ? "0 0 4px rgba(0, 229, 201, 0.4)" : "none",
           }}
         />
       ))}
@@ -65,7 +64,10 @@ export function DiagnosisCard({
   if (!rca) {
     return (
       <div className="k-card">
-        <h3>Diagnosis</h3>
+        <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Icon name="activity" size={16} />
+          Diagnosis
+        </h3>
         <p className="k-sm k-muted" style={{ margin: "8px 0 0" }}>
           No diagnosis yet. The LLM RCA stage runs after deterministic detection
           finds a fault, and never before.
@@ -78,7 +80,10 @@ export function DiagnosisCard({
     const honest = /insufficient|unknown/i.test(rca.error ?? "");
     return (
       <div className="k-card">
-        <h3>Diagnosis</h3>
+        <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Icon name="activity" size={16} />
+          Diagnosis
+        </h3>
         <p
           className="k-sm"
           style={{
@@ -103,24 +108,64 @@ export function DiagnosisCard({
   return (
     <div
       className="k-card"
-      style={{ display: "flex", flexDirection: "column", gap: "var(--k-space-3)" }}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "var(--k-space-3)",
+        boxShadow: "0 2px 12px rgba(0, 0, 0, 0.25)",
+      }}
     >
-      <div>
-        <h3 style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-          <span className="k-mono">{diagnosis.fault_class}</span>
-          <span>{diagnosis.fault_name.replace(/_/g, " ")}</span>
-        </h3>
-        <p className="k-sm k-muted" style={{ margin: "4px 0 0" }}>
-          on <span className="k-mono-sm">{diagnosis.service}</span> · diagnosed by{" "}
-          <span className="k-mono-sm">{rca.model}</span> in {rca.latency_s}s
-        </p>
-      </div>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+            <span
+              className="k-mono-sm"
+              style={{
+                padding: "2px 6px",
+                borderRadius: "var(--k-radius-sm)",
+                background: "var(--k-accent-glow)",
+                color: "var(--k-accent)",
+                fontSize: 10,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+              }}
+            >
+              FORENSIC ASSESSMENT
+            </span>
+          </div>
+          <h3 style={{ display: "flex", alignItems: "baseline", gap: 8, margin: 0 }}>
+            <span className="k-mono">{diagnosis.fault_class}</span>
+            <span>{diagnosis.fault_name.replace(/_/g, " ")}</span>
+          </h3>
+          <p className="k-sm k-muted" style={{ margin: "4px 0 0" }}>
+            on <span className="k-mono-sm">{diagnosis.service}</span> · diagnosed by{" "}
+            <span className="k-mono-sm">{rca.model}</span> in {rca.latency_s}s
+          </p>
+        </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--k-space-3)" }}>
-        <ConfidenceBar value={diagnosis.confidence} />
-        <span className="k-mono" style={{ fontVariantNumeric: "tabular-nums" }}>
-          {diagnosis.confidence.toFixed(2)}
-        </span>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: 4,
+            padding: "var(--k-space-1) var(--k-space-2)",
+            background: "var(--k-surface-sunken)",
+            borderRadius: "var(--k-radius-sm)",
+            border: "1px solid var(--k-border-subtle)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--k-space-2)" }}>
+            <ConfidenceBar value={diagnosis.confidence} />
+            <span className="k-mono" style={{ fontVariantNumeric: "tabular-nums", fontWeight: 700 }}>
+              {diagnosis.confidence.toFixed(2)}
+            </span>
+          </div>
+          <span className="k-mono-sm k-faint" style={{ fontSize: 10 }}>
+            RAW OUTPUT
+          </span>
+        </div>
       </div>
 
       <p
@@ -130,12 +175,16 @@ export function DiagnosisCard({
           padding: "var(--k-space-2) var(--k-space-3)",
           background: "var(--k-surface-sunken)",
           borderRadius: "var(--k-radius-sm)",
+          border: "1px solid var(--k-border-subtle)",
           color: "var(--k-text-muted)",
           display: "flex",
           gap: 8,
+          alignItems: "flex-start",
         }}
       >
-        <Icon name="info" />
+        <span style={{ color: "var(--k-accent)", marginTop: 1 }}>
+          <Icon name="info" size={14} />
+        </span>
         <span>
           Uncalibrated. This is the model&apos;s own number, not a measured
           probability of correctness. The threshold it must clear is a floor, and
@@ -144,7 +193,8 @@ export function DiagnosisCard({
       </p>
 
       <div>
-        <h4 className="k-xs k-muted" style={{ margin: "0 0 6px", fontWeight: 500 }}>
+        <h4 className="k-xs k-muted" style={{ margin: "0 0 6px", fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
+          <Icon name="activity" size={12} />
           Cited evidence
         </h4>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
@@ -161,6 +211,8 @@ export function DiagnosisCard({
                 border: "1px solid var(--k-border-strong)",
                 background: "var(--k-surface-raised)",
                 color: "var(--k-text)",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
               }}
             >
               {eid}
@@ -170,9 +222,18 @@ export function DiagnosisCard({
       </div>
 
       {diagnosis.reasoning && (
-        <p className="k-sm k-muted" style={{ margin: 0 }}>
-          {diagnosis.reasoning}
-        </p>
+        <div
+          style={{
+            padding: "var(--k-space-2) var(--k-space-3)",
+            background: "var(--k-surface-sunken)",
+            borderRadius: "var(--k-radius-sm)",
+            border: "1px solid var(--k-border-subtle)",
+          }}
+        >
+          <p className="k-sm k-muted" style={{ margin: 0, lineHeight: 1.5 }}>
+            {diagnosis.reasoning}
+          </p>
+        </div>
       )}
 
       <p
@@ -183,6 +244,7 @@ export function DiagnosisCard({
           gap: 8,
           alignItems: "center",
           color: approved ? "var(--k-risk-low)" : "var(--k-risk-high)",
+          fontWeight: 500,
         }}
       >
         <Icon name={approved ? "check" : "cross"} />
@@ -206,16 +268,42 @@ export function DiagnosisCard({
               border: "none",
               padding: "4px 0",
               minHeight: 24,
+              cursor: "pointer",
             }}
           >
             <Icon name={showRuledOut ? "chevron-down" : "chevron-right"} />
             Ruled out ({diagnosis.rejected_alternatives.length})
           </button>
           {showRuledOut && (
-            <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+            <ul style={{ margin: "6px 0 0", padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 6 }}>
               {diagnosis.rejected_alternatives.map((alt) => (
-                <li key={alt.fault_class} className="k-sm k-muted">
-                  <span className="k-mono-sm">{alt.fault_class}</span> — {alt.reason}
+                <li
+                  key={alt.fault_class}
+                  className="k-sm k-muted"
+                  style={{
+                    padding: "var(--k-space-2) var(--k-space-3)",
+                    background: "var(--k-surface-raised)",
+                    borderRadius: "var(--k-radius-sm)",
+                    border: "1px solid var(--k-border-subtle)",
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: 8,
+                  }}
+                >
+                  <span
+                    className="k-mono-sm"
+                    style={{
+                      padding: "1px 6px",
+                      borderRadius: "var(--k-radius-sm)",
+                      background: "var(--k-risk-high-bg)",
+                      color: "var(--k-risk-high)",
+                      fontWeight: 700,
+                      fontSize: 11,
+                    }}
+                  >
+                    {alt.fault_class}
+                  </span>
+                  <span>— {alt.reason}</span>
                 </li>
               ))}
             </ul>
@@ -234,7 +322,7 @@ export function DiagnosisCard({
               <li
                 key={check.name}
                 className="k-sm"
-                style={{ display: "flex", gap: 8, alignItems: "start", padding: "2px 0" }}
+                style={{ display: "flex", gap: 8, alignItems: "start", padding: "3px 0" }}
               >
                 <span
                   style={{

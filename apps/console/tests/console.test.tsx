@@ -467,6 +467,10 @@ describe("keyboard navigation", () => {
     await user.tab();
     expect(screen.getByRole("link", { name: "Observability" })).toHaveFocus();
     await user.tab();
+    expect(screen.getByRole("link", { name: "Logs" })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole("link", { name: "Traces" })).toHaveFocus();
+    await user.tab();
     expect(screen.getByRole("button", { name: /Switch to light theme/ })).toHaveFocus();
   });
 

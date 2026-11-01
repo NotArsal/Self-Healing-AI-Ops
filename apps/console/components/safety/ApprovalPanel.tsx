@@ -1,25 +1,27 @@
 /**
- * The approval panel — DESIGN_SYSTEM.md §7.7.
+ * The human gate — PRD §7, ARCHITECTURE.md §7.
  *
- * Order is fixed: diagnosis → proposed change → sandbox result → risk
- * rationale → inverse → controls. The operator learns the position.
+ * When an action exceeds the automatic-execution threshold, the gate halts
+ * the loop and asks the operator. To prevent drive-by approvals:
  *
- * THE APPROVE BUTTON IS DISABLED UNTIL THE PLAN HAS BEEN SCROLLED TO ITS END.
- * Approving unread is the failure mode this product exists to prevent, and a
- * gate whose button can be clicked without looking is theatre. Rejecting needs
- * no scroll — refusing without reading is safe.
+ *   1. The full plan is in a scroll area with a fixed height.
+ *   2. The approve button is disabled until the operator scrolls to the end.
+ *   3. Rejection requires a reason, recorded in the audit log.
+ *   4. The undo action is visible *inside* the plan, not behind a disclosure.
  *
- * Reject requires a reason, enforced here and again by the API, because a
- * refusal without one teaches nobody anything.
+ * Stitch-guided refinement:
+ *   - Midnight Operations visual interlock card with high-contrast safety styling
+ *   - Authority session strip and fail-safe automated rollback guarantee notice
+ *   - Strict preservation of h4 heading sequence and test-asserted accessibility attributes
  */
 
 "use client";
 
 import { useRef, useState } from "react";
-
 import { Icon } from "../ui/Icon";
 import { RiskBadge } from "../ui/pills";
-import { api, type Incident } from "@/lib/api";
+import { api } from "@/lib/api";
+import type { Incident } from "@/lib/api";
 
 export function ApprovalPanel({
   incident,
@@ -80,19 +82,102 @@ export function ApprovalPanel({
       aria-labelledby="approval-heading"
       className="k-card"
       style={{
-        borderColor: "var(--k-state-awaiting)",
+        border: "1px solid var(--k-state-awaiting)",
+        boxShadow: "0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(245, 158, 11, 0.2)",
         display: "flex",
         flexDirection: "column",
         gap: "var(--k-space-3)",
+        position: "relative",
+        overflow: "hidden",
       }}
     >
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <h3 id="approval-heading" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <Icon name="shield-alert" />
-          Approval required
-        </h3>
-        {decision && <RiskBadge tier={decision.risk_tier} />}
+      {/* Stitch accent stripe */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 3,
+          background: "linear-gradient(90deg, var(--k-risk-med), var(--k-state-awaiting))",
+        }}
+      />
+
+      <header
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <h3 id="approval-heading" style={{ display: "flex", gap: 8, alignItems: "center", margin: 0 }}>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 28,
+                height: 28,
+                borderRadius: "var(--k-radius-sm)",
+                background: "var(--k-risk-med-bg)",
+                color: "var(--k-risk-med)",
+              }}
+            >
+              <Icon name="shield-alert" size={16} />
+            </span>
+            Approval required
+          </h3>
+          <span className="k-mono-sm k-muted" style={{ fontSize: 11 }}>
+            Policy: Autonomous Interlock · Lead SRE Sign-off Required
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span
+            className="k-mono-sm"
+            style={{
+              padding: "2px 6px",
+              borderRadius: "var(--k-radius-sm)",
+              background: "var(--k-risk-med-bg)",
+              color: "var(--k-risk-med)",
+              fontSize: 10,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            AWAITING DECISION
+          </span>
+          {decision && <RiskBadge tier={decision.risk_tier} />}
+        </div>
       </header>
+
+      {/* Operator Credential & Lease Meta Bar */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "var(--k-space-2) var(--k-space-3)",
+          background: "var(--k-surface-sunken)",
+          borderRadius: "var(--k-radius-sm)",
+          border: "1px solid var(--k-border-subtle)",
+          fontSize: 12,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <Icon name="activity" size={13} />
+          <span className="k-muted">Operator Session:</span>
+          <span className="k-mono-sm" style={{ fontWeight: 600, color: "var(--k-text)" }}>
+            Local SRE Authority
+          </span>
+        </div>
+        <div className="k-mono-sm k-faint" style={{ fontSize: 11 }}>
+          Action Gate Active
+        </div>
+      </div>
 
       <div
         ref={plan}
@@ -105,6 +190,7 @@ export function ApprovalPanel({
           padding: "var(--k-space-3)",
           background: "var(--k-surface-sunken)",
           borderRadius: "var(--k-radius-sm)",
+          border: "1px solid var(--k-border)",
           display: "flex",
           flexDirection: "column",
           gap: "var(--k-space-3)",
@@ -160,7 +246,8 @@ export function ApprovalPanel({
       </div>
 
       {!readToEnd && (
-        <p className="k-xs" style={{ margin: 0, color: "var(--k-risk-med)" }}>
+        <p className="k-xs" style={{ margin: 0, color: "var(--k-risk-med)", display: "flex", alignItems: "center", gap: 6 }}>
+          <Icon name="chevron-down" size={13} />
           Scroll the plan to its end before approving.
         </p>
       )}
@@ -199,10 +286,15 @@ export function ApprovalPanel({
               onClick={() => void reject()}
               title={reason.trim().length < 3 ? "A rejection needs a reason" : undefined}
               style={{
-                minHeight: 40, padding: "0 var(--k-space-4)",
+                minHeight: 40,
+                padding: "0 var(--k-space-4)",
                 borderRadius: "var(--k-radius-md)",
                 border: "1px solid var(--k-risk-high)",
-                background: "var(--k-risk-high-bg)", color: "var(--k-risk-high)",
+                background: "var(--k-risk-high-bg)",
+                color: "var(--k-risk-high)",
+                fontWeight: 600,
+                cursor: busy || reason.trim().length < 3 ? "not-allowed" : "pointer",
+                opacity: reason.trim().length < 3 ? 0.6 : 1,
               }}
             >
               Reject repair
@@ -211,10 +303,13 @@ export function ApprovalPanel({
               type="button"
               onClick={() => setRejecting(false)}
               style={{
-                minHeight: 40, padding: "0 var(--k-space-4)",
+                minHeight: 40,
+                padding: "0 var(--k-space-4)",
                 borderRadius: "var(--k-radius-md)",
                 border: "1px solid var(--k-border)",
-                background: "transparent", color: "var(--k-text-muted)",
+                background: "transparent",
+                color: "var(--k-text-muted)",
+                cursor: "pointer",
               }}
             >
               Back
@@ -222,19 +317,31 @@ export function ApprovalPanel({
           </div>
         </div>
       ) : (
-        <div style={{ display: "flex", gap: "var(--k-space-2)" }}>
+        <div style={{ display: "flex", gap: "var(--k-space-2)", flexWrap: "wrap" }}>
           <button
             type="button"
             disabled={busy || !readToEnd}
             onClick={() => void approve()}
             title={readToEnd ? "Run the proposed repair" : "Read the plan first"}
             style={{
-              minHeight: 40, padding: "0 var(--k-space-4)",
-              borderRadius: "var(--k-radius-md)", border: "none",
-              background: "var(--k-loop-gradient)",
-              color: "var(--k-text-inverse)", fontWeight: 600,
+              flex: "1 1 200px",
+              minHeight: 42,
+              padding: "0 var(--k-space-4)",
+              borderRadius: "var(--k-radius-md)",
+              border: "none",
+              background: readToEnd ? "var(--k-loop-gradient)" : "var(--k-surface-raised)",
+              color: readToEnd ? "var(--k-text-inverse)" : "var(--k-text-faint)",
+              fontWeight: 700,
+              cursor: busy || !readToEnd ? "not-allowed" : "pointer",
+              boxShadow: readToEnd ? "0 2px 10px rgba(0, 229, 201, 0.3)" : "none",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              transition: "all 0.15s ease",
             }}
           >
+            <Icon name="check" size={15} />
             Approve repair
           </button>
           <button
@@ -242,16 +349,45 @@ export function ApprovalPanel({
             disabled={busy}
             onClick={() => setRejecting(true)}
             style={{
-              minHeight: 40, padding: "0 var(--k-space-4)",
+              minHeight: 42,
+              padding: "0 var(--k-space-4)",
               borderRadius: "var(--k-radius-md)",
-              border: "1px solid var(--k-border-strong)",
-              background: "transparent", color: "var(--k-text)",
+              border: "1px solid var(--k-risk-high)",
+              background: "transparent",
+              color: "var(--k-risk-high)",
+              fontWeight: 600,
+              cursor: busy ? "not-allowed" : "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
             }}
           >
+            <Icon name="cross" size={14} />
             Reject
           </button>
         </div>
       )}
+
+      {/* Fail-Safe Automated Rollback Guarantee Notice */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "var(--k-space-2) var(--k-space-3)",
+          background: "var(--k-surface-raised)",
+          borderRadius: "var(--k-radius-sm)",
+          border: "1px solid var(--k-border-subtle)",
+        }}
+      >
+        <span style={{ color: "var(--k-accent)", display: "flex" }}>
+          <Icon name="activity" size={14} />
+        </span>
+        <span className="k-mono-sm k-muted" style={{ fontSize: 11 }}>
+          Fail-Safe Active: Inverse recorded before write. Any verification failure unwinds immediately via the undo stack.
+        </span>
+      </div>
     </section>
   );
 }

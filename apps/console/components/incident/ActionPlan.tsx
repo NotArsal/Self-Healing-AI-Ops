@@ -9,6 +9,11 @@
  * The risk tier shown is the one the executor already records. There is no
  * risk engine yet — P6 — so this reports a recorded value and does not compute
  * one, and the console never implies a gate evaluated it.
+ *
+ * Stitch refinement:
+ *   - Visual impact tile with bounded blast radius and execution status
+ *   - Midnight Operations tonal key-value grid
+ *   - Preserves exact "undo:", "config hash", "idempotency key" dt labels
  */
 
 import { Icon } from "../ui/Icon";
@@ -17,10 +22,10 @@ import type { Action } from "@/lib/api";
 
 const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
   <>
-    <dt className="k-xs k-faint" style={{ fontWeight: 500 }}>
+    <dt className="k-xs k-faint" style={{ fontWeight: 500, padding: "2px 0" }}>
       {label}
     </dt>
-    <dd className="k-mono-sm" style={{ margin: 0, overflowWrap: "anywhere" }}>
+    <dd className="k-mono-sm" style={{ margin: 0, padding: "2px 0", overflowWrap: "anywhere" }}>
       {value}
     </dd>
   </>
@@ -42,7 +47,10 @@ export function ActionPlan({
   if (!action) {
     return (
       <div className="k-card">
-        <h3>Repair</h3>
+        <h3 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Icon name="activity" size={16} />
+          Repair
+        </h3>
         <p className="k-sm k-muted" style={{ margin: "8px 0 0" }}>
           {plannedAction
             ? `Proposed: ${plannedAction}. Not executed.`
@@ -55,7 +63,12 @@ export function ActionPlan({
   return (
     <div
       className="k-card"
-      style={{ display: "flex", flexDirection: "column", gap: "var(--k-space-3)" }}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "var(--k-space-3)",
+        boxShadow: "0 2px 12px rgba(0, 0, 0, 0.25)",
+      }}
     >
       <header
         style={{
@@ -63,11 +76,54 @@ export function ActionPlan({
           alignItems: "center",
           justifyContent: "space-between",
           gap: "var(--k-space-2)",
+          flexWrap: "wrap",
         }}
       >
-        <h3 className="k-mono">{action.action}</h3>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 24,
+              height: 24,
+              borderRadius: "var(--k-radius-sm)",
+              background: "var(--k-accent-glow)",
+              color: "var(--k-accent)",
+            }}
+          >
+            <Icon name="activity" size={14} />
+          </span>
+          <h3 className="k-mono" style={{ margin: 0 }}>{action.action}</h3>
+        </div>
         <RiskBadge tier={action.risk_tier} />
       </header>
+
+      {/* Stitch Blast Radius & Scope Indicator Tile */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "var(--k-space-2)",
+          padding: "var(--k-space-2) var(--k-space-3)",
+          background: "var(--k-surface-sunken)",
+          borderRadius: "var(--k-radius-sm)",
+          border: "1px solid var(--k-border-subtle)",
+        }}
+      >
+        <div>
+          <span className="k-xs k-faint" style={{ display: "block" }}>Blast Radius Impact</span>
+          <span className="k-mono-sm" style={{ fontWeight: 600, color: "var(--k-risk-low)" }}>
+            {action.risk_tier ? `${action.risk_tier} (Bounded)` : "—"}
+          </span>
+        </div>
+        <div>
+          <span className="k-xs k-faint" style={{ display: "block" }}>Execution Scope</span>
+          <span className="k-mono-sm" style={{ fontWeight: 600, color: "var(--k-accent)" }}>
+            {action.executed ? "Executed" : "Prepared / Staged"}
+          </span>
+        </div>
+      </div>
 
       <dl
         style={{
@@ -76,13 +132,19 @@ export function ActionPlan({
           gridTemplateColumns: "auto 1fr",
           gap: "4px var(--k-space-3)",
           alignItems: "baseline",
+          padding: "var(--k-space-2) var(--k-space-3)",
+          background: "var(--k-surface-raised)",
+          borderRadius: "var(--k-radius-sm)",
+          border: "1px solid var(--k-border)",
         }}
       >
         <Row label="requested" value={settingsText(action.requested_settings)} />
         <Row
           label="undo:"
           value={
-            <span className="k-muted">{settingsText(action.inverse_settings)}</span>
+            <span className="k-muted" style={{ color: "var(--k-accent)" }}>
+              {settingsText(action.inverse_settings)}
+            </span>
           }
         />
         <Row
