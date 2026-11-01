@@ -36,9 +36,19 @@ def _env_files() -> tuple[str, ...]:
     later entry wins where they differ, and they are the same file whenever
     the process did start at the root.
     """
+    return (".env", str(_repo_root() / ".env"))
+
+
+def _repo_root() -> Path:
+    """The repository root, or the package's parent inside the image.
+
+    Inside the image the package lives at `/app/kavach` with no repository
+    around it, so there is nothing to find and `parents[1]` is returned
+    instead. Compose supplies every path directly there, so no value derived
+    from this is consulted in the container.
+    """
     parents = Path(__file__).resolve().parents
-    root = parents[3] if len(parents) > 3 else parents[1]
-    return (".env", str(root / ".env"))
+    return parents[3] if len(parents) > 3 else parents[1]
 
 
 class Settings(BaseSettings):
@@ -114,7 +124,15 @@ class Settings(BaseSettings):
     # These mirror `kavach.yaml`'s control interface and the harness defaults.
     # Declared here rather than hardcoded in the API layer so compose and config
     # cannot drift.
-    target_path: str = "D:/Vit/Academics Sem-5/EDI/Target_RAG-App"
+    # DERIVED, never a literal. This field held one maintainer's absolute path
+    # (`D:/Vit/...`), so anyone else cloning the repository inherited a path
+    # that does not exist on their machine - three tests then failed with
+    # FileNotFoundError on a correctly set up checkout, which is how CI found
+    # it. `AGENTS.md` puts the target in a SEPARATE repository BESIDE this one,
+    # so its location follows from where this one is and does not need stating.
+    # Compose overrides this to /app/target in the image, where the derivation
+    # does not apply.
+    target_path: str = str(_repo_root().parent / "Target_RAG-App")
     target_project: str = "simple-rag"
     target_compose_project: str = "target_rag-app"
     target_health_url: str = "http://localhost:8000/healthz"

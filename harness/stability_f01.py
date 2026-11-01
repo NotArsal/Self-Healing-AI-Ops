@@ -52,6 +52,7 @@ CONTROL_PLANE = ROOT / "apps" / "control-plane"
 sys.path[:0] = [str(ROOT), str(CONTROL_PLANE)]
 
 from harness.faults.f01_endpoint_outage import F01EndpointOutage  # noqa: E402
+from kavach.config import get_settings  # noqa: E402
 from kavach.executor.endpoint_switch import (  # noqa: E402
     SETTING,
     build_switch_for_endpoint_outage,
@@ -154,7 +155,9 @@ def run(n_cycles: int, prometheus_url: str, admin_token: str) -> Report:
 
     # The failover target is DECLARED, never guessed - same source the runner
     # reads, so this cannot drift from what production would do.
-    manifest = load(Path("D:/Vit/Academics Sem-5/EDI/Target_RAG-App/kavach.yaml"))
+    # Read through `get_settings()`, not as a literal: this line carried one
+    # maintainer's absolute path and ran nowhere else.
+    manifest = load(Path(get_settings().target_path) / "kavach.yaml")
     backup_url = manifest.llm.paths.backup if manifest.llm else None
     if not backup_url:
         raise SystemExit(
