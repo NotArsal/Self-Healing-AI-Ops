@@ -22,6 +22,7 @@ from urllib.parse import urlparse
 
 from kavach.executor.adapters import docker as docker_adapter
 from kavach.onboarding.manifest import Manifest, load
+from kavach.verification.fast import resolve_set
 
 
 @dataclass
@@ -301,6 +302,90 @@ def check_fast_set(m: Manifest, kavach_root: Path) -> CheckResult:
         "create the set in the control plane and select its cases empirically")
 
 
+def check_corpus_fingerprint(m: Manifest, kavach_root: Path,
+                             prometheus_url: str) -> CheckResult:
+    """The live corpus must match the fingerprint the fast set was built on.
+
+    THE GAP THIS CLOSES, which `PRD.md` §12 named and carried to P6 unbuilt:
+    the fingerprint was written down in `fast_set.yaml` and nothing ever
+    asserted it. The loop's own corpus guard compares before against after
+    WITHIN one incident, so absolute drift between sessions stayed invisible.
+
+    It drifted three times and nothing caught any of them: 162 chunks / 3 files
+    on 2026-10-04 (a syllabus PDF had been added), 13 / 1 on 2026-10-16 (the
+    target's database was reset and `1662.pdf` was gone), and 0 / 0 on
+    2026-11-01 after the machine was reformatted.
+
+    The 13/1 case is why this is not cosmetic. Every fast-set case reads from
+    those two documents, and the fast set is the post-repair verification the
+    loop runs before it may return RESOLVED. On the wrong corpus it FAILS on a
+    healthy system, so a correct detection and a correct repair still end in
+    `escalated` - which is exactly what was observed that day.
+
+    Read-only, like every other check here.
+    """
+    import json
+    from urllib.parse import quote
+
+    import yaml
+
+    name = "corpus matches the fast set's fingerprint"
+    # `resolve_set` is imported rather than re-typed: it and `check_fast_set`
+    # must look in the same two places, or one reports on a file the other
+    # never reads.
+    path = resolve_set(m.verification.fast.set, kavach_root)
+    if path is None:
+        return CheckResult(name, False, f"fast set not found: "
+                           f"{m.verification.fast.set}",
+                           "preflight cannot read the expected fingerprint")
+    try:
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+        fp = (doc.get("budget") or {}).get("corpus_fingerprint") or {}
+        want_chunks = int(fp["chunks"])
+        want_files = fp["files"]
+    except Exception as exc:                       # malformed is not a pass
+        return CheckResult(name, False, f"{type(exc).__name__}: {exc}",
+                           f"declare budget.corpus_fingerprint in {path.name}")
+
+    live: dict[str, float] = {}
+    for metric in ("ragapp_corpus_chunks", "ragapp_corpus_files"):
+        url = (f"{prometheus_url.rstrip('/')}/api/v1/query"
+               f"?query={quote(metric)}")
+        try:
+            with urllib.request.urlopen(url, timeout=10) as r:
+                payload = json.load(r)
+            result = payload.get("data", {}).get("result", [])
+            if not result:
+                return CheckResult(
+                    name, False, f"{metric} returned no series",
+                    "the target is not exporting corpus metrics; a corpus "
+                    "that cannot be read is not a corpus that is correct")
+            live[metric] = float(result[0]["value"][1])
+        except Exception as exc:
+            return CheckResult(name, False, f"{metric}: {exc}",
+                               f"check Prometheus is reachable at "
+                               f"{prometheus_url}")
+
+    got_chunks = int(live["ragapp_corpus_chunks"])
+    got_files = int(live["ragapp_corpus_files"])
+    want_n_files = len(want_files) if isinstance(want_files, list) else int(
+        want_files)
+
+    if got_chunks != want_chunks or got_files != want_n_files:
+        expected_names = (", ".join(want_files)
+                          if isinstance(want_files, list) else str(want_files))
+        return CheckResult(
+            name, False,
+            f"live corpus is {got_chunks} chunks / {got_files} files, "
+            f"the fast set was built on {want_chunks} / {want_n_files}",
+            f"re-ingest the corpus ({expected_names}) until the fingerprint "
+            f"matches. Every quality number is measured against this corpus, "
+            f"and the fast set fails on a healthy system without it")
+
+    return CheckResult(name, True,
+                       f"{got_chunks} chunks / {got_files} files")
+
+
 # --- the runner -------------------------------------------------------------
 
 
@@ -321,4 +406,6 @@ def run(target_path: str | Path, prometheus_url: str,
     report.results += check_ownership(m)
     report.results += check_slo_expressions(m, prometheus_url)
     report.results.append(check_fast_set(m, Path(kavach_root)))
+    report.results.append(
+        check_corpus_fingerprint(m, Path(kavach_root), prometheus_url))
     return report
