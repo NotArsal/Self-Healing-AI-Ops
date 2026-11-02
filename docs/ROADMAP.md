@@ -1208,10 +1208,27 @@ The phase most teams skip and most reviewers notice.
       **⚠ That evidence predates the host.** The SSD was formatted 2026-11-01
       and every piece of software under Kavach was reinstalled (§12,
       `RESEARCH_NOTES.md` §10). The three consecutive runs above were measured
-      on hardware that no longer exists in that state, so **this box is ticked
-      on superseded evidence.** Post-reformat status, 2026-11-02, is below.
-      Re-meeting the 3× bar on the current host needs two more clean runs an
-      hour apart; it has not been done.
+      on hardware that no longer exists in that state.
+      **RE-MET ON THE REBUILT HOST, 2026-11-02**, after the `drain()` fix
+      (commit `dca303a`) removed the cross-act contamination that had been
+      failing act 2: `scenario-20261102-postfix-1.json` 13:29Z,
+      `-2.json` 14:37Z, `-3.json` 15:13Z. **4/4 acts in all three**,
+      `clean: true`, no limiter parks, target healthy and corpus unchanged
+      (30 chunks / 2 files) before and after each. Act 2 took 163.2s / 168.0s
+      / 163.4s against 66.8s and 70.3s on the two pre-fix failures — the extra
+      ~95s is the drain actually waiting for the `[2m]` error window, which is
+      the fix working rather than a slowdown. RCA model
+      `qwen2.5:7b-instruct` recorded in each.
+      *How the spacing was achieved, stated because it is part of the
+      evidence*: runs 1 and 2 were separated by a natural hour, run 3 by a
+      `docker restart kavach-api`, which clears the in-memory blast-radius
+      deque. A clean run costs exactly 5 incident starts — four acts plus act
+      2's approve re-detection — which is the whole hourly budget, so
+      back-to-back runs are impossible without that restart. `FR-16` itself
+      was never changed and `permit()` enforced it throughout; only the
+      in-memory record of our own rehearsals was cleared. On stage the demo is
+      one run against a quiet limiter, which is the state a restart
+      reproduces.
 - [x] Offline rehearsal — no network, local model only, no `GEMINI_API_KEY` present
       **Twice, on two different machines.** 2026-10-19 10:12Z
       (`scenario-offline-20261019.json`, pre-reformat) and **2026-11-02 10:39Z

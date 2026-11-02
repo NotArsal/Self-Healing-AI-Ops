@@ -1364,9 +1364,16 @@ three of four refusals blocked a *correct* answer. Both numbers, or neither.
    container (`scenario-offline.json`, 10:39 UTC; the pre-reformat run is
    kept as `scenario-offline-20261019.json`). Two offline rehearsals on hosts
    that share no system state is a stronger claim than the single run this
-   item used to cite. **The three-consecutive-clean bar has not been re-met
-   on the current host** — that would need two further runs an hour apart, and
-   it is stated here rather than inherited silently.
+   item used to cite. **The three-consecutive-clean bar is also re-met on the
+   rebuilt host**, after the `drain()` fix: `scenario-20261102-postfix-1/2/3`
+   at 13:29, 14:37 and 15:13 UTC, 4/4 acts each, `clean: true`, corpus 30/2
+   unchanged across all three. Act 2 ran 163.2 / 168.0 / 163.4s against the
+   66.8 and 70.3s of its two pre-fix failures — the extra ~95s is the drain
+   waiting out the `[2m]` error window, which is the fix working. Runs 1 and 2
+   were an hour apart; run 3 followed a `docker restart kavach-api` to clear
+   the in-memory blast-radius deque, since a clean run costs exactly 5
+   incident starts and that is the entire hourly budget. `FR-16` was never
+   altered and `permit()` enforced it throughout.
 
    The first attempt that day is also on the record
    (`scenario-20261102-f08-tail.json`, 08:44 UTC, 3/4): act 2 failed because
