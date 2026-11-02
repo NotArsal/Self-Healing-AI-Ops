@@ -1234,8 +1234,29 @@ frame, and a single-service target with no overlapping faults. §8.3 gives the
 comparison in full. **Anyone quoting §4's accuracy without this paragraph is
 quoting it wrongly.**
 
-**One workload.** Every number describes one RAG application. The seams for a
-second exist and have not been exercised.
+**One workload, and the seams are only half there.** Every number describes
+one RAG application. This previously read "the seams for a second exist and
+have not been exercised", which was too generous and is now measured rather
+than asserted — a second application (LightRAG) was onboarded on 2026-11-03
+and **16 of 17 preflight checks pass**
+([`SECOND_TARGET.md`](SECOND_TARGET.md)). What that exercise established:
+
+- **The manifest, ownership, git and SLO-validation seams are real.** A second
+  app, with a different retrieval architecture, passed all of them.
+- **Detection, baseline capture and evidence collection are not.** The 17th
+  check failed by reading *the first target's* corpus fingerprint, because
+  `check_corpus_fingerprint` queries `ragapp_corpus_chunks` with no project
+  selector. Auditing every `ragapp_*` query in the control plane: they filter
+  on `operation` and `outcome`, and **not one carries a `project` or `job`
+  selector** — 57 literals across 7 modules. So **Kavach as built supports
+  exactly one target at a time**, and the ambiguity appears the moment a
+  second application exports the same contract.
+
+Nothing here says detection *accuracy* generalises; no fault has yet been
+injected into the second target. What it says is narrower and now evidenced:
+onboarding generalises, and single-target scoping is the concrete blocker,
+with the fix (a `{project="…"}` selector sourced from `project.name`) costed
+and deliberately deferred rather than discovered later.
 
 **One-way localisation.** Every implemented fault lands on `backend`, so
 "localisation accuracy" is a one-way choice dressed as a four-way one. Stated

@@ -47,3 +47,28 @@ scrape_configs:
         labels:
           project: simple-rag
           service: backend
+
+  # THE SECOND TARGET, added 2026-11-03. LightRAG, instrumented to the same
+  # `ragapp_*` contract, running in its own compose project `lightrag_target`
+  # on port 9621. See `docs/SECOND_TARGET.md`.
+  #
+  # ADDITIVE AND SAFE TO REMOVE. Deleting this job cannot affect the first
+  # target: Prometheus keeps the two apart by the `project` label, every
+  # existing recording and every detector query is scoped by it, and the two
+  # applications share nothing but the host's Ollama.
+  #
+  # Scraped over the host-published port for the same reason the first target
+  # is: this Prometheus must not require another compose network to exist, and
+  # must keep working while that target's containers restart.
+  #
+  # It reads DOWN whenever the second target is not running, which is most of
+  # the time. That is accurate rather than a misconfiguration - the same
+  # convention the `simple-rag-backend` job above was added under - but it does
+  # mean a DOWN here is not evidence of anything being wrong.
+  - job_name: lightrag-target
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:9621"]
+        labels:
+          project: lightrag
+          service: lightrag
