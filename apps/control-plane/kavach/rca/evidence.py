@@ -31,6 +31,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from kavach.executor.adapters import docker as docker_adapter
+from kavach.promscope import scope
 from kavach.target import TargetClient, TargetError
 from kavach.verification.fast import FastVerificationResult
 
@@ -250,6 +251,7 @@ def collect(
     baseline_settings: dict[str, Any] | None = None,
     baseline_config_hash: str = "",
     baseline_prompt_files: dict[str, Any] | None = None,
+    project: str = "",
 ) -> EvidenceFrame:
     """Build the frame from the live system.
 
@@ -292,7 +294,10 @@ def collect(
 
     # --- metrics
     for n, (name, expr) in enumerate(METRIC_QUERIES.items(), start=1):
-        value, note = reading(promql(prometheus_url, expr))
+        # `scope` returns `expr` byte-identical when `project` is empty, which
+        # is the default. The evidence IDs are positional, so note that
+        # scoping changes the VALUES a frame reports and never the ids.
+        value, note = reading(promql(prometheus_url, scope(project, expr)))
         frame.add(
             eid=f"EV-M{n:02d}", kind="metric", name=name, value=value,
             expected=HEALTHY_EXPECTATION.get(name, ""), note=note,

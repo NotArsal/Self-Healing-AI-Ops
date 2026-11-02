@@ -72,6 +72,7 @@ from kavach.detection.base import (
     Signals,
     Verdict,
 )
+from kavach.promscope import scope
 
 __all__ = [
     "FAULT_CLASS",
@@ -258,7 +259,10 @@ def evaluate(
 def collect(signals: Signals) -> Readings:
     """Read the detector's signals. `promql` is injected so tests stay offline."""
     return {
-        key: signals.promql(signals.prometheus_url, expr)
+        # `scope` returns `expr` byte-identical when `signals.project` is
+        # empty, which is the default. See `promscope` and `Signals.project`.
+        key: signals.promql(signals.prometheus_url,
+                            scope(signals.project, expr))
         for key, expr in QUERIES.items()
     }
 

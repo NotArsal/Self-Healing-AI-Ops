@@ -152,6 +152,18 @@ class Signals:
     # The newest baseline capture, as `make onboard` wrote it. `settings` and
     # `config_hash` are the keys `F08` reads.
     baseline: dict[str, Any] = field(default_factory=dict)
+    # Which application the queries mean, as a Prometheus label value.
+    #
+    # EMPTY BY DEFAULT, AND THAT IS THE POINT. Every PromQL expression in this
+    # package names a metric without saying whose it is, so two targets
+    # exporting the same contract make every query ambiguous - found on
+    # 2026-11-03 when a second target's corpus check read the FIRST target's
+    # fingerprint (`docs/SECOND_TARGET.md`). `promscope.scope` fixes it, but
+    # these expressions are the instrument all 80 bench injections in
+    # `REPORT_DRAFT.md` §4 were measured with. So scoping is opt-in: unset,
+    # the queries are byte-identical to what produced those numbers, which
+    # `tests/test_promscope.py` asserts. Set it only alongside a re-measurement.
+    project: str = ""
 
 
 # A detector's two functions, as the loop calls them. Deliberately plain

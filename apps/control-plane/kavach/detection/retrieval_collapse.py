@@ -49,11 +49,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-# Re-exported deliberately. These used to be DEFINED here, which is why
-# `loop.py`, `rca/` and every harness imported them through this F06 module and
-# so depended on a RAG fault to get a generic type. They now live in
-# `detection/base.py`; keeping the names importable from here means that move
-# cost no churn at the call sites, and new code should import from base.
 from kavach.detection.base import (
     Detection,
     DetectorSpec,
@@ -62,6 +57,13 @@ from kavach.detection.base import (
     Signals,
     Verdict,
 )
+
+# Re-exported deliberately. These used to be DEFINED here, which is why
+# `loop.py`, `rca/` and every harness imported them through this F06 module and
+# so depended on a RAG fault to get a generic type. They now live in
+# `detection/base.py`; keeping the names importable from here means that move
+# cost no churn at the call sites, and new code should import from base.
+from kavach.promscope import scope
 
 __all__ = [
     "FAULT_CLASS",
@@ -400,7 +402,10 @@ def evaluate(
 def collect(signals: Signals) -> Readings:
     """Read the detector's signals. `promql` is injected so tests stay offline."""
     return {
-        key: signals.promql(signals.prometheus_url, expr)
+        # `scope` returns `expr` byte-identical when `signals.project` is
+        # empty, which is the default. See `promscope` and `Signals.project`.
+        key: signals.promql(signals.prometheus_url,
+                            scope(signals.project, expr))
         for key, expr in QUERIES.items()
     }
 
