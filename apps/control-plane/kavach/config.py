@@ -86,7 +86,18 @@ class Settings(BaseSettings):
     # Toxiproxy, so injecting F01/F02 into the target cannot blind the
     # diagnostician (PRD.md §6.3).
     llm_base_url: str = "http://localhost:11434"
-    llm_model: str = "llama3.2"
+    # CORRECTED 2026-11-03, from "llama3.2". ARCHITECTURE.md §2.4 documents
+    # this default as `qwen2.5:7b-instruct`, and the code disagreed with the
+    # documentation in the direction that silently loses two fault classes:
+    # measured on this repository's own ablation artifacts, llama3.2 scores
+    # F07 0/10 and F08 0/10 - every one of those diagnoses collapsing to F06 -
+    # against 10/10 and 10/10 for qwen2.5:7b-instruct.
+    #
+    # Setting llama3.2 to reuse an already-resident model when the 16GB budget
+    # is tight is still supported and still documented; it is now an explicit
+    # choice rather than the fallback. `tests/test_model_default.py` pins this
+    # against the compose default and the architecture document.
+    llm_model: str = "qwen2.5:7b-instruct"
 
     # Which provider answers. `ollama` is the default and the REPORTED
     # configuration: PL-02 forbids a required cloud key, and a live demo that

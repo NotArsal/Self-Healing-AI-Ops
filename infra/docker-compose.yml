@@ -131,7 +131,27 @@ services:
       KAVACH_PROMETHEUS_URL: http://prometheus:9090
       KAVACH_OTLP_ENDPOINT: http://otel-collector:4318
       KAVACH_LLM_BASE_URL: ${KAVACH_LLM_BASE_URL:-http://host.docker.internal:11434}
-      KAVACH_LLM_MODEL: ${KAVACH_LLM_MODEL:-llama3.2}
+      # CORRECTED 2026-11-03. This defaulted to `llama3.2`, which contradicted
+      # ARCHITECTURE.md §2.4's documented default of `qwen2.5:7b-instruct` and
+      # silently disabled two of the four fault classes.
+      #
+      # Measured, from this repository's own ablation artifacts:
+      #   llama3.2            F01 10/10, F07 0/10, F08 0/10 (both all-F06)
+      #   qwen2.5:7b-instruct F01 10/10, F07 10/10, F08 10/10
+      #
+      # `.env` sets the right value, so the stack was correct whenever it was
+      # started through `make up` - which passes `--env-file .env`. A bare
+      # `docker compose up` does not, and silently installed a model that
+      # cannot diagnose F07 or F08 at all. That was found by making exactly
+      # that mistake: a rehearsal reported `RCA model llama3.2` and would have
+      # failed two acts for a reason that looks like a model defect.
+      #
+      # The default is now the documented one. Reusing an already-resident
+      # llama3.2 to save memory is still supported, as §2.4 describes, but it
+      # is now an explicit choice in `.env` rather than what you get by
+      # accident. `tests/test_model_default.py` pins the three places that
+      # have to agree.
+      KAVACH_LLM_MODEL: ${KAVACH_LLM_MODEL:-qwen2.5:7b-instruct}
       KAVACH_LOG_LEVEL: ${KAVACH_LOG_LEVEL:-INFO}
       # Kavach's own files. The package lives at /app/kavach with no repository
       # around it, so the root cannot be derived from __file__ the way it can
