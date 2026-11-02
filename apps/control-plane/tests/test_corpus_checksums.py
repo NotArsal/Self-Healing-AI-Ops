@@ -99,3 +99,42 @@ def test_the_corpus_on_disk_is_the_corpus_that_was_measured(
             f"  expected {want}\n  found    {got}\n"
             f"Ingesting this file would silently change every quality number "
             f"in docs/REPORT_DRAFT.md. See corpus/README.md.")
+
+
+def test_no_document_has_been_added_to_the_corpus_directory(
+    expected: dict[str, str],
+) -> None:
+    """An ADDED file is drift too, and the first version of this file missed it.
+
+    The checks above iterate over the two EXPECTED documents, so a third PDF
+    dropped into the directory satisfied every one of them and the suite stayed
+    green - which is exactly the 2026-10-04 incident, where a syllabus PDF was
+    added and the corpus went to 162 chunks / 3 files. `test_an_extra_document_
+    fails_too` in `test_preflight_corpus.py` guards that for the LIVE corpus;
+    nothing guarded it for the directory people re-ingest FROM.
+
+    Found 2026-11-02 when a 9.6 MB book was put in the corpus directory. The
+    live corpus was untouched, so nothing broke - but `corpus/README.md`'s
+    restore procedure uploads from this directory, and the next person to
+    follow it loosely would have ingested all three and spent an afternoon
+    wondering why a healthy system fails its own verification.
+    """
+    where = corpus_dir()
+    if not where.is_dir():
+        pytest.skip(f"corpus directory not present: {where}")
+
+    found = {p.name for p in where.iterdir()
+             if p.is_file() and p.suffix.lower() == ".pdf"}
+    extra = sorted(found - set(expected))
+    assert not extra, (
+        f"unexpected document(s) in the corpus directory {where}: {extra}.\n"
+        f"The fingerprint every measurement in this project rests on is "
+        f"30 chunks / 2 files ({sorted(expected)}). Re-ingesting this "
+        f"directory as it stands would break it, and the fast set then fails "
+        f"on a HEALTHY system - so a correct detection and a correct repair "
+        f"still end in `escalated`.\n"
+        f"Either move the file out of this directory, or - if it is genuinely "
+        f"meant to join the corpus - add it to corpus/checksums.sha256, update "
+        f"budget.corpus_fingerprint in fast_set.yaml, and RE-MEASURE every "
+        f"quality number in docs/REPORT_DRAFT.md. They are not comparable "
+        f"across corpora.")
