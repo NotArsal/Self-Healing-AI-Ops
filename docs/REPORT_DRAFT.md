@@ -627,6 +627,43 @@ reads a prompt hash and whose evidence frame therefore says least about
 retrieval. A system with one error mode is a system whose error mode can be
 designed against, which is what §4.4 is.
 
+##### Evidence that the trigger is ambiguity, found by accident on 2026-11-02
+
+"Under-determined evidence collapses to F06" was an interpretation when it was
+written. A demo rehearsal then produced a contrast that supports it directly,
+and it is worth reporting because it was not designed.
+
+`make scenario` act 2 injects **F08 alone**. Act 1, ninety seconds earlier, is
+an endpoint outage, and `llm_error_ratio` is read over `[2m]` — so act 2's
+frame still carried **0.2697** against a stated expectation of `< 0.20`. The
+frame therefore contained the real config drift *and* a second value it had
+itself labelled abnormal, while every F06 signal in it was healthy:
+similarity 0.655, kept chunks 2.857, empty-context ratio 0.0, corpus 30/2,
+prompt hashes unchanged. **There was no retrieval evidence at all**, and the
+model answered F06 twice out of three attempts.
+
+| F08, first-draw class accuracy | n | correct |
+|---|---|---|
+| clean frame (the four bench runs) | 20 | **19 — 95%** |
+| frame carrying a second anomaly (act 2) | 3 | **1 — 33%** |
+
+The cause was a harness defect — `drain()` cleared the window to the F01
+detector's firing threshold (0.50) rather than the frame's stated ceiling
+(0.20) — and it is fixed, so the demo now exercises what it claims. But the
+*observation* survives the fix and is the more interesting half: the attractor
+appears to be driven by **evidence ambiguity**, not by sampling. One anomaly
+and the model is accurate; two and it collapses to F06 regardless of what the
+second one is.
+
+**Stated with its limits, because they are serious.** n is 3. The comparison
+is between the bench and the scenario, which differ in more than the error
+ratio, so this is a confounded contrast and not a controlled experiment — a
+strong hint, not a measurement. The experiment that would settle it is cheap
+and specific: inject F08 on a clean frame, then inject F08 while holding
+`llm_error_ratio` just above 0.20 by driving failing traffic, ten repetitions
+each, changing nothing else. That is the same shape of one-variable test that
+settled ADR 0013, and it is listed in §9.
+
 That lets us state the confidence finding as a measurement rather than an
 impression. Run D's twenty confidences, split by whether the diagnosis was
 right:
@@ -1340,3 +1377,14 @@ three of four refusals blocked a *correct* answer. Both numbers, or neither.
     scrape cycle and plot detection against offset — and would convert the
     report's strongest "we have not isolated this" into either a measurement
     or a stated non-finding.
+14. **The F06 attractor's trigger is hinted at but not measured** (§4.2). A
+    rehearsal accident put F08 first-draw accuracy at 19/20 on a clean
+    evidence frame and 1/3 on a frame carrying one extra anomaly, which
+    supports "ambiguity triggers the collapse" over "the model sometimes
+    errs". But n is 3 and the contrast is confounded — bench versus scenario
+    differ in more than the one metric. **One experiment settles it**: F08 on
+    a clean frame against F08 with `llm_error_ratio` held just above 0.20 by
+    driven failing traffic, ten reps each, one variable. Same shape as the
+    test that produced ADR 0013. Roughly an hour, and it would turn the
+    project's headline anomaly from a described error mode into an explained
+    one. **This is the single highest-value experiment left undone.**

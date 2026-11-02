@@ -579,6 +579,45 @@ every time, on two different builds of the machine. A system with one
 characterised error mode is a system whose gate can be argued for from data,
 which is what §4.4 of the report now does.
 
+### The trigger, hinted at the same day by a rehearsal going wrong
+
+"Under-determined evidence" was the interpretation, with nothing isolating it.
+Later on 2026-11-02 a demo rehearsal handed over a contrast that points at it.
+
+`make scenario` act 2 injects **F08 alone**, but act 1 ninety seconds earlier
+is an endpoint outage and `llm_error_ratio` is a `[2m]` rate. `drain()` was
+clearing that window down to the F01 *detector's* firing threshold (0.50)
+instead of the ceiling the RCA frame itself states (0.20), so act 2 diagnosed
+against a frame holding **0.2697 against "expected < 0.20"** — the real config
+drift plus one phantom anomaly. Every F06 signal in that same frame was
+healthy: similarity 0.655, kept chunks 2.857, empty context 0.0, corpus 30/2,
+prompt hashes unchanged. **Zero retrieval evidence, and the model still said
+F06**, twice in three tries.
+
+| F08 first-draw accuracy | n | correct |
+|---|---|---|
+| clean frame — the four bench runs | 20 | **19 (95%)** |
+| one extra anomaly in frame — act 2 | 3 | **1 (33%)** |
+
+So the collapse looks **ambiguity-driven**: one anomaly and the model reads the
+evidence correctly; two and it goes to F06 whatever the second one is. That
+also explains why ten of the eleven wrong answers landed on injected F07 —
+F07's frame is the one carrying least retrieval signal, so it is the most
+under-determined of the four by construction.
+
+**The limits are real and this is not yet a result.** n = 3. The contrast is
+bench-versus-scenario, which differ in more than the error ratio, so it is
+confounded. It is a hint worth one experiment, not a measurement: F08 on a
+clean frame versus F08 with `llm_error_ratio` driven just over 0.20, ten reps
+each, nothing else changed — the one-variable shape that settled ADR 0013.
+Logged as §9 item 14 in the report and flagged there as the highest-value
+experiment still undone.
+
+The harness defect itself is fixed (`FRAME_ERROR_RATIO_CEILING`, commit
+`dca303a`), so the fix and the finding are independent: the demo now
+demonstrates what it claims, and the observation stands on the artifacts
+`scenario-20261102-f08-tail.json` and `scenario-20261102-r2.json`.
+
 And the confidence argument gets sharper with run D's full distribution, which
 separates two claims that are easy to conflate:
 
