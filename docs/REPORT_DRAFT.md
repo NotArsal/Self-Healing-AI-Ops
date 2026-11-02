@@ -1175,6 +1175,16 @@ runs A and B have the field empty, and their validator-rule attributions in
 
 ## 6. Threats to validity — read this before quoting §4
 
+**The accuracy numbers are not comparable to published RCA benchmarks, and the
+difference is large.** Best reported agents score 25.3% on ORCA-bench Medium,
+under 64.3% on Incident-Arena and 41.3/100 on SRE-Marathon; Kavach reports
+85–90%. That gap is explained by four scope decisions, not by Kavach being
+better: four declared fault classes, a deterministic detector that has already
+named one before the model is asked, evidence pre-extracted into a bounded
+frame, and a single-service target with no overlapping faults. §8.3 gives the
+comparison in full. **Anyone quoting §4's accuracy without this paragraph is
+quoting it wrongly.**
+
 **One workload.** Every number describes one RAG application. The seams for a
 second exist and have not been exercised.
 
@@ -1405,6 +1415,64 @@ rather than one chosen to flatter the system.
 The same literature names the failure mode on the other side — **refusal
 storms**, an agent that declines so often it is useless. §5 reports Kavach's:
 three of four refusals blocked a *correct* answer. Both numbers, or neither.
+
+### 8.3 The 2025–26 RCA-agent literature, and why our accuracy needs a caveat
+
+A second search on 2026-11-02 found a body of work this section did not have.
+The full positioning map, with citations, is
+[`RELATED_WORK.md`](RELATED_WORK.md); everything there is cited from abstracts
+rather than full-text reads, and that document says so. Three points belong
+here because they change how §4 should be read.
+
+**The architecture is convergent.** EviRCA (arXiv 2609.19825) independently
+builds Kavach's central design — *"decouples deterministic evidence extraction
+from LLM reasoning… the LLM reasons only over these structured observations
+through a small set of predefined read-only tools, without accessing raw
+telemetry or executing code"* — and ARBITER (2607.19182) independently uses the
+same vocabulary of *"bounded DiagnosisContext objects"* behind a typed-action
+interface. **This should be claimed as independent arrival at a convergent
+pattern, not as novelty.** EviRCA also reaches §4.2's conclusion from the
+opposite direction: it finds that *"the effectiveness of LLM-based RCA depends
+heavily on the quality of evidence extraction"* by showing extraction sets the
+ceiling, where we showed it by degrading a frame and watching accuracy collapse.
+
+**Our numbers are not comparable to the open benchmarks, and the report must
+say so before quoting them.**
+
+| benchmark | best reported agent |
+|---|---|
+| ORCA-bench (2607.28545) | **25.3%** on Medium, **10.0%** on Hard |
+| Incident-Arena (2610.00648) | frontier models **below 64.3%** |
+| SRE-Marathon (2609.33023) | best of ten methods **41.3 / 100** |
+| Cloud-OpsBench (2603.00468) | JRA **0.76**, Evidence Closure **0.38** |
+| LATS-RCA (2605.03505) | **91.3%** on benchmark, **65.1%** on real production |
+| **Kavach** | **85–90% RCA accuracy** |
+
+Four structural reasons ours is an easier problem, all of them scope decisions
+recorded elsewhere in this report rather than concessions: the diagnosis is a
+choice among **four** declared classes; a **deterministic detector has already
+fired and named one** before the model is asked; the **evidence is
+pre-extracted** into a bounded frame, which is exactly the search step
+Cloud-OpsBench's 0.38 Evidence Closure Rate exists to measure and we skip by
+construction; and the target is **one service with no dependency graph and no
+overlapping faults**. LATS-RCA's own 91.3%→65.1% drop between benchmark and
+production is the clearest illustration that these gaps are large.
+
+The fair comparison is **TriFleetRCA (2609.23766)**: on-premise Qwen2.5-14B on
+a single GPU, four injected faults in a live cluster, 100 analyses, hit rate
+**0.85–0.95** — the same order as ours, at a comparable scope and model size.
+It also reports our §4.2 failure mode independently: *"one fault was diagnosed
+correctly and cited incorrectly every trial, a failure mode accuracy
+conceals."*
+
+**What the field has that we do not**, stated because a related-work section
+that only finds agreement is not credible: epistemic uncertainty as a priced
+risk dimension (2607.20005 decomposes risk into blast radius, reversibility
+**and** epistemic uncertainty — we have the first two, and §4.2 rules out the
+obvious candidates for the third); canary and progressive rollout; dependency-
+graph-guided search; production scale (Diviner at Meta, Log-Insight at Huawei,
+2606.09122 reporting *"autonomous resolution rates exceeding 90%"* at a cloud
+provider); and learning from incident history, which ADR 0009 cut.
 
 ## 9. Still to do
 
