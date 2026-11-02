@@ -45,13 +45,37 @@ EXPECTED = "qwen2.5:7b-instruct"
 
 
 def test_the_settings_default_is_the_documented_default() -> None:
-    assert Settings(llm_model=EXPECTED).llm_model == EXPECTED
-    # The unset default, which is what a process with no env file gets.
-    assert Settings().llm_model == EXPECTED, (
-        "kavach/config.py's llm_model default disagrees with ARCHITECTURE.md "
-        "§2.4. If the code default is a model that scores 0/10 on F07 and "
-        "F08, any process started without an env file silently loses two "
-        "fault classes.")
+    """Reads the FIELD default, not `Settings()`.
+
+    The first version asserted `Settings().llm_model`, which passed locally
+    and failed in CI - and the local pass was the wrong reason. `Settings` is
+    a pydantic-settings model that loads `.env`, so on a developer machine it
+    returned the value from that file rather than the class default, testing
+    the environment instead of the code. CI has no `.env` until `make setup`
+    builds one from `.env.example`, which is how the fourth stale copy of this
+    default was found.
+    """
+    field = Settings.model_fields["llm_model"]
+    assert field.default == EXPECTED, (
+        f"kavach/config.py's llm_model default is {field.default!r}, which "
+        f"disagrees with ARCHITECTURE.md §2.4. A process started without an "
+        f"env file takes this value, and a model scoring 0/10 on F07 and F08 "
+        f"silently loses two fault classes.")
+    # And it is still overridable, which is the documented escape hatch.
+    assert Settings(llm_model="llama3.2").llm_model == "llama3.2"
+
+
+def test_the_env_example_is_the_documented_default() -> None:
+    """`make setup` creates `.env` from `.env.example`, so this file is what a
+    fresh clone actually runs with - the most consequential of the four copies
+    and the last one to be corrected."""
+    text = (ROOT / ".env.example").read_text(encoding="utf-8")
+    found = re.findall(r"^KAVACH_LLM_MODEL=(.*)$", text, re.MULTILINE)
+    assert found, ".env.example no longer sets KAVACH_LLM_MODEL"
+    assert found[-1].strip() == EXPECTED, (
+        f".env.example sets {found[-1]!r}. `make setup` copies this file, so "
+        f"a fresh clone following the documented setup would run on it - and "
+        f"it must not be a model that cannot diagnose F07 or F08.")
 
 
 def test_the_compose_fallback_is_the_documented_default() -> None:
