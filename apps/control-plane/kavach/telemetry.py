@@ -319,18 +319,41 @@ def heal_span(incident_id: str) -> Iterator[None]:
     if not _enabled:
         yield
         return
+
+    # SETUP IS GUARDED; THE BODY IS NOT. That distinction is the whole fix,
+    # made 2026-11-03.
+    #
+    # This used to be one `try` around both the span construction AND the
+    # `yield`, with `except Exception: pass` and a trailing second `yield`.
+    # The body runs AT the yield, so a caller's exception is thrown into this
+    # generator there, escapes the `with`, and was swallowed by that handler -
+    # after which the trailing `yield` fired again and contextlib raised
+    # `RuntimeError: generator didn't stop after throw()`.
+    #
+    # A real failure during a heal was therefore replaced by a confusing
+    # telemetry error, and only with tracing ON - the configuration the
+    # offline suite never exercised. The docstring promised "never raises";
+    # what it did was never raise its own errors while destroying the
+    # caller's. Pinned by
+    # `test_an_exception_inside_the_span_reaches_the_caller_unchanged`.
+    #
+    # Building the span is telemetry's own problem and must not stop a heal,
+    # so that stays guarded and falls back to running the body unwrapped.
     try:
         from opentelemetry import trace
 
-        tracer = trace.get_tracer("kavach.loop")
-        with tracer.start_as_current_span(
+        span = trace.get_tracer("kavach.loop").start_as_current_span(
             "kavach.heal", attributes={"kavach.incident_id": incident_id}
-        ):
-            yield
-        return
+        )
     except Exception:
-        pass
-    yield
+        yield
+        return
+
+    # Outside the try: whatever the body raises propagates untouched, and the
+    # span context manager still sees it, so OpenTelemetry records the span as
+    # errored rather than silently successful.
+    with span:
+        yield
 
 
 def stage_event(stage: str, status: str, message: str) -> None:

@@ -14,6 +14,8 @@ exporter, not Kavach.
 
 from __future__ import annotations
 
+import pytest
+
 from kavach import telemetry
 from kavach.config import Settings
 from kavach.loop import Incident, IncidentStatus
@@ -214,3 +216,66 @@ def test_a_stage_event_outside_a_run_is_discarded_not_an_error() -> None:
         telemetry.stage_event("run", "started", "operator started a loop run")
     finally:
         telemetry._enabled = was
+
+
+def test_an_exception_inside_the_span_reaches_the_caller_unchanged() -> None:
+    """Telemetry must never eat the error it was watching.
+
+    THE BUG THIS PINS, found 2026-11-03. `heal_span` wrapped the span in a
+    `try: ... except Exception: pass` and then fell through to a second
+    `yield`. Because the body runs AT the yield, an exception raised by the
+    caller is thrown into the generator there, escapes the `with`, and is
+    swallowed by that handler - after which the trailing `yield` fires a
+    second time and contextlib raises `RuntimeError: generator didn't stop
+    after throw()`.
+
+    So a genuine failure during a heal was replaced by a confusing telemetry
+    error, and only when tracing was enabled - the one configuration the
+    offline test suite never used. The docstring promised "never raises";
+    what it did was never raise its OWN errors while destroying everybody
+    else's.
+    """
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+
+    provider = trace.get_tracer_provider()
+    if not isinstance(provider, TracerProvider):
+        trace.set_tracer_provider(TracerProvider())
+
+    class BoomError(RuntimeError):
+        pass
+
+    was = telemetry._enabled
+    telemetry._enabled = True
+    try:
+        with pytest.raises(BoomError), telemetry.heal_span("INC-000005"):
+            raise BoomError("the repair failed")
+    finally:
+        telemetry._enabled = was
+
+
+def test_the_body_still_runs_when_tracing_setup_fails() -> None:
+    """Setup failures ARE the thing that must stay silent.
+
+    The distinction the fix rests on: an exception from building the span is
+    telemetry's own problem and must not stop a heal, while an exception from
+    the body belongs to the caller. Simulated by making the tracer lookup
+    raise, which is what a half-initialised OpenTelemetry does.
+    """
+    from opentelemetry import trace
+
+    ran: list[str] = []
+    was = telemetry._enabled
+    telemetry._enabled = True
+    original = trace.get_tracer
+    try:
+        def boom(*_a: object, **_k: object) -> object:
+            raise RuntimeError("otel is half-initialised")
+
+        trace.get_tracer = boom  # type: ignore[assignment]
+        with telemetry.heal_span("INC-000006"):
+            ran.append("body")
+    finally:
+        trace.get_tracer = original
+        telemetry._enabled = was
+    assert ran == ["body"], "a tracing setup failure stopped the heal body"
