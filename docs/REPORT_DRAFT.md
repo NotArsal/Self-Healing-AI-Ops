@@ -521,18 +521,54 @@ regression; the code field was right while the stated understanding was not.
 The ADR 0013 confusion is present at 28/28 where the escalation rate shows it
 at 2/5.
 
-**This is recorded and not fixed.** A `fault_name` coherence check would reject
-every F06 diagnosis — F06 from 5/5 to 0/5, auto-resolution from 80% to 55% in
-run D's numbers — days before a demo. `AGENTS.md` forbids weakening a check to
-make something pass; it does not license adding one whose effect on the
-published numbers has not been agreed. The decision is the user's and it is
-still open. `RESEARCH_NOTES.md` §10 has the full tabulation and the
-recommendation.
+**This is recorded and deliberately not enforced** — [ADR
+0021](decisions/0021-the-fault-name-coherence-check-is-not-being-added.md).
+An earlier draft of this section called the decision an open tradeoff: a
+`fault_name` coherence check would take F06 from 5/5 to 0/5 and run D's
+auto-resolution from 80% to 55%, so the cost was real and the benefit was
+assumed. Re-deriving the benefit from the artifacts showed there is none.
 
-Run D sharpens the cost of enforcing it in a way worth stating: run D is the
-run where **F06 healed 5/5**, its best result in four runs. A coherence check
-would have taken that 5/5 to 0/5. The check and the result it would destroy
-are both correct, which is exactly why this is a decision and not a bug fix.
+Partition the 28 diagnoses that emitted F06 by whether they were *right*:
+
+| | what the gate did | what a name check would add |
+|---|---|---|
+| F06 emitted, injection was **F07/F08** — 11 rows pooled over four runs | **refused — 0 of 11 executed** | nothing; already refused |
+| F06 emitted, injection really was **F06** — 11 rows in runs C+D | 9 healed, 2 refused | **refuses all 9 correct heals** |
+
+The check's *unique* catch set — the rows it refuses that nothing else refuses
+— is exactly the set where the diagnosis was **correct**. On this data the
+check is not merely expensive, it is anti-correlated with error.
+
+The mechanism explains why. In runs C and D, where `escalation_reason` is
+recorded, all five wrong rows were refused with *both* reasons firing:
+`repair_permitted` ("proposed `rollback_prompt`, but F06 may only use
+`rollback_config`") and `deterministic_agreement` ("LLM says F06, deterministic
+detection says F07"). The model's error is not F06-with-a-wrong-name; it is a
+coherent **F07** diagnosis with one corrupted field —
+
+| field | says | which class |
+|---|---|---|
+| `fault_name` | *Prompt version regression* | F07 |
+| proposed action | `rollback_prompt` | F07 |
+| `fault_class` | `F06` | F06 — **the only field that says F06** |
+
+— and the two gates that catch it both read the *action*, which stays coherent
+with the model's real understanding. A name check reads a third field that is
+wrong for every F06 diagnosis, correct and incorrect alike. It is a constant,
+not a discriminator.
+
+So the finding is not "a check we could not afford". It is this:
+
+> **Kavach's safety on this failure mode comes from cross-checking the proposed
+> repair, not the stated class.** The class code is the least reliable field in
+> the diagnosis — the only one ever wrong here — and the gate that routes on it
+> is backstopped by two checks that do not read it.
+
+That is defence in depth arrived at by measurement rather than design, and it
+carries its own warning: a fault whose correct repair happened to be
+*permitted* for the mis-bound class would defeat `repair_permitted`, leaving
+only `deterministic_agreement`. In that scenario the architecture is one check
+deep, not two. ADR 0021 records that as a new risk-register entry.
 
 #### The F06 attractor, which run C first showed and run D reproduced
 
@@ -1244,14 +1280,16 @@ three of four refusals blocked a *correct* answer. Both numbers, or neither.
    `permit()`, `SIMULATION` and the blast radius. It should ship **disabled by
    default**. `RESEARCH_NOTES.md` §11.
 
-7. **The `fault_name` coherence check** (§4.2, `RESEARCH_NOTES.md` §10).
-   Adding it rejects every F06 diagnosis: F06 5/5 → 0/5, auto-resolution
-   80% → 55% on run D's numbers. It is the honest check and it costs the
-   prettiest column in the table, so it is recorded and not applied. Adding it
-   properly means re-running the bench and reporting before *and* after —
-   about 8 hours. **Run D raised the price rather than lowering it**: run D is
-   the run where F06 healed 5/5, so the check would now destroy the best F06
-   result in the set. The decision has not changed and is still the user's.
+7. ~~**The `fault_name` coherence check**~~ — **closed 2026-11-02, ADR 0021.**
+   Not added, and for a better reason than its cost. The check's unique catch
+   set is exactly the *correct* F06 diagnoses: all 11 wrong ones were already
+   refused (0 of 11 executed, pooled over four runs), while the 9 that healed
+   are the only rows it would uniquely reject. The model's mistake is a
+   coherent F07 diagnosis with one corrupted field — name and proposed action
+   both say F07 — so the two gates that catch it read the *action*, and a name
+   check reads a field that is wrong for every F06 row, correct or not. It is a
+   constant, not a discriminator. What remains open is **why** the mis-binding
+   happens (item 13), not whether to gate on it.
 8. ~~Action-selection accuracy is unmeasured~~ — **closed 2026-10-20**,
    ADR 0020. Scored separately now, and replaying run B found action accuracy
    *higher* than class accuracy (§4.2). The next bench reports both live.

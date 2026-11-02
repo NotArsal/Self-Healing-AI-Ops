@@ -488,8 +488,10 @@ as such rather than as an observation from a single bench.
 
 What this does *not* establish: whether the cause is the prompt's ordering, the
 catalogue's wording, the model's tokenisation of the two similar descriptions,
-or something else. Nothing here isolates it, and §10's recommendation is
-unchanged by the confirmation — it is now better evidenced, not different.
+or something else. Nothing here isolates it. (The recommendation that stood
+here when this was written — add the coherence check — was withdrawn on
+2026-11-02 by ADR 0021; the *confirmation* below is unaffected, only the
+proposed response to it.)
 
 ### CONFIRMED AGAIN, 2026-11-02, on a host rebuilt from empty
 
@@ -524,8 +526,10 @@ have been a plausible first guess:
 
 What remains is what §10 said from the start: something about `diagnose.txt`
 and this model binds that code to that name. We still have not isolated
-*which* something, and the recommendation is unchanged by a third
-confirmation — better evidenced, not different.
+*which* something. The cause is untouched by a third confirmation; what the
+third confirmation *did* change is the response, since run D's recorded
+`escalation_reason` is what showed the coherence check to be worthless as a
+gate (ADR 0021, below).
 
 ### A second finding from run C: the F06 attractor
 
@@ -615,10 +619,51 @@ quiet tightening — **it is recorded, not applied.** `AGENTS.md` forbids
 weakening a check to make something pass; it does not license adding one whose
 effect on the results has not been agreed.
 
-Recommendation if there is time: add the check, re-run the bench, and report
-the *before* and *after*. The finding is that Kavach can heal correctly from a
-diagnosis that contradicts itself, and the honest version of that is two
-numbers, not one.
+### RESOLVED 2026-11-02 — the check is not being added, and the old recommendation was wrong
+
+The recommendation above was *"add the check, re-run the bench, report before
+and after."* **Withdrawn**, by [ADR
+0021](decisions/0021-the-fault-name-coherence-check-is-not-being-added.md).
+
+It assumed the check had a safety benefit whose price was the F06 column.
+Re-deriving the benefit from the four artifacts shows it has none. Partition
+the F06-emitting diagnoses by whether they were right:
+
+| | what the gate did | what the name check adds |
+|---|---|---|
+| injection was F07/F08 — 11 rows, four runs | **refused, 0 of 11 executed** | nothing |
+| injection really was F06 — 11 rows, C+D | 9 healed, 2 refused | **rejects all 9 correct heals** |
+
+The check's unique catch set is the *correct* answers. Point 1 above said as
+much without drawing the conclusion — "would have flagged every F06 diagnosis,
+**including the ones that healed**" — and "including" turns out to be the whole
+story, because the ones it flags *beyond* what the existing gates already catch
+are only the ones that healed.
+
+The reason is visible in runs C and D's `escalation_reason`, which runs A and B
+did not record. All five wrong rows were refused with **both**
+`repair_permitted` ("proposed `rollback_prompt`, but F06 may only use
+`rollback_config`") and `deterministic_agreement` ("LLM says F06, deterministic
+detection says F07"). So the model is not emitting *F06 with the wrong name*;
+it emits a coherent **F07** diagnosis in which exactly one field — the class
+code — is corrupted. Name says F07. Proposed action says F07. Only
+`fault_class` says F06.
+
+Both gates that catch the real errors read the **action**. That field stays
+coherent with what the model actually believes, so it discriminates. The name
+field is wrong on every F06 row, healed or escalated, so it discriminates
+nothing. A constant cannot be a gate.
+
+The finding this leaves is better than the check would have been: **the safety
+here comes from cross-checking the proposed repair, not the stated class.** The
+class code is the least reliable field in the diagnosis and the gate that
+routes on it is backstopped by two that ignore it. That also names the
+architecture's thin spot — a fault whose correct repair happens to be
+*permitted* for the mis-bound class defeats `repair_permitted` and leaves only
+`deterministic_agreement`, one check deep. ADR 0021 logs it for the risk
+register.
+
+What stays open is the *cause* of the mis-binding, which nothing here isolates.
 
 ### The second gap, from the same investigation — **FIXED 2026-10-20**
 

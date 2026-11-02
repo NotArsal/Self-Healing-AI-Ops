@@ -290,13 +290,30 @@ So **F06's 5/5 class accuracy is a weaker result than it reads as** — by its
 own prose the model understood all of them as prompt regression, including the
 ones that healed correctly.
 
-**We did not fix it.** Enforcing a coherence check would take F06 from 5/5 to
-0/5 and auto-resolution from 80% to 55%, days before this review. Run D made
-that worse, not better: run D is the run where F06 healed **5/5**, its best
-result in four runs, and the check would destroy exactly that. Our rules
-forbid weakening a check to make something pass; they do not license *adding*
-one whose effect on published numbers hasn't been agreed. It is recorded, open,
-and the decision is the team's.
+**We decided not to gate on it — and not because it was expensive.** Enforcing
+a coherence check would take F06 from 5/5 to 0/5 and auto-resolution from 80%
+to 55%. That cost was never the reason. The reason is that the check catches
+**nothing the gate does not already catch**:
+
+| F06 diagnoses, split by whether they were right | gate's outcome | name check adds |
+|---|---|---|
+| injection was really F07/F08 — 11 of them | **refused, 0 executed** | nothing |
+| injection really was F06 — 11 of them | 9 healed | **rejects all 9** |
+
+Its only *unique* effect is to reject correct answers. Because the model's
+error isn't "F06 with a bad name" — it's a coherent **F07** diagnosis with one
+corrupted field. Name: F07. Proposed repair: F07. Only the class code says F06.
+
+Both gates that catch the real errors read the **repair**, which stays honest.
+The name is wrong on every F06 row, healed or not — a constant, not a signal.
+
+> **The safety came from cross-checking the proposed repair, not the stated
+> class.** The class code is the least reliable field in the diagnosis, and the
+> gate that routes on it is backstopped by two that ignore it.
+
+Defence in depth we measured rather than designed — and it names our thin spot:
+a fault whose correct repair is *permitted* for the mis-bound class would leave
+only one check standing. (ADR 0021.)
 
 ---
 
