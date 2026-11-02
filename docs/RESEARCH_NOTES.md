@@ -640,10 +640,70 @@ suspect F01. **So the hypothesis above is withdrawn**: ambiguity does not
 reliably summon F06, and the attractor's trigger is unexplained again.
 
 What the experiment does establish is narrower and more useful: **evidence-frame
-hygiene dominates diagnostic accuracy.** One stale windowed metric, comfortably
-inside the range every detector tolerates, moved a fault class from perfect to
-zero. The frame is not a passive report of the system; its contents decide the
-answer.
+hygiene dominates diagnostic accuracy.** Residue from a fault that is already
+over, comfortably inside the range every detector tolerates, moved a fault
+class from perfect to zero. The frame is not a passive report of the system;
+its contents decide the answer.
+
+**Corrected later the same evening: it is not one metric.** This first read
+"one stale windowed metric", which overstates the attribution. Arm B's frame
+carried **at least two** residues of the preceding outage — the elevated
+`llm_error_ratio` and connection-error lines in the log evidence. In the
+reasoning text, **10 of 10** arm-B diagnoses mention a connection problem
+against **0 of 10** in arm A. The variable is "the frame remembers a previous
+fault", across more than one channel. Arm A is untouched by the correction: it
+cites `EV-M06 = 0.0` and mentions no connection error anywhere, so the control
+is sound and the 10/10 stands.
+
+### The dose sweep failed, and the failure is worth more than the sweep
+
+Artifact `ambiguity-f08-dose-sweep.json`, kept as evidence of a method problem
+rather than as a dose response. Four dosed arms were attempted at target
+ratios 0.25 / 0.30 / 0.35 / 0.45.
+
+| arm | aimed at | frame actually carried | result |
+|---|---|---|---|
+| 0.25 | (0.21, 0.29) | **0.1744** — *below the 0.20 ceiling* | 10/10, i.e. a control |
+| 0.30 | (0.26, 0.34) | 0.2027 — barely abnormal | 10/10 |
+| 0.35 | (0.31, 0.39) | never reached | invalid |
+| 0.45 | (0.41, 0.49) | never reached | invalid |
+
+Three distinct defects, all mine:
+
+1. **Dilution between aiming and collecting.** `build_frame` runs a fast-set
+   pass before collecting, adding healthy calls and dropping the `[2m]` ratio
+   by 0.065–0.094. The arm labelled 0.25 reached the model at 0.1744.
+2. **The missing validity condition.** The harness asserted detection returned
+   F08 and `max_tokens` differed — both of which prove the *fault* is in the
+   frame, neither of which proves the *contaminant* is. A dosed arm whose
+   frame is clean is a second control, and counting it as a dose is precisely
+   how a null result gets published as a curve.
+3. **The log channel, which nothing drains.** `settle_below()` waits on the
+   metric only. Connection-error log lines outlive the metric window, and a
+   control arm run minutes after a dosed arm answered **F01 on a frame whose
+   error ratio was 0.0**, quoting `EV-L01`'s ConnectionError:
+
+   > *"EV-L01 shows a ConnectionError when trying to connect to the toxiproxy,
+   > indicating an outage of the LLM endpoint. EV-M06 reports an
+   > llm_error_ratio of 0.0, which is near zero…"*
+
+   The frame therefore has **at least three independent memories** of a
+   finished fault — the metric, the logs, and whatever the detector reads — and
+   draining one is not draining the frame. **Eighth instance of this project's
+   most persistent root cause**, and the first time it has appeared inside the
+   evidence frame rather than in a detector or a harness threshold.
+
+What the two partial arms do say, read only as what they are: at a frame value
+of **0.2027**, just over the threshold where the frame begins calling the value
+abnormal, the model was still **10/10 correct and produced no F06 at all**. At
+0.4091 it was 0/10. So the transition is **sharp rather than gradual**, and the
+low end gives no support to the attractor-as-fallback reading either.
+
+**A real sweep needs all three fixes.** Dosing by outage intensity instead of
+target ratio is done; asserting the contaminant is in the frame is done;
+draining or windowing the log evidence between arms is **not**. Until it is,
+successive arms contaminate each other and any curve is an artifact of run
+order rather than of dose.
 
 Two details worth keeping:
 

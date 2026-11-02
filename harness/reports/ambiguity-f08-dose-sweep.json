@@ -1,0 +1,406 @@
+{
+  "at": "2026-11-02T14:02:55+00:00",
+  "question": "does a second anomaly in the evidence frame trigger the F06 attractor?",
+  "model": "qwen2.5:7b-instruct",
+  "reps_per_arm": 10,
+  "band": [
+    0.2,
+    0.5
+  ],
+  "verdict": "no effect: the arms are comparable",
+  "corpus_before": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "corpus_after": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "doses": [
+    0.25,
+    0.3,
+    0.35,
+    0.45
+  ],
+  "arms": [
+    {
+      "arm": "A",
+      "contaminated": false,
+      "wanted_band": null,
+      "detected_class": "F08",
+      "frame_error_ratio": 0.0,
+      "frame_error_expected": "< 0.20 (measured healthy 0.0)",
+      "max_tokens_marked_differs": true,
+      "valid": true,
+      "rows": [
+        {
+          "rep": 1,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.8,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 18.3,
+          "reasoning": "LLM error ratio is 0.0, indicating the model was reached. Grounding is intact with kept_chunks_mean at 4.0 and empty_context_ratio at 0.0. The similarity is normal with retrieval_top_similarity_p50 at 0.65. However, the config line max_tokens has drifted from its baseline of 0 to 2, and the prompt_file_hashes have changed, as indicated by the DIFFERS markers. The verification cases EV-V01, EV-V02, and EV-V03 show grounded=False, indicating no retrieval context. This rules out F06. The other classes do not fit the evidence."
+        },
+        {
+          "rep": 2,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.8,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 9.3,
+          "reasoning": "LLM error ratio is 0.0, indicating the model was reached. Grounding is intact with kept_chunks_mean at 4.0 and empty_context_ratio at 0.0. The similarity is normal with retrieval_top_similarity_p50 at 0.65. However, the config line max_tokens has drifted from its baseline of 0 to 2, and the prompt_file_hashes have changed, with config_hash differing from its baseline. The verification cases EV-V01, EV-V02, and EV-V03 show grounded=False, indicating no retrieval context in the answers. This rules out F06, as the retrieval is working but the answers are wrong due to the changed configuration."
+        },
+        {
+          "rep": 3,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.8,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 9.3,
+          "reasoning": "LLM error ratio is 0.0, indicating the model was reached. Grounding is intact with kept_chunks_mean at 4.0 and empty_context_ratio at 0.0. The similarity is normal with retrieval_top_similarity_p50 at 0.65. However, the config line max_tokens has drifted from its baseline of 0 to 2, and the prompt_file_hashes have changed, with config_hash differing from its baseline. The verification cases EV-V01, EV-V02, and EV-V03 show grounded=False, indicating no retrieval context in the answers. This rules out F06, as the retrieval is working but the answers are wrong due to the changed configuration."
+        },
+        {
+          "rep": 4,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.8,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 9.3,
+          "reasoning": "LLM error ratio is 0.0, indicating the model was reached. Grounding is intact with kept_chunks_mean at 4.0 and empty_context_ratio at 0.0. The similarity is normal with retrieval_top_similarity_p50 at 0.65. However, the config line max_tokens has drifted from its baseline of 0 to 2, and the prompt_file_hashes have changed, with config_hash differing from its baseline. The verification cases EV-V01, EV-V02, and EV-V03 show grounded=False, indicating no retrieval context in the answers. This rules out F06, as the retrieval is working but the answers are wrong due to the changed configuration."
+        },
+        {
+          "rep": 5,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.8,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 9.3,
+          "reasoning": "LLM error ratio is 0.0, indicating the model was reached. Grounding is intact with kept_chunks_mean at 4.0 and empty_context_ratio at 0.0. The similarity is normal with retrieval_top_similarity_p50 at 0.65. However, the config line max_tokens has drifted from its baseline of 0 to 2, and the prompt_file_hashes have changed, with config_hash differing from its baseline. The verification cases EV-V01, EV-V02, and EV-V03 show grounded=False, indicating no retrieval context in the answers. This rules out F06, as the retrieval is working but the answers are wrong due to the changed configuration."
+        },
+        {
+          "rep": 6,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.8,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 9.3,
+          "reasoning": "LLM error ratio is 0.0, indicating the model was reached. Grounding is intact with kept_chunks_mean at 4.0 and empty_context_ratio at 0.0. The similarity is normal with retrieval_top_similarity_p50 at 0.65. However, the config line max_tokens has drifted from its baseline of 0 to 2, and the prompt_file_hashes have changed, with config_hash differing from its baseline. The verification cases EV-V01, EV-V02, and EV-V03 show grounded=False, indicating no retrieval context in the answers. This rules out F06, as the retrieval is working but the answers are wrong due to the changed configuration."
+        },
+        {
+          "rep": 7,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.8,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 9.3,
+          "reasoning": "LLM error ratio is 0.0, indicating the model was reached. Grounding is intact with kept_chunks_mean at 4.0 and empty_context_ratio at 0.0. The similarity is normal with retrieval_top_similarity_p50 at 0.65. However, the config line max_tokens has drifted from its baseline of 0 to 2, and the prompt_file_hashes have changed, with config_hash differing from its baseline. The verification cases EV-V01, EV-V02, and EV-V03 show grounded=False, indicating no retrieval context in the answers. This rules out F06, as the retrieval is working but the answers are wrong due to the changed configuration."
+        },
+        {
+          "rep": 8,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.8,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 9.3,
+          "reasoning": "LLM error ratio is 0.0, indicating the model was reached. Grounding is intact with kept_chunks_mean at 4.0 and empty_context_ratio at 0.0. The similarity is normal with retrieval_top_similarity_p50 at 0.65. However, the config line max_tokens has drifted from its baseline of 0 to 2, and the prompt_file_hashes have changed, with config_hash differing from its baseline. The verification cases EV-V01, EV-V02, and EV-V03 show grounded=False, indicating no retrieval context in the answers. This rules out F06, as the retrieval is working but the answers are wrong due to the changed configuration."
+        },
+        {
+          "rep": 9,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.8,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 9.3,
+          "reasoning": "LLM error ratio is 0.0, indicating the model was reached. Grounding is intact with kept_chunks_mean at 4.0 and empty_context_ratio at 0.0. The similarity is normal with retrieval_top_similarity_p50 at 0.65. However, the config line max_tokens has drifted from its baseline of 0 to 2, and the prompt_file_hashes have changed, with config_hash differing from its baseline. The verification cases EV-V01, EV-V02, and EV-V03 show grounded=False, indicating no retrieval context in the answers. This rules out F06, as the retrieval is working but the answers are wrong due to the changed configuration."
+        },
+        {
+          "rep": 10,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.8,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 9.3,
+          "reasoning": "LLM error ratio is 0.0, indicating the model was reached. Grounding is intact with kept_chunks_mean at 4.0 and empty_context_ratio at 0.0. The similarity is normal with retrieval_top_similarity_p50 at 0.65. However, the config line max_tokens has drifted from its baseline of 0 to 2, and the prompt_file_hashes have changed, with config_hash differing from its baseline. The verification cases EV-V01, EV-V02, and EV-V03 show grounded=False, indicating no retrieval context in the answers. This rules out F06, as the retrieval is working but the answers are wrong due to the changed configuration."
+        }
+      ],
+      "classes": {
+        "F08": 10
+      },
+      "correct": 10,
+      "n": 10
+    },
+    {
+      "arm": "0.25",
+      "contaminated": true,
+      "wanted_band": [
+        0.21,
+        0.29
+      ],
+      "detected_class": "F08",
+      "frame_error_ratio": 0.1744,
+      "frame_error_expected": "< 0.20 (measured healthy 0.0)",
+      "max_tokens_marked_differs": true,
+      "valid": true,
+      "rows": [
+        {
+          "rep": 1,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 21.1,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.1744 (healthy: < 0.20), indicating the model answered, ruling out F01. EV-M02 shows retrieval_kept_chunks_mean = 2.75 (healthy: >= 1.0), and EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), indicating retrieval worked, ruling out F06. EV-C04 and EV-C07 show max_tokens = 2 (healthy: baseline 0) and config_hash = 1d8e3b442a0b0932 (healthy: baseline 'de4cfaed14a8bb98'), respectively, both differing from their baselines, and EV-V01, EV-V02, and EV-V03 show fast_case_fv-01, fast_case_fv-02, and fast_case_fv-03 all grounded=False, indicating the an"
+        },
+        {
+          "rep": 2,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 9.6,
+          "reasoning": "LLM error ratio is near zero (0.1744), indicating the model was reached. Grounding is intact, as kept_chunks_mean is 2.75 and empty_context_ratio is 0.0. The similarity is normal (retrieval_top_similarity_p50 = 0.6687). However, the config lines show that max_tokens (EV-C04) and config_hash (EV-C07) have drifted from their known-good values. The verification logs (EV-V01, EV-V02, EV-V03) show that the answers are grounded=False, indicating that the retrieval context is lost. This rules out F06, as the retrieval is working but the context is not being used in the response."
+        },
+        {
+          "rep": 3,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 9.6,
+          "reasoning": "LLM error ratio is near zero (0.1744), indicating the model was reached. Grounding is intact, as kept_chunks_mean is 2.75 and empty_context_ratio is 0.0. The similarity is normal (retrieval_top_similarity_p50 = 0.6687). However, the config lines show that max_tokens (EV-C04) and config_hash (EV-C07) have drifted from their known-good values. The verification logs (EV-V01, EV-V02, EV-V03) show that the answers are grounded=False, indicating that the retrieval context is lost. This rules out F06, as the retrieval is working but the context is not being used in the response."
+        },
+        {
+          "rep": 4,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 9.7,
+          "reasoning": "LLM error ratio is near zero (0.1744), indicating the model was reached. Grounding is intact, as kept_chunks_mean is 2.75 and empty_context_ratio is 0.0. The similarity is normal (retrieval_top_similarity_p50 = 0.6687). However, the config lines show that max_tokens (EV-C04) and config_hash (EV-C07) have drifted from their known-good values. The verification logs (EV-V01, EV-V02, EV-V03) show that the answers are grounded=False, indicating that the retrieval context is lost. This rules out F06, as the retrieval is working but the context is not being used in the response."
+        },
+        {
+          "rep": 5,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 9.6,
+          "reasoning": "LLM error ratio is near zero (0.1744), indicating the model was reached. Grounding is intact, as kept_chunks_mean is 2.75 and empty_context_ratio is 0.0. The similarity is normal (retrieval_top_similarity_p50 = 0.6687). However, the config lines show that max_tokens (EV-C04) and config_hash (EV-C07) have drifted from their known-good values. The verification logs (EV-V01, EV-V02, EV-V03) show that the answers are grounded=False, indicating that the retrieval context is lost. This rules out F06, as the retrieval is working but the context is not being used in the response."
+        },
+        {
+          "rep": 6,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 9.6,
+          "reasoning": "LLM error ratio is near zero (0.1744), indicating the model was reached. Grounding is intact, as kept_chunks_mean is 2.75 and empty_context_ratio is 0.0. The similarity is normal (retrieval_top_similarity_p50 = 0.6687). However, the config lines show that max_tokens (EV-C04) and config_hash (EV-C07) have drifted from their known-good values. The verification logs (EV-V01, EV-V02, EV-V03) show that the answers are grounded=False, indicating that the retrieval context is lost. This rules out F06, as the retrieval is working but the context is not being used in the response."
+        },
+        {
+          "rep": 7,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 9.6,
+          "reasoning": "LLM error ratio is near zero (0.1744), indicating the model was reached. Grounding is intact, as kept_chunks_mean is 2.75 and empty_context_ratio is 0.0. The similarity is normal (retrieval_top_similarity_p50 = 0.6687). However, the config lines show that max_tokens (EV-C04) and config_hash (EV-C07) have drifted from their known-good values. The verification logs (EV-V01, EV-V02, EV-V03) show that the answers are grounded=False, indicating that the retrieval context is lost. This rules out F06, as the retrieval is working but the context is not being used in the response."
+        },
+        {
+          "rep": 8,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 9.6,
+          "reasoning": "LLM error ratio is near zero (0.1744), indicating the model was reached. Grounding is intact, as kept_chunks_mean is 2.75 and empty_context_ratio is 0.0. The similarity is normal (retrieval_top_similarity_p50 = 0.6687). However, the config lines show that max_tokens (EV-C04) and config_hash (EV-C07) have drifted from their known-good values. The verification logs (EV-V01, EV-V02, EV-V03) show that the answers are grounded=False, indicating that the retrieval context is lost. This rules out F06, as the retrieval is working but the context is not being used in the response."
+        },
+        {
+          "rep": 9,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 9.6,
+          "reasoning": "LLM error ratio is near zero (0.1744), indicating the model was reached. Grounding is intact, as kept_chunks_mean is 2.75 and empty_context_ratio is 0.0. The similarity is normal (retrieval_top_similarity_p50 = 0.6687). However, the config lines show that max_tokens (EV-C04) and config_hash (EV-C07) have drifted from their known-good values. The verification logs (EV-V01, EV-V02, EV-V03) show that the answers are grounded=False, indicating that the retrieval context is lost. This rules out F06, as the retrieval is working but the context is not being used in the response."
+        },
+        {
+          "rep": 10,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 9.6,
+          "reasoning": "LLM error ratio is near zero (0.1744), indicating the model was reached. Grounding is intact, as kept_chunks_mean is 2.75 and empty_context_ratio is 0.0. The similarity is normal (retrieval_top_similarity_p50 = 0.6687). However, the config lines show that max_tokens (EV-C04) and config_hash (EV-C07) have drifted from their known-good values. The verification logs (EV-V01, EV-V02, EV-V03) show that the answers are grounded=False, indicating that the retrieval context is lost. This rules out F06, as the retrieval is working but the context is not being used in the response."
+        }
+      ],
+      "classes": {
+        "F08": 10
+      },
+      "correct": 10,
+      "n": 10
+    },
+    {
+      "arm": "0.30",
+      "contaminated": true,
+      "wanted_band": [
+        0.26,
+        0.33999999999999997
+      ],
+      "detected_class": "F08",
+      "frame_error_ratio": 0.2027,
+      "frame_error_expected": "< 0.20 (measured healthy 0.0)",
+      "max_tokens_marked_differs": true,
+      "valid": true,
+      "rows": [
+        {
+          "rep": 1,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 20.5,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.2027 (healthy: < 0.20), indicating the model answered. EV-M02 shows retrieval_kept_chunks_mean = 2.5 (healthy: >= 1.0), and EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), indicating retrieval worked. EV-C04 and EV-C07 show max_tokens = 2 (healthy: baseline 0) and config_hash = 1d8e3b442a0b0932 (healthy: baseline 'de4cfaed14a8bb98'), respectively, both marked as DIFFERS, indicating a configuration change. EV-V01, EV-V02, and EV-V03 show grounded=False, meaning the answers carried no retrieved context, consistent with a configuration change a"
+        },
+        {
+          "rep": 2,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 10.7,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.2027 (healthy: < 0.20), indicating the model answered. EV-M02 shows retrieval_kept_chunks_mean = 2.5 (healthy: >= 1.0), and EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), indicating retrieval worked. EV-C04 and EV-C07 show max_tokens = 2 (healthy: baseline 0) and config_hash = 1d8e3b442a0b0932 (healthy: baseline 'de4cfaed14a8bb98') respectively, both marked as DIFFERS, indicating a configuration change. EV-V01, EV-V02, and EV-V03 show grounded=False, meaning the answers carried no retrieved context, consistent with a configuration change af"
+        },
+        {
+          "rep": 3,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 10.8,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.2027 (healthy: < 0.20), indicating the model answered. EV-M02 shows retrieval_kept_chunks_mean = 2.5 (healthy: >= 1.0), and EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), indicating retrieval worked. EV-C04 and EV-C07 show max_tokens = 2 (healthy: baseline 0) and config_hash = 1d8e3b442a0b0932 (healthy: baseline 'de4cfaed14a8bb98') respectively, both marked as DIFFERS, indicating a configuration change. EV-V01, EV-V02, and EV-V03 show grounded=False, meaning the answers carried no retrieved context, consistent with a configuration change af"
+        },
+        {
+          "rep": 4,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 10.8,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.2027 (healthy: < 0.20), indicating the model answered. EV-M02 shows retrieval_kept_chunks_mean = 2.5 (healthy: >= 1.0), and EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), indicating retrieval worked. EV-C04 and EV-C07 show max_tokens = 2 (healthy: baseline 0) and config_hash = 1d8e3b442a0b0932 (healthy: baseline 'de4cfaed14a8bb98') respectively, both marked as DIFFERS, indicating a configuration change. EV-V01, EV-V02, and EV-V03 show grounded=False, meaning the answers carried no retrieved context, consistent with a configuration change af"
+        },
+        {
+          "rep": 5,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 10.8,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.2027 (healthy: < 0.20), indicating the model answered. EV-M02 shows retrieval_kept_chunks_mean = 2.5 (healthy: >= 1.0), and EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), indicating retrieval worked. EV-C04 and EV-C07 show max_tokens = 2 (healthy: baseline 0) and config_hash = 1d8e3b442a0b0932 (healthy: baseline 'de4cfaed14a8bb98') respectively, both marked as DIFFERS, indicating a configuration change. EV-V01, EV-V02, and EV-V03 show grounded=False, meaning the answers carried no retrieved context, consistent with a configuration change af"
+        },
+        {
+          "rep": 6,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 10.8,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.2027 (healthy: < 0.20), indicating the model answered. EV-M02 shows retrieval_kept_chunks_mean = 2.5 (healthy: >= 1.0), and EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), indicating retrieval worked. EV-C04 and EV-C07 show max_tokens = 2 (healthy: baseline 0) and config_hash = 1d8e3b442a0b0932 (healthy: baseline 'de4cfaed14a8bb98') respectively, both marked as DIFFERS, indicating a configuration change. EV-V01, EV-V02, and EV-V03 show grounded=False, meaning the answers carried no retrieved context, consistent with a configuration change af"
+        },
+        {
+          "rep": 7,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 10.8,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.2027 (healthy: < 0.20), indicating the model answered. EV-M02 shows retrieval_kept_chunks_mean = 2.5 (healthy: >= 1.0), and EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), indicating retrieval worked. EV-C04 and EV-C07 show max_tokens = 2 (healthy: baseline 0) and config_hash = 1d8e3b442a0b0932 (healthy: baseline 'de4cfaed14a8bb98') respectively, both marked as DIFFERS, indicating a configuration change. EV-V01, EV-V02, and EV-V03 show grounded=False, meaning the answers carried no retrieved context, consistent with a configuration change af"
+        },
+        {
+          "rep": 8,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 10.8,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.2027 (healthy: < 0.20), indicating the model answered. EV-M02 shows retrieval_kept_chunks_mean = 2.5 (healthy: >= 1.0), and EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), indicating retrieval worked. EV-C04 and EV-C07 show max_tokens = 2 (healthy: baseline 0) and config_hash = 1d8e3b442a0b0932 (healthy: baseline 'de4cfaed14a8bb98') respectively, both marked as DIFFERS, indicating a configuration change. EV-V01, EV-V02, and EV-V03 show grounded=False, meaning the answers carried no retrieved context, consistent with a configuration change af"
+        },
+        {
+          "rep": 9,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 10.7,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.2027 (healthy: < 0.20), indicating the model answered. EV-M02 shows retrieval_kept_chunks_mean = 2.5 (healthy: >= 1.0), and EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), indicating retrieval worked. EV-C04 and EV-C07 show max_tokens = 2 (healthy: baseline 0) and config_hash = 1d8e3b442a0b0932 (healthy: baseline 'de4cfaed14a8bb98') respectively, both marked as DIFFERS, indicating a configuration change. EV-V01, EV-V02, and EV-V03 show grounded=False, meaning the answers carried no retrieved context, consistent with a configuration change af"
+        },
+        {
+          "rep": 10,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.85,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 10.8,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.2027 (healthy: < 0.20), indicating the model answered. EV-M02 shows retrieval_kept_chunks_mean = 2.5 (healthy: >= 1.0), and EV-M03 shows retrieval_empty_context_ratio = 0.0 (healthy: < 0.20), indicating retrieval worked. EV-C04 and EV-C07 show max_tokens = 2 (healthy: baseline 0) and config_hash = 1d8e3b442a0b0932 (healthy: baseline 'de4cfaed14a8bb98') respectively, both marked as DIFFERS, indicating a configuration change. EV-V01, EV-V02, and EV-V03 show grounded=False, meaning the answers carried no retrieved context, consistent with a configuration change af"
+        }
+      ],
+      "classes": {
+        "F08": 10
+      },
+      "correct": 10,
+      "n": 10
+    },
+    {
+      "arm": "0.35",
+      "contaminated": true,
+      "wanted_band": [
+        0.31,
+        0.38999999999999996
+      ],
+      "valid": false,
+      "why": "error ratio never caught in band",
+      "rows": []
+    },
+    {
+      "arm": "0.45",
+      "contaminated": true,
+      "wanted_band": [
+        0.41000000000000003,
+        0.49
+      ],
+      "valid": false,
+      "why": "error ratio never caught in band",
+      "rows": []
+    }
+  ]
+}

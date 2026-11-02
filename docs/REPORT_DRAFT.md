@@ -664,6 +664,69 @@ and specific: inject F08 on a clean frame, then inject F08 while holding
 each, changing nothing else. That is the same shape of one-variable test that
 settled ADR 0013, and it is listed in §9.
 
+##### It was run the same evening, and it refused the hypothesis
+
+`harness/ambiguity_f08.py`, artifact `ambiguity-f08.json`. Ten repetitions per
+arm against a frame collected **once** per arm, so the metric windows cannot
+move underneath the question. No loop runs, so twenty diagnoses cost no
+blast-radius budget. Every arm asserts that deterministic detection still
+returns F08 and that `max_tokens` is marked `DIFFERS`.
+
+| arm | frame `llm_error_ratio` | named F08 | validator approved |
+|---|---|---|---|
+| **A** — clean frame | 0.0 | **10/10** (confidence 0.9) | **10/10** |
+| **B** — frame holding a prior fault's residue | 0.4091 | **0/10** | **0/10** |
+
+**The effect is real and very large: stale evidence from a previous fault takes
+F08 from 10/10 to 0/10.**
+
+**But it is not the F06 attractor.** Arm B's ten wrong answers were **nine F01
+and one F06**. The model followed the residue to the class it belongs to, and
+its reasoning is defensible rather than degenerate:
+
+> *"EV-M06 shows llm_error_ratio = 0.4091 (healthy: < 0.20), indicating the
+> model endpoint is refusing connections… EV-C04 and EV-C07 show that the
+> max_tokens and config_hash settings have drifted from their known-good
+> values, but this is not enough to rule out F01."*
+
+It saw both anomalies, weighed them, and preferred the louder one. So **the
+attractor's trigger remains unexplained** and the hypothesis advanced above is
+withdrawn. What the experiment establishes is narrower and more useful:
+
+> **Evidence-frame hygiene dominates diagnostic accuracy.** Residue from a
+> fault that is already over, well inside the range every detector tolerates,
+> moved a class from perfect to zero. The frame is not a passive report of the
+> system; its contents decide the answer.
+
+**Two corrections to how this was first written up**, both found by trying to
+extend it:
+
+1. *Not "a single contaminating metric".* Arm B's frame carried **at least two**
+   residues of the preceding outage — the elevated `llm_error_ratio` **and**
+   connection-error lines in the log evidence. Counting the reasoning text,
+   **10 of 10** arm-B diagnoses mention a connection problem against **0 of 10**
+   in arm A. The variable is "the frame remembers a previous fault", across
+   more than one channel. Arm A survives the correction intact: it cites
+   `EV-M06 = 0.0` and mentions no connection error anywhere.
+2. *The dose sweep that was supposed to follow does not yet exist as data.*
+   See §9 item 14 — the attempt failed, and it failed informatively.
+
+Two further things in the data are worth stating:
+
+- **The deterministic layer caught every one.** Arm B: 0 of 10 approved; arm A:
+  10 of 10. The gate's value is demonstrated exactly where the model fails,
+  and nine of those refusals blocked `switch_llm_endpoint` — a repair that
+  would have moved the LLM endpoint while the real fault was a config drift.
+  This is the cleanest demonstration in the project that the deterministic
+  layer earns its place.
+- **Only the single F06 answer is degenerate**, and it contradicts itself in
+  its opening clause: *"LLM error ratio is near zero (0.4091)"*. It also cites
+  `prompt_file_hashes` as differing when they were unchanged. That row carries
+  the attractor's confabulation signature; the nine F01 rows do not. Whatever
+  the attractor is, it is not simply "two anomalies".
+
+**Limits.** n = 10 per arm, one model, one prompt, one fault class.
+
 That lets us state the confidence finding as a measurement rather than an
 impression. Run D's twenty confidences, split by whether the diagnosis was
 right:
@@ -1388,3 +1451,35 @@ three of four refusals blocked a *correct* answer. Both numbers, or neither.
     test that produced ADR 0013. Roughly an hour, and it would turn the
     project's headline anomaly from a described error mode into an explained
     one. **This is the single highest-value experiment left undone.**
+    > **RUN 2026-11-02 — the hypothesis was refused, and the follow-up failed
+    > informatively.** §4.2 carries the result: clean frame **10/10**, frame
+    > holding a prior fault's residue **0/10**, but the wrong answers were
+    > nine F01 and one F06, so the model followed the residue to its own class
+    > rather than collapsing to F06.
+    >
+    > **The dose sweep attempted next is not data.** Two of four arms could
+    > not reach their target ratio at all, and two reached the model with
+    > frames carrying **0.1744** and **0.2027** — the first of those *below*
+    > the 0.20 ceiling the frame itself calls healthy, so it was a second
+    > control reported as a dose. Both scored 10/10, consistent with being
+    > controls. Cause: the frame-collection pass dilutes the `[2m]` ratio by
+    > 0.065–0.094 between aiming and collecting, and the harness asserted that
+    > the *fault* was in the frame without ever asserting the *contaminant*
+    > was. Artifact `ambiguity-f08-dose-sweep.json`, kept as evidence of the
+    > method problem rather than of a dose response.
+    >
+    > **A third contamination channel came out of that failure**, and it is
+    > the more useful half: the connection-error **log** lines outlive the
+    > metric window, and nothing drains them. A control arm run minutes after
+    > a dosed arm diagnosed **F01 on a frame whose error ratio was 0.0**,
+    > citing `EV-L01`'s ConnectionError directly. So the evidence frame has at
+    > least three independent memories of a finished fault — metric, log, and
+    > whatever the detector reads — and draining one is not draining the
+    > frame. That is the eighth instance of this project's most persistent
+    > root cause.
+    >
+    > **What a real sweep now requires**: dose by outage intensity rather than
+    > by target ratio (done), assert the contaminant is present in the frame
+    > (done), **and** drain or window the log evidence between arms (not
+    > done). Until the third exists, successive arms contaminate each other
+    > and any curve is an artifact of run order.
