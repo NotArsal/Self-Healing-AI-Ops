@@ -1,5 +1,5 @@
 {
-  "at": "2026-10-19T10:12:56+00:00",
+  "at": "2026-11-02T10:39:08+00:00",
   "name": "offline-rehearsal",
   "rca_model": "qwen2.5:7b-instruct",
   "acts": [
@@ -8,7 +8,7 @@
       "title": "autonomous heal (F01, LOW risk, no human)",
       "passed": true,
       "detail": "F01 -> switch_llm_endpoint, verdict ALLOW_AUTO, status RESOLVED, no approval requested",
-      "seconds": 121.7,
+      "seconds": 116.8,
       "limiter": false
     },
     {
@@ -16,7 +16,7 @@
       "title": "approval heal (F08, MEDIUM risk, human gates it)",
       "passed": true,
       "detail": "parked writing nothing, then approved -> RESOLVED",
-      "seconds": 160.9,
+      "seconds": 146.9,
       "limiter": false
     },
     {
@@ -24,15 +24,15 @@
       "title": "rollback (both LLM paths down, so the right repair fails)",
       "passed": true,
       "detail": "repair applied and failed verification; unwound 1/1 clean=True; endpoint back at http://toxiproxy:21434",
-      "seconds": 110.5,
+      "seconds": 111.0,
       "limiter": false
     },
     {
       "n": 4,
       "title": "unknown failure (database down - NOT in the catalogue)",
       "passed": true,
-      "detail": "ESCALATED, no class claimed, nothing written. Reason: the fast set failed but only 29.1% of LLM calls errored, so the model is being reached and this is not an endpoint outag",
-      "seconds": 98.9,
+      "detail": "ESCALATED, no class claimed, nothing written. Reason: the fast set failed but only 31.2% of LLM calls errored, so the model is being reached and this is not an endpoint outag",
+      "seconds": 86.6,
       "limiter": false
     }
   ],

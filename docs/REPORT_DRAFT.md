@@ -1257,9 +1257,25 @@ three of four refusals blocked a *correct* answer. Both numbers, or neither.
 4. ~~`make scenario` — three clean runs, an hour apart~~ — **done
    2026-10-19**, `scenario-r1/r2/r3.json` at 06:17, 07:30 and 08:44 UTC.
    4/4 acts each, **zero limiter parks**, same `rca_model`, corpus unchanged.
-   Plus the offline rehearsal (`scenario-offline.json`, 10:12 UTC), which
-   proved the strong claim — network down *and* all seven cloud keys empty
-   inside the container, `.env` never written.
+   **Re-opened and re-closed in part on 2026-11-02**, because that evidence
+   predates the reformatted host (§4.1): the **offline** rehearsal was re-run
+   on the rebuilt machine and came back **4/4 clean** with the network
+   physically down and all seven cloud keys read back empty inside the
+   container (`scenario-offline.json`, 10:39 UTC; the pre-reformat run is
+   kept as `scenario-offline-20261019.json`). Two offline rehearsals on hosts
+   that share no system state is a stronger claim than the single run this
+   item used to cite. **The three-consecutive-clean bar has not been re-met
+   on the current host** — that would need two further runs an hour apart, and
+   it is stated here rather than inherited silently.
+
+   The first attempt that day is also on the record
+   (`scenario-20261102-f08-tail.json`, 08:44 UTC, 3/4): act 2 failed because
+   the model diagnosed the injected F08 as F06 and `deterministic_agreement`
+   refused it, so the loop escalated rather than parking for approval. That is
+   the gate working — nothing executed — but it is also a **~10% failure mode
+   sitting inside a demo act**, since F08's first-draw accuracy is 19/20 and
+   approval re-diagnoses, requiring the model to be right twice. Reported
+   because a one-in-ten risk in a live demo should be known in advance.
 5. ~~Human baseline: run it, or record the decision to drop it~~ —
    **closed 2026-10-19, written up in §4.8.** It was run on 2026-10-18 and
    the result had been sitting in `human-baseline.json` unreported. It

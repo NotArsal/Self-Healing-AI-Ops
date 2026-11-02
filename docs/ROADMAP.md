@@ -1205,14 +1205,36 @@ The phase most teams skip and most reviewers notice.
       08:44Z. 4/4 acts in each, no limiter parks, target healthy and the
       corpus unchanged (30 chunks / 2 files) after all three. RCA model
       `qwen2.5:7b-instruct` recorded in each artifact.
+      **⚠ That evidence predates the host.** The SSD was formatted 2026-11-01
+      and every piece of software under Kavach was reinstalled (§12,
+      `RESEARCH_NOTES.md` §10). The three consecutive runs above were measured
+      on hardware that no longer exists in that state, so **this box is ticked
+      on superseded evidence.** Post-reformat status, 2026-11-02, is below.
+      Re-meeting the 3× bar on the current host needs two more clean runs an
+      hour apart; it has not been done.
 - [x] Offline rehearsal — no network, local model only, no `GEMINI_API_KEY` present
-      2026-10-19 10:12Z, `make offline`, artifact `scenario-offline.json`.
-      All seven cloud keys forced empty and **read back out of the container**
-      to prove it, wifi physically off for the whole run, model
-      `qwen2.5:7b-instruct` on `host.docker.internal`. 4/4 acts, no limiter
-      parks, target healthy and corpus unchanged. `.env` was never written to:
-      compose resolves `${VAR:-}` from the shell before `--env-file`, so the
-      keys are overridden in place and restored by unsetting them.
+      **Twice, on two different machines.** 2026-10-19 10:12Z
+      (`scenario-offline-20261019.json`, pre-reformat) and **2026-11-02 10:39Z
+      (`scenario-offline.json`, on the rebuilt host)**. Both 4/4 acts, both
+      `clean: true`, no limiter parks, target healthy, corpus unchanged
+      (30 chunks / 2 files) either side. All seven cloud keys forced empty and
+      **read back out of the container** to prove it, wifi physically off for
+      the whole run, model `qwen2.5:7b-instruct` on `host.docker.internal`.
+      `.env` was never written to: compose resolves `${VAR:-}` from the shell
+      before `--env-file`, so the keys are overridden in place and restored by
+      unsetting them. Two independent offline rehearsals on hosts sharing no
+      system state is stronger evidence than the one this line used to claim.
+- [x] **The 5% tail is on the record, because it happened in rehearsal.**
+      2026-11-02 08:44Z, `scenario-20261102-f08-tail.json`: 3/4 acts, act 2
+      failed. The LLM diagnosed the injected F08 as F06 and
+      `deterministic_agreement` refused it, so the loop escalated instead of
+      parking for approval — **the gate working, not a defect**, and nothing
+      executed. F08's pooled first-draw class accuracy is 19/20 (5% wrong) and
+      act 2 needs the model right twice because approval re-diagnoses, so act
+      2's expected pass rate is ~90%. Kept as an artifact rather than
+      discarded: a demo act with a one-in-ten failure mode should be stated,
+      not discovered on stage. See ADR 0021 for why no `fault_name` check
+      would have prevented it.
 - [x] A failure path is in the demo — **two**. `make scenario` act 3 is a rollback after a repair that correctly fails, and act 4 is a refusal on a fault outside the catalogue (database stopped), proven live with legible reasoning
 
 ---
