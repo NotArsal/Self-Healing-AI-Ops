@@ -613,6 +613,59 @@ each, nothing else changed — the one-variable shape that settled ADR 0013.
 Logged as §9 item 14 in the report and flagged there as the highest-value
 experiment still undone.
 
+### The experiment ran the same evening. It refused the hypothesis.
+
+`harness/ambiguity_f08.py`, artifact `ambiguity-f08.json`. One variable, ten
+reps per arm, frame collected once per arm so the windows cannot drift, no loop
+so no blast-radius cost. Both arms asserted valid: deterministic detection
+returned F08 and `max_tokens` was marked `DIFFERS` in each.
+
+| arm | `llm_error_ratio` in frame | named F08 | approved |
+|---|---|---|---|
+| A — clean | 0.0 | **10/10** at confidence 0.9 | **10/10** |
+| B — one contaminant | 0.4091 | **0/10** | **0/10** |
+
+The effect is enormous and the direction is right. **The mechanism is not.**
+Arm B's wrong answers were **nine F01 and one F06**. The model followed the
+contaminating metric to the class that metric belongs to, and said so:
+
+> *"EV-M06 shows llm_error_ratio = 0.4091 (healthy: < 0.20), indicating the
+> model endpoint is refusing connections or returning errors… EV-C04 and EV-C07
+> show that the max_tokens and config_hash settings have drifted from their
+> known-good values, but this is not enough to rule out F01."*
+
+That is not degeneracy. It saw both anomalies, weighed them, and preferred the
+louder one — a defensible error on a frame that really did contain grounds to
+suspect F01. **So the hypothesis above is withdrawn**: ambiguity does not
+reliably summon F06, and the attractor's trigger is unexplained again.
+
+What the experiment does establish is narrower and more useful: **evidence-frame
+hygiene dominates diagnostic accuracy.** One stale windowed metric, comfortably
+inside the range every detector tolerates, moved a fault class from perfect to
+zero. The frame is not a passive report of the system; its contents decide the
+answer.
+
+Two details worth keeping:
+
+- **The gate caught all ten.** 0/10 approved in arm B against 10/10 in arm A.
+  Nine of those refusals blocked `switch_llm_endpoint`, a repair that would
+  have moved the endpoint while the real fault was a config drift. This is the
+  cleanest demonstration in the project of the deterministic layer earning its
+  place — measured precisely where the model fails.
+- **Only the single F06 answer is degenerate**, and it is self-contradicting in
+  its opening clause: *"LLM error ratio is near zero (0.4091)"*, having been
+  handed 0.4091. It also cites `prompt_file_hashes` as differing when they were
+  unchanged. That row carries the attractor's confabulation signature; the nine
+  F01 rows do not. Whatever the attractor is, it is not simply "two anomalies".
+
+**Where it leaves the question.** Arm B landed at 0.4091, near the top of the
+(0.20, 0.50) band, while the accident sat at 0.2697 and gave F06 twice. A dose
+sweep at ~0.25 / 0.30 / 0.35 / 0.45 is the obvious successor, and it separates
+two real hypotheses: the attractor as *what the model reaches for when nothing
+in the frame is decisive*, versus the attractor as a *trained groove* in the
+prompt. This experiment can only say that at the loud end, the model is not in
+the groove — it is reading the evidence.
+
 The harness defect itself is fixed (`FRAME_ERROR_RATIO_CEILING`, commit
 `dca303a`), so the fix and the finding are independent: the demo now
 demonstrates what it claims, and the observation stands on the artifacts

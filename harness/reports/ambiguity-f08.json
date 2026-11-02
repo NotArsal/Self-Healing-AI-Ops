@@ -1,0 +1,254 @@
+{
+  "at": "2026-11-02T13:43:29+00:00",
+  "question": "does a second anomaly in the evidence frame trigger the F06 attractor?",
+  "model": "qwen2.5:7b-instruct",
+  "reps_per_arm": 10,
+  "band": [
+    0.2,
+    0.5
+  ],
+  "verdict": "SUPPORTS: ambiguity degrades the diagnosis",
+  "corpus_before": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "corpus_after": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "arms": [
+    {
+      "arm": "A",
+      "contaminated": false,
+      "detected_class": "F08",
+      "frame_error_ratio": 0.0,
+      "frame_error_expected": "< 0.20 (measured healthy 0.0)",
+      "max_tokens_marked_differs": true,
+      "valid": true,
+      "rows": [
+        {
+          "rep": 1,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.9,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 16.6,
+          "reasoning": "EV-C04 shows that the max_tokens setting has drifted from its baseline of 0 to 2, which is a change. EV-C07 shows that the prompt_file_hashes have not changed from their baseline, ruling out F07. EV-M06 shows that the llm_error_ratio is 0.0, which is healthy, and EV-M02 shows that the retrieval_kept_chunks_mean is 2.6667, which is healthy, ruling out F06. The drift in the max_tokens setting is the only configuration change that has occurred, and it is likely the cause of the degraded performance."
+        },
+        {
+          "rep": 2,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.9,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 5.8,
+          "reasoning": "EV-C04 shows that the max_tokens setting has drifted from 0 to 2, which is a change from its baseline. EV-C07 indicates that the prompt_file_hashes have not changed, ruling out F07. EV-C08 is unchanged, ruling out F07. The llm_error_ratio is 0.0, and the grounding is intact, ruling out F06. The logs show that chunks are being reranked and kept, indicating that retrieval is working, and the similarity is normal, ruling out F06. The evidence points to a configuration change affecting the model's behavior."
+        },
+        {
+          "rep": 3,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.9,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 5.8,
+          "reasoning": "EV-C04 shows that the max_tokens setting has drifted from 0 to 2, which is a change from its baseline. EV-C07 indicates that the prompt_file_hashes have not changed, ruling out F07. EV-C08 is unchanged, ruling out F07. The llm_error_ratio is 0.0, and the grounding is intact, ruling out F06. The logs show that chunks are being reranked and kept, indicating that retrieval is working, and the similarity is normal, ruling out F06. The evidence points to a configuration change affecting the model's behavior."
+        },
+        {
+          "rep": 4,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.9,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 5.8,
+          "reasoning": "EV-C04 shows that the max_tokens setting has drifted from 0 to 2, which is a change from its baseline. EV-C07 indicates that the prompt_file_hashes have not changed, ruling out F07. EV-C08 is unchanged, ruling out F07. The llm_error_ratio is 0.0, and the grounding is intact, ruling out F06. The logs show that chunks are being reranked and kept, indicating that retrieval is working, and the similarity is normal, ruling out F06. The evidence points to a configuration change affecting the model's behavior."
+        },
+        {
+          "rep": 5,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.9,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 5.8,
+          "reasoning": "EV-C04 shows that the max_tokens setting has drifted from 0 to 2, which is a change from its baseline. EV-C07 indicates that the prompt_file_hashes have not changed, ruling out F07. EV-C08 is unchanged, ruling out F07. The llm_error_ratio is 0.0, and the grounding is intact, ruling out F06. The logs show that chunks are being reranked and kept, indicating that retrieval is working, and the similarity is normal, ruling out F06. The evidence points to a configuration change affecting the model's behavior."
+        },
+        {
+          "rep": 6,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.9,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 5.8,
+          "reasoning": "EV-C04 shows that the max_tokens setting has drifted from 0 to 2, which is a change from its baseline. EV-C07 indicates that the prompt_file_hashes have not changed, ruling out F07. EV-C08 is unchanged, ruling out F07. The llm_error_ratio is 0.0, and the grounding is intact, ruling out F06. The logs show that chunks are being reranked and kept, indicating that retrieval is working, and the similarity is normal, ruling out F06. The evidence points to a configuration change affecting the model's behavior."
+        },
+        {
+          "rep": 7,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.9,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 5.7,
+          "reasoning": "EV-C04 shows that the max_tokens setting has drifted from 0 to 2, which is a change from its baseline. EV-C07 indicates that the prompt_file_hashes have not changed, ruling out F07. EV-C08 is unchanged, ruling out F07. The llm_error_ratio is 0.0, and the grounding is intact, ruling out F06. The logs show that chunks are being reranked and kept, indicating that retrieval is working, and the similarity is normal, ruling out F06. The evidence points to a configuration change affecting the model's behavior."
+        },
+        {
+          "rep": 8,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.9,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 5.8,
+          "reasoning": "EV-C04 shows that the max_tokens setting has drifted from 0 to 2, which is a change from its baseline. EV-C07 indicates that the prompt_file_hashes have not changed, ruling out F07. EV-C08 is unchanged, ruling out F07. The llm_error_ratio is 0.0, and the grounding is intact, ruling out F06. The logs show that chunks are being reranked and kept, indicating that retrieval is working, and the similarity is normal, ruling out F06. The evidence points to a configuration change affecting the model's behavior."
+        },
+        {
+          "rep": 9,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.9,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 5.8,
+          "reasoning": "EV-C04 shows that the max_tokens setting has drifted from 0 to 2, which is a change from its baseline. EV-C07 indicates that the prompt_file_hashes have not changed, ruling out F07. EV-C08 is unchanged, ruling out F07. The llm_error_ratio is 0.0, and the grounding is intact, ruling out F06. The logs show that chunks are being reranked and kept, indicating that retrieval is working, and the similarity is normal, ruling out F06. The evidence points to a configuration change affecting the model's behavior."
+        },
+        {
+          "rep": 10,
+          "fault_class": "F08",
+          "fault_name": "Configuration or environment regression",
+          "confidence": 0.9,
+          "repair": "rollback_config",
+          "approved": true,
+          "latency_s": 5.8,
+          "reasoning": "EV-C04 shows that the max_tokens setting has drifted from 0 to 2, which is a change from its baseline. EV-C07 indicates that the prompt_file_hashes have not changed, ruling out F07. EV-C08 is unchanged, ruling out F07. The llm_error_ratio is 0.0, and the grounding is intact, ruling out F06. The logs show that chunks are being reranked and kept, indicating that retrieval is working, and the similarity is normal, ruling out F06. The evidence points to a configuration change affecting the model's behavior."
+        }
+      ],
+      "classes": {
+        "F08": 10
+      },
+      "correct": 10,
+      "n": 10
+    },
+    {
+      "arm": "B",
+      "contaminated": true,
+      "detected_class": "F08",
+      "frame_error_ratio": 0.4091,
+      "frame_error_expected": "< 0.20 (measured healthy 0.0)",
+      "max_tokens_marked_differs": true,
+      "valid": true,
+      "rows": [
+        {
+          "rep": 1,
+          "fault_class": "F06",
+          "fault_name": "Prompt version regression",
+          "confidence": 0.95,
+          "repair": "rollback_config",
+          "approved": false,
+          "latency_s": 18.4,
+          "reasoning": "LLM error ratio is near zero (0.4091), indicating the model was reached. Grounding is intact, as kept_chunks_mean is 2.75 and empty_context_ratio is 0.0. However, the prompt_file_hashes in EV-C07 differ from their baseline, and the verification cases EV-V01, EV-V02, and EV-V03 show grounded=False, meaning the answers carry no retrieved context. This rules out F01, F02, and F03. F05 is not applicable as there is no database connection pool exhaustion. F07 is not applicable as the prompt files have not changed. F08 is not applicable as the configuration lines are healthy. Therefore, the fault is"
+        },
+        {
+          "rep": 2,
+          "fault_class": "F01",
+          "fault_name": "Primary LLM endpoint outage",
+          "confidence": 0.8,
+          "repair": "switch_llm_endpoint",
+          "approved": false,
+          "latency_s": 8.5,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.4091 (healthy: < 0.20), indicating the model endpoint is refusing connections or returning errors. EV-M07 shows llm_generation_latency_p95 = 0.9432 (healthy: < 4.0s), which is within the healthy range, ruling out F02. EV-C04 and EV-C07 show that the max_tokens and config_hash settings have drifted from their known-good values, but this is not enough to rule out F01. The logs do not indicate any issues with the retrieval process, ruling out F06 and F07. Therefore, the most likely cause is F01, a primary LLM endpoint outage."
+        },
+        {
+          "rep": 3,
+          "fault_class": "F01",
+          "fault_name": "Primary LLM endpoint outage",
+          "confidence": 0.8,
+          "repair": "switch_llm_endpoint",
+          "approved": false,
+          "latency_s": 8.5,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.4091 (healthy: < 0.20), indicating the model endpoint is refusing connections or returning errors. EV-M07 shows llm_generation_latency_p95 = 0.9432 (healthy: < 4.0s), which is within the healthy range, ruling out F02. EV-C04 and EV-C07 show that the max_tokens and config_hash settings have drifted from their known-good values, but this is not enough to rule out F01. The logs do not indicate any issues with the retrieval process, ruling out F06 and F07. Therefore, the most likely cause is F01, a primary LLM endpoint outage."
+        },
+        {
+          "rep": 4,
+          "fault_class": "F01",
+          "fault_name": "Primary LLM endpoint outage",
+          "confidence": 0.8,
+          "repair": "switch_llm_endpoint",
+          "approved": false,
+          "latency_s": 8.5,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.4091 (healthy: < 0.20), indicating the model endpoint is refusing connections or returning errors. EV-M07 shows llm_generation_latency_p95 = 0.9432 (healthy: < 4.0s), which is within the healthy range, ruling out F02. EV-C04 and EV-C07 show that the max_tokens and config_hash settings have drifted from their known-good values, but this is not enough to rule out F01. The logs do not indicate any issues with the retrieval process, ruling out F06 and F07. Therefore, the most likely cause is F01, a primary LLM endpoint outage."
+        },
+        {
+          "rep": 5,
+          "fault_class": "F01",
+          "fault_name": "Primary LLM endpoint outage",
+          "confidence": 0.8,
+          "repair": "switch_llm_endpoint",
+          "approved": false,
+          "latency_s": 8.6,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.4091 (healthy: < 0.20), indicating the model endpoint is refusing connections or returning errors. EV-M07 shows llm_generation_latency_p95 = 0.9432 (healthy: < 4.0s), which is within the healthy range, ruling out F02. EV-C04 and EV-C07 show that the max_tokens and config_hash settings have drifted from their known-good values, but this is not enough to rule out F01. The logs do not indicate any issues with the retrieval process, ruling out F06 and F07. Therefore, the most likely cause is F01, a primary LLM endpoint outage."
+        },
+        {
+          "rep": 6,
+          "fault_class": "F01",
+          "fault_name": "Primary LLM endpoint outage",
+          "confidence": 0.8,
+          "repair": "switch_llm_endpoint",
+          "approved": false,
+          "latency_s": 8.5,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.4091 (healthy: < 0.20), indicating the model endpoint is refusing connections or returning errors. EV-M07 shows llm_generation_latency_p95 = 0.9432 (healthy: < 4.0s), which is within the healthy range, ruling out F02. EV-C04 and EV-C07 show that the max_tokens and config_hash settings have drifted from their known-good values, but this is not enough to rule out F01. The logs do not indicate any issues with the retrieval process, ruling out F06 and F07. Therefore, the most likely cause is F01, a primary LLM endpoint outage."
+        },
+        {
+          "rep": 7,
+          "fault_class": "F01",
+          "fault_name": "Primary LLM endpoint outage",
+          "confidence": 0.8,
+          "repair": "switch_llm_endpoint",
+          "approved": false,
+          "latency_s": 8.5,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.4091 (healthy: < 0.20), indicating the model endpoint is refusing connections or returning errors. EV-M07 shows llm_generation_latency_p95 = 0.9432 (healthy: < 4.0s), which is within the healthy range, ruling out F02. EV-C04 and EV-C07 show that the max_tokens and config_hash settings have drifted from their known-good values, but this is not enough to rule out F01. The logs do not indicate any issues with the retrieval process, ruling out F06 and F07. Therefore, the most likely cause is F01, a primary LLM endpoint outage."
+        },
+        {
+          "rep": 8,
+          "fault_class": "F01",
+          "fault_name": "Primary LLM endpoint outage",
+          "confidence": 0.8,
+          "repair": "switch_llm_endpoint",
+          "approved": false,
+          "latency_s": 8.5,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.4091 (healthy: < 0.20), indicating the model endpoint is refusing connections or returning errors. EV-M07 shows llm_generation_latency_p95 = 0.9432 (healthy: < 4.0s), which is within the healthy range, ruling out F02. EV-C04 and EV-C07 show that the max_tokens and config_hash settings have drifted from their known-good values, but this is not enough to rule out F01. The logs do not indicate any issues with the retrieval process, ruling out F06 and F07. Therefore, the most likely cause is F01, a primary LLM endpoint outage."
+        },
+        {
+          "rep": 9,
+          "fault_class": "F01",
+          "fault_name": "Primary LLM endpoint outage",
+          "confidence": 0.8,
+          "repair": "switch_llm_endpoint",
+          "approved": false,
+          "latency_s": 8.5,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.4091 (healthy: < 0.20), indicating the model endpoint is refusing connections or returning errors. EV-M07 shows llm_generation_latency_p95 = 0.9432 (healthy: < 4.0s), which is within the healthy range, ruling out F02. EV-C04 and EV-C07 show that the max_tokens and config_hash settings have drifted from their known-good values, but this is not enough to rule out F01. The logs do not indicate any issues with the retrieval process, ruling out F06 and F07. Therefore, the most likely cause is F01, a primary LLM endpoint outage."
+        },
+        {
+          "rep": 10,
+          "fault_class": "F01",
+          "fault_name": "Primary LLM endpoint outage",
+          "confidence": 0.8,
+          "repair": "switch_llm_endpoint",
+          "approved": false,
+          "latency_s": 8.5,
+          "reasoning": "EV-M06 shows llm_error_ratio = 0.4091 (healthy: < 0.20), indicating the model endpoint is refusing connections or returning errors. EV-M07 shows llm_generation_latency_p95 = 0.9432 (healthy: < 4.0s), which is within the healthy range, ruling out F02. EV-C04 and EV-C07 show that the max_tokens and config_hash settings have drifted from their known-good values, but this is not enough to rule out F01. The logs do not indicate any issues with the retrieval process, ruling out F06 and F07. Therefore, the most likely cause is F01, a primary LLM endpoint outage."
+        }
+      ],
+      "classes": {
+        "F06": 1,
+        "F01": 9
+      },
+      "correct": 0,
+      "n": 10
+    }
+  ]
+}
