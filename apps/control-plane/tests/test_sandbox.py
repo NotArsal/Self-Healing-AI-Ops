@@ -176,14 +176,57 @@ def test_an_unhealthy_sandbox_is_not_usable() -> None:
 # --- 4. live, when a socket is present -------------------------------------
 
 
+@pytest.fixture
+def no_sandbox() -> Any:
+    """No sandbox before the test, and none left after it.
+
+    `ensure()` reuses a healthy clone on purpose - an incident that needs the
+    sandbox twice should not pay for two container builds, and that reuse is
+    the right behaviour in production (`apply_patch.py`). It is the wrong
+    behaviour underneath a test that claims to exercise the whole slice: with
+    a clone left over from a previous run, `health()` is already true and
+    `corpus_rows()` is already 30, so neither `create()` nor `seed()` runs and
+    the test passes without touching the paths it names.
+
+    Tearing down on both sides costs a build per `make check` that has a
+    socket. That is the price of the assertion meaning something; a test that
+    passes off the last run's leftovers is worth less than no test.
+    """
+    sandbox.destroy()
+    try:
+        yield
+    finally:
+        sandbox.destroy()
+
+
 @pytest.mark.docker
-def test_a_real_sandbox_comes_up_seeded_and_isolated() -> None:
+def test_a_real_sandbox_comes_up_seeded_and_isolated(no_sandbox: Any) -> None:
     """The whole slice, end to end, against real containers."""
     state = sandbox.ensure()
     assert state.usable, f"sandbox not usable: {state.problems}"
+    # Deliberately NOT asserting `state.created`: `ensure()` sets it on both
+    # branches, the fresh build and the reuse, so it cannot witness which one
+    # ran. The `no_sandbox` fixture is what makes this a creation path.
     assert state.corpus_rows == 30, (
         f"sandbox holds {state.corpus_rows} chunks, expected the target's 30"
     )
     # Isolation, checked rather than assumed: the sandbox's prompts directory
     # is not the target's.
     assert "Target_RAG-App" not in str(sandbox.prompts_dir())
+
+
+@pytest.mark.docker
+def test_destroy_leaves_nothing_behind(no_sandbox: Any) -> None:
+    """The fixture's own guarantee, asserted rather than assumed.
+
+    If `destroy()` ever stops removing the clone, the test above silently goes
+    back to passing off leftovers - the exact failure this fixture exists to
+    prevent, and one that would otherwise be invisible because a stale sandbox
+    satisfies every assertion in it.
+    """
+    assert sandbox.ensure().usable
+    sandbox.destroy()
+    assert not sandbox.health(), (
+        "destroy() returned but the sandbox is still healthy; ensure() would "
+        "now reuse it and the slice test above would stop exercising create()"
+    )
