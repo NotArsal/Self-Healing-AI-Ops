@@ -334,10 +334,35 @@ class SafetyEngine:
         promoted is `loop.py`'s question and is answered in ADR 0012: only
         with an approval AND a clone that passed. Nothing here grants it.
         """
-        if approved:
-            return Verdict.REQUIRE_SANDBOX if tier == HIGH else Verdict.ALLOW_AUTO
+        # SIMULATION IS CHECKED FIRST, AND THAT ORDER IS A FIX (2026-11-03).
+        #
+        # `approved` used to be tested before this, so an approved action in
+        # SIMULATION returned ALLOW_AUTO - and `loop.py` gates execution on
+        # that verdict alone, with no independent mode check anywhere in the
+        # loop or the executor. One click therefore wrote to the target in the
+        # mode documented as having zero side effects, and SIMULATION is the
+        # DEFAULT mode.
+        #
+        # It was reachable by the ordinary flow, not by misuse: in SIMULATION
+        # every action routes to REQUIRE_APPROVAL, so incidents park, the
+        # operator sees one in the console and says yes, and `approve()` calls
+        # back in here with the approval set.
+        #
+        # The paragraph above this function already said "SIMULATION never
+        # executes - it is the default, and the default must be the one that
+        # cannot do damage". The code did not implement its own first
+        # paragraph, and every approval test used mode="APPROVAL", so nothing
+        # caught the disagreement. `AGENTS.md` states the rule this restores.
+        #
+        # Yes, an approved action in SIMULATION now parks again, which is the
+        # loop the paragraph below warns about. In SIMULATION that loop is
+        # correct: the way to make an approved plan execute is to change mode,
+        # not to have the mode ignored. The anti-loop argument applies to
+        # APPROVAL, where it still holds.
         if mode == "SIMULATION":
             return Verdict.REQUIRE_APPROVAL
+        if approved:
+            return Verdict.REQUIRE_SANDBOX if tier == HIGH else Verdict.ALLOW_AUTO
         if below_confidence:
             return Verdict.REQUIRE_APPROVAL
         if mode == "APPROVAL":

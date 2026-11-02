@@ -632,3 +632,65 @@ def test_the_log_has_no_update_or_delete(tmp_path: Path) -> None:
     log = AuditLog(tmp_path / "audit.jsonl")
     for forbidden in ("update", "delete", "edit", "remove", "truncate"):
         assert not hasattr(log, forbidden)
+
+
+def test_an_approval_cannot_make_simulation_execute() -> None:
+    """SIMULATION has zero side effects. An approval must not change that.
+
+    THE DEFECT THIS PINS, found 2026-11-03 by reading `_route` against
+    `AGENTS.md`.
+
+    `_route` tested `approved` BEFORE `mode`:
+
+        if approved:
+            return REQUIRE_SANDBOX if tier == HIGH else ALLOW_AUTO
+        if mode == "SIMULATION":
+            return REQUIRE_APPROVAL
+
+    and the path is reachable by the ordinary flow rather than by misuse. In
+    SIMULATION every action routes to REQUIRE_APPROVAL, so an incident parks.
+    The operator sees it in the console's approval panel and says yes.
+    `runner.approve()` re-diagnoses and calls `permit()` again with
+    `operator_approved` set, the first branch fires, and the verdict is
+    ALLOW_AUTO.
+
+    Nothing downstream catches it: `loop.py` gates execution on
+    `decision.verdict is Verdict.ALLOW_AUTO` and there is no independent mode
+    check in the loop or the executor. So one click wrote to the target in the
+    mode documented as having zero side effects - and SIMULATION is the
+    DEFAULT (`config.py`, `default_mode`).
+
+    `_route`'s docstring already said "SIMULATION never executes - it is the
+    default, and the default must be the one that cannot do damage". The code
+    did not implement its own first paragraph, and every existing approval
+    test used mode="APPROVAL", so nothing caught the disagreement.
+    """
+    for action, tier_note in (("rollback_config", "MEDIUM"),
+                              ("restart_container", "LOW"),
+                              ("apply_patch", "fixed HIGH")):
+        d = engine().permit(
+            a_request(action=action, operator_approved="INC-1"),
+            a_policy(mode="SIMULATION",
+                     allowed_actions=frozenset({action})),
+        )
+        assert d.verdict is not Verdict.ALLOW_AUTO, (
+            f"an approved {action} ({tier_note}) returned ALLOW_AUTO in "
+            f"SIMULATION; loop.py executes on that verdict alone, so this is "
+            f"a write in the mode that promises none")
+        assert not d.allowed, f"{action} was allowed to execute in SIMULATION"
+
+
+def test_an_approval_still_works_in_approval_mode() -> None:
+    """The guard above must not break the flow it sits next to.
+
+    Pinned alongside because the obvious wrong fix - refusing every approval -
+    would reintroduce the parking loop that `_route`'s docstring records from
+    the first live run, where an approved re-run parked a second time and the
+    operator's yes healed nothing.
+    """
+    d = engine().permit(
+        a_request(action="rollback_config", operator_approved="INC-1"),
+        a_policy(mode="APPROVAL"),
+    )
+    assert d.verdict is Verdict.ALLOW_AUTO
+    assert d.allowed

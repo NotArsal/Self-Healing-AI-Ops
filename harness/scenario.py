@@ -385,6 +385,30 @@ def main() -> int:
         return 1
     if not client.is_healthy():
         say("  REFUSING: the target is not healthy before the first act.")
+        say("")
+        # The refusal was correct and the message was useless. Added
+        # 2026-11-03 after a run was interrupted mid-act-1 and the next one
+        # refused with the bare line above: every act reverts its fault in a
+        # `finally`, so an interrupted run is the one case where a fault
+        # OUTLIVES the harness - and it is by far the most likely reason the
+        # target is unhealthy here. Diagnosing it from scratch cost ten
+        # minutes that these four lines would have saved.
+        say("  Most likely cause: a previous run was interrupted, so a fault")
+        say("  it injected was never reverted. Acts revert in a `finally`,")
+        say("  which does not run if the process is killed. Check:")
+        say("")
+        say("    curl -s http://127.0.0.1:8474/proxies")
+        say("        both listeners should read enabled=true; F01 disables")
+        say("        ollama-primary. Re-enable it with:")
+        say("        curl -X POST -H 'Content-Type: application/json' \\")
+        say("             -d '{\"enabled\":true}' \\")
+        say("             http://127.0.0.1:8474/proxies/ollama-primary")
+        say("")
+        say("    curl -s http://127.0.0.1:8000/healthz")
+        say("        names the failing dependency, so it says whether this is")
+        say("        the proxy, Ollama itself, or the database.")
+        say("")
+        say("  A stopped database is act 4's fault; `docker start rag_db`.")
         return 1
     if not fast.run(client, FAST_SET, check_health=False).passed:
         say("  REFUSING: the fast set must pass before injecting anything.")
