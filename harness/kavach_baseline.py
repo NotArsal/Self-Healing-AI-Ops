@@ -64,10 +64,10 @@ from harness.faults.f07_prompt_regression import F07PromptRegression  # noqa: E4
 from harness.faults.f08_config_regression import F08ConfigRegression  # noqa: E402
 from kavach.config import get_settings  # noqa: E402
 from kavach.detection.endpoint_outage import QUERIES as F01_QUERIES  # noqa: E402
-from kavach.detection.endpoint_outage import Thresholds as F01Thresholds  # noqa: E402
 from kavach.detection.retrieval_collapse import QUERIES as F06_QUERIES  # noqa: E402
 from kavach.detection.retrieval_collapse import Thresholds  # noqa: E402
 from kavach.onboarding.manifest import load as load_manifest  # noqa: E402
+from kavach.rca.evidence import FRAME_ERROR_RATIO_CEILING  # noqa: E402
 from kavach.target import TargetClient, TargetEndpoints  # noqa: E402
 from kavach.verification import fast  # noqa: E402
 
@@ -229,7 +229,6 @@ def drain(client: TargetClient, max_rounds: int = 40) -> tuple[bool, float]:
     change rather than a detector-local fix.
     """
     t = Thresholds()
-    t1 = F01Thresholds()
     t0 = time.time()
     for _ in range(max_rounds):
         fast.run(client, FAST_SET, check_health=False)
@@ -238,7 +237,14 @@ def drain(client: TargetClient, max_rounds: int = 40) -> tuple[bool, float]:
         errors = promql(F01_QUERIES["llm_error_ratio"])
         kept_ok = kept is None or kept >= t.kept_chunks_floor
         empty_ok = empty is None or empty <= t.empty_context_ceiling
-        errors_ok = errors is None or errors < t1.error_ratio_floor
+        # Against the RCA FRAME's ceiling (0.20), not the F01 detector's
+        # firing threshold (0.50) this used to read. See the note on
+        # FRAME_ERROR_RATIO_CEILING: draining to 0.50 left the frame stating a
+        # value it had itself labelled abnormal, which is a second anomaly
+        # beside the real fault, and act 2 of `make scenario` failed on it
+        # twice. F01Thresholds was imported for that one comparison and is
+        # gone with it; `F01_QUERIES` stays, because the QUERY is still right.
+        errors_ok = errors is None or errors < FRAME_ERROR_RATIO_CEILING
         if kept_ok and empty_ok and errors_ok:
             return True, round(time.time() - t0, 1)
     return False, round(time.time() - t0, 1)

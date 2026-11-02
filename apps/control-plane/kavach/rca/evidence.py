@@ -76,6 +76,23 @@ METRIC_QUERIES: dict[str, str] = {
     ),
 }
 
+# The ceiling this frame STATES for `llm_error_ratio`, as a number and not only
+# inside the prose below.
+#
+# WHY IT IS A CONSTANT, 2026-11-02. It was only ever a substring of the
+# expectation string, so the harness's `drain()` could not read it and drained
+# against the F01 DETECTOR's firing threshold instead (0.50 - "half of all
+# calls failing is not noise"). Those two numbers answer different questions:
+# 0.50 is "is this an endpoint outage?", 0.20 is "is this value worth putting
+# in front of the model as abnormal?". Draining to the larger one left the
+# frame stating 0.2697 against an expectation of < 0.20 - a second anomaly
+# beside the real one - and the model drifted to its F06 attractor. Act 2 of
+# `make scenario` failed twice that way before the cause was found.
+#
+# That is the seventh instance of one root cause in this project: two
+# components reading the same windowed metric by different numbers.
+FRAME_ERROR_RATIO_CEILING = 0.20
+
 # Healthy expectations, from the captured baseline. Stated so the model can see
 # observed-vs-expected without being handed a conclusion.
 HEALTHY_EXPECTATION: dict[str, str] = {
@@ -84,7 +101,9 @@ HEALTHY_EXPECTATION: dict[str, str] = {
     "retrieval_empty_context_ratio": "< 0.20 (measured healthy 0.0)",
     "corpus_chunks": "30 (the onboarded corpus)",
     "corpus_files": "2 (919.pdf, 1662.pdf)",
-    "llm_error_ratio": "< 0.20 (measured healthy 0.0)",
+    # `:.2f` deliberately: the bare float renders as "0.2" and this string is
+    # prompt text the model reads. The wording must not change.
+    "llm_error_ratio": f"< {FRAME_ERROR_RATIO_CEILING:.2f} (measured healthy 0.0)",
     "llm_generation_latency_p95": "< 4.0s (measured healthy 0.94s)",
     "db_pool_in_use": "well under the max of 10 (measured healthy 0)",
     "chat_error_ratio": "< 0.05 (measured healthy 0.0)",

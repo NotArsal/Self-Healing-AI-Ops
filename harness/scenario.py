@@ -151,6 +151,26 @@ class Act:
             self.limiter = True
 
 
+def drain_clean(client: TargetClient) -> None:
+    """Drain, and refuse to continue if the windows did not actually clear.
+
+    Every act called `drain(client)` and threw the result away, so a drain
+    that ran out of rounds was indistinguishable from one that worked. The act
+    then diagnosed against a frame still holding the previous act's residue
+    and failed for a reason that looks like a Kavach defect and is not.
+
+    Raising here is the point: the acts catch Exception and record it as the
+    act's detail, so a stalled drain is reported as a stalled drain instead of
+    as an escalation.
+    """
+    ok, seconds = drain(client)
+    if not ok:
+        raise RuntimeError(
+            f"the windows did not drain in {seconds}s, so this act would "
+            f"diagnose against the previous act's residue; refusing to "
+            f"inject. This is a harness precondition, not a Kavach result")
+
+
 def act1_autonomous(client: TargetClient) -> Act:
     a = Act(1, "autonomous heal (F01, LOW risk, no human)")
     t0 = time.time()
@@ -158,7 +178,7 @@ def act1_autonomous(client: TargetClient) -> Act:
     pre = str(client.settings()["llm_base_url"])
     try:
         set_mode("AUTONOMOUS")
-        drain(client)
+        drain_clean(client)
         fault.inject()
         warm_up_f01(client)
         code, started = api("/v1/loop/run?rca=true", "POST")
@@ -191,7 +211,7 @@ def act2_approval(client: TargetClient) -> Act:
     fault = F08ConfigRegression(client, corpus_probe=corpus)
     try:
         set_mode("APPROVAL")
-        drain(client)
+        drain_clean(client)
         fault.inject()
         clamped = client.settings()["max_tokens"]
         code, started = api("/v1/loop/run?rca=true", "POST")
@@ -239,7 +259,7 @@ def act3_rollback(client: TargetClient) -> Act:
     pre = str(client.settings()["llm_base_url"])
     try:
         set_mode("AUTONOMOUS")
-        drain(client)
+        drain_clean(client)
         fault.inject()
         proxy(BACKUP, False)
         warm_up_f01(client)
@@ -278,7 +298,7 @@ def act4_unknown(client: TargetClient) -> Act:
         set_mode("APPROVAL")
         # Act 3 leaves an endpoint-outage error ratio behind; without this
         # the loop diagnoses THAT instead of the stopped database.
-        drain(client)
+        drain_clean(client)
         subprocess.run(["docker", "stop", DB_CONTAINER], check=True,
                        capture_output=True, timeout=60)
         stopped = True
