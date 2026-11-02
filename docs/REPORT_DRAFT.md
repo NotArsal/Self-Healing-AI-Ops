@@ -628,6 +628,55 @@ citation tracked in its own column, and the evidence-ID mapping was verified
 against a second artifact before the conclusion was drawn — IDs are positional,
 so a renumbering would have invalidated the whole table.
 
+#### Why self-consistency is not the answer here, measured rather than argued
+
+The standard remedy for an unreliable LLM judgement is test-time sampling:
+draw *k* answers and aggregate. CISC reports cutting required reasoning paths
+by over 40%; conformal aggregation reports 90.1% selective accuracy on GSM8K
+while abstaining on under 5% of problems. **Any reviewer will ask why Kavach
+does not sample.** The answer is in the artifacts, because
+`rca_*_live.py` collects the evidence frame **once** and diagnoses against it
+ten times — which is a self-consistency experiment that was run long before
+anyone framed it as one. `harness/self_consistency.py` replays those recorded
+draws; no new inference was needed.
+
+| over 11 fixed frames, 110 recorded draws | |
+|---|---|
+| single-draw accuracy | 59/110 = **54%** |
+| majority-vote accuracy | 6/11 = **55%** |
+| unanimous frames | **9/11** |
+| **unanimously *wrong* frames** | **4/11** |
+| voting differed from the first draw | 2/11 |
+| …and rescued a wrong frame | **1/11** |
+| …and broke a right frame | 0/11 |
+
+**Stated fairly: voting is not harmful.** It rescued one frame and broke none.
+But it rescued *one in eleven*, for ten times the inference, and it cannot
+touch the failure mode that matters: on **4 of 11 frames the model returned
+the same wrong class on all ten draws.** There is no minority view to
+aggregate, because there is almost no sampling variance to exploit — 9 of 11
+frames are unanimous. **The answer is a function of the frame, not of the
+draw.** Variance in this system lives *between* frames, not within them, which
+is precisely why §4.2's contamination result is the one that matters and
+sampling is not.
+
+Worse, inter-sample agreement is **anti-informative** here. A gate that
+escalated on disagreement would have been maximally confident on all four
+unanimously-wrong frames and would have flagged only the two frames where the
+model was *mostly right*. That makes agreement the **third** self-reported
+channel measured and found non-separating:
+
+| channel | verdict |
+|---|---|
+| stated confidence | no threshold separates right from wrong |
+| citation coherence | coherent with the answer given, right or wrong |
+| **inter-sample agreement** | **highest exactly where the model is unanimously wrong** |
+
+Three independent self-reports, three failures. That is the quantitative case
+for `permit()` reading the deterministic detector — which observes the system
+rather than the model — and it is an argument the sampling literature cannot
+answer, because every sample in a frame inherits that frame's defects.
+
 That is defence in depth arrived at by measurement rather than design, and it
 carries its own warning: a fault whose correct repair happened to be
 *permitted* for the mis-bound class would defeat `repair_permitted`, leaving

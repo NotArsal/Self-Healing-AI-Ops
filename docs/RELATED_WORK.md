@@ -174,10 +174,25 @@ aggregation, conformal abstention. CISC reports cutting required reasoning paths
 by over 40%; conformal aggregation reports 90.1% selective accuracy on GSM8K by
 abstaining on under 5% of problems.
 
-**Our data says this would not help on our failure mode, and would make it
-worse.** In the contaminated arm of `ambiguity-f08.json`, 9 of 10 samples
-returned the same wrong class. Majority voting over those samples returns the
-wrong answer faster and more cheaply, with higher apparent agreement.
+**We measured it rather than arguing it**, because the artifacts already
+contained the experiment: `rca_*_live.py` diagnoses ten times against one fixed
+frame, which is self-consistency by another name.
+`harness/self_consistency.py` replays 110 recorded draws over 11 frames.
+
+| | |
+|---|---|
+| single-draw accuracy | 54% |
+| majority-vote accuracy | 55% |
+| unanimous frames | 9/11 |
+| **unanimously wrong frames** | **4/11** |
+| frames voting rescued | 1/11 |
+| frames voting broke | 0/11 |
+
+Voting is not harmful — one rescue, no breaks — but it buys one frame in eleven
+for ten times the inference, and it cannot touch the dominant failure: on four
+frames the model returned the same wrong class on all ten draws. Inter-sample
+agreement is in fact **anti-informative** here, peaking exactly on the
+unanimously wrong frames.
 
 The reason is structural rather than incidental: self-consistency corrects
 **sampling** variance, and our error is driven by the **evidence**, which every

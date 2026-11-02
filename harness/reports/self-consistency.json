@@ -1,0 +1,201 @@
+{
+  "question": "would majority voting over the recorded fixed-frame draws have changed any outcome?",
+  "frames": 11,
+  "draws": 110,
+  "single_draw_accuracy": 0.5364,
+  "majority_vote_accuracy": 0.5455,
+  "unanimous_frames": 9,
+  "unanimously_wrong_frames": 4,
+  "frames_where_voting_changed_the_answer": 2,
+  "frames_voting_rescued": 1,
+  "frames_voting_broke": 0,
+  "detail": [
+    {
+      "source": "p6-f01-rca.json",
+      "injected": "F01",
+      "label": "llama3.2",
+      "classes": [
+        "F01",
+        "F01",
+        "F01",
+        "F01",
+        "F01",
+        "F01",
+        "F01",
+        "F01",
+        "F01",
+        "F01"
+      ]
+    },
+    {
+      "source": "p6-f01-rca-symmetric.json",
+      "injected": "F01",
+      "label": "llama3.2, symmetric prompt",
+      "classes": [
+        "F06",
+        "F01",
+        "F01",
+        "F01",
+        "F01",
+        "F01",
+        "F01",
+        "F01",
+        "F01",
+        "F01"
+      ]
+    },
+    {
+      "source": "p6-f07-rca.json",
+      "injected": "F07",
+      "label": "llama3.2",
+      "classes": [
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06"
+      ]
+    },
+    {
+      "source": "p6-f07-rca-qwen.json",
+      "injected": "F07",
+      "label": "qwen, frame [10m]",
+      "classes": [
+        "F07",
+        "F07",
+        "F07",
+        "F07",
+        "F07",
+        "F07",
+        "F07",
+        "F07",
+        "F07",
+        "F07"
+      ]
+    },
+    {
+      "source": "p6-f07-rca-qwen-ctx8192.json",
+      "injected": "F07",
+      "label": "qwen, frame [1m], ctx 8192",
+      "classes": [
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06"
+      ]
+    },
+    {
+      "source": "p6-f07-rca-qwen-ctx4096-ab.json",
+      "injected": "F07",
+      "label": "qwen, frame [1m], ctx 4096",
+      "classes": [
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06"
+      ]
+    },
+    {
+      "source": "p6-f07-rca-qwen-frame10m-ab.json",
+      "injected": "F07",
+      "label": "qwen, frame [10m] A/B",
+      "classes": [
+        "F07",
+        "F07",
+        "F07",
+        "F07",
+        "F07",
+        "F07",
+        "F07",
+        "F07",
+        "F07",
+        "F07"
+      ]
+    },
+    {
+      "source": "p6-f08-rca.json",
+      "injected": "F08",
+      "label": "llama3.2",
+      "classes": [
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06",
+        "F06"
+      ]
+    },
+    {
+      "source": "p6-f08-rca-qwen.json",
+      "injected": "F08",
+      "label": "qwen, shipped",
+      "classes": [
+        "F08",
+        "F08",
+        "F08",
+        "F08",
+        "F08",
+        "F08",
+        "F08",
+        "F08",
+        "F08",
+        "F08"
+      ]
+    },
+    {
+      "source": "ambiguity-f08.json arm A",
+      "injected": "F08",
+      "classes": [
+        "F08",
+        "F08",
+        "F08",
+        "F08",
+        "F08",
+        "F08",
+        "F08",
+        "F08",
+        "F08",
+        "F08"
+      ],
+      "label": "frame error ratio 0.0"
+    },
+    {
+      "source": "ambiguity-f08.json arm B",
+      "injected": "F08",
+      "classes": [
+        "F06",
+        "F01",
+        "F01",
+        "F01",
+        "F01",
+        "F01",
+        "F01",
+        "F01",
+        "F01",
+        "F01"
+      ],
+      "label": "frame error ratio 0.4091"
+    }
+  ]
+}
