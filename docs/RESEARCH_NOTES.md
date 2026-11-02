@@ -491,6 +491,42 @@ catalogue's wording, the model's tokenisation of the two similar descriptions,
 or something else. Nothing here isolates it, and §10's recommendation is
 unchanged by the confirmation — it is now better evidenced, not different.
 
+### CONFIRMED AGAIN, 2026-11-02, on a host rebuilt from empty
+
+Run D is the strongest test this finding could have got, and it was not
+designed: on 2026-11-01 a service centre formatted the machine's SSD. Docker,
+Ollama, the model weights, the images, the database volume and the corpus were
+all reinstalled from nothing (§12). Run D therefore shares **no system state
+whatsoever** with runs B and C — only the repository and the model's name.
+
+| code emitted | run B (replayed) | run C (live) | **run D (rebuilt host)** | pooled |
+|---|---|---|---|---|
+| F01 | 10/10 | 5/5 | 5/5 | **20/20** |
+| F07 | 4/4 | 3/3 | 3/3 | **10/10** |
+| F08 | 10/10 | 4/4 | 5/5 | **19/19** |
+| **F06** | **0/13** | **0/8** | **0/7** | **0/28** |
+
+**28 for 28 on F06. 49 for 49 on everything else.** No gradient, no partial
+credit, no drift between machines. The defect is exactly one cell of the
+mapping — `F06` → *"Prompt version regression"* — and it survived a full
+reinstall of every piece of software underneath it.
+
+That rules out a whole family of explanations worth naming, because each would
+have been a plausible first guess:
+
+- **not** a corrupted or partially-downloaded model blob — the weights were
+  re-pulled
+- **not** accumulated state in Ollama, the vector store or Postgres — all empty
+  at the start
+- **not** a stale prompt file on disk — the repository is the only thing that
+  carried over, and it is the thing we are claiming is responsible
+- **not** one night's sampling — three nights, three weeks apart
+
+What remains is what §10 said from the start: something about `diagnose.txt`
+and this model binds that code to that name. We still have not isolated
+*which* something, and the recommendation is unchanged by a third
+confirmation — better evidenced, not different.
+
 ### A second finding from run C: the F06 attractor
 
 Run C's four wrong answers were **the same wrong answer**: `F06` at confidence
@@ -515,6 +551,45 @@ where it was most wrong**. Any gating policy keyed on confidence — a threshold
 a weighted vote, an "auto-approve above 0.9" shortcut — executes all four of
 these. This is the concrete argument against the most natural simplification
 anyone proposes to the gate, and it is now measured rather than asserted.
+
+### The attractor across all four runs, 2026-11-02
+
+Recomputed over every bench artifact rather than run C alone. The model gave a
+wrong fault class **11 times in 80 injections**:
+
+| | wrong | class named | confidence | action proposed |
+|---|---|---|---|---|
+| run A | 3 | F06 ×3 | 0.95 · 0.95 · 0.90 | *field not recorded yet* |
+| run B | 3 | F06 ×3 | 0.95 ×3 | *field not recorded yet* |
+| run C | 3 | F06 ×3 | 0.95 ×3 | `rollback_prompt` ×3 |
+| run D | 2 | F06 ×2 | 0.95 ×2 | `rollback_prompt` ×2 |
+
+**Eleven wrong answers; eleven of them F06.** Ten at 0.95, one at 0.90. Every
+one where the action was recorded proposed `rollback_prompt`. Ten of the eleven
+fired on injected F07 — the class whose detector reads a prompt hash, so whose
+evidence frame carries the least retrieval signal.
+
+This is a **single error mode**, not a failure rate. Under-determined evidence
+collapses to `F06` + *"Prompt version regression"* + `rollback_prompt` + `0.95`,
+every time, on two different builds of the machine. A system with one
+characterised error mode is a system whose gate can be argued for from data,
+which is what §4.4 of the report now does.
+
+And the confidence argument gets sharper with run D's full distribution, which
+separates two claims that are easy to conflate:
+
+| | n | confidence range | at 0.95 |
+|---|---|---|---|
+| correct | 18 | 0.80 – 0.95 | 8 |
+| **wrong** | 2 | **0.95** | 2 |
+
+High confidence does **not** predict error — 8 correct answers sit at 0.95 too.
+The finding is stronger and simpler than that: **the two populations do not
+separate at all.** There is no threshold to pick. `>= 0.95` admits both wrong
+answers; anything higher admits nothing; anything lower admits them plus
+everything else. A reviewer proposing confidence-gated autonomy is proposing a
+filter that cannot be configured to work on this data — not one that performs
+worse than ours.
 
 ### Why it matters more than the F06 anomaly it came from
 
@@ -762,6 +837,33 @@ this one. A preflight comparing live `ragapp_corpus_chunks` and
 to run rather than reporting a number built on the wrong corpus, would have
 caught every one.
 
+**BUILT 2026-11-02**, commit `e21b8b6`:
+`onboarding/preflight.py::check_corpus_fingerprint`. Three decisions in it are
+worth recording, because each is a mistake this repository has already made
+once:
+
+- **It reads the expected values out of `fast_set.yaml`**, through the same
+  `resolve_set` the verification layer uses, rather than holding its own copy
+  of 30/2. A constant here would drift from the file the loop actually reads,
+  which is the identical shape of bug to `RCA accuracy` reading the wrong
+  field.
+- **An empty Prometheus result is a failure, not a pass.** A query that returns
+  no series is indistinguishable from a healthy one if you only catch
+  exceptions. `check_slo_expressions` exists because of exactly that mistake,
+  so this check must not repeat it.
+- **An unreachable Prometheus is a failure too.** A check that could not run
+  has not checked anything, and reporting it as a pass is worse than not having
+  the check.
+
+Seven tests in `tests/test_preflight_corpus.py` replay the three **real**
+drifts - 13/1, 162/3, 0/0 - rather than invented inputs, plus the no-series and
+connection-refused cases, plus one that pins the fingerprint is read from the
+live file. Verified against live Prometheus as well as mocks: *30 chunks / 2
+files, passed*.
+
+This does not recover anything. It makes the next drift loud instead of
+invisible, which is the whole of what it claims.
+
 ### What this costs, stated plainly
 
 Two things that are true at once, and the report should say both:
@@ -769,7 +871,10 @@ Two things that are true at once, and the report should say both:
 1. **The measurements already taken stand.** Runs A, B and C were taken on the
    30/2 corpus, verified against the fingerprint at the time, and their
    artifacts are committed. Losing the input does not retroactively invalidate
-   a recorded measurement.
+   a recorded measurement. **Run D (2026-11-02) was taken on the recovered
+   corpus**, re-ingested from the same two PDFs and verified at 30/2 by the new
+   preflight check before the run started — which is the first time that
+   verification was a check rather than someone remembering to look.
 2. **They cannot currently be reproduced.** A reviewer who clones this
    repository cannot rebuild the corpus from it, because the corpus was never
    in it. For a project whose §4 opens by saying every figure is traceable to

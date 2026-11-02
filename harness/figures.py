@@ -172,7 +172,7 @@ def fig_where_they_lose(runs: Rows, out: Path) -> None:
 
 def fig_conditionals(benches: dict[str, Rows], out: Path) -> None:
     """Figure 3 - the bar that has to be zero."""
-    fig, ax = plt.subplots(figsize=(6.4, 3.2))
+    fig, ax = plt.subplots(figsize=(6.4, 3.5))
     style(ax)
     names = list(benches)
     width = 0.34
@@ -195,8 +195,14 @@ def fig_conditionals(benches: dict[str, Rows], out: Path) -> None:
     ax.set_xticks(range(len(names)))
     ax.set_xticklabels(names, fontsize=9)
     ax.set_ylabel("% repaired", fontsize=9)
-    ax.set_ylim(0, 112)
-    ax.legend(frameon=False, fontsize=9, loc="upper center")
+    # With four runs there is no empty region inside the axes: "upper center"
+    # covered run C's bar label, above the axes ran through the title, and
+    # the centre hid the green swatch behind run A's bar. Below the x-axis is
+    # the only place left. Legends that cover data are a figure defect, not a
+    # styling preference.
+    ax.set_ylim(0, 108)
+    ax.legend(frameon=False, fontsize=9, ncol=2,
+              loc="upper center", bbox_to_anchor=(0.5, -0.16))
     ax.grid(axis="y", color="#e8e8ea", lw=0.8)
     # Counted, not typed: this read "Forty injections" for a run and a half
     # after run C landed. A denominator in prose is a denominator that rots.
@@ -224,7 +230,7 @@ def coherence_pairs(obj: dict[str, Any]) -> list[tuple[str, str]]:
             for r in obj.get("rows", []) if r.get("diagnosis")]
 
 
-def fig_coherence(pairs: list[tuple[str, str]], out: Path) -> None:
+def fig_coherence(pairs: list[tuple[str, str]], sources: int, out: Path) -> None:
     """Figure 4 - the model's own name beside the model's own class code."""
     counts: dict[str, list[int]] = {}
     for code, name in pairs:
@@ -252,11 +258,16 @@ def fig_coherence(pairs: list[tuple[str, str]], out: Path) -> None:
     ax.set_xlabel("diagnoses emitting that class code", fontsize=9)
     ax.legend(frameon=False, fontsize=9, loc="lower right")
     ax.grid(axis="x", color="#e8e8ea", lw=0.8)
+    # Counted, not typed - twice over. The F06 denominator is every diagnosis
+    # that EMITTED F06, which is not the same as every F06 injection: under
+    # F07 the model drifts to F06 as well, and those rows belong in this bar.
+    # And `sources` went from two to three the night run D landed.
     f06 = counts.get("F06", [0, 0])
-    ax.set_title("Every F06 diagnosis carried F07's name - including the ones "
-                 "that healed correctly.\nNo check compares the two fields, so "
-                 f"F06's 5/5 class accuracy hides a 0/{sum(f06)} on its own "
-                 "prose, across two independent runs.",
+    ax.set_title("Every diagnosis that emitted F06 carried F07's name - "
+                 f"{f06[1]}/{sum(f06)} across {sources} independent runs, "
+                 "including the ones that healed correctly.\nNo check compares "
+                 "the two fields: the gate reads the class code, never the "
+                 "name beside it.",
                  fontsize=10, color=INK, loc="left", pad=12)
     save(fig, out, "fig4-diagnosis-self-consistency.png")
 
@@ -281,18 +292,25 @@ def main() -> int:
     run_c_path = reports / "bench-20261020-night.json"
     if run_c_path.exists():
         benches["run C (2026-10-21)"] = load(run_c_path)["runs"]
+    run_d_path = reports / "bench-20261102-night.json"
+    if run_d_path.exists():
+        benches["run D (2026-11-02)"] = load(run_d_path)["runs"]
     fig_conditionals(benches, out)
 
-    # Figure 4 POOLS the two sources that recorded a fault_name: run B's
-    # memory-ring dump and run C, the first bench to carry the field itself.
-    # Pooled rather than averaged - each pair is one diagnosis either way.
+    # Figure 4 POOLS every source that recorded a fault_name: run B's
+    # memory-ring dump, and runs C and D, the benches that carry the field
+    # themselves. Pooled rather than averaged - each pair is one diagnosis
+    # either way.
     pairs: list[tuple[str, str]] = []
-    for name in ("diagnoses-20261020.json", "bench-20261020-night.json"):
+    sources = 0
+    for name in ("diagnoses-20261020.json", "bench-20261020-night.json",
+                 "bench-20261102-night.json"):
         path = reports / name
         if path.exists():
             pairs += coherence_pairs(load(path))
+            sources += 1
     if pairs:
-        fig_coherence(pairs, out)
+        fig_coherence(pairs, sources, out)
     else:
         print("  skipped fig4: no artifact carries fault_name - run "
               "harness/dump_diagnoses.py")

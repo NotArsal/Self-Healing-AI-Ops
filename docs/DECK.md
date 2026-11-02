@@ -3,13 +3,14 @@
 **This file is the deck's content, not the deck.** It exists so the argument
 and the numbers can be reviewed, corrected and version-controlled separately
 from the slide rendering. Every figure carries the artifact it came from, and
-nothing here is typed from memory — the sources are the three bench artifacts
+nothing here is typed from memory — the sources are the four bench artifacts
 in `harness/reports/` and the four generated figures.
 
 Target length: **17 slides, ~12 minutes**, leaving time for the live demo.
 Speaker notes are what to say, not what to put on the slide.
 
-Status: drafted 2026-10-21 from run C. **Not yet reviewed by the team.**
+Status: drafted 2026-10-21, updated 2026-11-02 with run D. **Not yet reviewed
+by the team.**
 
 ---
 
@@ -131,18 +132,19 @@ checked first cannot be bypassed that way. If asked for the ten: they are in
 
 ---
 
-## 8 — Results: 60 injections, three runs
+## 8 — Results: 80 injections, four runs
 
-> | | run A | run B | run C | target |
-> |---|---|---|---|---|
-> | detection rate | 100% | 100% | 100% | ≥95% |
-> | RCA accuracy | 85% | 85% | 85% | ≥75% |
-> | auto-resolution | 75% | 70% | 75% | ≥70% |
-> | **false healing** | **0%** | **0%** | **0%** | ≤5% |
-> | MTTR median | 124.4s | 114.9s | 112.0s | <180s |
+> | | run A | run B | run C | run D | target |
+> |---|---|---|---|---|---|
+> | detection rate | 100% | 100% | 100% | 100% | ≥95% |
+> | RCA accuracy | 85% | 85% | 85% | 90% | ≥75% |
+> | auto-resolution | 75% | 70% | 75% | 80% | ≥70% |
+> | **false healing** | **0%** | **0%** | **0%** | **0%** | ≤5% |
+> | MTTR median | 124.4s | 114.9s | 112.0s | 108.8s | <180s |
 >
-> 4 fault classes × 5 reps × 3 runs. Unattended, `APPROVAL` mode.
+> 4 fault classes × 5 reps × 4 runs. Unattended, `APPROVAL` mode.
 > Nothing reset, raised or disabled.
+> **Run D is on a host rebuilt from empty after the SSD was formatted.**
 
 **Notes.** RCA accuracy landed on exactly 17/20 three independent times. Say
 so, and say that we checked it is not the same file read three times — the
@@ -158,11 +160,12 @@ that is in `PRD.md` §6 and the decision records.
 
 ## 9 — The headline
 
-> # 60 injections.
+> # 80 injections.
 > # 0 false heals.
 > # 0 unclean targets.
+> # 11 wrong diagnoses, 0 executed.
 >
-> Recomputed from the three artifacts, not carried forward.
+> Recomputed from the four artifacts, not carried forward.
 
 **Notes.** Pause here. This is the slide the talk exists for. Mention that
 false healing is checked by an **independent** fast-set run after the loop
@@ -175,14 +178,20 @@ verification would otherwise hide inside the number meant to detect it.
 
 > ![fig3](../harness/reports/figures/fig3-safety-conditionals.png)
 >
-> **P(heal | diagnosis correct) = 86%** *(44/51)*
-> **P(heal | diagnosis WRONG) = 0%** *(0/9)*
+> **P(heal | diagnosis correct) = 87%** *(60/69)*
+> **P(heal | diagnosis WRONG) = 0%** *(0/11)*
+> **P(diagnosis correct | heal) = 100%** *(60/60)*
 
 **Notes.** This is the slide that separates us from a symptom-matcher. A
 system that healed at 75% *and* healed 40% of its wrong diagnoses would be
 pattern-matching with an LLM bolted on, and the high headline number would be
 hiding it. **Report both bars or neither is worth anything.** The right-hand
-bar is zero in all three runs.
+bar is zero in all four runs, across 80 injections.
+
+If pressed on the denominator: 11 wrong diagnoses is not many, and it bounds
+the false-healing rate loosely. What it establishes is that there is no
+observed path by which a wrong diagnosis reaches the target — say that, not a
+tighter claim.
 
 ---
 
@@ -190,11 +199,11 @@ bar is zero in all three runs.
 
 > ![fig1](../harness/reports/figures/fig1-mttd-per-class.png)
 >
-> | | run B | run C | target |
-> |---|---|---|---|
-> | aggregate median | 28.5s ✅ | 33.0s ❌ | <30s |
+> | | run B | run C | run D | target |
+> |---|---|---|---|---|
+> | aggregate median | 28.5s ✅ | 33.0s ❌ | 28.1s ✅ | <30s |
 >
-> **Same system. Same classes. Same model. Met, then missed.**
+> **Same system. Same classes. Same model. Met · missed · met.**
 
 **Notes.** The detectors that read **no metric at all** — F07 compares a prompt
 hash, F08 a config snapshot — come in at 18-21s with sub-second spread. The two
@@ -203,8 +212,15 @@ the fast set. Nothing lands in between.
 
 So the median is decided by which side of an empty gap the middle sample falls
 on. ADR 0019 predicted the aggregate would be unstable if the class mix
-changed; **run C showed it is unstable across repetitions of an identical
-run**, which is worse than predicted.
+changed; **runs C and D showed it is unstable across repetitions of an
+identical run** — met, missed, met on three draws — which is worse than
+predicted. If a reviewer quotes run D's 28.1s back as "Kavach meets its MTTD
+target", that is a coin landing heads twice in three tosses.
+
+One thing run D adds that is a genuine finding: F01's samples land on a
+**ladder** with rungs about 12.2s apart, and run D reproduced three known
+rungs to within 0.3s on rebuilt hardware and found a fourth at 72.9s, exactly
+one step out. The quantisation is a measurement; the cause is not isolated.
 
 We did **not** move the target. Two of four classes miss `<30s` and are
 reported as missing it. If a reviewer presses on this: the detectors are not
@@ -216,7 +232,7 @@ slow, the evidence is not yet available when they run.
 
 > ![fig2](../harness/reports/figures/fig2-where-the-classes-lose.png)
 >
-> **F07 is the class we cannot give a reliable number for:** 0/5, 1/5, 3/5.
+> **F07 is the class we cannot give a reliable number for:** 0/5, 1/5, 3/5, 1/5.
 >
 > `approve()` **re-detects and re-diagnoses** rather than replaying a stored plan.
 > An approved incident must therefore be diagnosed correctly **twice.**
@@ -226,14 +242,19 @@ approval dialog was open, and replaying a stored plan would restore a value
 that was true when it opened. The cost is double exposure to an unreliable
 model.
 
-The honest framing: F07's spread across three runs is sampling variance at n=5,
-not improvement. Nothing in the repair path changed. **Say "we cannot give a
-reliable number for F07" out loud** — it is a better answer than a mean of
-three noisy fives.
+The honest framing: F07's spread across four runs is sampling variance at n=5,
+not improvement. Nothing in the repair path changed. Run C's 3/5 was the
+outlier and run D came back to 1/5. **Say "we cannot give a reliable number for
+F07" out loud** — it is a better answer than a mean of four noisy fives.
+
+Every other class is at or near ceiling over the four runs: F01 20/20, F08
+19/20, F06 16/20. F07 is 5/20 and moves by a factor of three between draws.
 
 If asked for the single best piece of evidence: **F06 rep 2 in run C contains
 two different diagnoses of the same fault in one artifact row.** First draw
-correct and accepted, second draw refused, nothing executed.
+correct and accepted, second draw refused, nothing executed. Run D produced the
+same shape twice on F07 — reps 2 and 5 logged a correct F07 first draw and were
+refused with *"LLM says F06"* from the re-diagnosis.
 
 ---
 
@@ -241,10 +262,11 @@ correct and accepted, second draw refused, nothing executed.
 
 > ![fig4](../harness/reports/figures/fig4-diagnosis-self-consistency.png)
 >
-> Every F06 diagnosis carried **F07's name**. 21 of 21, across two runs.
-> Every other class: 36 of 36 coherent.
+> Every diagnosis that emitted F06 carried **F07's name**. 28 of 28, across
+> three runs. Every other class: **49 of 49** coherent.
 >
-> **Predicted before run C, measured during it. Exact.**
+> **Predicted before run C, measured during it, re-confirmed by run D on a
+> host rebuilt from empty. Exact, three times.**
 
 **Notes.** This is the strongest research result in the project and it is worth
 the time.
@@ -254,15 +276,24 @@ the catalogue to copy the name from. No check in the validator compares the two
 fields. Run B found the mismatch by **replaying** stored diagnoses — which
 cannot separate a real property of the model from one night's sampling. So
 before run C we wrote down the prediction it would have to satisfy, wired
-`fault_name` in as a measurement **nothing gates on**, and ran it. 0/8. Pooled
-0/21.
+`fault_name` in as a measurement **nothing gates on**, and ran it. 0/8. Then
+the machine was reformatted and everything — Docker, Ollama, the weights, the
+database, the corpus — was reinstalled from nothing, and run D returned 0/7.
+Pooled **0/28**, with 49/49 on the other three classes.
+
+That rebuild rules out the obvious alternative explanations: not a corrupt
+model blob (re-pulled), not accumulated store state (empty), not one night's
+sampling (three nights, three weeks apart). The repository is the only thing
+that carried over — and it is what we are claiming is responsible.
 
 So **F06's 5/5 class accuracy is a weaker result than it reads as** — by its
 own prose the model understood all of them as prompt regression, including the
 ones that healed correctly.
 
 **We did not fix it.** Enforcing a coherence check would take F06 from 5/5 to
-0/5 and auto-resolution from 75% to 55%, days before this review. Our rules
+0/5 and auto-resolution from 80% to 55%, days before this review. Run D made
+that worse, not better: run D is the run where F06 healed **5/5**, its best
+result in four runs, and the check would destroy exactly that. Our rules
 forbid weakening a check to make something pass; they do not license *adding*
 one whose effect on published numbers hasn't been agreed. It is recorded, open,
 and the decision is the team's.
@@ -271,26 +302,37 @@ and the decision is the team's.
 
 ## 14 — Why confidence cannot be the gate
 
-> Run C's four wrong answers were **the same answer**, at **0.95 confidence**:
+> **11 wrong answers in 80 injections. All 11 said F06.**
 >
-> | injected | model said |
-> |---|---|
-> | F06 | F06 → `rollback_prompt` |
-> | **F07** | F06 → `rollback_prompt` |
-> | **F08** | F06 → `rollback_prompt` |
-> | **F07** | F06 → `rollback_prompt` |
+> | | wrong | class named | confidence |
+> |---|---|---|---|
+> | run A | 3 | F06 ×3 | 0.95 · 0.95 · 0.90 |
+> | run B | 3 | F06 ×3 | 0.95 ×3 |
+> | run C | 3 | F06 ×3 | 0.95 ×3 |
+> | run D | 2 | F06 ×2 | 0.95 ×2 |
 >
-> Confidence was **highest exactly where the model was most wrong.**
-> All four refused. Nothing written.
+> Run D's correct answers: 0.80–0.95, **8 of them also at 0.95.**
+>
+> ⇒ **the two populations do not separate. There is no threshold to pick.**
+> All 11 refused. Nothing written.
 
-**Notes.** Three of those four were consecutive injections. We have not
-isolated the cause and we say so rather than speculating.
+**Notes.** Be careful to state this precisely, because the sloppy version is
+wrong and a reviewer will catch it. We are **not** claiming high confidence
+predicts error — 8 correct answers in run D also sit at 0.95.
 
-The point that matters: **any policy keyed on self-reported confidence executes
-all four.** This is the concrete answer to "why not just threshold on
-confidence?" — a question this deck should expect. Two were caught by
-`repair_permitted` alone (right class, repair that class may not use) and three
-by `deterministic_agreement` as well.
+The claim is stronger and simpler: **the two populations do not separate at
+all.** A gate at `>= 0.95` admits both wrong answers. Anything higher admits
+nothing. Anything lower admits them plus everything else. There is no cut.
+
+So "why not just threshold on confidence?" — a question this deck should
+expect — is proposing a filter that **cannot be configured to work** on this
+data, not one that performs worse than ours. That is why `permit()` reads the
+deterministic detector and never the model's self-report.
+
+The secondary finding, if there is time: it is always the *same* wrong answer.
+`F06` + *"Prompt version regression"* + `rollback_prompt` + `0.95`, eleven times
+out of eleven, on two different builds of the machine. One characterised error
+mode, not a failure rate.
 
 ---
 
@@ -301,12 +343,15 @@ by `deterministic_agreement` as well.
 >
 > ⇒ at most **2 approved heals per hour**, then it **halts rather than widening.**
 >
-> Run C spent **443 of its 492 minutes waiting** under this limit.
+> Runs B, C and D spent **445, 443 and 447 of their ~492 minutes waiting**
+> under this limit.
 
 **Notes.** Worth saying because it is counter-intuitive and reviewers like it:
 the bench takes eight hours to run twenty injections, and **almost all of that
 is the safety limiter refusing to let it go faster.** We did not raise it, reset
-it or disable it for the benchmark. The run time *is* the evidence.
+it or disable it for the benchmark. The run time *is* the evidence — and the
+four-minute spread across three independent runs is the same mechanism firing
+three times.
 
 Known limitation, state it before being asked: the limiter is in-memory and
 resets if the control plane restarts. Persisting it is recorded and not built.
@@ -365,8 +410,20 @@ to pass. F03's injector could not beat Docker's `restart: always`, and
 weakening the target to make our benchmark work was not permitted.
 
 **"Isn't 85% RCA accuracy low?"** Yes, and it is the wrong question. The system
-is designed to be safe when the model is wrong — 15% wrong answers is the
-condition the design is for, not a defect in it. See slide 10.
+is designed to be safe when the model is wrong — the 11 wrong answers in 80
+injections are the condition the design is for, not a defect in it, and 0 of
+the 11 reached the target. See slide 10.
+
+**"Run D looks better than run C — did you improve something?"** No, and do not
+let this one pass. Nothing in Kavach changed between them. RCA 85%→90%,
+auto-resolution 75%→80% and MTTD 33.0s→28.1s are one or two rows out of
+twenty moving on faster, rebuilt hardware. We quote all four columns precisely
+so nobody quotes the best one.
+
+**"Why does run D matter if nothing changed?"** Because the host was formatted
+and rebuilt from empty between C and D. It is the only replication that shares
+no system state with the others — and the self-consistency finding survived it
+intact, 0/7 on top of 0/21.
 
 **"Why a 7B local model?"** No test may require a cloud API key, so every
 result here is reproducible by a reviewer with a laptop. A larger model would
