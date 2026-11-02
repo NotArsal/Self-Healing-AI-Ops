@@ -550,6 +550,7 @@ coherent **F07** diagnosis with one corrupted field —
 |---|---|---|
 | `fault_name` | *Prompt version regression* | F07 |
 | proposed action | `rollback_prompt` | F07 |
+| **cited evidence** | **`EV-C08` — the prompt hashes** | **F07** |
 | `fault_class` | `F06` | F06 — **the only field that says F06** |
 
 — and the two gates that catch it both read the *action*, which stays coherent
@@ -557,12 +558,75 @@ with the model's real understanding. A name check reads a third field that is
 wrong for every F06 diagnosis, correct and incorrect alike. It is a constant,
 not a discriminator.
 
+The citation row is the newest of the four and the most direct, added
+2026-11-02 from `harness/evidence_closure.py`. In
+`p6-f07-rca-qwen-ctx8192.json` the model was given an injected **F07**, named
+**F06 ten times out of ten**, and each time cited `EV-M02`, `EV-M03` and
+`EV-C08` — reasoning, in its own words:
+
+> *"EV-M02 shows retrieval_kept_chunks_mean = 4.0 (healthy: >= 1.0), indicating
+> that chunks are being retrieved. EV-M03 shows retrieval_empty_context_ratio =
+> 0.0, meaning that the context is not empty. However, EV-C08 shows that the
+> prompt_file_hashes…"*
+
+It ruled F06 **out** on F06's own two signals, found F07's discriminating
+signal, read it correctly — and then wrote `F06` in the class field. **Three of
+the four fields in that output say F07.** The defect is isolated to the class
+code with a precision that none of the three earlier channels could establish
+alone, and it is the clearest available evidence that the model's *reasoning*
+is not what fails here.
+
 So the finding is not "a check we could not afford". It is this:
 
 > **Kavach's safety on this failure mode comes from cross-checking the proposed
 > repair, not the stated class.** The class code is the least reliable field in
 > the diagnosis — the only one ever wrong here — and the gate that routes on it
 > is backstopped by two checks that do not read it.
+
+##### Citation coherence is a second self-report that cannot be gated on
+
+Running `evidence_closure.py` over the nine artifacts that record cited
+evidence IDs — 90 diagnoses, the only ones that carry the field; **the bench
+artifacts do not, so this is a different denominator from the 80 injections
+behind the headline numbers** — gives a result that parallels the confidence
+finding exactly.
+
+| | pooled, 90 diagnoses |
+|---|---|
+| named the injected class | 49/90 (54%) — includes ablations built to fail |
+| **cited evidence discriminating for the class it named** | **80/90 (89%)** |
+| also cited another class's discriminating evidence | 81/90 (90%) |
+| cited log evidence | 19/90 (21%) |
+
+The 89% is the point, and it is *not* a quality score. In the F07 ablation rows
+the model named the wrong class **0/10** while citing that wrong class's own
+evidence **10/10**: its citations are coherent with its conclusion whether the
+conclusion is right or wrong. The 90% cross-class figure is likewise mostly
+*good* — it is differential reasoning, ruling other classes out — so it is
+reported and never scored.
+
+So Kavach now has **two** self-reported channels measured and found unusable as
+gates:
+
+| channel | why it cannot gate |
+|---|---|
+| confidence | no threshold separates right from wrong; 8 correct answers also sit at 0.95 (above) |
+| citation coherence | coherent with the answer given, right or wrong — 10/10 on answers that were 0/10 correct |
+
+That is the same conclusion twice from independent evidence, and it is the
+quantitative case for `permit()` reading the deterministic detector rather than
+anything the model says about itself.
+
+**One correction this analysis forced on itself.** The first version scored
+`p6-f01-rca.json` at 0/10 own-class citation against 10/10 correct — which
+looked like the headline failure and was not. That run diagnosed the outage
+from the **logs** (*"EV-L01 shows backend_log = raise ConnectionError"*) and
+never cited the error-ratio metric. A connection error in a log is direct
+evidence of an endpoint outage; it is just not the signal F01's *detector*
+fires on. The metric now counts metric and config citations only, with log
+citation tracked in its own column, and the evidence-ID mapping was verified
+against a second artifact before the conclusion was drawn — IDs are positional,
+so a renumbering would have invalidated the whole table.
 
 That is defence in depth arrived at by measurement rather than design, and it
 carries its own warning: a fault whose correct repair happened to be

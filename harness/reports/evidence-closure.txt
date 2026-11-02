@@ -1,0 +1,27 @@
+discriminating evidence, derived from source:
+  F01  ['EV-M06']
+  F06  ['EV-M01', 'EV-M02', 'EV-M03']
+  F07  ['EV-C08']
+  F08  ['EV-C04', 'EV-C07']
+
+artifact                                     inj   n named    own  cross   log
+------------------------------------------------------------------------------
+  p6-f01-rca.json                              F01  10    10    0/10   10/10  10/10  shipped config
+  p6-f01-rca-symmetric.json                    F01  10     9   10/10    1/10   9/10  symmetric-prompt variant
+  p6-f07-rca.json                              F07  10     0   10/10   10/10   0/10  llama3.2
+  p6-f07-rca-qwen.json                         F07  10    10   10/10   10/10   0/10  qwen, frame [10m] - NOT shipped (ADR 0013)
+  p6-f07-rca-qwen-ctx8192.json                 F07  10     0   10/10   10/10   0/10  qwen, frame [1m], ctx 8192
+  p6-f07-rca-qwen-ctx4096-ab.json              F07  10     0   10/10   10/10   0/10  qwen, frame [1m], ctx 4096
+  p6-f07-rca-qwen-frame10m-ab.json             F07  10    10   10/10   10/10   0/10  qwen, frame [10m] A/B
+  p6-f08-rca.json                              F08  10     0   10/10   10/10   0/10  llama3.2
+  p6-f08-rca-qwen.json                         F08  10    10   10/10   10/10   0/10  qwen, shipped config
+
+  pooled over 90 diagnoses that recorded citations:
+    named the injected class      49/90 = 54%
+    cited own-class evidence      80/90 = 89%
+    also cited another class's    81/90 = 90%
+    cited log evidence            19/90 = 21%
+
+  Pooling is for scale only - these artifacts span two models
+  and an ablation series over the PromQL frame window, so the
+  per-file rows above are the comparable numbers.
