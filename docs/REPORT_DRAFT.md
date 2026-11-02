@@ -1494,14 +1494,36 @@ The full positioning map, with citations, is
 rather than full-text reads, and that document says so. Three points belong
 here because they change how §4 should be read.
 
-**The architecture is convergent.** EviRCA (arXiv 2609.19825) independently
-builds Kavach's central design — *"decouples deterministic evidence extraction
-from LLM reasoning… the LLM reasons only over these structured observations
-through a small set of predefined read-only tools, without accessing raw
-telemetry or executing code"* — and ARBITER (2607.19182) independently uses the
-same vocabulary of *"bounded DiagnosisContext objects"* behind a typed-action
+**The architecture is convergent — and, on one measurement, the best of the
+designs compared.** EviRCA (arXiv 2609.19825) independently builds Kavach's
+central design — *"decouples deterministic evidence extraction from LLM
+reasoning… the LLM reasons only over these structured observations through a
+small set of predefined read-only tools, without accessing raw telemetry or
+executing code"* — and ARBITER (2607.19182) independently uses the same
+vocabulary of *"bounded DiagnosisContext objects"* behind a typed-action
 interface. **This should be claimed as independent arrival at a convergent
-pattern, not as novelty.** EviRCA also reaches §4.2's conclusion from the
+pattern, not as novelty.**
+
+A second search on 2026-11-03 found something stronger. *"Free to Look, Free
+to Reason"* (2610.35767) compares harnesses that prescribe none of the model's
+calls — one of them literally *"one call over an evidence package"*, which is
+what Kavach does — against five published LLM RCA agents and against
+statistical and causal methods, over 90 validated cases from eight public
+datasets:
+
+> *"The simple harnesses are the most accurate (PR@1 65-77% on three mid-tier
+> models), ahead of the published agents (16-53%) and the non-LLM methods
+> (6-39%)… The published agents fix from a tenth to all of their model calls
+> in the program, and a case study shows how these prescriptions skip the
+> decisive evidence."*
+
+So the one-call-over-a-prebuilt-frame design is reported beating hand-crafted
+multi-stage agents by 20–60 points, with *"every Pareto-optimal run in cost or
+time"* using a simple harness. One paper, 90 cases, not reproduced here — but
+it means Kavach's simplicity is a defensible design position rather than a
+limitation of scope. It also predicts §4.2: if the harness is not the
+bottleneck and the evidence package is, then frame contamination collapsing
+accuracy is exactly the failure mode to expect. EviRCA also reaches §4.2's conclusion from the
 opposite direction: it finds that *"the effectiveness of LLM-based RCA depends
 heavily on the quality of evidence extraction"* by showing extraction sets the
 ceiling, where we showed it by degrading a frame and watching accuracy collapse.
@@ -1527,6 +1549,35 @@ Cloud-OpsBench's 0.38 Evidence Closure Rate exists to measure and we skip by
 construction; and the target is **one service with no dependency graph and no
 overlapping faults**. LATS-RCA's own 91.3%→65.1% drop between benchmark and
 production is the clearest illustration that these gaps are large.
+
+**And those benchmarks are themselves under serious criticism**, which is
+relevant because this section contrasts our numbers against them. *"Rethinking
+the Evaluation of Microservice RCA"* (2510.04711) reports that *"simple
+rule-based methods can achieve performance comparable to or even surpassing
+state-of-the-art models on four widely used public benchmarks"*, and that 11
+SOTA models re-evaluated on a harder generated benchmark average **Top@1 of
+0.21**. *"Does Graph Structure Earn Its Place…"* (2609.27069) audits RCAEval
+and finds its headline metric nearly satisfied without reading any data at
+all: *"a ranker reading no telemetry at all places the true culprit in the top
+five on 99.7 percent of held-out incidents"*. *"What a Pooled Leaderboard Does
+Not Say"* (2606.29159) re-runs 16 methods across OpenRCA, RCAEval and PetShop
+and finds 6 of 8 narrow pooled leads **reverse** per-subsystem, and that of 23
+RCA papers examined, *"none releases the per-case outputs needed to check
+either premise."*
+
+**This does not excuse never evaluating on a public benchmark** — that is a
+real gap and §6 says so. What it supports is that a leaderboard position would
+not have been the stronger claim. A bespoke measurement of 80 real injections,
+with every refusal accounted for, 0 wrong diagnoses executed, and the per-case
+artifacts committed to this repository, answers the question those audits say
+the leaderboards do not — and publishes the per-case outputs that *"none"* of
+those 23 papers release.
+
+It also corroborates §4.9's uncomfortable result. We report the deterministic
+path resolving 4/4 and faster against the LLM path's 4/8 and 40–70% slower;
+2510.04711's finding that simple rules match or beat SOTA on four public
+benchmarks is independent evidence from a different direction that this is a
+property of the problem, not a local anomaly in our harness.
 
 The fair comparison is **TriFleetRCA (2609.23766)**: on-premise Qwen2.5-14B on
 a single GPU, four injected faults in a live cluster, 100 analyses, hit rate

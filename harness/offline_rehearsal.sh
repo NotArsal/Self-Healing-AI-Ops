@@ -101,17 +101,35 @@ done
 say "  provider table     $(echo "$TABLE_KEYS" | wc -w) keys, all covered"
 
 # --- blast radius ------------------------------------------------------------
+#
+# REPORTED, NOT ENFORCED - and that is a correction made 2026-11-03.
+#
+# This block used to `exit 1` when the database showed more than one incident
+# in the last hour. It cost a maintainer an hour of waiting for nothing, twice,
+# and the refusal was unsound in two separate ways:
+#
+#   1. It read the WRONG COUNTER. `permit()`'s limiter is an in-memory deque
+#      inside the api container, not a query over the `incidents` table. The
+#      table is a durable record of incidents that happened; the limiter is
+#      process state. They diverge the moment the api restarts.
+#
+#   2. It checked BEFORE the step that makes it irrelevant. The next section
+#      force-recreates the api container to blank the cloud keys, which
+#      replaces the process and therefore empties the limiter. So the run this
+#      guard refused would have succeeded, every time.
+#
+# The count is still printed, because it is genuinely useful context when an
+# act does park. But a precondition that is wrong about which state it reads,
+# and is invalidated twenty lines later by this script's own behaviour, has no
+# business stopping a rehearsal. `scenario.py` reports a per-act `limiter`
+# flag, which is the honest place for this to surface.
 INWIN=$(docker exec kavach-postgres psql -U kavach -d kavach -t -A \
         -c "select count(*) from incidents where detected_at > now() - interval '1 hour';" \
         2>/dev/null | tr -d '[:space:]')
-say "  incidents this hour ${INWIN:-?} of 5 (a run costs 4)"
-if [ "${INWIN:-9}" -gt 1 ]; then
-  say ""
-  say "  REFUSING: permit() allows five incident starts an hour and this run"
-  say "  needs four. Starting now would park acts on the blast-radius limiter"
-  say "  and the rehearsal would fail for a reason that is not a defect."
-  say "  Wait for the window to clear, then run again."
-  exit 1
+say "  incidents this hour ${INWIN:-?} of 5 (durable record, FYI)"
+if [ "${INWIN:-0}" -gt 1 ]; then
+  say "  note: the api is force-recreated below, which empties permit()'s"
+  say "  in-memory limiter, so this count does not gate the run."
 fi
 
 # --- bring the API up with no cloud keys -------------------------------------

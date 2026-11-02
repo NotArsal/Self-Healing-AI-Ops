@@ -295,6 +295,98 @@ quantify it.
 
 ---
 
+## 6a. A second search, 2026-11-03: the simple harness is not a compromise
+
+Four papers found overnight change the positioning in §1 from "convergent" to
+something stronger, and one of them justifies a decision this project already
+made for other reasons. Abstracts only, as above.
+
+### The architecture is not just common — it outperforms the elaborate ones
+
+**"Free to Look, Free to Reason: Simple LLM Harnesses Outdiagnose
+Hand-Crafted Root Cause Analysis Agents"**
+([2610.35767](https://arxiv.org/abs/2610.35767)) compares three harnesses that
+prescribe none of the model's calls — including *"one call over an evidence
+package"* — against five published LLM RCA agents and against statistical and
+causal methods, on 90 validated cases from eight public datasets:
+
+> *"The simple harnesses are the most accurate (PR@1 65-77% on three mid-tier
+> models), ahead of the published agents (16-53%) and the non-LLM methods
+> (6-39%)… The published agents fix from a tenth to all of their model calls
+> in the program, and a case study shows how these prescriptions skip the
+> decisive evidence."*
+
+**"One call over an evidence package" is exactly what Kavach does.** The
+evidence frame is built deterministically, handed to the model once, and the
+model prescribes nothing about its own investigation. This paper reports that
+design beating hand-crafted multi-stage agents by 20–60 points, and adds that
+*"every Pareto-optimal run in cost or time uses a simple harness."*
+
+So §8.3 should not merely claim convergence. It can claim that the design
+Kavach arrived at is the one that measures best among those compared — with
+the caveat that this is one paper on 90 cases and we have not reproduced it.
+
+It also sharpens §4.2's finding. If the harness is not the bottleneck and the
+evidence package is, then *frame contamination destroying accuracy* is exactly
+the failure mode this literature would predict, and our controlled arm is a
+measurement of it.
+
+### The public benchmarks we did not use are under serious criticism
+
+Three papers argue the standard leaderboards overstate method quality, which
+matters because §8.3 contrasts Kavach's 85–90% against them.
+
+- **"Rethinking the Evaluation of Microservice RCA"**
+  ([2510.04711](https://arxiv.org/abs/2510.04711)): *"simple rule-based
+  methods can achieve performance comparable to or even surpassing
+  state-of-the-art (SOTA) models on four widely used public benchmarks."*
+  Re-evaluating 11 SOTA models on a harder generated benchmark gives *"low
+  Top@1 accuracies, averaging 0.21, with the best-performing model reaching
+  merely 0.37."*
+- **"Does Graph Structure Earn Its Place…"**
+  ([2609.27069](https://arxiv.org/abs/2609.27069)) audits RCAEval directly and
+  finds its headline metric nearly satisfied without reading any data: *"a
+  ranker reading no telemetry at all places the true culprit in the top five
+  on 99.7 percent of held-out incidents, scoring Avg@5 0.488"*, against a
+  uniform-random 0.137. It also reports a *"non-uniform column schema that
+  silently zeroes telemetry for most RE1 cases."*
+- **"What a Pooled Leaderboard Does Not Say"**
+  ([2606.29159](https://arxiv.org/abs/2606.29159)) re-runs 16 methods across
+  OpenRCA, RCAEval and PetShop and finds that of 8 pooled leads whose margin
+  is below the cross-subsystem spread, **6 reverse**; that *"the input table
+  that one released runner reads is not the one its documentation
+  describes"*; and that of 23 RCA papers examined, *"none releases the
+  per-case outputs needed to check either premise."*
+
+**What this licenses us to say, and what it does not.** It does *not* excuse
+never evaluating on a public benchmark — that remains a real gap and §6 should
+keep saying so. What it does support is that a leaderboard position would not
+have been the stronger claim: a bespoke measurement of 80 real injections with
+every refusal accounted for, 0 executed wrong diagnoses and per-case artifacts
+committed, is answering the question these audits say the leaderboards do not.
+Kavach already publishes the per-case outputs that *"none"* of those 23 papers
+release.
+
+### Independent support for our own P2-vs-P3 result
+
+§4.9 reports the uncomfortable finding that the deterministic path resolved
+4/4 and faster, while the LLM path resolved 4/8 and 40–70% slower — that RCA
+*subtracts* on this workload. 2510.04711's "simple rule-based methods
+comparable to or surpassing SOTA" is independent corroboration from a
+different direction, and it is worth citing beside our own number rather than
+leaving ours looking like a local anomaly.
+
+### Datasets worth knowing about, with the caveat attached
+
+| | |
+|---|---|
+| [RCAEval](https://github.com/phamquiluan/rcaeval) (MIT, WWW'25) | 9 datasets, **735 failure cases**, 15 reproducible baselines, on Hugging Face. The obvious external evaluation — read 2609.27069's audit first. |
+| [OpenRCA](https://github.com/microsoft/openrca) (MIT, ICLR'25) | Microsoft; the benchmark EviRCA reports on. |
+| [awesome-failure-diagnosis](https://github.com/phamquiluan/awesome-failure-diagnosis) | ~151 curated resources, same author as RCAEval. |
+| [awesome-AIOps](https://github.com/OpsPAI/awesome-AIOps) | Broader AIOps list: papers, tools, benchmarks, datasets. |
+
+---
+
 ## 7. One-paragraph positioning statement
 
 For the abstract or introduction:
