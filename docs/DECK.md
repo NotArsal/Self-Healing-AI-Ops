@@ -417,6 +417,32 @@ Pre-flight, every time: `make up`, confirm 8/8 dependencies green, target
 us a session both came from skipping this — a target crash-looping on stale
 Docker DNS, and the API running tokenless because `--env-file .env` was dropped.
 
+**Then drive the fast set before opening the console, and do not skip this
+because the stack looks healthy.** Measured 2026-11-03 on a stack that had
+just restarted: the onboarding page read **"Preflight blocked — 5 of 20"**
+while every container was up and healthy. Four of the five were SLO checks
+reporting *"query is valid but returned no series"*, because those expressions
+are rates over a **5-minute window** and a restarted stack has served nothing
+into it. The check is right to fail — an expression matching no series is
+exactly how a detection layer goes blind, and that is the condition it exists
+to catch — but on a cold stack it is indistinguishable from the real thing.
+
+The subtlety that will cost a demo: **ordinary traffic is not enough.**
+`llm_latency_p95` filters `operation="generation"`, and the target records
+that label only when it actually generates an answer. Three questions whose
+answers were honest refusals — *"I don't know based on the provided
+documents"* — produced `query_expansion` and `embedding` samples and no
+`generation` at all, so that one check stayed red while the others recovered.
+Running the fast set fixed it, because its three cases are known to retrieve
+and therefore known to generate.
+
+Sequence, measured: cold stack 5 blocking → after three refused questions,
+2 → after the fast set, **1**, and the one that remains is `git repository`,
+which always fails when read through the API. The container sees only the
+mounted `kavach.yaml`, not the target's working tree, so its git state is
+unknown — and the page's own rule is that unknown blocks. **Expect exactly
+one red line on the onboarding page during the demo, and know what it says.**
+
 ---
 
 ## Appendix — likely questions
