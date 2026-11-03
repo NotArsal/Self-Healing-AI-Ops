@@ -677,6 +677,56 @@ for `permit()` reading the deterministic detector — which observes the system
 rather than the model — and it is an argument the sampling literature cannot
 answer, because every sample in a frame inherits that frame's defects.
 
+##### The deterministic layer refuses under the same ambiguity, and usually first
+
+Measured 2026-11-03 while trying to run the dose sweep
+(`ambiguity-dose-sweep-v2.json`). It is not what the experiment was looking
+for, and it is more important than what the experiment was looking for.
+
+| arm | frame `llm_error_ratio` | deterministic verdict | model |
+|---|---|---|---|
+| control | 0.0 | `FAULT F08` | **10/10 correct, 10/10 approved** |
+| 1r | 0.5769 | `INSUFFICIENT_EVIDENCE` | **never asked** |
+| 2r | 0.2752 | `INSUFFICIENT_EVIDENCE` | **never asked** |
+| 3r | 0.4054 | `INSUFFICIENT_EVIDENCE` | **never asked** |
+| 4r | 0.5263 | `INSUFFICIENT_EVIDENCE` | **never asked** |
+
+`run_all` returns `INSUFFICIENT_EVIDENCE` when several detectors claim —
+*"naming them. Fail closed"* — and `loop.py` escalates and **returns** on that
+verdict without proposing a repair, so RCA is never reached. **In the deployed
+system the model is largely not consulted under the conditions that degrade it
+most**, because the layer in front of it declines first.
+
+That is a defence this report had not claimed and did not design for, and it
+is the strongest form of the argument above: the deterministic detector is not
+only a cross-check on the model's answer, it is a filter on whether the
+question is put at all.
+
+**It is not absolute, and the counterexamples are in our own artifacts** —
+three observed cases where detection produced a single confident class on a
+contaminated frame, so the model *was* consulted and did get it wrong:
+
+- `ambiguity-f08.json` arm B — `detected_class=F08` at a frame ratio of
+  **0.4091**, model answered F01 nine times in ten.
+- `scenario-20261102-f08-tail.json` and `-r2.json` — both act 2, both
+  `det_class=F08`, both refused downstream with *"LLM says F06, deterministic
+  detection says F08"*.
+
+So the protection is probabilistic rather than structural. Whether a second
+abnormal signal makes a second detector claim, or merely sits in the frame
+while one detector claims cleanly, decides whether the model is asked — and
+which of those happens is **not explained here**: all four arms above produced
+multiple claims while arm B at a comparable ratio did not.
+
+**The actionable consequence**, and the sharpest design item left in this
+project: the dangerous state is exactly *"the frame carries an abnormal signal
+that is not the one the detector claimed on"*. Both values are already in the
+frame, so it is cheap to detect, and it is precisely the state in which the
+model has been observed to fail. A gate check on it would turn a probabilistic
+defence into a deterministic one. **Not implemented** — adding a gate check
+days before a demo is not a change to make unannounced, and it should be
+measured before it is trusted.
+
 That is defence in depth arrived at by measurement rather than design, and it
 carries its own warning: a fault whose correct repair happened to be
 *permitted* for the mis-bound class would defeat `repair_permitted`, leaving
@@ -1740,6 +1790,20 @@ provider); and learning from incident history, which ADR 0009 cut.
     >
     > **What a real sweep now requires**: dose by outage intensity rather than
     > by target ratio (done), assert the contaminant is present in the frame
-    > (done), **and** drain or window the log evidence between arms (not
-    > done). Until the third exists, successive arms contaminate each other
-    > and any curve is an artifact of run order.
+    > (done), **and** drain or window the log evidence between arms (now done
+    > a different way — `--with-logs` defaults to OFF, excluding the channel
+    > entirely so the metric is the single variable).
+    >
+    > **RE-RUN 2026-11-03 WITH ALL THREE FIXED, AND THE SYSTEM REFUSED THE
+    > EXPERIMENT** (`ambiguity-dose-sweep-v2.json`). Four dosed arms at frame
+    > error ratios 0.2752, 0.4054, 0.5263 and 0.5769: in **every one** the
+    > deterministic detector returned `INSUFFICIENT_EVIDENCE` instead of a
+    > class, so each arm was correctly marked invalid and **the model was
+    > never asked**. The control, at 0.0, returned `FAULT F08` and the model
+    > scored 10/10 with 10/10 approved.
+    >
+    > That is a finding about Kavach rather than about the model, and §4.4
+    > now carries it. The dose sweep itself remains unrun and may be
+    > unrunnable as specified: it needs a frame contaminated enough for the
+    > model to notice while exactly one detector still claims, and the
+    > deterministic layer appears to refuse across most of that range.
