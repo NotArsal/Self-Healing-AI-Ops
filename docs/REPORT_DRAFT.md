@@ -1284,6 +1284,23 @@ frame, and a single-service target with no overlapping faults. §8.3 gives the
 comparison in full. **Anyone quoting §4's accuracy without this paragraph is
 quoting it wrongly.**
 
+**Nothing in the gate drives a browser, and a demo-visible bug lived there.**
+Added 2026-11-03 after finding that the console's mode switch had been broken
+the whole time: `ModeSwitch.tsx` calls `api.PUT("/v1/mode")`, the console is a
+separate origin, and the API's CORS `allow_methods` was `["GET", "POST"]` — so
+the browser preflight returned 400 and the control failed on every click.
+Three consecutive clean rehearsals passed over it, because the 82 vitest tests
+mock the API (no preflight is issued) and `make scenario` sets the mode from
+Python (where CORS does not exist). The only path that reaches it is a human
+clicking during a demo.
+
+The bug is fixed and two tests now cover the server half of that contract, but
+the gap is wider than the bug: **`make check` cannot currently catch any
+console defect that only manifests in a real browser.** The console is a P4
+deliverable and part of the demo, so that is a genuine hole in the acceptance
+evidence, not a nicety. Closing it needs a headless-browser test, which is
+not built.
+
 **One workload, and the seams are only half there.** Every number describes
 one RAG application. This previously read "the seams for a second exist and
 have not been exercised", which was too generous and is now measured rather
