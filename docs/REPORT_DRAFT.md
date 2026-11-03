@@ -1332,7 +1332,52 @@ clicking during a demo.
 
 The bug is fixed and two tests now cover the server half of that contract, but
 the gap is wider than the bug: **`make check` cannot currently catch any
-console defect that only manifests in a real browser.** The console is a P4
+console defect that only manifests in a real browser.**
+
+**The gap was then driven, and it held a second bug.** Later on 2026-11-03 the
+console was opened in a real browser against the live stack. Two things came
+out of it.
+
+The first is confirmation. Every request the console issues was captured:
+eighteen calls, all 200, `PUT /v1/mode` among them — the exact call that
+returned 400 before the CORS fix. The mode switch was operated end to end,
+APPROVAL → SIMULATION → APPROVAL, and the server agreed both times
+(`overridden: true` then `overridden: false`), with a `mode_change` record
+appended by actor `operator`. The fix is verified against a real preflight,
+not only against a test that mocks one.
+
+The second is a new defect, on the onboarding page. It read **"Preflight
+blocked — 3 of 20 checks"** against a target whose every container was up and
+healthy, failing `service 'db' health` and `service 'frontend' health`. The
+manifest describes the target from the host — `tcp://localhost:5432`,
+`http://localhost:3000/` — which is right, because that is where the ports are
+published and where `make onboard` runs. But `GET /v1/preflight` is answered
+from inside the control-plane container, where `localhost` is the container.
+Measured from in there, `localhost:5432` and `localhost:3000` refuse while
+`host.docker.internal` reaches both; measured from the host, all three are
+open. **The same check registry gave two different answers depending on where
+it ran, and the console gave the wrong one.**
+
+Preflight now relocates a loopback health address to the host the control
+plane already uses to reach the target, and names the rewrite in the check's
+own detail line. It is an address correction and not a relaxation: the probe
+still opens a real socket, a service that is genuinely down still fails, and
+the host-side CLI, which passes no host, probes exactly what it probed before.
+Blocking checks went 3 → 1, verified in the browser.
+
+The one that remains is `git repository`, and it still fails on purpose. The
+page states the rule — *a skipped check blocks enablement, because unknown is
+not healthy* — and a git state that cannot be read is unknown. Only its
+wording changed: it used to say "/app/target is not a git repository" and
+advise `git init`, which is wrong twice over, since the target *is* a
+repository on the host and that container path holds only the mounted
+manifest. An operator following that remedy would have initialised an empty
+repository on a false premise.
+
+**Two real defects, both demo-visible, both invisible to all 568 gate tests,
+both found within an hour of pointing a browser at the thing.** That is the
+argument for the headless-browser test in §9, stated as evidence rather than
+as a worry. The console is a P4
 deliverable and part of the demo, so that is a genuine hole in the acceptance
 evidence, not a nicety. Closing it needs a headless-browser test, which is
 not built.

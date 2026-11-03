@@ -20,6 +20,7 @@ import asyncio
 import json
 from datetime import UTC, datetime
 from typing import Annotated, Any
+from urllib.parse import urlparse
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
@@ -313,10 +314,19 @@ async def get_preflight(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> s.PreflightOut:
     """Run the existing read-only preflight registry and report it verbatim."""
+    # The manifest's service addresses are written from the HOST - that is
+    # where the target publishes its ports and where `make onboard` runs. This
+    # route answers from inside a container, where `localhost` is the
+    # container, so two healthy services were reported down and the page said
+    # "Preflight blocked" against a target that was serving. The control plane
+    # already knows how to reach the target; preflight is told the same.
+    # `preflight.relocate` rewrites only a loopback host and still opens a
+    # real socket. Empty host, or an unparseable one, changes nothing.
+    service_host = urlparse(settings.target_health_url).hostname or ""
     try:
         report = await asyncio.to_thread(
             preflight.run, settings.target_path, settings.prometheus_url,
-            settings.root(),
+            settings.root(), service_host,
         )
     except Exception as exc:
         # A preflight that cannot run is a reportable result, not a 500.

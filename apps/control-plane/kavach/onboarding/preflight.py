@@ -18,7 +18,7 @@ import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 from kavach.executor.adapters import docker as docker_adapter
 from kavach.onboarding.manifest import Manifest, load
@@ -111,8 +111,29 @@ def check_git(repo: Path, m: Manifest) -> list[CheckResult]:
 
     rc, _ = git("rev-parse", "--git-dir")
     if rc != 0:
+        # STILL FAILS, AND STILL BLOCKS. The console states the rule this
+        # follows - "a skipped check blocks enablement, because unknown is
+        # not healthy" - and a git state that cannot be read is unknown.
+        #
+        # Only the wording changed, on 2026-11-03. It used to read
+        # "/app/target is not a git repository" and advise `git init`, which
+        # is wrong twice over when this runs in the control-plane container:
+        # the target IS a repository on the host, and /app/target is a
+        # container path holding only the mounted manifest, so `git init`
+        # there would create an empty repository that answers nothing. An
+        # operator following that remedy would be acting on a false premise.
+        mounted_only = (repo / "kavach.yaml").is_file() and not (
+            repo / ".git").exists()
+        detail = f"no git repository readable at {repo}"
+        if mounted_only:
+            detail += (" - only the manifest is mounted there, so this is "
+                       "the containerised view, not the target's real state")
         out.append(CheckResult(
-            "git repository", False, f"{repo} is not a git repository",
+            "git repository", False, detail,
+            "run the host-side preflight (`make onboard`), where the "
+            "target's working tree is visible; from the control-plane "
+            "container the git checks cannot be performed at all"
+            if mounted_only else
             "run `git init` in the target, or correct the configured path"))
         return out
     out.append(CheckResult("git repository", True, str(repo)))
@@ -154,7 +175,49 @@ def check_git(repo: Path, m: Manifest) -> list[CheckResult]:
     return out
 
 
-def check_services(m: Manifest) -> list[CheckResult]:
+_LOOPBACK = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def relocate(url: str, host: str) -> tuple[str, bool]:
+    """Point a loopback health URL at `host`, keeping port, path and scheme.
+
+    ADDED 2026-11-03, after the console's preflight page reported
+    "Preflight blocked - 3 of 20 checks" against a target whose every
+    container was up and healthy.
+
+    The manifest describes the target FROM THE HOST: `tcp://localhost:5432`,
+    `http://localhost:3000/`. That is the right thing for it to say, because
+    the ports are published on the host and a person running `make onboard`
+    is standing there. But the control plane answers `GET /v1/preflight`
+    from inside a container, where `localhost` is the container itself - so
+    the probe asked the control plane whether it was a Postgres, got
+    ECONNREFUSED, and reported the target's database down while it was
+    serving. The same registry gave two different answers depending on where
+    it ran, and the console - the demo surface - gave the wrong one.
+
+    THIS IS AN ADDRESS CORRECTION, NOT A RELAXATION. The probe still opens a
+    real socket to a real service; a database that is genuinely down still
+    fails this check. Nothing is skipped, no result is assumed, and the
+    rewrite is reported in the check's detail so a reader is never told a
+    different address was probed than the one that was.
+
+    Only a loopback host is rewritten, and only when `host` is given - which
+    the API route does and the host-side CLI does not, so `make onboard`
+    keeps probing exactly what it probes today.
+    """
+    if not host:
+        return url, False
+    parsed = urlparse(url)
+    if (parsed.hostname or "").lower() not in _LOOPBACK:
+        return url, False
+    netloc = host if parsed.port is None else f"{host}:{parsed.port}"
+    if parsed.username:
+        creds = parsed.username + (f":{parsed.password}" if parsed.password else "")
+        netloc = f"{creds}@{netloc}"
+    return urlunparse(parsed._replace(netloc=netloc)), True
+
+
+def check_services(m: Manifest, service_host: str = "") -> list[CheckResult]:
     out: list[CheckResult] = []
     for name, svc in m.services.items():
         if not svc.enabled:
@@ -168,15 +231,20 @@ def check_services(m: Manifest) -> list[CheckResult]:
                 f"add services.{name}.health to the manifest"))
             continue
 
-        u = urlparse(svc.health)
+        probe, moved = relocate(svc.health, service_host)
+        u = urlparse(probe)
         if u.scheme in ("http", "https"):
-            ok, detail = _http_ok(svc.health)
+            ok, detail = _http_ok(probe)
         elif u.scheme == "tcp":
             ok, detail = _tcp_ok(u.hostname or "localhost", u.port or 0)
         else:
             ok, detail = False, f"unsupported scheme {u.scheme!r}"
+        # Say which address was probed when it is not the declared one.
+        shown = f"{svc.health} -> {detail}" if not moved else (
+            f"{svc.health} probed as {probe} (loopback is this container) "
+            f"-> {detail}")
         out.append(CheckResult(
-            f"service {name!r} health", ok, f"{svc.health} -> {detail}",
+            f"service {name!r} health", ok, shown,
             f"start {name}, or correct services.{name}.health"))
     return out
 
@@ -390,8 +458,16 @@ def check_corpus_fingerprint(m: Manifest, kavach_root: Path,
 
 
 def run(target_path: str | Path, prometheus_url: str,
-        kavach_root: str | Path = ".") -> PreflightReport:
-    """Run every check against a target. Read-only."""
+        kavach_root: str | Path = ".",
+        service_host: str = "") -> PreflightReport:
+    """Run every check against a target. Read-only.
+
+    `service_host` is where the TARGET's published ports can be reached from
+    wherever this is running. Empty - the host-side default - probes the
+    manifest's addresses verbatim. The API passes the host it already uses to
+    reach the target, because inside a container the manifest's `localhost`
+    means the container. See `relocate`.
+    """
     target = Path(target_path)
     manifest_path = target / "kavach.yaml"
 
@@ -402,7 +478,7 @@ def run(target_path: str | Path, prometheus_url: str,
     m = load(manifest_path)
     report = PreflightReport(project=m.project.name, results=[first])
     report.results += check_git(target, m)
-    report.results += check_services(m)
+    report.results += check_services(m, service_host)
     report.results += check_ownership(m)
     report.results += check_slo_expressions(m, prometheus_url)
     report.results.append(check_fast_set(m, Path(kavach_root)))
