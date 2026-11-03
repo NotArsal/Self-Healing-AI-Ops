@@ -1365,7 +1365,7 @@ and deliberately deferred rather than discovered later.
 "localisation accuracy" is a one-way choice dressed as a four-way one. Stated
 first wherever it appears.
 
-**Two instrument bugs were found in two days.**
+**Three instrument bugs, and the third is the worst kind.**
 
 1. A 0/15 result was published blaming model capability. The largest cause was
    Kavach writing patch files without a trailing newline, which `git apply`
@@ -1374,6 +1374,11 @@ first wherever it appears.
    every diagnosis ran within 10% of the 4096-token ceiling and one exceeded
    it at 4158. Ollama slides the window silently, dropping the system prompt
    first. Every accuracy figure in §4.3 was measured under this condition.
+3. The audit-completeness metric could not fail, and reported "met" four
+   times without measuring anything. Described in full earlier in this
+   section. The first two bugs made a real measurement wrong; this one made a
+   measurement that was never real look right, which is harder to notice and
+   took sixteen days and four published runs to catch.
    Truncation can only *remove* instructions, so those figures are a **floor** —
    but they need re-measuring at the corrected 8192 before being quoted.
 
@@ -1861,7 +1866,7 @@ provider); and learning from incident history, which ADR 0009 cut.
     > model to notice while exactly one detector still claims, and the
     > deterministic layer appears to refuse across most of that range.
 
-15. **Audit completeness is now measured but does not gate the bench.**
+15. ~~**Audit completeness is measured but does not gate the bench**~~ — **closed 2026-11-03, same day.**
     Opened 2026-11-03 with the fix described in §6. `report.py` asks the
     scoped question per incident and the figure will be real from the next
     run, but the bench's pass/fail expression is still
@@ -1879,3 +1884,20 @@ provider); and learning from incident history, which ADR 0009 cut.
     previously unfailable criterion gate an eight-hour overnight run on the
     strength of a code read is how a deadline gets lost to a false alarm.
     **One live bench run validates it, and then it is a one-line change.**
+
+    > **VALIDATED AND GATED**, `bench-audit-validation.json`, a single F08 rep
+    > on the live stack. It is the first artifact in the project's history to
+    > carry `audit_recorded: true`; all 62 executed repairs before it say
+    > `false`. The harness wrote `true` for `INC-065506`, and the log read
+    > independently carries that incident's `diagnose`, `permit`,
+    > `execute_start`, `execute_done` and `resolved` — so the two agree by
+    > measurement rather than by construction.
+    >
+    > The ordering is now observed and not only read: `execute_done` landed at
+    > 06:55:50.399 and `resolved` at 06:56:13.190, a **23-second margin**, so a
+    > read taken after `wait_terminal` cannot race the record. `audited ==
+    > executed` is therefore now part of the bench's pass/fail expression.
+    > **Run D's figure stays withdrawn** — this validates the instrument, and
+    > an instrument validated after the fact does not retroactively measure a
+    > run that finished without it. The next full bench produces the first
+    > real number.

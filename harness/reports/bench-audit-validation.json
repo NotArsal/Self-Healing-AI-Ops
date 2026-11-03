@@ -1,0 +1,40 @@
+{
+  "at": "2026-11-03T06:54:12+00:00",
+  "rca_model": "qwen2.5:7b-instruct",
+  "classes": [
+    "F08"
+  ],
+  "reps": 1,
+  "denominator": 1,
+  "paced_wait_total_s": 0.0,
+  "incidents_per_hour_limit": 5,
+  "runs": [
+    {
+      "fault_class": "F08",
+      "rep": 1,
+      "detected": true,
+      "mttd_s": 17.6,
+      "first_verdict_s": 36.3,
+      "det_class": "F08",
+      "llm_class": "F08",
+      "llm_action": "rollback_config",
+      "llm_fault_name": "Configuration or environment regression",
+      "llm_confidence": 0.9,
+      "llm_approved": true,
+      "escalation_reason": "",
+      "service": "backend",
+      "action": "rollback_config",
+      "executed": true,
+      "resolved": true,
+      "mttr_s": 105.8,
+      "false_healing": false,
+      "unwind_clean": null,
+      "warmup_s": 0.0,
+      "paced_wait_s": 0.0,
+      "state_clean": true,
+      "incident_id": "INC-065506",
+      "audit_recorded": true,
+      "error": ""
+    }
+  ]
+}

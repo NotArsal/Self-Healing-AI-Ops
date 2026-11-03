@@ -609,7 +609,18 @@ def emit(bench: Bench, classes: list[str], reps: int) -> bool:
         for r in errs:
             say(f"    {r.fault_class} rep {r.rep}: {r.error[:110]}")
 
+    # `audited == executed` joined this expression on 2026-11-03, once the
+    # metric it reads began measuring anything (see the rewrite above). PRD
+    # section 10 lists audit completeness at 100% - "no action without a
+    # record" - and for sixteen days the bench could not have failed on it.
+    #
+    # Gating it needed the ordering observed rather than only read. It now is:
+    # the F08 validation run put `execute_done` at 06:55:50.399 and `resolved`
+    # at 06:56:13.190, a 23s margin, so a read taken after `wait_terminal`
+    # cannot race the record. An escalated run executes nothing and audits
+    # nothing, and 0 == 0 passes, as it should.
     return (detected == n and false_heal == 0 and chain_intact
+            and audited == executed
             and all(r.state_clean for r in runs))
 
 
