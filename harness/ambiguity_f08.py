@@ -207,7 +207,8 @@ def contaminate(client: TargetClient, rounds: int) -> float:
     return error_ratio()
 
 
-def build_frame(client: TargetClient, baseline: dict[str, Any]) -> Any:
+def build_frame(client: TargetClient, baseline: dict[str, Any],
+                with_logs: bool = False) -> Any:
     pre = fast.run(client, FAST_SET, check_health=False)
     detection = det.run_all(
         det.registry.specs(),
@@ -222,6 +223,20 @@ def build_frame(client: TargetClient, baseline: dict[str, Any]) -> Any:
         baseline_config_hash=str(baseline.get("config_hash") or ""),
         baseline_prompt_files=dict(
             (baseline.get("prompt_version") or {}).get("files") or {}),
+        # LOGS OFF, AND THIS IS THE FIX THAT MAKES A DOSE SWEEP POSSIBLE.
+        #
+        # The first sweep was invalid partly because the log channel is a
+        # second, independent memory of a finished fault: connection-error
+        # lines outlive the [2m] metric window, nothing drains them, and a
+        # control arm run minutes after a dosed arm diagnosed F01 on a frame
+        # whose error ratio was 0.0, quoting EV-L01's ConnectionError.
+        #
+        # With logs excluded the arms differ in exactly one thing - the
+        # metric - which is what a dose-response curve needs to mean
+        # anything. The cost is external validity: production frames DO carry
+        # logs, so this measures the metric channel alone and the report must
+        # say so rather than generalising to "the frame".
+        include_logs=with_logs,
     )
     return detection, frame
 
@@ -235,7 +250,7 @@ def frame_value(frame: Any, eid: str) -> tuple[str, str]:
 
 def run_arm(name: str, outage_rounds: int, client: TargetClient,
             baseline: dict[str, Any], llm: OllamaClient,
-            reps: int) -> dict[str, Any]:
+            reps: int, with_logs: bool = False) -> dict[str, Any]:
     """One arm. `outage_rounds` sets the dose; 0 is the clean control."""
     contaminated = outage_rounds > 0
     say("=" * 74)
@@ -261,7 +276,7 @@ def run_arm(name: str, outage_rounds: int, client: TargetClient,
     try:
         fault.inject()
         say(f"  injected              {SETTING} -> {fault.current_max_tokens()}")
-        detection, frame = build_frame(client, baseline)
+        detection, frame = build_frame(client, baseline, with_logs)
 
         m06, m06_exp = frame_value(frame, "EV-M06")
         c04, c04_exp = frame_value(frame, "EV-C04")
@@ -360,6 +375,11 @@ def main() -> int:
              "Rounds rather than target ratios because aiming at a ratio was "
              "tried and the frame-collection pass diluted it out of the band. "
              "Omitted, the original two-arm experiment runs unchanged.")
+    ap.add_argument(
+        "--with-logs", action="store_true",
+        help="include EV-L* log evidence; OFF by default because log "
+             "lines are a second memory of a finished fault that nothing "
+             "drains, and they invalidated the first dose sweep")
     args = ap.parse_args()
 
     client = TargetClient(TargetEndpoints(
@@ -397,9 +417,9 @@ def main() -> int:
 
     t0 = time.time()
     arms: list[dict[str, Any]] = [
-        run_arm("control", 0, client, baseline, llm, args.reps)]
+        run_arm("control", 0, client, baseline, llm, args.reps, args.with_logs)]
     for d in (doses or [4]):
-        arms.append(run_arm(f"{d}r", d, client, baseline, llm, args.reps))
+        arms.append(run_arm(f"{d}r", d, client, baseline, llm, args.reps, args.with_logs))
     arm_a = arms[0]
     post_corpus = corpus()
 
@@ -483,6 +503,7 @@ def main() -> int:
         "corpus_before": pre_corpus,
         "corpus_after": post_corpus,
         "doses": doses or None,
+        "log_evidence_included": args.with_logs,
         "arms": arms,
     }
     Path(args.json_out).write_text(json.dumps(doc, indent=2), encoding="utf-8")

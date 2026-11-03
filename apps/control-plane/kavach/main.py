@@ -75,7 +75,31 @@ def create_app() -> FastAPI:
             CORSMiddleware,
             allow_origins=[settings.console_origin],
             allow_credentials=False,
-            allow_methods=["GET", "POST"],
+            # PUT ADDED 2026-11-03, because the console's mode switch was
+            # broken in the browser and nothing caught it.
+            #
+            # `ModeSwitch.tsx` calls `api.PUT("/v1/mode")`. The console is a
+            # separate origin (3001 vs 8080) and sends `content-type:
+            # application/json`, so the browser issues a preflight - and this
+            # list did not contain PUT, so the preflight returned 400 and the
+            # mode selector failed every time it was clicked. Measured from
+            # the console's own origin before the fix:
+            #
+            #   OPTIONS /v1/mode    Access-Control-Request-Method: PUT   -> 400
+            #   OPTIONS /v1/loop/run                             POST   -> 200
+            #
+            # Nothing exercised it: the vitest suite mocks the API so no
+            # preflight happens, and `make scenario` sets the mode from Python
+            # where CORS does not apply. The only path that hits it is a human
+            # clicking the control during a demo.
+            #
+            # This is not a widening of the trust boundary. `allow_origins` is
+            # still the single console origin and `allow_credentials` is still
+            # False, so no other site gains anything; PUT simply lets the one
+            # permitted origin use the method its own generated client was
+            # built against. `tests/test_cors_methods.py` pins this list
+            # against the methods the console actually calls.
+            allow_methods=["GET", "POST", "PUT"],
             allow_headers=["content-type"],
         )
 
