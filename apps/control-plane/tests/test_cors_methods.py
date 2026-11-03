@@ -96,3 +96,45 @@ def test_the_safelisted_methods_are_allowed_anyway(method: str) -> None:
     They are listed regardless, and should stay listed - relying on the
     safelist is a subtlety nobody should have to know to read this config."""
     assert method in allowed_methods()
+
+
+def test_a_real_preflight_succeeds_for_every_method_the_console_uses() -> None:
+    """Drives the middleware, not the config literal.
+
+    The test above reads `allow_methods` out of the source, which catches the
+    list being wrong but not the middleware being absent, mounted after a
+    route, or configured with an origin that does not match. This issues the
+    actual OPTIONS preflight a browser would send, through the real app.
+
+    Still not a browser - it cannot catch a console-side mistake - but it
+    does cover the server half of the contract that three clean rehearsals
+    walked straight past.
+    """
+    from fastapi.testclient import TestClient
+
+    from kavach.config import Settings
+    from kavach.main import create_app
+
+    origin = Settings().console_origin
+    if not origin:
+        pytest.skip("CORS middleware is only mounted when console_origin is set")
+
+    client = TestClient(create_app())
+    failures: list[str] = []
+    for method in sorted(console_methods() - CORS_SAFELISTED):
+        response = client.options(
+            "/v1/mode",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": method,
+                "Access-Control-Request-Headers": "content-type",
+            },
+        )
+        allowed = response.headers.get("access-control-allow-methods", "")
+        if response.status_code != 200 or method not in allowed:
+            failures.append(
+                f"{method}: HTTP {response.status_code}, "
+                f"allow-methods={allowed!r}")
+    assert not failures, (
+        "a browser preflight from the console's own origin would be refused "
+        "for: " + "; ".join(failures))
