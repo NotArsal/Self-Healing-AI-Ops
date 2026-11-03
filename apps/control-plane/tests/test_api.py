@@ -255,12 +255,17 @@ def test_newest_baseline_returns_none_with_no_captures(tmp_path: Path) -> None:
 
 
 def test_newest_baseline_picks_the_latest_capture(tmp_path: Path) -> None:
+    # `healthy` is on both fixtures because a selected capture must be one
+    # taken on a healthy system (see test_baseline_selection.py). `healthy`
+    # is a non-optional field of the Baseline dataclass, so every capture the
+    # real writer produces has it; these stubs now look like real captures.
+    # What this test asserts - newest wins - is unchanged.
     d = tmp_path / "harness" / "baselines"
     d.mkdir(parents=True)
     (d / "baseline-simple-rag-20261003T100000+0000.json").write_text(
-        '{"rerank_threshold": 0.30}', encoding="utf-8")
+        '{"rerank_threshold": 0.30, "healthy": true}', encoding="utf-8")
     (d / "baseline-simple-rag-20261003T140000+0000.json").write_text(
-        '{"rerank_threshold": 0.35}', encoding="utf-8")
+        '{"rerank_threshold": 0.35, "healthy": true}', encoding="utf-8")
 
     value, source = newest_baseline(d, "simple-rag")
     assert value == 0.35
@@ -272,7 +277,7 @@ def test_newest_baseline_skips_an_unreadable_capture(tmp_path: Path) -> None:
     d = tmp_path / "harness" / "baselines"
     d.mkdir(parents=True)
     (d / "baseline-simple-rag-20261003T100000+0000.json").write_text(
-        '{"rerank_threshold": 0.35}', encoding="utf-8")
+        '{"rerank_threshold": 0.35, "healthy": true}', encoding="utf-8")
     (d / "baseline-simple-rag-20261003T140000+0000.json").write_text(
         "not json at all", encoding="utf-8")
 

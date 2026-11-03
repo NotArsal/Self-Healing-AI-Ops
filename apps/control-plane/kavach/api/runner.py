@@ -95,10 +95,29 @@ def policy_from_manifest(m: Manifest, mode_override: Mode | None = None) -> Proj
 def newest_baseline_doc(baselines: Path, project: str) -> tuple[dict[str, Any], str]:
     """The most recent usable capture, whole, and its filename.
 
-    "Usable" means it records a `rerank_threshold`, which is the one field the
-    F06 rollback cannot be built without. The whole document is returned
-    because F08 needs its `settings` snapshot, and reading the file twice to
-    get two fields out of it would let the two reads disagree.
+    "Usable" means two things, and the second was missing until 2026-11-03.
+
+    It records a `rerank_threshold`, which is the one field the F06 rollback
+    cannot be built without. The whole document is returned because F08 needs
+    its `settings` snapshot, and reading the file twice to get two fields out
+    of it would let the two reads disagree.
+
+    AND it was captured from a healthy system. `baseline.py` computes
+    `healthy` as "the fast set passed, no SLO breached, and the corpus did not
+    move during the capture", and REFUSES to save a capture that fails it -
+    its own docstring says so: *"A baseline captured while a fault is present
+    would make the fault look normal forever after."* But that refusal is
+    overridable with `--force`, and this reader did not re-check, so a forced
+    capture would be selected simply for being newest. The rollback target for
+    F06, F07 and F08 would then be values measured while the system was
+    broken, and every repair would restore the fault.
+
+    Four `healthy: false` captures are committed under `harness/baselines/`,
+    so this is not hypothetical - they are old enough to predate the refusal,
+    and today the newest capture is healthy, so adding this filter selects
+    exactly the same file it did before. `test_baseline_selection.py` pins
+    both halves: that the current choice is unchanged, and that an unhealthy
+    newer capture is skipped.
     """
     if not baselines.is_dir():
         return {}, ""
@@ -108,9 +127,14 @@ def newest_baseline_doc(baselines: Path, project: str) -> tuple[dict[str, Any], 
             doc = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        if isinstance(doc, dict) and isinstance(
-            doc.get("rerank_threshold"), int | float
-        ):
+        if not isinstance(doc, dict):
+            continue
+        # Absent `healthy` is treated as unusable rather than assumed good:
+        # a capture that does not say is a capture written by something that
+        # did not measure it.
+        if doc.get("healthy") is not True:
+            continue
+        if isinstance(doc.get("rerank_threshold"), int | float):
             return doc, path.name
     return {}, ""
 
