@@ -203,6 +203,16 @@ class Run:
     warmup_s: float = 0.0
     paced_wait_s: float = 0.0
     state_clean: bool = True
+    # The incident whose action actually ran. NOT `started["incident_id"]`:
+    # `approve()` re-detects and re-diagnoses, so an approved repair executes
+    # under a second id, and that is the one the audit log carries.
+    incident_id: str = ""
+    # Did the append-only log record THIS run's execution?
+    #
+    # FIXED 2026-11-03. The field was declared here with a default of False
+    # and never assigned, so every artifact reported `audit_recorded: false`
+    # for every repair that ran - 62 of them across the committed benches.
+    # It is now written from the log, scoped to this run's own incident.
     audit_recorded: bool = False
     error: str = ""
 
@@ -253,6 +263,35 @@ class Run:
     @property
     def localization_correct(self) -> bool:
         return self.service == "backend"
+
+
+def audit_has_execution(incident_id: str) -> bool:
+    """Did the append-only log record an execution for THIS incident?
+
+    Scoped to one incident on purpose. The audit log is shared and survives
+    every run, so any question asked of it in aggregate - "how many
+    `execute_done` rows are there?" - is answered partly by other runs. The
+    only version of the question that measures this run is the one that names
+    its incident.
+
+    `limit=200` is read immediately after the incident reached a terminal
+    state, so its rows are among the newest; the log carries roughly six
+    records per incident.
+
+    Returns False when the call fails, rather than raising: an unreachable
+    audit endpoint is an unrecorded action as far as this metric is
+    concerned, and a bench run should report that rather than abort.
+    """
+    if not incident_id:
+        return False
+    code, body = api("/v1/audit?limit=200")
+    if code != 200 or not isinstance(body, dict):
+        return False
+    return any(
+        row.get("incident_id") == incident_id
+        and row.get("event") == "execute_done"
+        for row in body.get("rows", [])
+    )
 
 
 def one_run(client: TargetClient, fault_class: str, rep: int,
@@ -313,7 +352,10 @@ def one_run(client: TargetClient, fault_class: str, rep: int,
             if code == 202:
                 inc = wait_terminal(str(second["incident_id"]))
 
+        r.incident_id = str(inc.get("incident_id") or "")
         r.executed = bool((inc.get("action") or {}).get("executed"))
+        if r.executed:
+            r.audit_recorded = audit_has_execution(r.incident_id)
         r.resolved = inc.get("status") == "RESOLVED"
         # Read here, not above: `approve()` re-detects and re-diagnoses, so
         # `inc` is the SECOND incident by this point and its reason is the one
@@ -394,11 +436,23 @@ def emit(bench: Bench, classes: list[str], reps: int) -> bool:
     # own belief about what it did. PRD section 10 wants "no action without a
     # record" at 100%; counting our own `executed` flags would only prove the
     # harness agrees with itself.
+    #
+    # REWRITTEN 2026-11-03, because the previous computation could not fail.
+    # It counted every `execute_done` in the newest 500 rows of the audit log
+    # and rendered `pct(min(that, executed), executed)`. The log is shared and
+    # persistent - 997 records spanning sixteen days, 56 `execute_done` among
+    # the newest 500 - while a 20-rep bench executes at most 20 times. The
+    # `min` therefore always returned `executed` and the metric always printed
+    # 100%, whatever the log actually held. Runs A-D each reported it as met;
+    # none of those four numbers was evidence. See REPORT_DRAFT.md section 6.
+    #
+    # Each run now carries whether ITS OWN incident was recorded, so a missing
+    # record subtracts from the numerator instead of being absorbed by history.
     executed = sum(1 for r in runs if r.executed)
+    audited = sum(1 for r in runs if r.executed and r.audit_recorded)
     code, audit = api("/v1/audit?limit=500")
-    rows = audit.get("rows", []) if code == 200 and isinstance(audit, dict) else []
-    audit_executions = sum(1 for row in rows if row.get("event") == "execute_done")
-    chain_intact = bool(audit.get("chain_intact")) if isinstance(audit, dict) else False
+    chain_intact = (code == 200 and isinstance(audit, dict)
+                    and bool(audit.get("chain_intact")))
 
     say(f"  {'metric':<34} {'value':<18} target")
     say(f"  {'detection rate':<34} {pct(detected, n):<18} >= 95%")
@@ -427,7 +481,7 @@ def emit(bench: Bench, classes: list[str], reps: int) -> bool:
     say(f"  {'MTTR (median)':<34} "
         f"{(f'{statistics.median(mttrs):.1f}s' if mttrs else 'n/a'):<18} < 180s")
     say(f"  {'audit completeness':<34} "
-        f"{pct(min(audit_executions, executed), executed):<18} 100%")
+        f"{pct(audited, executed):<18} 100%")
     say(f"  {'audit chain intact':<34} {chain_intact!s:<18} True")
     say(f"  {'target state clean after run':<34} "
         f"{pct(sum(1 for r in runs if r.state_clean), n):<18} 100%")

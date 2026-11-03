@@ -209,7 +209,7 @@ not isolated it to a named mechanism — 12.2s is close to, but not equal to, th
 | **MTTD median** | withdrawn — never measured | **28.5s** | **33.0s** | **28.1s** | < 30s | **B met, C missed, D met** |
 | first verdict median | 48.5s | 50.0s | 53.1s | 45.3s | *no target* | — |
 | target state clean after run | 100% (20/20) | 100% (20/20) | 100% (20/20) | 100% (20/20) | 100% | met |
-| audit completeness | 100% | 100% (14/14) | 100% (15/15) | 100% (16/16) | 100% | met |
+| audit completeness | *vacuous* | *vacuous* | *vacuous* | *vacuous* — 16/16 verified by hand, §6 | 100% | **withdrawn as a run metric** |
 | audit chain intact | yes | yes | yes | yes | yes | met |
 
 **Eighty injections, zero false heals.** That is the claim the whole
@@ -1284,6 +1284,42 @@ frame, and a single-service target with no overlapping faults. §8.3 gives the
 comparison in full. **Anyone quoting §4's accuracy without this paragraph is
 quoting it wrongly.**
 
+**The audit-completeness metric could not fail, so four runs reported it as
+met without measuring it.** Found 2026-11-03. `report.py` counted every
+`execute_done` row in the newest 500 rows of the audit log and rendered
+`pct(min(that_count, executed), executed)`. The audit log is shared and
+survives every run — 997 records over sixteen days, 56 of them `execute_done`
+among the newest 500 — while a 20-rep bench executes at most 20 times. The
+`min` therefore always returned `executed`, and the metric always printed
+100%, whatever the log held. A run in which Kavach executed a repair and wrote
+no record at all would still have scored 100%. The per-run `audit_recorded`
+field that should have carried the answer was declared with a default of
+`False` and never assigned, so all 62 executed repairs in the committed
+artifacts are stamped `audit_recorded: false` — the opposite of the table's
+claim, and equally uninformative.
+
+The table row is withdrawn for all four runs. **The underlying property does
+hold for run D, verified afterwards by hand**: over the run's window the log
+carries 16 `execute_start`, 16 `execute_done` and 16 `resolved` records,
+perfectly paired with no orphan on either side, against the bench's 16
+executed and 16 resolved. That is real evidence and it is the only audit
+evidence this report has; it is a manual post-hoc check of one run, not a
+measurement the harness produced, and runs A–C have no equivalent.
+
+`report.py` now asks the scoped question — does *this* incident have an
+`execute_done` row — and three tests in `test_bench_scoring.py` pin the
+scoping, including the case the old count could not express: another
+incident's record must not satisfy this one. The figure will be real from the
+next bench run, and `audit chain intact`, which came from the chain verifier
+rather than from a count, was never affected.
+
+This is the third defect of one shape found this week: a value declared in one
+place and never read or written in the other — `fast_set.yaml`'s refusal
+vocabulary, `newest_baseline_doc`'s health check, and now this. The pattern is
+worth stating plainly in a report about self-healing: **the parts of a system
+that measure it are not themselves measured**, and all three went unnoticed
+because each produced a plausible number.
+
 **Nothing in the gate drives a browser, and a demo-visible bug lived there.**
 Added 2026-11-03 after finding that the console's mode switch had been broken
 the whole time: `ModeSwitch.tsx` calls `api.PUT("/v1/mode")`, the console is a
@@ -1824,3 +1860,22 @@ provider); and learning from incident history, which ADR 0009 cut.
     > unrunnable as specified: it needs a frame contaminated enough for the
     > model to notice while exactly one detector still claims, and the
     > deterministic layer appears to refuse across most of that range.
+
+15. **Audit completeness is now measured but does not gate the bench.**
+    Opened 2026-11-03 with the fix described in §6. `report.py` asks the
+    scoped question per incident and the figure will be real from the next
+    run, but the bench's pass/fail expression is still
+    `detected == n and false_heal == 0 and chain_intact and all(state_clean)`
+    — a run in which Kavach executed a repair and recorded nothing would
+    print the miss and still pass. `PRD.md` §10 lists audit completeness at
+    100% as a target, so the row belongs in that expression.
+
+    **It was deliberately left out rather than added blind.** The ordering in
+    `loop.py` is right — `execute_done` is appended at line 600, before every
+    terminal status assignment (`RESOLVED` 661, `ESCALATED` 648) — so a
+    reader of the log after `wait_terminal` cannot race it, and the check
+    should never fire spuriously. But that is traced, not observed: no live
+    bench has run since the metric started measuring anything, and making a
+    previously unfailable criterion gate an eight-hour overnight run on the
+    strength of a code read is how a deadline gets lost to a false alarm.
+    **One live bench run validates it, and then it is a one-line change.**

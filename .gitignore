@@ -72,3 +72,5 @@ apps/console/lib/api/openapi.json
 
 
 graphify-out
+.claude/
+harness/reports/bench.json

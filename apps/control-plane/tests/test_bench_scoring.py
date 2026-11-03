@@ -195,3 +195,69 @@ def test_replaying_run_b_reproduces_thirteen_self_contradictions() -> None:
         if not r.fault_name_coherent:
             incoherent += 1
     assert (judged, incoherent) == (37, 13), (judged, incoherent)
+
+
+# --- audit completeness -----------------------------------------------------
+#
+# FOUND 2026-11-03. The metric could not fail. `report.py` counted every
+# `execute_done` in the newest 500 rows of the audit log and rendered
+# `pct(min(that, executed), executed)`. The log is shared and persistent -
+# 997 records over sixteen days, 56 `execute_done` among the newest 500 -
+# while a 20-rep bench executes at most 20 times, so the `min` always
+# returned `executed` and the figure was always 100%. Four runs reported
+# "audit completeness 100%, met" and not one of them measured anything.
+#
+# It is now per-incident. These pin the scoping, which is the whole fix:
+# a row for a DIFFERENT incident must not satisfy this incident.
+
+
+def _audit_body(rows: list[dict[str, str]]) -> tuple[int, dict[str, Any]]:
+    return 200, {"rows": rows, "chain_intact": True}
+
+
+def test_an_execution_is_recorded_only_by_its_own_incidents_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The bug, pinned. Another incident's `execute_done` used to count."""
+    import harness.report as rep
+
+    monkeypatch.setattr(rep, "api", lambda *a, **k: _audit_body([
+        {"incident_id": "other-1", "event": "execute_done"},
+        {"incident_id": "other-2", "event": "execute_done"},
+        {"incident_id": "mine", "event": "execute_start"},
+    ]))
+    assert rep.audit_has_execution("mine") is False, (
+        "two unrelated execute_done rows satisfied this incident, which is "
+        "exactly how the log-wide count always reached 100%")
+
+    monkeypatch.setattr(rep, "api", lambda *a, **k: _audit_body([
+        {"incident_id": "other-1", "event": "execute_done"},
+        {"incident_id": "mine", "event": "execute_done"},
+    ]))
+    assert rep.audit_has_execution("mine") is True
+
+
+def test_a_start_without_a_done_is_not_a_record(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An action that began and never recorded finishing is the case the
+    metric exists to catch."""
+    import harness.report as rep
+
+    monkeypatch.setattr(rep, "api", lambda *a, **k: _audit_body(
+        [{"incident_id": "mine", "event": "execute_start"}]))
+    assert rep.audit_has_execution("mine") is False
+
+
+def test_an_unreachable_audit_log_is_an_unrecorded_action(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fail closed. A bench run reports the miss rather than aborting, and
+    never credits a record it could not read."""
+    import harness.report as rep
+
+    monkeypatch.setattr(rep, "api", lambda *a, **k: (503, {}))
+    assert rep.audit_has_execution("mine") is False
+    monkeypatch.setattr(rep, "api", lambda *a, **k: (200, "not a dict"))
+    assert rep.audit_has_execution("mine") is False
+    assert rep.audit_has_execution("") is False
