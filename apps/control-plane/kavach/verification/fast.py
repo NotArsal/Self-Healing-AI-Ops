@@ -120,6 +120,39 @@ def load_cases(path: str | Path) -> tuple[list[dict[str, Any]], int]:
     return cases, budget
 
 
+def load_markers(path: str | Path) -> tuple[tuple[str, ...], str]:
+    """The refusal strings and sources marker THIS set declares.
+
+    ADDED 2026-11-03. `fast_set.yaml` has always declared `refusal_markers`
+    and `sources_marker`, and `fast.py` has always ignored them in favour of
+    the module constants above. For the first target that is invisible,
+    because the two happen to say the same thing - the constants were written
+    from that set and kept in step by hand.
+
+    It stops being invisible with a second target. LightRAG refuses with
+    "I'm sorry, but the information you provided does not contain…" and marks
+    its citations with "### References"; against the hardcoded values its
+    `non_refusal` check would pass ON a refusal, and its `sources_block`
+    check could never pass at all. A verification set that reports success on
+    a refusal is the failure mode this project cares most about.
+
+    Returns the module defaults when a set declares neither, so the first
+    target's behaviour is unchanged - and its set declares exactly those
+    values, which `test_fast_set_markers.py` asserts.
+
+    Everything is lowercased here because the comparison in `run` is against
+    a lowercased answer; the first target writes `**Sources:**` with capitals
+    and the constant is lowercase, so a case-preserving read would have
+    silently broken it.
+    """
+    doc = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+    declared = doc.get("refusal_markers")
+    markers = (tuple(str(m).lower() for m in declared)
+               if declared else REFUSAL_MARKERS)
+    marker = str(doc.get("sources_marker") or SOURCES_MARKER).lower()
+    return markers, marker
+
+
 def resolve_set(declared: str, kavach_root: str | Path) -> Path | None:
     root = Path(kavach_root)
     for candidate in (root / declared, root / "apps/control-plane" / declared):
@@ -135,6 +168,9 @@ def run(
 ) -> FastVerificationResult:
     """Run the set serially, never concurrently."""
     cases, budget = load_cases(fast_set_path)
+    # The set's own vocabulary, not the module's. See `load_markers`: this is
+    # a no-op for the first target, whose set declares exactly the constants.
+    refusal_markers, sources_marker = load_markers(fast_set_path)
     result = FastVerificationResult(budget_s=budget)
 
     if check_health:
@@ -168,8 +204,8 @@ def run(
         result.cases.append(CaseResult(
             case_id=cid, question=q, expected_keyword=kw,
             keyword_present=kw.lower() in low,
-            non_refusal=not any(m in low for m in REFUSAL_MARKERS),
-            sources_block=SOURCES_MARKER in low,
+            non_refusal=not any(m in low for m in refusal_markers),
+            sources_block=sources_marker in low,
             latency_s=time.perf_counter() - t0,
         ))
     result.total_s = time.perf_counter() - started
