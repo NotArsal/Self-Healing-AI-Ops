@@ -92,6 +92,14 @@ say "===========================================================================
 TABLE_KEYS=$(uv --directory apps/control-plane run python -c "
 from kavach.llm import providers
 print(' '.join(sorted(s.key_env for s in providers.PROVIDERS.values())))" 2>/dev/null)
+# An empty read is not an empty table. stderr is suppressed above, so a broken
+# uv, a missing venv and an import error all arrive here as the empty string -
+# and the loop below would then iterate zero times, pass, and print "0 keys,
+# all covered" on the way to a rehearsal that claims every cloud key was
+# proven empty. The check this script makes about itself must fail closed too.
+if [ -z "$TABLE_KEYS" ]; then
+  die "could not read the provider table from providers.py, so CLOUD_KEYS cannot be checked against it. Re-run that command without 2>/dev/null to see why."
+fi
 for k in $TABLE_KEYS; do
   case " ${CLOUD_KEYS[*]} " in
     *" $k "*) ;;

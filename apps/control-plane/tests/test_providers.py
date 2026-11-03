@@ -427,3 +427,79 @@ def test_when_every_key_is_exhausted_it_says_so_without_naming_one(
     message = str(caught.value)
     assert "all 2 keys tried" in message
     assert KEY_A not in message and KEY_B not in message, "a key leaked"
+
+
+# --- the three lists that must agree ----------------------------------------
+#
+# ADDED 2026-11-03. A provider is described in three places that no single
+# piece of code reads together:
+#
+#   1. `PROVIDERS` in llm/providers.py          - the table itself
+#   2. `Settings.<name>_api_key` in config.py   - how a key reaches it from .env
+#   3. `CLOUD_KEYS` in harness/offline_rehearsal.sh - what the offline proof blanks
+#
+# All three currently agree, at seven providers. Nothing enforced it.
+#
+# (2) is reached by `key_for` as `getattr(get_settings(), f"{spec.name}_api_key",
+# "")`, a name built at runtime with a default - so a provider whose field is
+# missing or misspelled does not raise. Its key simply stops being readable
+# from `.env`, which is the only gitignored place a user is told to put one,
+# and the provider reports itself unavailable for no visible reason.
+#
+# (3) matters more. `offline_rehearsal.sh` blanks the names in `CLOUD_KEYS`
+# and the report claims every cloud key was proven empty inside the container.
+# A provider added to the table without a line there would stay reachable
+# while the rehearsal still printed "7/7 empty" and passed. The script does
+# check itself against the table, correctly - but only during `make offline`,
+# which is slow and run rarely. These run in `make check`, every time.
+
+
+def test_every_provider_has_a_settings_field_for_its_key() -> None:
+    from kavach.config import Settings
+
+    fields = set(Settings.model_fields)
+    missing = sorted(
+        f"{spec.name}_api_key"
+        for spec in providers.PROVIDERS.values()
+        if f"{spec.name}_api_key" not in fields
+    )
+    assert not missing, (
+        f"these providers have no Settings field, so `key_for` will read ''"
+        f" for them and a key in .env will be silently ignored: {missing}")
+
+
+def test_no_settings_key_field_is_left_behind_by_a_removed_provider() -> None:
+    """The other direction: a field for a provider that no longer exists is a
+    knob in `.env.example` that does nothing."""
+    from kavach.config import Settings
+
+    names = {spec.name for spec in providers.PROVIDERS.values()}
+    orphans = sorted(
+        f for f in Settings.model_fields
+        if f.endswith("_api_key") and f[: -len("_api_key")] not in names
+    )
+    assert not orphans, f"Settings declares keys for no known provider: {orphans}"
+
+
+def test_the_offline_rehearsal_blanks_every_provider_in_the_table() -> None:
+    """The safety-relevant one. A provider missing from `CLOUD_KEYS` stays
+    reachable through an offline rehearsal that reports total coverage."""
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[3]
+    script = (root / "harness" / "offline_rehearsal.sh").read_text(
+        encoding="utf-8")
+    block = re.search(r"CLOUD_KEYS=\((.*?)\)", script, re.S)
+    assert block, "CLOUD_KEYS array not found in offline_rehearsal.sh"
+    listed = set(block.group(1).split())
+    table = {spec.key_env for spec in providers.PROVIDERS.values()}
+
+    assert not (table - listed), (
+        f"offline_rehearsal.sh does not blank {sorted(table - listed)}, so an "
+        f"offline rehearsal would leave that provider reachable while still "
+        f"reporting every cloud key empty. Add it to CLOUD_KEYS.")
+    assert not (listed - table), (
+        f"offline_rehearsal.sh blanks {sorted(listed - table)}, which no "
+        f"provider uses. Harmless, but it inflates the 'n/n empty' count the "
+        f"report quotes.")
