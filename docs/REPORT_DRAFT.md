@@ -1320,6 +1320,39 @@ worth stating plainly in a report about self-healing: **the parts of a system
 that measure it are not themselves measured**, and all three went unnoticed
 because each produced a plausible number.
 
+**"Hash-chained" does not mean what a reader may assume, and the difference
+was measured.** Added 2026-11-05 while surveying audit-log libraries
+(`TOOLING_SURVEY.md`), after one of them — `tamperlog` — states its whole
+reason for existing as *plain hash chaining silently accepts re-chained
+truncation*. Tested against a copy of this project's own log, never the log:
+
+| mutation | rows | `verify()` says |
+|---|---|---|
+| intact copy | 1014 | intact |
+| one middle row edited | 401 | broken — *row content does not match its recorded hash* |
+| one middle row deleted | 401 | broken — *prev link is …, expected …* |
+| **last 50 records deleted** | 964 | **intact — not detected** |
+
+The chain does exactly what §3 claims for the first two: each row's digest is
+recomputed from its own payload, so an edited record is caught as well as a
+relinked one. What it cannot see is a deletion at the end, because what
+remains is a valid chain from genesis that is simply shorter. There is no
+seal key, and no record of the expected length anywhere outside the file.
+
+**This is a limitation of the mechanism, not a failure against the threat
+model, and the report should be precise about which.** `AGENTS.md` makes the
+audit log Kavach's record of its own actions — the property it buys is that
+Kavach cannot act without leaving a record it then edits away, and that holds.
+It was never a defence against an attacker with write access to the host, who
+can also stop the container. The sentence to avoid is the one that lets
+"hash-chained, append-only, verified intact" imply tamper-proof against
+someone who can truncate the file.
+
+**Deliberately not fixed.** A signed checkpoint, or an anchored row count, is
+a contained change and the right one. It is also a change to the format of the
+artifact behind every audit number in §4, days from the deadline, and the
+measured gap is outside the stated threat model. Recorded in §9 instead.
+
 **Nothing in the gate drives a browser, and a demo-visible bug lived there.**
 Added 2026-11-03 after finding that the console's mode switch had been broken
 the whole time: `ModeSwitch.tsx` calls `api.PUT("/v1/mode")`, the console is a
@@ -1990,3 +2023,18 @@ either in a write to a live system or a refusal to make one.
     > an instrument validated after the fact does not retroactively measure a
     > run that finished without it. The next full bench produces the first
     > real number.
+
+16. **The audit chain does not detect tail truncation.** Opened
+    2026-11-05, measured in §6. Deleting the last N records leaves a chain
+    that verifies as intact, because what remains is valid from genesis;
+    edits and middle deletions are caught. There is no seal key and no
+    expected row count held outside the file.
+
+    **The fix is small and deliberately deferred**: a periodic signed
+    checkpoint carrying the row count, or anchoring the head hash
+    somewhere the log cannot reach. Both change the format of the artifact
+    behind every audit figure in §4, and the gap sits outside the threat
+    model `AGENTS.md` states — the log exists so Kavach cannot act without
+    leaving a record, not to withstand an attacker who can write to the
+    host and stop the container. Worth doing after the deadline, and worth
+    stating precisely until then.
