@@ -1159,6 +1159,8 @@ here, which is a more useful result than claiming zero.
 - `harness/report.py` → `make bench`: **7 injectable faults × 5 reps = 35 injections**, metrics table including the `PRD.md` §10.1 conditionals and the stated denominator
 
 **Acceptance**
+
+*Laya shadow and the research evaluator — still open, and ADR 0009 explains why.*
 - [ ] Laya answers every decision in shadow; agreement/disagreement rate logged
 - [ ] **Laya's output is never read by `permit()`** — grep to confirm
 - [ ] **No `noul` questions anywhere** — all booleans are two-option `choice` with neutral keys
@@ -1168,13 +1170,60 @@ here, which is a more useful result than claiming zero.
 - [ ] Similar past incidents appear in evidence collection
 - [ ] The research evaluator runs with **no cloud API key** and no monkeypatch, and its scores are reproducible across two runs
 - [ ] `make bench` emits a complete metrics table unattended, with **35** injections and the denominator printed
-- [ ] Every git deny case has a passing test
-- [ ] **`apply_patch` is denied in `AUTONOMOUS` with a LOW-risk allow-listed candidate present** — the tier is fixed by the action, not computed
-- [ ] A patch touching a path outside `versioned_paths` is denied on path, before its content is read
-- [ ] A patch whose diff exceeds the budget is denied
-- [ ] A patch against a stale blob SHA escalates rather than overwriting
-- [ ] A patch reaching a deny-listed target is refused in every mode, on content as well as path
-- [ ] No sandbox result → no proposal
+      — *partially met and the shortfall is a scope decision, not a miss: four
+      fault classes shipped rather than seven (`PRD.md` §6 retires F04,
+      defers F03), so the denominator is 4 × 5 = 20 and `report.py` prints it.
+      The table is emitted unattended and includes the §10.1 conditionals.*
+
+*The patch-safety criteria — **all six met**, audited 2026-11-05.* These sat
+unticked long after the tests that satisfy them were written, which is its own
+small instance of this project's recurring defect: a thing enforced in one
+place and recorded nowhere else. Each is listed with the test that holds it,
+so a reader can check rather than trust.
+
+- [x] **`apply_patch` is denied in `AUTONOMOUS` with a LOW-risk allow-listed candidate present** — the tier is fixed by the action, not computed
+      — `test_patch_checks.py::test_the_tier_is_fixed_high_and_not_computed`,
+      `test_apply_patch.py::test_it_is_registered_high_with_a_tier_nothing_can_lower`,
+      and `::test_a_high_action_cannot_reach_the_sandbox_verdict_unapproved`
+- [x] A patch touching a path outside `versioned_paths` is denied on path, before its content is read
+      — `test_patch_checks.py::test_a_patch_outside_the_declared_versioned_paths_is_refused`,
+      `::test_a_path_that_escapes_the_repository_is_refused`, and
+      `::test_a_manifest_with_no_versioned_paths_permits_nothing`, which pins
+      the fail-closed direction: an empty declaration permits nothing rather
+      than everything. `evaluate_static` calls `check_paths` before
+      `check_denied`, which is the ordering this criterion asks for. It does
+      **not** short-circuit, and that is deliberate —
+      `::test_every_reason_is_collected_not_just_the_first` — so a refused
+      patch reports every reason it was refused for rather than the first.
+- [x] A patch whose diff exceeds the budget is denied
+      — `::test_a_large_diff_is_not_a_repair` and `::test_touching_too_many_files_is_refused`
+- [x] A patch against a stale blob SHA escalates rather than overwriting
+      — `test_apply_patch.py::test_a_file_that_moved_between_approval_and_execution_is_not_overwritten`,
+      which asserts both halves: `ActionError` is raised **and** the human's
+      edit is still on disk afterwards
+- [x] A patch reaching a deny-listed target is refused in every mode, on content as well as path
+      — content: `test_patch_checks.py::test_denied_content_is_refused_even_on_an_allowed_path`;
+      every mode: `test_safety.py::test_deny_list_beats_autonomous_mode`, which
+      loops the modes and asserts on each. `::test_removing_a_line_is_not_the_same_as_adding_one`
+      pins that the check reads added lines rather than the whole diff.
+- [x] No sandbox result → no proposal
+      — `test_patch_checks.py::test_no_sandbox_result_is_a_refusal_not_a_default`
+      and `test_apply_patch.py::test_no_sandbox_means_no_action_rather_than_a_skipped_check`.
+      `None` means nobody checked, and that is a refusal rather than a default.
+
+- [~] Every git deny case has a passing test — **the security-relevant ones, yes;
+      two environmental ones, no.** `test_git_adapter.py` covers the refusals
+      that bound what the adapter may touch: a root outside the boundary, a
+      missing directory, an empty patch, a moved file, a `..` escape that must
+      not write outside, wrong hunk line numbers, and bad content surviving a
+      recount — plus `::test_the_adapter_has_no_history_writing_code_path`,
+      which enforces the `AGENTS.md` rule by asserting the code to push, amend
+      or force-push does not exist rather than that it is guarded.
+      **Untested: `git is not on PATH` and `git <cmd> timed out`.** Both raise
+      `GitAdapterError` and so fail closed, and neither is a deny case in the
+      security sense — they are the environment being broken, not a patch
+      being refused. Left open rather than ticked, because the criterion says
+      *every*.
 
 ---
 
