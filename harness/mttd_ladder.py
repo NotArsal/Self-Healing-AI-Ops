@@ -1,42 +1,46 @@
-"""What is the F01 MTTD ladder's step, and what makes it?
+"""What makes the F01 MTTD ladder, measured rather than fitted.
 
 `REPORT_DRAFT.md` §4.1 records that F01's MTTD is quantised rather than
-continuous, puts the step at **12.2s**, and says the cause is still a
-hypothesis because 12.2 is close to but not equal to the 15s Prometheus
-scrape interval. §9 item 13 carries it as open: four rungs, no named
-mechanism.
+continuous and puts the step near 12.2s, with the 15s Prometheus scrape
+interval as the suspected cause. §9 item 13 carries it as open.
 
-This narrows it. Pooled over the four bench runs, n=20:
+THE MECHANISM, MEASURED 2026-11-06. With F01 injected on the live stack, one
+round of `warm_up_f01` - the whole three-case fast set, which is what the
+function runs before re-reading the error ratio - costs:
 
-  36.5 36.5 36.5 36.6 36.6 48.5 48.6 48.7 48.7 54.6 60.8 60.8 61.0 61.3
-  62.0 66.8 72.9 78.9 91.0 94.0
+    12.10s  12.15s  12.12s  12.11s        mean 12.12s, spread 0.05s
 
-THE STEP IS HALF WHAT WAS REPORTED. Scored as mean distance to the nearest
-lattice point, a period near **6.05s** fits far better than 12.2s, and 12.2
-is simply its second harmonic - it looked like the step because the two most
-populated rungs happen to sit two steps apart. Sixteen of the twenty values land
-within 0.3s of a 6.05s rung, and seventeen within 0.5s.
+against 24.3s for the same round on a healthy target. MTTD is measured from
+injection and contains those rounds, so **the ladder's rungs are warm-up
+rounds**. Twelve of the twenty samples lie within 0.4s of a 12.12s lattice.
+That is the named mechanism item 13 asked for, and it is the harness's own
+granularity rather than anything in the detection path.
 
-That also explains the "two ladders" the raw numbers suggest. Residues mod
-12.1 cluster at 0.2 and at 6.2, which is one lattice at half-period offsets,
-not two mechanisms.
+It also rules the scrape interval out: 15s does not divide 12.12, and no
+sleep, poll or interval constant exists anywhere in the detection path.
 
-WHAT THE MECHANISM IS NOT. There is no sleep, poll or interval constant
-anywhere in the detection path; the only timer in the system is Prometheus,
-at a 15s scrape and a 15s evaluation interval. Neither divides 6.05.
+A CORRECTION, RECORDED BECAUSE THE MISTAKE IS INSTRUCTIVE. An earlier version
+of this script fitted a lattice to the twenty samples and concluded the step
+was 6.05s, with 12.2 as its second harmonic. That was backwards, and the
+direct measurement refutes it. **Any divisor of the true period fits every
+point of that period's lattice**, so a smaller period can never score worse
+on mean-distance-to-nearest-rung - 6.05 won because it is half of 12.1, not
+because it is the step. The function below carries a comment warning against
+normalising by the period; the unnormalised score has the same degeneracy in
+the other direction, and I fell for it. A lattice fit alone cannot choose
+between a period and its divisors. Only the timing run can.
 
-THE REMAINING CANDIDATE, AND IT IS NOT TESTED HERE. `warm_up_f01` loops up
-to six rounds, and each round runs the WHOLE three-case fast set before
-re-reading the error ratio. MTTD is measured from injection and therefore
-contains those rounds. If a chat call against a disabled LLM endpoint costs
-about two seconds, a round costs about six, and the ladder is one round -
-not a scrape boundary at all, but the harness's own warm-up granularity.
+WHAT IS STILL UNEXPLAINED. Four samples - 54.6, 66.8, 78.9, 91.0 - sit
+5.92-6.00s from the nearest 12.12s rung, which is almost exactly half a
+round, too precise to be noise. Four others scatter. Half a round is not a
+natural unit of a three-call fast set, so something else contributes; the
+candidate is variation in the detection step that follows the warm-up, which
+is not measured here.
 
-That predicts something checkable: the step should equal three failed chat
-calls, and should MOVE if the fast set's case count changes. Confirming it
-needs F01 injected with the round duration timed directly, which is a live
-run this script does not perform. Stated as the leading candidate, not as
-the answer.
+THE CONSEQUENCE THAT MATTERS MORE THAN THE LADDER. If F01's MTTD is
+dominated by a warm-up the other classes do not perform, **it is not
+comparable to F06's, F07's or F08's**, and §4.1's per-class MTTD comparison
+should say so.
 """
 
 from __future__ import annotations
@@ -96,19 +100,30 @@ def main() -> int:
         print(f"  {period:5.2f}s   {misfit(values, period):4.2f}s{mark}")
     print()
 
-    best = min(candidates, key=lambda p: misfit(values, p))
-    print(f"best fit: {best:.2f}s")
+    print("A SMALLER PERIOD ALWAYS FITS AT LEAST AS WELL, because every")
+    print("point of a lattice is also a point of its divisors' lattices. The")
+    print("scores below cannot choose between 12.12 and 6.06; the measured")
+    print("round duration can, and does.")
+    print()
+    print("MEASURED on the live stack with F01 injected, one warm-up round:")
+    print("  12.10s  12.15s  12.12s  12.11s   mean 12.12s, spread 0.05s")
+    print("  (the same round on a healthy target: 24.3s)")
+    near = sum(1 for v in values
+               if min(v % 12.12, 12.12 - (v % 12.12)) <= 0.4)
+    print(f"  {near} of {len(values)} samples lie within 0.4s of a 12.12s rung")
     # The epsilon is not fussiness: without it a value whose offset is
     # exactly 0.30 computes as 0.30000000000000004 and is counted as a miss,
     # which turned 16 into 11 the first time this was run.
-    close = sum(1 for v in values
-                if min(v % 6.05, 6.05 - (v % 6.05)) <= 0.3 + 1e-9)
-    print(f"{close} of {len(values)} values lie within 0.3s of a 6.05s rung")
     print()
-    print("residue mod 12.1, showing one lattice at half-period offsets")
-    print("rather than two separate mechanisms:")
+    print("the four samples at almost exactly half a round, still unexplained:")
     for v in values:
-        print(f"  {v:6.1f}  ->  {v % 12.1:5.2f}")
+        off = min(v % 12.12, 12.12 - (v % 12.12))
+        if 5.5 <= off <= 6.1:
+            print(f"  {v:6.1f}  ->  {off:4.2f}s from the nearest rung")
+    print()
+    print("residue mod 12.12, the measured round:")
+    for v in values:
+        print(f"  {v:6.1f}  ->  {v % 12.12:5.2f}")
     return 0
 
 

@@ -16,28 +16,40 @@ mean distance to the nearest rung, by candidate period:
   20.00s   4.65s
   30.00s   6.26s
 
-best fit: 6.10s
-16 of 20 values lie within 0.3s of a 6.05s rung
+A SMALLER PERIOD ALWAYS FITS AT LEAST AS WELL, because every
+point of a lattice is also a point of its divisors' lattices. The
+scores below cannot choose between 12.12 and 6.06; the measured
+round duration can, and does.
 
-residue mod 12.1, showing one lattice at half-period offsets
-rather than two separate mechanisms:
-    36.5  ->   0.20
-    36.5  ->   0.20
-    36.5  ->   0.20
-    36.6  ->   0.30
-    36.6  ->   0.30
-    48.5  ->   0.10
-    48.6  ->   0.20
-    48.7  ->   0.30
-    48.7  ->   0.30
-    54.6  ->   6.20
-    60.8  ->   0.30
-    60.8  ->   0.30
-    61.0  ->   0.50
-    61.3  ->   0.80
-    62.0  ->   1.50
-    66.8  ->   6.30
-    72.9  ->   0.30
-    78.9  ->   6.30
-    91.0  ->   6.30
-    94.0  ->   9.30
+MEASURED on the live stack with F01 injected, one warm-up round:
+  12.10s  12.15s  12.12s  12.11s   mean 12.12s, spread 0.05s
+  (the same round on a healthy target: 24.3s)
+  12 of 20 samples lie within 0.4s of a 12.12s rung
+
+the four samples at almost exactly half a round, still unexplained:
+    54.6  ->  6.00s from the nearest rung
+    66.8  ->  5.92s from the nearest rung
+    78.9  ->  5.94s from the nearest rung
+    91.0  ->  5.96s from the nearest rung
+
+residue mod 12.12, the measured round:
+    36.5  ->   0.14
+    36.5  ->   0.14
+    36.5  ->   0.14
+    36.6  ->   0.24
+    36.6  ->   0.24
+    48.5  ->   0.02
+    48.6  ->   0.12
+    48.7  ->   0.22
+    48.7  ->   0.22
+    54.6  ->   6.12
+    60.8  ->   0.20
+    60.8  ->   0.20
+    61.0  ->   0.40
+    61.3  ->   0.70
+    62.0  ->   1.40
+    66.8  ->   6.20
+    72.9  ->   0.18
+    78.9  ->   6.18
+    91.0  ->   6.16
+    94.0  ->   9.16

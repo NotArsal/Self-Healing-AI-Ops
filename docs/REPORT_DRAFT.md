@@ -192,37 +192,42 @@ rung appeared exactly one step out, on different hardware, is the strongest
 evidence we have that the step is mechanical rather than noise. We still have
 not isolated it to a named mechanism.
 
-**Narrowed 2026-11-05 — and the step is half what this section claimed.**
+**Mechanism found 2026-11-06, by measuring instead of fitting.**
 `harness/mttd_ladder.py`, artifact
-[`mttd-ladder.txt`](../harness/reports/mttd-ladder.txt), pools all twenty F01
-samples and scores candidate periods by mean distance to the nearest lattice
-point. A step near **6.05s** fits best (mean offset 0.35s at 6.1s), against
-**1.47s at the 12.2s** this paragraph used to give and **3.81s at the 15s
-scrape interval**. **Sixteen of the twenty values lie within 0.3s of a 6.05s
-rung.** 12.2 was its second harmonic: it looked like the step because the two
-most populated rungs happen to sit two steps apart. Residues mod 12.1
-clustering at both 0.2 and 6.2 — which reads as two ladders — is the same
-thing seen at the wrong period.
+[`mttd-ladder.txt`](../harness/reports/mttd-ladder.txt). With F01 injected on
+the live stack, one round of `warm_up_f01` — the whole three-case fast set,
+which is what that function runs before re-reading the error ratio — costs
+**12.10, 12.15, 12.12, 12.11 seconds**: mean **12.12s**, spread 0.05s, against
+**24.3s** for the same round on a healthy target. MTTD is measured from
+injection and contains those rounds, and **twelve of the twenty samples lie
+within 0.4s of a 12.12s lattice**.
 
-**That rules the scrape interval out rather than leaving it a hypothesis.**
-15s does not divide 6.05, and there is no sleep, poll or interval constant
-anywhere in the detection path; Prometheus is the only timer in the system.
+**So the rungs are warm-up rounds.** That is the named mechanism §9 item 13
+asked for, and it is in the harness rather than in the system: 15s does not
+divide 12.12, and there is no sleep, poll or interval constant anywhere in the
+detection path. The scrape interval is ruled out rather than merely doubted.
 
-**The remaining candidate is the harness, not the system.** `warm_up_f01`
-loops up to six rounds and runs the *whole three-case fast set* in each one
-before re-reading the error ratio, and MTTD is measured from injection, so it
-contains those rounds. At roughly two seconds per chat call against a
-disabled endpoint, a round is about six. If that is right the ladder is the
-harness's own warm-up granularity, which would make it **an artefact of how
-MTTD is measured for this class rather than a property of detection** — and
-would mean F01's MTTD is not comparable to F06's, F07's or F08's, none of
-which warm up the same way.
+**A correction, because the mistake is the instructive part.** This paragraph
+briefly claimed, on 2026-11-05, that the step was **6.05s** and that 12.2 was
+its second harmonic. That was backwards, and the timing run refutes it. The
+claim came from fitting a lattice to the twenty samples and taking the best
+mean-distance-to-nearest-rung — and **any divisor of the true period fits
+every point of that period's lattice**, so a shorter period can never score
+worse. 6.05 won because it is half of 12.1, not because it is the step. A
+lattice fit cannot choose between a period and its divisors; only the
+measurement can. The report's original 12.2s was right.
 
-It is a candidate, not the answer: confirming it needs F01 injected with the
-round timed directly, which is a live run and has not been done. The
-prediction is sharp enough to be worth recording — **the step should equal
-three failed chat calls, and should move if the fast set's case count
-changes.**
+**What is still unexplained**, stated because the rest is now solid: four
+samples — 54.6, 66.8, 78.9, 91.0 — sit 5.92–6.00s from the nearest rung,
+almost exactly half a round and far too precise to be noise. Half a round is
+not a natural unit of a three-call fast set. The candidate is variation in the
+detection step that follows the warm-up, which has not been measured.
+
+**The consequence matters more than the ladder.** If F01's MTTD is dominated
+by a warm-up that F06, F07 and F08 do not perform, then **F01's MTTD is not
+comparable to theirs**, and the per-class MTTD figures in this section should
+be read with that stated. The aggregate was already called the least useful
+true thing about MTTD; this is why.
 
 #### Headline metrics, all four runs
 
@@ -2102,25 +2107,26 @@ either in a write to a live system or a refusal to make one.
     reproducibility risk in the project and it is a decision, not a task** —
     committing a 4.7 MB pair of third-party PDFs to a public repository is the
     user's and the team's call, not mine.
-13. **The F01 MTTD ladder — step now measured, mechanism still unconfirmed**
-    (§4.1). **Narrowed 2026-11-05**, `harness/mttd_ladder.py`. The step is
-    **6.05s, not the 12.2s this report gave**; 12.2 is its second harmonic.
-    Sixteen of twenty samples lie within 0.3s of a 6.05s rung, against a mean
-    offset of 3.81s at the 15s scrape interval — which **rules the scrape
-    interval out** rather than leaving it a hypothesis, since 15 does not
-    divide 6.05 and no sleep, poll or interval constant exists anywhere in
-    the detection path.
+13. ~~**The F01 MTTD ladder has four rungs and no named mechanism**~~ —
+    **closed 2026-11-06** (§4.1, `harness/mttd_ladder.py`). The rungs are
+    rounds of `warm_up_f01`, measured on the live stack with F01 injected at
+    **12.12s** a round (12.10/12.15/12.12/12.11, spread 0.05s) against 24.3s
+    healthy. Twelve of twenty samples sit within 0.4s of that lattice. The
+    15s scrape interval is ruled out: it does not divide 12.12, and no
+    interval constant exists in the detection path.
 
-    What remains is confirming the candidate, and it is no longer the
-    experiment this item used to propose. Injecting F01 at known offsets
-    within a scrape cycle would test a mechanism now excluded. The live
-    candidate is **the harness's own warm-up**: `warm_up_f01` runs the whole
-    three-case fast set per round before re-reading the error ratio, and MTTD
-    is measured from injection, so it contains those rounds. The experiment
-    is to inject F01 and time one round directly. **If it holds, F01's MTTD
-    is an artefact of how it is measured and is not comparable to F06's,
-    F07's or F08's**, none of which warm up this way — which would matter
-    more than the ladder itself.
+    **Two things stay open and are smaller than the original item.** Four
+    samples sit almost exactly half a round off the lattice, too precise to
+    be noise and not a natural unit of a three-call fast set; the candidate
+    is the detection step that follows the warm-up, unmeasured. And the
+    consequence needs writing into §4.1's per-class comparison: a warm-up
+    F06, F07 and F08 do not perform means **F01's MTTD is not comparable to
+    theirs**.
+
+    Recorded here because a 2026-11-05 pass on this item briefly concluded
+    the step was 6.05s. It was not. A lattice fit cannot distinguish a period
+    from its divisors, and the timing run settled it the other way.
+
 14. **The F06 attractor's trigger is hinted at but not measured** (§4.2). A
     rehearsal accident put F08 first-draw accuracy at 19/20 on a clean
     evidence frame and 1/3 on a frame carrying one extra anomaly, which
