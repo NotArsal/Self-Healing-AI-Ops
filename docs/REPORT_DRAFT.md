@@ -1768,9 +1768,19 @@ to a URL, so the first code to read it made **every test run stand up a live
 OTLP exporter**. The default is now empty. A setting whose default turns on a
 network client is one that was written before anyone intended to read it.
 
-**Still absent, deliberately.** There is no log aggregation — `structlog` is a
-dependency with 3 call sites in 11,500 lines and `structlog.configure()` is
-never called — and no alerting rules. Neither is pretended otherwise. The
+**Still absent, deliberately.** There is no log aggregation — `structlog` is
+a dependency with **4 logger calls in the ~13,000 lines of
+`apps/control-plane/kavach`** — and no alerting rules. Neither is pretended
+otherwise.
+
+*Corrected 2026-11-05.* This sentence used to add "and `structlog.configure()`
+is never called", which stopped being true when `ADR 0016`'s observability
+work landed: `telemetry.configure_logging` calls it, and `main.py` calls that
+on startup. The claim survived because it was written as a criticism, and a
+criticism of your own system is the last thing anyone re-checks. The counts
+beside it had drifted the same way — 3 call sites and 11,500 lines were right
+when written. **The point the sentence makes is unchanged: four logger calls
+is not a logging strategy, and nothing aggregates them.** The
 audit log is Kavach's record of its own actions and is better than
 application logs for that purpose, because it is hash-chained and its
 integrity is checkable — and is checked on every read of `/v1/audit`, not only when someone asks. **336 rows verified intact when that sentence was first written; 1,022 and still intact on 2026-11-05.** The count is dated deliberately: it grows with every run, so any fixed number in a report is stale by the next one, and §6 records what the verification does and does not cover.
