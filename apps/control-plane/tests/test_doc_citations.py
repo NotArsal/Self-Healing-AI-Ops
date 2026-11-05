@@ -69,3 +69,52 @@ def test_a_cited_test_exists(doc: str, name: str) -> None:
         f"case update the citation - or it was deleted, in which case the "
         f"claim in {doc} is no longer backed by anything and should not keep "
         f"its tick.")
+
+
+# --- decision records -------------------------------------------------------
+#
+# Same invariant, other citation style. The report leans on ADR numbers to
+# carry arguments it does not restate - "ADR 0013 identifies the real one",
+# "the reasoning is in ADR 0012" - so a number pointing at nothing is an
+# argument with its support removed. Fourteen are cited across docs/ and all
+# fourteen resolve today.
+#
+# Uncited records are fine and are not checked: a decision worth recording is
+# worth recording whether or not the report happens to reference it.
+
+ADR_DIR = ROOT / "docs" / "decisions"
+
+
+def adrs_on_disk() -> set[int]:
+    numbers: set[int] = set()
+    for path in ADR_DIR.glob("*.md"):
+        found = re.match(r"(\d{4})-", path.name)
+        if found:
+            numbers.add(int(found.group(1)))
+    return numbers
+
+
+def adrs_cited() -> dict[int, set[str]]:
+    out: dict[int, set[str]] = {}
+    for doc in DOCS:
+        for number in re.findall(r"ADR\s*0*(\d{1,4})",
+                                 doc.read_text(encoding="utf-8")):
+            out.setdefault(int(number), set()).add(doc.name)
+    return out
+
+
+def test_there_are_decision_records_to_check() -> None:
+    assert ADR_DIR.is_dir(), f"no decisions directory at {ADR_DIR}"
+    assert adrs_on_disk(), "no ADR files found; the naming may have changed"
+    assert adrs_cited(), "no document cites an ADR, which would be a surprise"
+
+
+def test_every_cited_decision_record_exists() -> None:
+    on_disk = adrs_on_disk()
+    missing = {n: sorted(where) for n, where in adrs_cited().items()
+               if n not in on_disk}
+    assert not missing, (
+        "these ADR numbers are cited and no file answers to them, so the "
+        "arguments resting on them point at nothing: "
+        + ", ".join(f"ADR {n:04d} (in {', '.join(w)})"
+                    for n, w in sorted(missing.items())))
