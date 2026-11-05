@@ -126,6 +126,56 @@ export function useEvents(): { events: LoopEvent[]; connected: boolean } {
   return { events, connected };
 }
 
+/**
+ * Run `attempt` until it first succeeds, then stop.
+ *
+ * ADDED 2026-11-05 after watching the console come up against an API that
+ * was not serving yet. `load once` had no notion of the load FAILING: the
+ * hooks below write `if (data) setX(data)`, so a failed fetch silently did
+ * nothing and nothing ever tried again. Opening the console before the API
+ * was ready therefore left it showing an empty system - no fleet metrics,
+ * and an incident list reading "has run no loop yet" - while the API held
+ * 82 incidents. The dependencies panel recovered on its own because it is
+ * on a 5s interval; these two never did, until the page was reloaded.
+ *
+ * `make up` starts the console and the API together and the API waits for
+ * Postgres, so losing that race is ordinary rather than exotic.
+ *
+ * This is NOT polling, and the distinction is the one this module's header
+ * draws. It retries only until the first success and then never runs again,
+ * so the steady-state behaviour - load once, refresh when the caller says
+ * something happened - is exactly as before.
+ */
+function useLoadUntilReady(attempt: () => Promise<boolean>): void {
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const again = (): void => {
+      if (!cancelled) timer = setTimeout(run, RECONNECT_MS);
+    };
+
+    // TWO HANDLERS, NOT ONE. `api.GET` REJECTS when the server is not
+    // answering - the browser console shows `TypeError: Failed to fetch`
+    // thrown straight out of it - so a single `.then` never runs and no
+    // retry is ever scheduled. The first version of this fix had exactly
+    // that bug and passed its unit test, because the test mocked failure as
+    // a resolved `{data: undefined}`, which is not what a dead server does.
+    function run(): void {
+      if (cancelled) return;
+      attempt().then((ok) => {
+        if (!ok) again();
+      }, again);
+    }
+
+    run();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [attempt]);
+}
+
 /** Incident list plus the selected incident's full detail. */
 export function useIncidents(selectedId: string): {
   incidents: Incident[];
@@ -136,8 +186,17 @@ export function useIncidents(selectedId: string): {
   const [selected, setSelected] = useState<Incident | null>(null);
 
   const load = useCallback(async () => {
-    const { data } = await api.GET("/v1/incidents");
-    if (data) setIncidents(data as Incident[]);
+    // try/catch, not just a falsy check: `refresh()` also calls this, and an
+    // unhandled rejection there is how a transient blip became a permanently
+    // empty incident list.
+    try {
+      const { data } = await api.GET("/v1/incidents");
+      if (!data) return false;
+      setIncidents(data as Incident[]);
+      return true;
+    } catch {
+      return false;
+    }
   }, []);
 
   const loadOne = useCallback(async (id: string) => {
@@ -145,15 +204,18 @@ export function useIncidents(selectedId: string): {
       setSelected(null);
       return;
     }
-    const { data } = await api.GET("/v1/incidents/{incident_id}", {
-      params: { path: { incident_id: id } },
-    });
-    if (data) setSelected(data);
+    try {
+      const { data } = await api.GET("/v1/incidents/{incident_id}", {
+        params: { path: { incident_id: id } },
+      });
+      if (data) setSelected(data);
+    } catch {
+      // Keep whatever is on screen. The list's retry will bring the page
+      // back, and blanking the open incident mid-blip helps nobody.
+    }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useLoadUntilReady(load);
 
   useEffect(() => {
     void loadOne(selectedId);
@@ -185,17 +247,23 @@ export function useSafetyState(): {
   const [metrics, setMetrics] = useState<FleetMetrics | null>(null);
 
   const load = useCallback(async () => {
-    const [m, f] = await Promise.all([
-      api.GET("/v1/mode"),
-      api.GET("/v1/metrics"),
-    ]);
+    let m, f;
+    try {
+      [m, f] = await Promise.all([
+        api.GET("/v1/mode"),
+        api.GET("/v1/metrics"),
+      ]);
+    } catch {
+      return false;
+    }
     if (m.data) setModeState(m.data);
     if (f.data) setMetrics(f.data);
+    // Both, not either: a half-loaded panel is the state this retry exists
+    // to leave behind, and the two come from one API.
+    return Boolean(m.data && f.data);
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useLoadUntilReady(load);
 
   return {
     mode,
