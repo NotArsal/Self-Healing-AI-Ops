@@ -291,6 +291,12 @@ which side of the gap the middle sample falls on, not by how fast detection is.
 twenty samples is plotted; the bar is the class median and the dashed line the
 `PRD.md` §10 target. Nothing lands between 20.5s and 36.5s.*
 
+> **Read the bars within a class, not across them.** The decomposition below
+> shows F01's bar contains 24–61s of manufactured warm-up traffic that F07's
+> and F08's bars contain none of. The gap the figure shows between the
+> left-hand pair and the right-hand pair is mostly that warm-up, not a
+> difference in detection speed.
+
 The two classes whose detectors read **no metric at all** — F07 compares a
 prompt hash, F08 a config snapshot — come in at 18-20s with a spread of
 **0.9s and 0.4s**. That is a fixed cost (the fast set), not a distribution. The
