@@ -1481,7 +1481,7 @@ repository on the host and that container path holds only the mounted
 manifest. An operator following that remedy would have initialised an empty
 repository on a false premise.
 
-**Two real defects, both demo-visible, both invisible to all 568 gate tests,
+**Two real defects, both demo-visible, both invisible to all 568 gate tests as the suite then stood,
 both found within an hour of pointing a browser at the thing.** That is the
 argument for the headless-browser test in §9, stated as evidence rather than
 as a worry. The console is a P4
@@ -1680,7 +1680,7 @@ dependency with 3 call sites in 11,500 lines and `structlog.configure()` is
 never called — and no alerting rules. Neither is pretended otherwise. The
 audit log is Kavach's record of its own actions and is better than
 application logs for that purpose, because it is hash-chained and its
-integrity is checkable: 336 rows, verified intact.
+integrity is checkable — and is checked on every read of `/v1/audit`, not only when someone asks. **336 rows verified intact when that sentence was first written; 1,022 and still intact on 2026-11-05.** The count is dated deliberately: it grows with every run, so any fixed number in a report is stale by the next one, and §6 records what the verification does and does not cover.
 
 The honest one-line version: **Kavach scraped the target every 15 seconds for
 three weeks while answering 404 on its own `/metrics`.**
