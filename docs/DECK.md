@@ -436,6 +436,14 @@ documents"* — produced `query_expansion` and `embedding` samples and no
 Running the fast set fixed it, because its three cases are known to retrieve
 and therefore known to generate.
 
+**And it is not only the console.** Measured again 2026-11-05: `make bench`
+on a cold target **refused outright** — *"REFUSING: the fast set must pass
+before injecting"* — and the same command succeeded minutes later with
+nothing changed but one successful fast-set run in between. The refusal is
+the system working: it will not inject a fault into a target it cannot
+first prove healthy. But on demo day it reads as a broken tool. **Warm the
+target before anything else, every time.**
+
 Sequence, measured: cold stack 5 blocking → after three refused questions,
 2 → after the fast set, **1**, and the one that remains is `git repository`,
 which always fails when read through the API. The container sees only the
