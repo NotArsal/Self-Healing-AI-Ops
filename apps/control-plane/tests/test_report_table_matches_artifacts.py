@@ -207,3 +207,41 @@ def test_the_f07_false_recovery_is_the_one_the_report_names() -> None:
     assert [r["fault_class"] for r in runbook] == ["F07"], (
         "the runbook's false recovery is no longer on F07, so §4.8's "
         '"every approach fails on F07" no longer follows from the artifacts')
+
+
+def test_the_conditionals_the_deck_quotes() -> None:
+    """`DECK.md` slide 10 and `PRD.md` §10.1's conditionals.
+
+    These are the numbers that answer "is this a symptom-matcher with an LLM
+    attached", which `PRD.md` says is the question a reviewer will actually
+    ask. A high auto-resolution rate sitting beside a high P(heal | wrong
+    diagnosis) would mean yes.
+
+    Verified across all four runs: **not one of the sixty heals happened on a
+    wrong diagnosis.** That is the strongest form of the claim and the one
+    worth guarding, because it is a property of the whole set rather than a
+    rate that could drift a point and still read the same.
+    """
+    runs = [r for _, f in RUNS for r in rows_of(f)]
+    assert len(runs) == 80, f"expected 80 usable injections, found {len(runs)}"
+
+    correct = [r for r in runs if r.get("llm_class") == r.get("fault_class")]
+    healed = [r for r in runs if r.get("resolved")]
+    both = [r for r in healed
+            if r.get("llm_class") == r.get("fault_class")]
+
+    assert (len(correct), len(healed)) == (69, 60), (
+        f"the deck quotes 60/69 and 60/60; the artifacts give "
+        f"{len(both)}/{len(correct)} correct and {len(healed)} heals")
+    assert len(both) == 60, (
+        f"P(diagnosis correct | heal) is no longer 60/60: {len(both)}/"
+        f"{len(healed)}")
+
+    wrong_heals = [r for r in healed
+                   if r.get("llm_class") != r.get("fault_class")]
+    assert not wrong_heals, (
+        "a repair succeeded on a WRONG diagnosis, which is the result the "
+        "deck's slide 10 and PRD §10.1 both turn on: "
+        + "; ".join(f"injected {r['fault_class']}, model said "
+                    f"{r.get('llm_class')}, action {r.get('action')}"
+                    for r in wrong_heals[:5]))
