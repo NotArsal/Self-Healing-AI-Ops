@@ -184,13 +184,17 @@ within 0.3s *on a rebuilt host* and landed one sample on a fourth rung at
 | value | 36.5 | ~48.6 | ~60.9 | 72.9 |
 | step from previous | — | 12.1 | 12.3 | 12.0 |
 
-So **F01's MTTD is not a continuous distribution; it lands on a ladder**, and
-which rung depends on where in the scrape cycle the fault is injected. The
+So **F01's MTTD is not a continuous distribution; it lands on a ladder**. The
 median is then just a count of which rungs the five samples happened to hit,
 which is why it has moved 24s across runs that changed nothing. That a fourth
-rung appeared exactly one step out, on different hardware, is the strongest
-evidence we have that the step is mechanical rather than noise. We still have
-not isolated it to a named mechanism.
+rung appeared exactly one step out, on different hardware, was the strongest
+evidence available that the step was mechanical rather than noise.
+
+Until 2026-11-06 this paragraph added that which rung you land on "depends on
+where in the scrape cycle the fault is injected", and that the mechanism was
+not isolated. **Both are now superseded by the measurement below**, which
+finds the rung is set by the harness's warm-up and has nothing to do with the
+scrape cycle.
 
 **Mechanism found 2026-11-06, by measuring instead of fitting.**
 `harness/mttd_ladder.py`, artifact
