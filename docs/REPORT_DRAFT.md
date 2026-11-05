@@ -1060,6 +1060,80 @@ The older "21 of 21" counted the bench rows together with the earlier targeted
 probes under a bookkeeping we have not re-derived, so it is not restated here;
 §5's table gives each count beside the thing it was counted over.
 
+
+### 4.4a Evidence closure is the third uncertainty channel, and it is saturated
+
+`harness/closure_separation.py`, artifact
+[`closure-separation.txt`](../harness/reports/closure-separation.txt),
+run 2026-11-05.
+
+§8 notes that the literature prices risk along three axes — blast radius,
+reversibility and **epistemic uncertainty** (2607.20005) — and that Kavach has
+the first two. §4.2 tested two candidates for the third, the model's own
+confidence and whether its `fault_name` agrees with the class code it emitted,
+and found neither separates a right diagnosis from a wrong one.
+
+Evidence closure was the obvious next candidate, and a well-motivated one:
+Cloud-OpsBench (2603.00468) reports Joint RCA Accuracy **0.76** against an
+Evidence Closure Rate of **0.38**, concluding that final-answer correctness
+substantially overestimates evidence-grounded diagnosis. If closure separated
+here it would be a free uncertainty signal, computable from every diagnosis
+Kavach already makes.
+
+**It does not, and the reason is more interesting than the result.**
+
+**First, a methodological note, because the obvious analysis gives a wrong
+answer.** Pooled across the nine `p6-*-rca*.json` artifacts, closure on the
+named class looks *negatively* associated with correctness: all 41 wrong
+diagnoses cited evidence for the class they named, against 39 of 49 correct
+ones, a separation of −0.20. That number is an artifact. **Eight of those nine
+files are entirely correct or entirely wrong**, so the 2×2 compares
+configurations rather than diagnoses, and all ten "correct but not closed"
+cases come from `p6-f01-rca.json` — the run that reasoned from logs and never
+cited the error-ratio metric, which `evidence_closure.py` already documents as
+a property of the prompt rather than of grounding. The script prints the
+per-file breakdown first so that this cannot be reported as a finding.
+
+`diagnoses-20261020.json` is the one artifact with variation inside a single
+condition: 37 diagnoses, one model, both outcomes. Its only available
+reference is the deterministic detector's verdict rather than an injected
+class, so what follows is **agreement, not correctness** — the same
+substitution `report.py` warns about, named rather than glossed.
+
+| | agreed with detector (32) | disagreed (5) | separation |
+|---|---|---|---|
+| cited evidence for the class **it named** | 32/32 = 1.00 | 3/5 = 0.60 | +0.40 |
+| cited evidence for the **detector's** class | 32/32 = 1.00 | **5/5 = 1.00** | **0.00** |
+
+**The second row is the finding. Closure on the reference class is at a
+ceiling: 37 of 37.** Every diagnosis, including every one that named a
+different class than the detector, had already cited the evidence that
+discriminates the detector's class. A metric pinned at 1.00 cannot separate
+anything, so evidence closure joins confidence and fault-name coherence as a
+channel carrying no usable uncertainty signal here.
+
+**The ceiling is architectural, not a property of the model.** Cloud-OpsBench
+measures 0.38 because its agents must find their own evidence in raw telemetry
+and frequently do not. Kavach hands the model a bounded frame built by a
+deterministic extractor, so the discriminating evidence is already in front of
+it and citing it is nearly free. **The bounded frame — the design decision
+§8.1 defends and that `EviRCA` and `ARBITER` arrived at independently — is
+what saturates the metric.** A reviewer who reads our 1.00 beside their 0.38
+as "better grounded" has it backwards: the two numbers are not measuring the
+same difficulty.
+
+That has a consequence worth stating plainly. **These errors are not
+ungrounded in the sense Evidence Closure was built to detect.** The model
+looked at the right evidence and drew the wrong conclusion. That is a harder
+failure to catch than a hallucinated citation, it is invisible to every
+grounding metric, and it is the reason the deterministic cross-check in §4.4
+exists and is the headline safety result rather than a redundancy.
+
+**Not claimed.** The +0.40 in the first row is an observation, not a result:
+its minority arm is n=5. And three negative channels do not prove epistemic
+uncertainty is unmeasurable here — they establish that the three cheapest
+candidates are exhausted, which is why §9 still carries it as open.
+
 ### 4.5 Generated repairs — `p7-*.json`
 
 Applicability: does `git apply --check` accept the patch? Ten samples each.
@@ -1775,8 +1849,9 @@ conceals."*
 **What the field has that we do not**, stated because a related-work section
 that only finds agreement is not credible: epistemic uncertainty as a priced
 risk dimension (2607.20005 decomposes risk into blast radius, reversibility
-**and** epistemic uncertainty — we have the first two, and §4.2 rules out the
-obvious candidates for the third); canary and progressive rollout; dependency-
+**and** epistemic uncertainty — we have the first two; §4.2 rules out the
+two obvious candidates for the third and **§4.4a rules out the third,
+evidence closure, by showing it saturated at 37/37**); canary and progressive rollout; dependency-
 graph-guided search; production scale (Diviner at Meta, Log-Insight at Huawei,
 2606.09122 reporting *"autonomous resolution rates exceeding 90%"* at a cloud
 provider); and learning from incident history, which ADR 0009 cut.

@@ -1,0 +1,55 @@
+THE P6 ARTIFACTS: outcome is confounded with file
+  artifact                             n  correct  wrong
+  p6-f01-rca.json                     10       10      0
+  p6-f01-rca-symmetric.json           10        9      1
+  p6-f07-rca.json                     10        0     10
+  p6-f07-rca-qwen.json                10       10      0
+  p6-f07-rca-qwen-ctx8192.json        10        0     10
+  p6-f07-rca-qwen-ctx4096-ab.json     10        0     10
+  p6-f07-rca-qwen-frame10m-ab.json    10       10      0
+  p6-f08-rca.json                     10        0     10
+  p6-f08-rca-qwen.json                10       10      0
+
+  files containing BOTH outcomes: 1
+  With outcome constant inside almost every file, a pooled 2x2
+  compares conditions, not diagnoses. Not usable for this question.
+
+diagnoses-20261020.json: 37 diagnoses, model(s) ['qwen2.5:7b-instruct']
+  reference is the DETERMINISTIC detector's verdict, not an
+  injected class - so this is agreement, not correctness.
+  agreed 32, disagreed 5
+
+  --- closure on the class the MODEL NAMED ---
+    P(closed | agreed)    = 32/32 = 1.00
+    P(closed | disagreed) = 3/5 = 0.60
+    separation            = +0.40
+
+  --- closure on the DETECTOR's class ---
+    P(closed | agreed)    = 32/32 = 1.00
+    P(closed | disagreed) = 5/5 = 1.00
+    separation            = +0.00
+
+THE CONCLUSION
+  Closure on the reference class is at CEILING: every diagnosis,
+  including every one that named a different class, had already
+  cited the evidence that discriminates the detector's class.
+  A metric pinned at 1.00 cannot separate anything, so evidence
+  closure joins confidence and fault-name coherence as a channel
+  that carries no usable uncertainty signal here.
+
+  The reason is architectural rather than a property of the model.
+  Cloud-OpsBench measures 0.38 closure because its agents must find
+  their own evidence in raw telemetry and often do not. Kavach hands
+  the model a bounded frame built by a deterministic extractor, so
+  the relevant evidence is already in front of it and citing it is
+  nearly free. The bounded frame - the design decision section 8.1 defends
+  - is what saturates the metric.
+
+  So the model's errors here are not ungrounded in the sense that
+  metric was built to detect. It looked at the right evidence and
+  drew the wrong conclusion, which is a harder failure to catch and
+  the reason the deterministic cross-check in section 4.4 exists.
+
+  NOT CLAIMED: that named-class closure is a signal. It differs
+  between the arms, but the minority arm is n=5, which is an
+  observation and not a result.
