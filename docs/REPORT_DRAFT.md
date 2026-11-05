@@ -190,9 +190,39 @@ median is then just a count of which rungs the five samples happened to hit,
 which is why it has moved 24s across runs that changed nothing. That a fourth
 rung appeared exactly one step out, on different hardware, is the strongest
 evidence we have that the step is mechanical rather than noise. We still have
-not isolated it to a named mechanism — 12.2s is close to, but not equal to, the
-15s Prometheus scrape interval — so the *cause* remains a hypothesis. The
-*quantisation* is now a measurement.
+not isolated it to a named mechanism.
+
+**Narrowed 2026-11-05 — and the step is half what this section claimed.**
+`harness/mttd_ladder.py`, artifact
+[`mttd-ladder.txt`](../harness/reports/mttd-ladder.txt), pools all twenty F01
+samples and scores candidate periods by mean distance to the nearest lattice
+point. A step near **6.05s** fits best (mean offset 0.35s at 6.1s), against
+**1.47s at the 12.2s** this paragraph used to give and **3.81s at the 15s
+scrape interval**. **Sixteen of the twenty values lie within 0.3s of a 6.05s
+rung.** 12.2 was its second harmonic: it looked like the step because the two
+most populated rungs happen to sit two steps apart. Residues mod 12.1
+clustering at both 0.2 and 6.2 — which reads as two ladders — is the same
+thing seen at the wrong period.
+
+**That rules the scrape interval out rather than leaving it a hypothesis.**
+15s does not divide 6.05, and there is no sleep, poll or interval constant
+anywhere in the detection path; Prometheus is the only timer in the system.
+
+**The remaining candidate is the harness, not the system.** `warm_up_f01`
+loops up to six rounds and runs the *whole three-case fast set* in each one
+before re-reading the error ratio, and MTTD is measured from injection, so it
+contains those rounds. At roughly two seconds per chat call against a
+disabled endpoint, a round is about six. If that is right the ladder is the
+harness's own warm-up granularity, which would make it **an artefact of how
+MTTD is measured for this class rather than a property of detection** — and
+would mean F01's MTTD is not comparable to F06's, F07's or F08's, none of
+which warm up the same way.
+
+It is a candidate, not the answer: confirming it needs F01 injected with the
+round timed directly, which is a live run and has not been done. The
+prediction is sharp enough to be worth recording — **the step should equal
+three failed chat calls, and should move if the fast set's case count
+changes.**
 
 #### Headline metrics, all four runs
 
