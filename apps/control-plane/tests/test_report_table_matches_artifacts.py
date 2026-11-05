@@ -128,3 +128,82 @@ def test_the_eighty_injection_denominator() -> None:
         f"{false_heals} false heals; the report claims eighty and zero")
     assert "Eighty injections, zero false heals" in REPORT.read_text(
         encoding="utf-8")
+
+
+# --- the two comparison baselines -------------------------------------------
+#
+# ADDED 2026-11-06. §4.8 is the section the deck leans on hardest - it is
+# where "every approach fails on F07, and two of the three lie about it"
+# comes from - and its numbers come from two artifacts that no test read.
+# Verified by hand first; every figure matched.
+#
+# The field names are not the obvious ones (`correct`, not
+# `diagnosis_correct`, in the runbook; `declared_resolved_at_s`, not
+# `resolve_s`, in the human runs), which is exactly the kind of detail a
+# hand-written summary gets subtly wrong.
+
+HUMAN = REPORTS / "human-baseline.json"
+RUNBOOK = REPORTS / "runbook-baseline.json"
+
+
+def _rows(path: Path) -> list[dict[str, Any]]:
+    if not path.is_file():
+        pytest.skip(f"missing artifact {path.name}")
+    doc: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return list(doc.get("runs", []))
+
+
+def test_the_runbook_baseline_matches_its_table() -> None:
+    rows = _rows(RUNBOOK)
+    assert len(rows) == 8, (
+        f"§4.8 says the runbook is 4 classes x 2 reps; the artifact has "
+        f"{len(rows)} rows")
+
+    correct = sum(1 for r in rows if r.get("correct"))
+    verified = sum(1 for r in rows if r.get("verified"))
+    false_recoveries = sum(1 for r in rows if r.get("false_recovery"))
+    resolved = [r["resolved_s"] for r in rows if r.get("resolved_s") is not None]
+
+    assert (correct, verified, false_recoveries) == (8, 7, 1), (
+        f"§4.8's runbook table says 8/8 correct, 7/8 verified, 1/8 false "
+        f"recovery; the artifact says {correct}/8, {verified}/8, "
+        f"{false_recoveries}/8")
+    assert abs(statistics.median(resolved) - 37.5) < 0.05, (
+        f"§4.8 says a 37.5s median resolve; the artifact gives "
+        f"{statistics.median(resolved):.1f}s")
+
+
+def test_the_human_baseline_matches_its_table() -> None:
+    """Including the paired Kavach column, which is the whole point of the
+    run: the same incidents, observed in SIMULATION, so the comparison is
+    paired rather than two unpaired samples."""
+    rows = _rows(HUMAN)
+    assert len(rows) == 3, f"§4.8 describes three runs; artifact has {len(rows)}"
+
+    operator_correct = sum(1 for r in rows if r.get("diagnosis_correct"))
+    gave_up = sum(1 for r in rows if r.get("gave_up"))
+    false_recoveries = sum(1 for r in rows if r.get("false_recovery"))
+    kavach_correct = sum(1 for r in rows if r.get("kavach_correct"))
+
+    assert (operator_correct, gave_up, false_recoveries) == (0, 2, 1), (
+        f"§4.8 says 0/3 correct, 2 give-ups, 1 false recovery; the artifact "
+        f"says {operator_correct}, {gave_up}, {false_recoveries}")
+    assert kavach_correct == 2, (
+        f"§4.8 says Kavach was 2/3 correct on the identical incidents; the "
+        f"artifact says {kavach_correct}/3. That sentence is the comparison "
+        f"the deck quotes.")
+
+
+def test_the_f07_false_recovery_is_the_one_the_report_names() -> None:
+    """§4.8's sharpest claim is about which fault each approach lied on. If
+    the false recovery ever moves to another class, the argument moves with
+    it and the prose would not notice."""
+    human = [r for r in _rows(HUMAN) if r.get("false_recovery")]
+    assert [r["fault_class"] for r in human] == ["F07"], (
+        "the human baseline's false recovery is no longer the F07 run that "
+        "§4.8 builds its comparison on")
+
+    runbook = [r for r in _rows(RUNBOOK) if r.get("false_recovery")]
+    assert [r["fault_class"] for r in runbook] == ["F07"], (
+        "the runbook's false recovery is no longer on F07, so §4.8's "
+        '"every approach fails on F07" no longer follows from the artifacts')
