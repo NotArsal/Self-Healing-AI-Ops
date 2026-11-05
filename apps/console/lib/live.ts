@@ -47,16 +47,26 @@ export function useSystem(): {
   const load = useCallback(async () => {
     if (inFlight.current) return;
     inFlight.current = true;
+    // CATCH, NOT JUST FINALLY, and the difference is the whole point of this
+    // panel. `api.GET` REJECTS when the control plane is not answering - a
+    // browser `fetch` to a closed port throws - so the `err || !data` branch
+    // below never ran, `setError` was never called, and the health panel went
+    // on rendering its last good reading. Measured 2026-11-05 with the API
+    // stopped: eight dependency rows all green, including "Kavach control
+    // plane - ok", while that control plane was not running. The panel whose
+    // only job is to report health was the last thing to notice it was gone.
+    const unreachable =
+      "Cannot reach the Kavach control plane. Start it with `make dev-api`.";
     try {
       const { data, error: err } = await api.GET("/v1/system");
       if (err || !data) {
-        setError(
-          "Cannot reach the Kavach control plane. Start it with `make dev-api`.",
-        );
+        setError(unreachable);
         return;
       }
       setSystem(data);
       setError("");
+    } catch {
+      setError(unreachable);
     } finally {
       inFlight.current = false;
     }

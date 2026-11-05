@@ -38,7 +38,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
   return { ...actual, api: { GET, PUT, POST } };
 });
 
-import { useIncidents, useSafetyState } from "@/lib/live";
+import { useIncidents, useSafetyState, useSystem } from "@/lib/live";
 
 const INCIDENT = {
   incident_id: "INC-000001",
@@ -145,4 +145,35 @@ describe("the steady state is unchanged", () => {
     await new Promise((resolve) => setTimeout(resolve, 2500));
     expect(GET.mock.calls.length).toBe(afterFirstLoad);
   });
+});
+
+describe("the health panel when the control plane is gone", () => {
+  /**
+   * THE WORST OF THE THREE, because this panel's only job is to report health.
+   *
+   * Measured 2026-11-05 with the API stopped and the page already loaded:
+   * eight dependency rows, all green, including "Kavach control plane - ok",
+   * while that control plane was not running. `useSystem` had the right
+   * message ready and never showed it, because it tested `err || !data` and
+   * the real failure arrives as a rejection. The panel went on rendering its
+   * last good reading with nothing to say it was stale.
+   */
+  it("says so, rather than holding the last good reading", async () => {
+    GET.mockResolvedValueOnce({
+      data: { project: "simple-rag", dependencies: [] },
+      error: undefined,
+    });
+
+    const { result } = renderHook(() => useSystem());
+    await waitFor(() => expect(result.current.system).not.toBeNull());
+    expect(result.current.error).toBe("");
+
+    // The control plane goes away.
+    GET.mockImplementation(down);
+    await waitFor(() => expect(result.current.error).toMatch(/Cannot reach/), {
+      timeout: 12000,
+    });
+    // 15s: the health probe is on a 5s interval, so the failure cannot be
+    // observed inside vitest's 5s default.
+  }, 15000);
 });

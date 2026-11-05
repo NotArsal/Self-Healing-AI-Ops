@@ -111,11 +111,24 @@ export default function ObservabilityPage() {
   const [failed, setFailed] = useState("");
 
   const load = useCallback(async () => {
-    const [a, c, l] = await Promise.all([
-      api.GET("/v1/alerts"),
-      api.GET("/v1/llm-calls", { params: { query: { limit: 50 } } }),
-      api.GET("/v1/logs", { params: { query: { limit: 150 } } }),
-    ]);
+    // The try/catch is load-bearing, not defensive dressing. `api.GET`
+    // REJECTS when the control plane is not answering, so `Promise.all`
+    // rejects and the `a.error && c.error && l.error` test below - which is
+    // this page's only way of saying it cannot reach anything - never runs.
+    // Without it the page keeps rendering its last good alerts, LLM calls
+    // and logs with nothing to say they are stale. Same defect as the one
+    // fixed in `lib/live.ts` the same day.
+    let a, c, l;
+    try {
+      [a, c, l] = await Promise.all([
+        api.GET("/v1/alerts"),
+        api.GET("/v1/llm-calls", { params: { query: { limit: 50 } } }),
+        api.GET("/v1/logs", { params: { query: { limit: 150 } } }),
+      ]);
+    } catch {
+      setFailed("Could not reach the control plane.");
+      return;
+    }
     if (a.error && c.error && l.error) {
       setFailed("Could not reach the control plane.");
       return;
