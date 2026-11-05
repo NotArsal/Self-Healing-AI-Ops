@@ -2102,12 +2102,25 @@ either in a write to a live system or a refusal to make one.
     reproducibility risk in the project and it is a decision, not a task** —
     committing a 4.7 MB pair of third-party PDFs to a public repository is the
     user's and the team's call, not mine.
-13. **The F01 MTTD ladder has four rungs and no named mechanism** (§4.1). The
-    12.2s step is close to but not equal to the 15s scrape interval. Resolving
-    it is one targeted experiment — inject F01 at known offsets within a
-    scrape cycle and plot detection against offset — and would convert the
-    report's strongest "we have not isolated this" into either a measurement
-    or a stated non-finding.
+13. **The F01 MTTD ladder — step now measured, mechanism still unconfirmed**
+    (§4.1). **Narrowed 2026-11-05**, `harness/mttd_ladder.py`. The step is
+    **6.05s, not the 12.2s this report gave**; 12.2 is its second harmonic.
+    Sixteen of twenty samples lie within 0.3s of a 6.05s rung, against a mean
+    offset of 3.81s at the 15s scrape interval — which **rules the scrape
+    interval out** rather than leaving it a hypothesis, since 15 does not
+    divide 6.05 and no sleep, poll or interval constant exists anywhere in
+    the detection path.
+
+    What remains is confirming the candidate, and it is no longer the
+    experiment this item used to propose. Injecting F01 at known offsets
+    within a scrape cycle would test a mechanism now excluded. The live
+    candidate is **the harness's own warm-up**: `warm_up_f01` runs the whole
+    three-case fast set per round before re-reading the error ratio, and MTTD
+    is measured from injection, so it contains those rounds. The experiment
+    is to inject F01 and time one round directly. **If it holds, F01's MTTD
+    is an artefact of how it is measured and is not comparable to F06's,
+    F07's or F08's**, none of which warm up this way — which would matter
+    more than the ladder itself.
 14. **The F06 attractor's trigger is hinted at but not measured** (§4.2). A
     rehearsal accident put F08 first-draw accuracy at 19/20 on a clean
     evidence frame and 1/3 on a frame carrying one extra anomaly, which
