@@ -522,6 +522,62 @@ per hour.
 
 ---
 
+## 6c. The field this project is actually in, found late
+
+**Provenance, and it is weaker than anything above.** Everything in this
+section comes from **one curated list's one-line descriptions**
+([`yzhao062/awesome-auditable-ai`](https://github.com/yzhao062/awesome-auditable-ai),
+158 stars, ~224 entries, read 2026-11-06). **No paper here has been read, not
+even its abstract.** It is recorded because of what it shows about this
+report's search strategy, and every entry below needs checking before it is
+cited for anything.
+
+**The point of the section.** Three literature searches were phrased around
+*self-healing*, *RCA agents* and *remediation gating*, and each found
+convergence. This list is phrased around **auditing agents** — reliability,
+monitoring, failure attribution, decision records — and it is a closer
+description of what Kavach is than "self-healing" ever was. Kavach's
+contribution is a gate, an inverse, a verification step and a hash-chained
+record. That is an *auditability* system that happens to act on a RAG
+application.
+
+**Mechanism for mechanism, Kavach's parts have names in this field:**
+
+| Kavach's piece | the field's counterpart, as the list describes it |
+|---|---|
+| `permit()`, ten checks before execution | **AgentSpec** (ICSE 2026), *"a rule language that blocks unsafe actions before they execute"* |
+| gate + approval queue | **Aegis**, *"pairs policy checks with approval gates"*; **Impri**, a human approval inbox |
+| `validate.py`'s citation and agreement checks | **Proofline**, *"rejects missing or contradictory evidence and gates external actions behind human approval"* |
+| every repair declares an inverse; `unwind` | **auditable**, *"re-checks a committed action against current state and can reverse it"* |
+| `REQUIRE_SANDBOX` before a HIGH action | **Atomix**, *"wraps tool use in transactions that commit only after conflicts are ruled out"* |
+| FR-16 blast radius, 5 starts/hour | **Inspect** (UK AISI), which *"includes approval policies and per-run limits"* |
+| §4.2's self-consistency measurement | **τ-bench**'s `pass^k`, and **ReliabilityBench**, which measures consistency and fault tolerance |
+
+**The one to read first** is **Auditable Agents** (arXiv 2604.05485), which
+the list says defines **five auditability dimensions, including action
+recoverability and evidence integrity**. Those are two of the four things
+this project is built around, and a published framework naming them is the
+natural structure for §7's positioning paragraph — Kavach could be *scored*
+against it rather than described in its own vocabulary. Finding a scoring
+framework after the report is written is late; saying so is better than
+quietly keeping our own terms because they flatter.
+
+**Two entries are warnings rather than relatives.** **BenchJack** shows
+benchmarks can be scored highly *without solving the task*, and
+**AgentRewardBench** compares rule-based scoring against expert review. Both
+speak to §6's recurring finding — the audit metric that could not fail, the
+mock that did not match its failure — from the benchmark side. A project
+whose §6 is mostly about its own broken instruments should read them.
+
+**What this does not change.** No claim in §4 moves, nothing here is adopted,
+and the convergence argument is unaffected in direction — it is stronger and
+better-named than three searches made it look. **What it changes is the
+posture**: this report should stop presenting its parts as unnamed and
+start using the field's vocabulary where one exists, because a reviewer who
+knows this list will otherwise supply it for us.
+
+---
+
 ## 7. One-paragraph positioning statement
 
 For the abstract or introduction:
