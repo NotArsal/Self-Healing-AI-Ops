@@ -1524,9 +1524,28 @@ different inside a container, and a mocked fetch fails in a shape real fetch
 never produces. The gap is not coverage. It is that the test environment and
 the real one disagree, and only the real one can say so.
 
-**Three real defects, all demo-visible, all invisible to the gate as it then
+**And a fourth, found by pulling the same thread, which is the one to quote.**
+The defect above has a sibling in the panel whose only job is to report
+health. With the API stopped and the page already loaded, `SystemHealth`
+showed **eight dependency rows, all green, including "Kavach control plane —
+ok"**, while that control plane was not running. Fleet still read 54.2s. The
+only honest thing on the screen was the WebSocket saying "Reconnecting".
+
+`useSystem` had the right message ready — *"Cannot reach the Kavach control
+plane"* — and never showed it, for the same reason: it tested the returned
+`error`, and the real failure throws. Its `try/finally` reset the in-flight
+guard and let the exception past, so the panel re-rendered its last good
+reading every five seconds, indefinitely. The observability page had the
+identical defect and kept serving stale alerts, LLM calls and logs.
+
+A report whose thesis is that **a system should refuse to act when it cannot
+tell what is true** shipped a health panel that answered "ok" about a process
+that was not running. Both are fixed, both are pinned by tests, and both were
+verified by stopping a container and looking.
+
+**Four real defects, all demo-visible, all invisible to the gate as it then
 stood, and every one of them found by pointing a browser at the thing — two
-within an hour on 2026-11-03, the third on 2026-11-05.** That is the argument
+within an hour on 2026-11-03, two more on 2026-11-05.** That is the argument
 for the headless-browser test in §9, stated as evidence rather than as a
 worry. The console is a P4
 deliverable and part of the demo, so that is a genuine hole in the acceptance
