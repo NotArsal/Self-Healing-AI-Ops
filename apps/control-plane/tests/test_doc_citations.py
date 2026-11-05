@@ -118,3 +118,44 @@ def test_every_cited_decision_record_exists() -> None:
         "arguments resting on them point at nothing: "
         + ", ".join(f"ADR {n:04d} (in {', '.join(w)})"
                     for n, w in sorted(missing.items())))
+
+
+# --- internal links ---------------------------------------------------------
+#
+# The third citation style, and the one a reader meets first. REPORT_DRAFT.md
+# links to RELATED_WORK.md, to decision records and to generated artifacts
+# under harness/reports/. A link that resolves to nothing in a submitted
+# document is a small defect with an outsized effect: it is the first thing a
+# reviewer clicks and the first thing that fails.
+#
+# Checked for existence only, and only for links to files inside this
+# repository. External URLs are not fetched - a test that needs the network
+# is a test that fails for reasons having nothing to do with this project,
+# and PL-02 forbids tests that depend on anything remote.
+
+
+def internal_links() -> list[tuple[str, str, Path]]:
+    """(document, link text as written, resolved target)."""
+    out: list[tuple[str, str, Path]] = []
+    for doc in DOCS:
+        for target in re.findall(r"\]\(([^)\s#]+)[^)]*\)",
+                                 doc.read_text(encoding="utf-8")):
+            if target.startswith(("http://", "https://", "mailto:")):
+                continue
+            out.append((doc.name, target, (doc.parent / target).resolve()))
+    return out
+
+
+def test_there_are_internal_links_to_check() -> None:
+    assert internal_links(), (
+        "no internal links found in docs/; if the link style changed, this "
+        "test is checking nothing")
+
+
+def test_every_internal_link_resolves() -> None:
+    broken = [f"{doc} -> {written}"
+              for doc, written, target in internal_links()
+              if not target.exists()]
+    assert not broken, (
+        "these links in docs/ point at files that do not exist, and a "
+        "reviewer clicks them before reading anything: " + ", ".join(broken))
