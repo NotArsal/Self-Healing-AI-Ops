@@ -261,3 +261,72 @@ def test_an_unreachable_audit_log_is_an_unrecorded_action(
     monkeypatch.setattr(rep, "api", lambda *a, **k: (200, "not a dict"))
     assert rep.audit_has_execution("mine") is False
     assert rep.audit_has_execution("") is False
+
+
+# --- the catalogue, and its two copies --------------------------------------
+#
+# ADDED 2026-11-05. `report.py` derives CATALOGUE by PARSING `diagnose.txt`,
+# and its docstring says why: the model is told to copy a name out of that
+# list, so the prompt is the only authority on what a correct pair looks like,
+# and "copies of this table are exactly how `RCA accuracy` once came to read
+# the wrong field".
+#
+# It then names the two copies that already exist - in `dump_diagnoses.py` and
+# `figures.py` - and nothing checks them against the prompt. All three agree
+# today, at eight entries each; that was verified before this test was written.
+#
+# Why it matters more than the usual drift: the fault_name coherence result in
+# REPORT_DRAFT.md §4.2 - 13 of 37 diagnoses naming a class other than the code
+# they emitted - is SCORED against this mapping. If the table were wrong the
+# finding would be measuring a mapping mismatch rather than model
+# incoherence. `figures.py` is worse still, because it renders the figure that
+# accompanies that text: a drifted copy there puts a figure and a sentence
+# that disagree in front of a reviewer, with nothing failing.
+
+
+def _copy_from(filename: str, pattern: str) -> dict[str, str]:
+    import re
+
+    text = (ROOT / "harness" / filename).read_text(encoding="utf-8")
+    return dict(re.findall(pattern, text))
+
+
+def test_the_catalogue_was_parsed_and_is_not_empty() -> None:
+    """`_prompt_catalogue` returns {} rather than raising when the prompt's
+    format moves - a measurement that cannot be taken is reported absent, not
+    zero. That is right for the harness and would make every test below pass
+    vacuously, so it is checked first."""
+    assert CATALOGUE, (
+        "report.py parsed no catalogue from diagnose.txt, so fault_name "
+        "coherence is being scored against an empty mapping and every "
+        "diagnosis is reported as unjudgeable")
+    assert "F06" in CATALOGUE and "F07" in CATALOGUE
+
+
+@pytest.mark.parametrize(
+    "filename,pattern",
+    [("dump_diagnoses.py", r'\("(F\d\d)",\s*"([^"]+)"\)'),
+     ("figures.py",
+      r'"(F\d\d)":\s*"((?:Primary|Retrieval|Prompt|Config|Container|Database'
+      r'|Token)[^"]*)"')],
+)
+def test_a_copy_of_the_catalogue_agrees_with_the_prompt(
+    filename: str, pattern: str,
+) -> None:
+    copy = _copy_from(filename, pattern)
+    assert copy, (
+        f"found no class-to-name table in {filename}; if it was removed, "
+        f"delete this case, because as written it now checks nothing")
+
+    wrong = {k: (v, CATALOGUE.get(k)) for k, v in copy.items()
+             if CATALOGUE.get(k, "").strip() != v.strip()}
+    assert not wrong, (
+        f"{filename} disagrees with the catalogue in diagnose.txt, which is "
+        f"the list the model is told to copy from: {wrong}. §4.2's "
+        f"fault_name coherence result is scored against that mapping.")
+
+    absent = sorted(set(CATALOGUE) - set(copy))
+    assert not absent, (
+        f"{filename} is missing {absent}, which the prompt offers the model. "
+        f"A diagnosis naming one of those would be unscoreable there while "
+        f"being scoreable in report.py.")
