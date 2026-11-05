@@ -387,6 +387,122 @@ leaving ours looking like a local anomaly.
 
 ---
 
+## 6b. A third search, 2026-11-05: the enforcement boundary has a measured precedent
+
+**Provenance, which differs from the rest of this document.** The two searches
+above read abstracts only. Of the three papers here, **2608.01955 was read as
+full HTML text** and is cited at section level; **2608.27646 and 2608.21310
+were read from their arXiv abstract pages** via a summarising fetch, not from
+the PDFs, which did not parse. None has been reproduced. Where a number is
+given below it is the authors' own, as stated on those pages.
+
+### The closest architectural match declines to measure itself
+
+**"Agentic Self-Healing for Data & AI Pipelines"**
+([2608.01955](https://arxiv.org/abs/2608.01955)) proposes a seven-layer
+reference architecture whose component list is, point for point, Kavach:
+telemetry over OpenTelemetry and Prometheus; a **deterministic policy engine
+that handles known failures before any LLM call**; a planner that may select
+only from an **allowlisted playbook library**; risk-tiered approval; guarded
+execution through a workflow engine rather than agent shell access; an
+immutable audit trail the paper says should be treated as a security control;
+**per-pipeline action limits and rate caps**, which it names as the defence
+against *compounding actions*; and escalation as the planner's only permitted
+output when no playbook applies. Its worked policy requires a diagnosis
+confidence of at least 0.8 before acting; Kavach's manifest requires 0.75.
+
+Two differences matter, and both favour this report.
+
+The paper is **"deliberately prescriptive rather than empirical"** (its §1),
+its platform comparison is scored from vendor documentation, and its cost
+claims are **"indicative rather than measured"** (its §6). It names as future
+work: instrumenting real deployments and measuring **time to diagnosis, time
+to recovery, escalation rates, and remediation precision against a
+pre-adoption baseline.** That list is §4 of this report — MTTD, MTTR,
+escalation accounted for per incident, and not one but two pre-adoption
+baselines, human and scripted runbook.
+
+Second, on inverses it is thinner than Kavach rather than equivalent: its only
+described inverse is *git revert plus redeploy* for deployments, and it
+**describes no inverse for its other action types.** Kavach's manifest refuses
+to register a repair that does not declare one, and `has_inverse` is asserted
+for all four actions.
+
+**This is the strongest version of the convergence claim in section 1.** It is
+no longer only that several systems arrived at this shape; it is that a 2026
+reference architecture recommends this shape, explicitly does not measure it,
+and asks for precisely the measurements this report supplies.
+
+### Enforcing policy outside the model has a quantified precedent
+
+**"If Agents Were Angels, No Governance Would Be Necessary: Out-of-Band Policy
+Enforcement at a Trusted Tool Boundary"**
+([2608.27646](https://arxiv.org/abs/2608.27646)) makes Kavach's thesis
+directly: prompts are unreliable as guardrails because **one fallible reasoner
+both interprets the task and enforces its boundaries.** Its OBPE boundary sits
+outside the agent's reasoning, checks each requested operation against policy,
+and — the part that matches `permit()` most exactly — lets an agent-level
+policy **narrow** the data owner's maximum access and never widen it. Kavach
+spells the same rule as a deny-list evaluated before the allow-list and a
+`DENY_ALWAYS` floor the manifest validator will not let a target raise.
+
+It also supplies a number this report has not had: across **3,621 trials**
+over four models and 20 adaptive red-team tasks, trace failures fell from
+**57.6% to 0.2%**, while task fulfilment fell from **79.1% to 60.9%.**
+
+That trade is the same shape as ours and is worth quoting next to section 4's
+headline. Kavach gives up roughly a fifth of its incidents to escalation —
+80% auto-resolution in run D — and buys 0 false heals in 80 injections. A
+reader inclined to read escalation as failure should see that an independent
+system, measured adversarially, paid about eighteen points of fulfilment for
+its safety result and reported that as the point rather than the cost.
+
+The authors are explicit that **write controls and durable approval were
+outside their evaluation**, which is the half Kavach covers: every path
+measured here ends in a write to a live system or a refusal to make one.
+
+### A correct answer can hide ungrounded reasoning, measured at 5,000 trajectories
+
+**"Beyond Fault Localization: A Trajectory-Level Study"**
+([2608.21310](https://arxiv.org/abs/2608.21310), v1 Aug 2026, v2 Oct 2026)
+analyses **5,000 agent trajectories** across ten framework-and-backbone
+configurations on RCABench, using fault-propagation paths as a causal
+reference. Its headline is that **a correct localisation can conceal a
+poorly-grounded reconstruction of the causal chain** — the answer is right and
+the process behind it is not — and that trajectories, not final answers, are
+what should be evaluated.
+
+This is independent corroboration of section 4.2's self-consistency finding,
+reached by a different route and at a far larger n. We found a model emitting
+a correct class code beside a `fault_name` belonging to a different class, in
+13 of 37 judged diagnoses, including three that healed correctly. They found
+the general case: outcome-level scoring cannot see reasoning quality. Their
+remedy is a trajectory-level evaluation harness; ours was to measure the
+contradiction and **deliberately gate nothing on it**, so that the headline
+numbers could not be flattered by the fix.
+
+### The tooling has converged on the verdict triple too, at toy scale
+
+Worth one line because a reviewer may raise it. A 2026 cohort of
+"agent policy engine" repositories returns `allow` / `require_approval` /
+`deny` — Kavach's `ALLOW_AUTO` / `REQUIRE_APPROVAL` / `DENY` with
+`REQUIRE_SANDBOX` added. The nearest, **AgentGuard**
+(`asher0913/agent-guard`), gates tool calls with deterministic rules, risk
+scores and stable rule ids for audit. It is MIT, **0 stars and 3 commits at
+the time of reading**, has no inverse actions, no blast-radius mechanism, and
+**no post-action verification** — evaluation happens only before execution.
+The verdict vocabulary is converging; the closed loop around it is not.
+
+**One claim deliberately not made.** A search for peer-reviewed measurement of
+rate limiting as a control on compounding agent actions returned mostly vendor
+and practitioner writing. That is suggestive, not established — one search is
+not a literature review, and section 4.2b should not be sold as the first
+measurement of a throughput ceiling on that basis. It is enough to say the
+control is widely recommended and that this report measures its cost in heals
+per hour.
+
+---
+
 ## 7. One-paragraph positioning statement
 
 For the abstract or introduction:

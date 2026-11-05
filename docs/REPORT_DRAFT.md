@@ -1748,6 +1748,50 @@ graph-guided search; production scale (Diviner at Meta, Log-Insight at Huawei,
 2606.09122 reporting *"autonomous resolution rates exceeding 90%"* at a cloud
 provider); and learning from incident history, which ADR 0009 cut.
 
+
+**A third search, 2026-11-05, found the two citations this section most
+needed.** Both are in [`RELATED_WORK.md`](RELATED_WORK.md) §6b with their
+provenance; the short version belongs here because each changes how a claim
+above should be read.
+
+The first strengthens the convergence argument past "several systems arrived
+at this shape". **"Agentic Self-Healing for Data & AI Pipelines"**
+(arXiv [2608.01955](https://arxiv.org/abs/2608.01955)) is a 2026 *reference
+architecture* for exactly this system — deterministic policy engine ahead of
+any LLM call, allowlisted playbooks, risk-tiered approval, guarded execution,
+an immutable audit trail treated as a security control, and per-pipeline rate
+caps named as the defence against compounding actions. It sets its worked
+confidence floor at 0.8; our manifest sets 0.75. But it states it is
+**"deliberately prescriptive rather than empirical"**, prices itself in
+figures it calls **"indicative rather than measured"**, and lists as future
+work *instrumenting real deployments and measuring time to diagnosis, time to
+recovery, escalation rates and remediation precision against a pre-adoption
+baseline.* **That list is this report's §4**, and against two pre-adoption
+baselines rather than one. It is also thinner on inverses than we are: its
+only described inverse is a git revert for deployments, with none given for
+its other action types.
+
+The second supplies a number §4's headline has lacked. **"If Agents Were
+Angels, No Governance Would Be Necessary"**
+(arXiv [2608.27646](https://arxiv.org/abs/2608.27646)) argues Kavach's thesis
+in one line — prompts fail as guardrails because *one fallible reasoner both
+interprets the task and enforces its boundaries* — and enforces policy at a
+boundary outside the model, where an agent-level policy may only **narrow**
+the owner's maximum access, never widen it. That is our deny-list-before-
+allow-list and the `DENY_ALWAYS` floor, independently derived. Across **3,621
+adversarial trials** they report trace failures falling **57.6% → 0.2%** while
+task fulfilment fell **79.1% → 60.9%**.
+
+**Quote that trade beside ours.** Kavach escalates about a fifth of its
+incidents — 80% auto-resolution in run D — and buys 0 false heals across 80
+injections. A reviewer inclined to read escalation as failure should see an
+independent, adversarially-measured system pay roughly eighteen points of
+fulfilment for its safety result and report that as the finding rather than
+the cost. Their evaluation explicitly excludes write controls and durable
+approval, which is precisely the half measured here: every path in §4 ends
+either in a write to a live system or a refusal to make one.
+
+
 ## 9. Still to do
 
 1. ~~Full `make bench`~~ — **done 2026-10-19 08:55**, §4.1/§4.2
