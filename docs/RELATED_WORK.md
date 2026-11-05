@@ -493,6 +493,25 @@ the time of reading**, has no inverse actions, no blast-radius mechanism, and
 **no post-action verification** — evaluation happens only before execution.
 The verdict vocabulary is converging; the closed loop around it is not.
 
+**Qualified a day later, 2026-11-06.** A broader repository sweep
+(`TOOLING_SURVEY.md`, second pass) found that the two pieces this report
+treats as distinctly its own are converging too, just not inside the
+self-healing niche. **`agent-claimcheck`** checks an agent's *success claims
+against recorded tool receipts* and routes what it cannot verify to a human
+queue — the fast set and the escalation path, reached from the agent-tooling
+side, on the same premise this project's false-healing metric rests on: an
+agent saying it worked is not evidence it worked. **`AgentLens`** keeps an
+append-only hash-chained log of calls and decisions for post-incident
+forensics, which is `kavach/audit/log.py` with the same stated purpose.
+
+Neither has the loop closed around it — no gate, no inverse, no blast
+radius, and `agent-claimcheck`'s own benchmark is described as synthetic —
+so the sentence above still holds for the *whole*. But claim-verification
+and hash-chained audit should not be presented as ours alone, and a reviewer
+who knows that field would notice before we did. The honest form of the
+contribution is the assembly and the measurement, which is what §7 already
+says.
+
 **One claim deliberately not made.** A search for peer-reviewed measurement of
 rate limiting as a control on compounding agent actions returned mostly vendor
 and practitioner writing. That is suggestive, not established — one search is
