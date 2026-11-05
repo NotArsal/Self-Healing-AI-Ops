@@ -88,7 +88,7 @@ def test_a_reordered_pair_is_caught(tmp_path: Path) -> None:
     assert not log.verify().intact
 
 
-def test_tail_truncation_is_NOT_caught_and_that_is_documented(
+def test_tail_truncation_is_not_caught_and_that_is_deliberate(
     tmp_path: Path,
 ) -> None:
     """THE BOUNDARY, asserted so it cannot be assumed away.
