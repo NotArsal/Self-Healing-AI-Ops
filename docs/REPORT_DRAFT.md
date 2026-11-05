@@ -1481,10 +1481,54 @@ repository on the host and that container path holds only the mounted
 manifest. An operator following that remedy would have initialised an empty
 repository on a false premise.
 
-**Two real defects, both demo-visible, both invisible to all 568 gate tests as the suite then stood,
-both found within an hour of pointing a browser at the thing.** That is the
-argument for the headless-browser test in §9, stated as evidence rather than
-as a worry. The console is a P4
+
+**A third browser-only defect, and the one that most deserves to be in a
+report about measurement.** Found 2026-11-05. Load the console while the API
+is not answering, then start the API: the page shows a control plane with no
+history — the Fleet section absent entirely, the incident list reading *"Kavach
+is watching one project and has run no loop yet"* — while the API serves **82
+incidents** and `available: true`. Nothing fixes it but a page reload.
+
+The dependencies panel recovers by itself, because that one is on a 5-second
+interval. That is what makes the failure dangerous rather than obvious: eight
+green dependency rows beside an empty system look like a system that has done
+nothing, not like a broken page.
+
+`make up` starts the console and the API together and the API waits for
+Postgres to be healthy, so losing that race is ordinary rather than exotic.
+`useIncidents` and `useSafetyState` loaded once on mount and wrote
+`if (data) setX(data)`, so a failed fetch silently did nothing and nothing
+tried again. They now retry until the first success and then stop — not
+polling, which `lib/live.ts`'s own header argues against and which a test now
+forbids by asserting no further requests after that first success.
+
+**The part worth the space: the first fix was wrong, and its three unit tests
+passed.** The mock made a failing request resolve with `{data: undefined}`.
+A browser `fetch` to a closed port does not resolve — it **throws**, and the
+console shows `TypeError: Failed to fetch` raised out of `Object.GET`. The
+retry was written with a single `.then`, so on the real failure it never ran.
+Three green tests, a rebuilt container, and the page still empty.
+
+That is the same defect this report keeps finding, one level up. **A mock that
+does not match the failure it stands for is a measurement that cannot fail**,
+and it certified a fix that did not work — exactly as the audit-completeness
+metric certified a property it never measured. The test now mocks a rejection,
+and says in its own comment why.
+
+It also sharpens §6's browser argument into something more specific than "we
+should test in a browser". Of the three defects found this way, **not one
+would have been caught by a more thorough unit test**, because in each case
+the unit test's model of the environment was the thing that was wrong: CORS
+does not exist when the API is called from Python, `localhost` means something
+different inside a container, and a mocked fetch fails in a shape real fetch
+never produces. The gap is not coverage. It is that the test environment and
+the real one disagree, and only the real one can say so.
+
+**Three real defects, all demo-visible, all invisible to the gate as it then
+stood, and every one of them found by pointing a browser at the thing — two
+within an hour on 2026-11-03, the third on 2026-11-05.** That is the argument
+for the headless-browser test in §9, stated as evidence rather than as a
+worry. The console is a P4
 deliverable and part of the demo, so that is a genuine hole in the acceptance
 evidence, not a nicety. Closing it needs a headless-browser test, which is
 not built.
