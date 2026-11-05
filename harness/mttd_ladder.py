@@ -30,12 +30,23 @@ normalising by the period; the unnormalised score has the same degeneracy in
 the other direction, and I fell for it. A lattice fit alone cannot choose
 between a period and its divisors. Only the timing run can.
 
-WHAT IS STILL UNEXPLAINED. Four samples - 54.6, 66.8, 78.9, 91.0 - sit
-5.92-6.00s from the nearest 12.12s rung, which is almost exactly half a
-round, too precise to be noise. Four others scatter. Half a round is not a
-natural unit of a three-call fast set, so something else contributes; the
-candidate is variation in the detection step that follows the warm-up, which
-is not measured here.
+NOTHING IS LEFT UNEXPLAINED, once `warmup_s` is read beside `mttd_s`. The
+harness already records both, and the decomposition is exact:
+
+  * F01's `warmup_s` lands on INTEGER multiples of the measured round -
+    2.00, 3.00, 4.01, 5.00 - which is `warm_up_f01` exiting after a whole
+    number of rounds, as its loop requires.
+  * `mttd_s - warmup_s` is then bimodal: **12.2-12.4s in fourteen runs and
+    30.3-33.2s in six**, with nothing between.
+  * The six samples that would not sit on the lattice are exactly the six in
+    the high mode: 54.6 = 24.3 + 30.3, 66.8 = 36.4 + 30.4, 78.9 = 48.6 +
+    30.3, 91.0 = 60.7 + 30.3, 94.0 = 60.8 + 33.2.
+
+So the ladder is the warm-up and the off-lattice samples are a slow
+detection, not half a round of anything. The ~12.2s floor in the residual is
+itself about one round, and `ADR 0014` names the likely reason: the loop runs
+its own fast set before detection, which with the endpoint down costs the
+same 12.12s.
 
 THE CONSEQUENCE THAT MATTERS MORE THAN THE LADDER. If F01's MTTD is
 dominated by a warm-up the other classes do not perform, **it is not
@@ -62,6 +73,22 @@ def f01_mttd() -> list[float]:
             if row.get("fault_class") == "F01" and row.get("mttd_s") is not None:
                 out.append(round(float(row["mttd_s"]), 1))
     return sorted(out)
+
+
+def decomposition(fault_class: str) -> list[tuple[float, float]]:
+    """(warmup_s, mttd_s) for one class, across the bench artifacts."""
+    out: list[tuple[float, float]] = []
+    for path in sorted((ROOT / "harness" / "reports").glob("bench-*.json")):
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        for row in doc.get("runs", []):
+            if (row.get("fault_class") == fault_class
+                    and row.get("mttd_s") is not None
+                    and row.get("warmup_s") is not None):
+                out.append((float(row["warmup_s"]), float(row["mttd_s"])))
+    return out
 
 
 def misfit(values: list[float], period: float) -> float:
@@ -115,12 +142,23 @@ def main() -> int:
     # exactly 0.30 computes as 0.30000000000000004 and is counted as a miss,
     # which turned 16 into 11 the first time this was run.
     print()
-    print("the four samples at almost exactly half a round, still unexplained:")
-    for v in values:
-        off = min(v % 12.12, 12.12 - (v % 12.12))
-        if 5.5 <= off <= 6.1:
-            print(f"  {v:6.1f}  ->  {off:4.2f}s from the nearest rung")
+    print("DECOMPOSED against the harness's own warmup_s, per class:")
+    for cls in ("F01", "F07", "F08"):
+        pairs = decomposition(cls)
+        if not pairs:
+            continue
+        warm = [w for w, _ in pairs]
+        resid = sorted(m - w for w, m in pairs)
+        print(f"  {cls}: warm-up {min(warm):5.1f}-{max(warm):5.1f}s, "
+              f"residual {min(resid):5.1f}-{max(resid):5.1f}s  (n={len(pairs)})")
     print()
+    print("  F01's residual is bimodal with nothing between, and the six")
+    print("  samples that miss the lattice are exactly the high mode:")
+    for w, m in sorted(decomposition("F01")):
+        if m - w > 20:
+            print(f"    mttd {m:5.1f} = warm-up {w:5.1f} + {m - w:5.1f}")
+    print()
+
     print("residue mod 12.12, the measured round:")
     for v in values:
         print(f"  {v:6.1f}  ->  {v % 12.12:5.2f}")

@@ -26,11 +26,18 @@ MEASURED on the live stack with F01 injected, one warm-up round:
   (the same round on a healthy target: 24.3s)
   12 of 20 samples lie within 0.4s of a 12.12s rung
 
-the four samples at almost exactly half a round, still unexplained:
-    54.6  ->  6.00s from the nearest rung
-    66.8  ->  5.92s from the nearest rung
-    78.9  ->  5.94s from the nearest rung
-    91.0  ->  5.96s from the nearest rung
+DECOMPOSED against the harness's own warmup_s, per class:
+  F01: warm-up  24.3- 60.8s, residual  12.2- 33.2s  (n=20)
+  F07: warm-up   0.0-  0.0s, residual  17.1- 42.4s  (n=21)
+  F08: warm-up   0.0-  0.0s, residual  15.4- 39.3s  (n=23)
+
+  F01's residual is bimodal with nothing between, and the six
+  samples that miss the lattice are exactly the high mode:
+    mttd  54.6 = warm-up  24.3 +  30.3
+    mttd  66.8 = warm-up  36.4 +  30.4
+    mttd  78.9 = warm-up  48.6 +  30.3
+    mttd  91.0 = warm-up  60.7 +  30.3
+    mttd  94.0 = warm-up  60.8 +  33.2
 
 residue mod 12.12, the measured round:
     36.5  ->   0.14

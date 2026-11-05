@@ -312,6 +312,40 @@ both runs, and they are reported as missing it. Per class the result is stable
 to within a second for F07 and F08 and within the ladder described above for
 F01 and F06; it is only the aggregate that moves.
 
+**And the per-class figures are not measuring the same quantity.** Found
+2026-11-06 by reading `warmup_s`, which the harness has recorded all along
+beside `mttd_s` and which nothing netted out. Decomposed across all four runs:
+
+| class | warm-up | MTTD after warm-up | n |
+|---|---|---|---|
+| F01 | 24.3 – 60.8s | **12.2 – 33.2s** | 20 |
+| F07 | **0.0s** | 17.1 – 42.4s | 21 |
+| F08 | **0.0s** | 15.4 – 39.3s | 23 |
+
+**F07 and F08 do not warm up at all**, and F06 warms up differently
+(`drive_until_detectable`). So F01's figure carries between two and five
+rounds of manufactured traffic that F07's and F08's do not, and **the four
+classes were never on a common scale.**
+
+Subtract it and the ranking inverts: F01's detection, at **12.2–33.2s**, is
+*faster* at the low end than F08's 15.4s or F07's 17.1s. **"F01 is slower to
+detect than F08" is not a claim this report supports**, and §4.1 should not
+be read as making it.
+
+**The warm-up is not merely an artefact, which is the honest complication.**
+F01 is an error-*ratio* fault: with no traffic there is no ratio and nothing
+to detect, so `warm_up_f01` is standing in for the organic load a production
+system would already have. The time is real; what it measures is *how long
+until enough traffic has flowed to make the fault visible*, not how long the
+detector takes once it can see. F07 and F08 need no traffic at all — a
+changed prompt version or config hash is visible immediately — which is
+exactly why they warm up for zero seconds.
+
+So the two numbers answer different questions, and `< 30s` is a meaningful
+bar for only one of them. Recorded rather than re-cut: changing what MTTD
+means would invalidate the four runs that measure it, and §9 item 13 carries
+it.
+
 **One more thing run B settles about run A.** Run A's mislabelled "MTTD" per
 class was 36.4 / 39.4 / 78.9 / 87.9s for F08 / F07 / F01 / F06. Run B's
 *first verdict* — the same quantity under its true name — is 39.3 / 39.3 /
@@ -2115,13 +2149,23 @@ either in a write to a live system or a refusal to make one.
     15s scrape interval is ruled out: it does not divide 12.12, and no
     interval constant exists in the detection path.
 
-    **Two things stay open and are smaller than the original item.** Four
-    samples sit almost exactly half a round off the lattice, too precise to
-    be noise and not a natural unit of a three-call fast set; the candidate
-    is the detection step that follows the warm-up, unmeasured. And the
-    consequence needs writing into §4.1's per-class comparison: a warm-up
-    F06, F07 and F08 do not perform means **F01's MTTD is not comparable to
-    theirs**.
+    **The off-lattice samples are explained too, and nothing is left over.**
+    Reading `warmup_s` beside `mttd_s` - both recorded by the harness all
+    along - F01's warm-up lands on integer multiples of the round (2.00,
+    3.00, 4.01, 5.00) and the residual is bimodal: 12.2-12.4s in fourteen
+    runs, 30.3-33.2s in six, nothing between. The six samples that miss the
+    lattice are exactly the high mode (54.6 = 24.3 + 30.3, 66.8 = 36.4 +
+    30.4, 78.9 = 48.6 + 30.3, 91.0 = 60.7 + 30.3, 94.0 = 60.8 + 33.2). The
+    ~12.2s floor is itself about one round, and `ADR 0014` names the likely
+    cause: the loop runs its own fast set before detection.
+
+    **What remains is a reporting change, not a measurement.** §4.1 now
+    carries the decomposition and the warning that the classes were never on
+    a common scale - F07 and F08 warm up for 0.0s - but `PRD.md` §10 still
+    states `MTTD < 30s` as one target across all four. Whether that target
+    should be split, or defined net of warm-up, is a decision for after the
+    deadline: changing what MTTD means would invalidate the four runs that
+    measure it.
 
     Recorded here because a 2026-11-05 pass on this item briefly concluded
     the step was 6.05s. It was not. A lattice fit cannot distinguish a period
