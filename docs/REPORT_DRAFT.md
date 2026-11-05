@@ -1834,6 +1834,68 @@ audit log is Kavach's record of its own actions and is better than
 application logs for that purpose, because it is hash-chained and its
 integrity is checkable — and is checked on every read of `/v1/audit`, not only when someone asks. **336 rows verified intact when that sentence was first written; 1,022 and still intact on 2026-11-05.** The count is dated deliberately: it grows with every run, so any fixed number in a report is stale by the next one, and §6 records what the verification does and does not cover.
 
+
+### 7b.1 An Auditability Card, scored against an external framework
+
+Added 2026-11-06. **Auditable Agents** (arXiv
+[2604.05485](https://arxiv.org/abs/2604.05485)) defines five auditability
+dimensions and proposes an *Auditability Card* — six questions, analogous to a
+model card — as the reporting artifact. Filling it in is the first time this
+project has been described in someone else's vocabulary rather than its own,
+and it immediately found a gap (question 4) that is now fixed.
+
+The paper's position is that *"no agent system can be accountable without
+auditability"*, and that a missing dimension leaves an audit verdict "either
+incomplete or untrustworthy".
+
+| # | question | Kavach's answer |
+|---|---|---|
+| 1 | **Actions** — which policy-relevant actions are recorded? | Every state-changing one, with the fields needed to rebuild it: `execute_start` / `execute_done` carry `action`, `requested_settings`, `pre_state`, `inverse_settings`, `config_hash_before/after`, `risk_tier`, `idempotency_key`, `executed`, `reverted`, `error`. Nothing writes to the target outside this path. |
+| 2 | **Phases** — which execution phases are covered? | `diagnose`, `permit`, `approved` / `rejected`, `execute_start`, `execute_done`, `resolved`, `unwind`, `mode_change`, `store_init`. Approvals and rollbacks — two of the four the paper names — are first-class events. |
+| 3 | **Policies** — which policies can be mechanically checked? | All of them. The `permit` record carries `checks` (ten named checks, each pass/fail with its detail), `reasons`, `verdict`, `mode`, `risk_tier` and the typed decision frame. The paper's three-valued outcome maps directly: comply → `ALLOW_AUTO`, violate → `DENY`, **undecidable → `REQUIRE_APPROVAL` or escalation**, and `permit()` denies any check it cannot evaluate. |
+| 4 | **Attribution** — what responsibility chain is available? | Two principals, `kavach` and `operator`, on every row — **and, since 2026-11-06, the link between them.** See below. |
+| 5 | **Integrity** — what protects the record? | **Hash-chained: level 3 of the paper's four** (none → append-only → hash-chained → signed). Not signed, and there is no seal key. |
+| 6 | **Missing logs** — what happens when logs are missing or detached? | Partially handled, and §6 measures where it is not. `verify()` catches an edited row, a deleted middle row and a reordered pair, naming the index and the reason. **It does not catch a truncated tail.** |
+
+**Question 4 was a real gap and the card is what found it.** `approve()`
+re-detects rather than replaying, so the approved incident and the executing
+one carry different ids. The log read `approved INC-101822` by `operator`,
+then `permit` / `execute_start` / `execute_done` / `resolved` on INC-101902 by
+`kavach`, **with nothing joining them but adjacency in time** — the paper's
+named failure mode, a chain that breaks where an action is not linked to its
+source. Reconstructing *why* INC-101902 was permitted to write required
+assuming the next permit after an approval is the right one, which would have
+been ambiguous had two approvals interleaved.
+
+The `permit` record now carries `approved_from`, verified on a live run:
+
+```
+permit    INC-192233  approved_from=''            REQUIRE_APPROVAL
+approved  INC-192233  operator
+permit    INC-192306  approved_from='INC-192233'  ALLOW_AUTO
+execute_start / execute_done / resolved on INC-192306
+```
+
+It is written even when empty, because *"this run was not under an
+approval"* is a fact an auditor needs stated rather than inferred from a
+missing key.
+
+**Where this leaves us, stated as the paper would score it.** Four of five
+dimensions are met at the level the framework describes; **evidence integrity
+is at 3 of 4**, and the honest reason is a deliberate deferral rather than an
+oversight — §9 item 16 carries the signed-checkpoint work and §6 explains why
+changing the audit format days from a deadline is the wrong trade. The paper
+also frames mechanisms as **detect, enforce, recover** and argues no single
+class covers all five dimensions; Kavach implements all three, which is the
+loop itself.
+
+**One number worth borrowing.** The paper measures pre-execution mediation
+with tamper-evident records at **8.3 ms median overhead**. That is the
+closest external figure to what `permit()` plus the audit append costs here,
+and it is a useful answer to "what does the gate cost" — a question §4 does
+not currently measure for itself.
+
+
 The honest one-line version: **Kavach scraped the target every 15 seconds for
 three weeks while answering 404 on its own `/metrics`.**
 
