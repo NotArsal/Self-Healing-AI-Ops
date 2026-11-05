@@ -14,6 +14,7 @@ by a guard, so the test asserts the absence.
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -214,3 +215,45 @@ def test_terminating_the_patch_does_not_make_bad_content_acceptable(
     assert (area / "answer.txt").read_text(encoding="utf-8") == (
         "a human rewrote this\n"
     )
+
+
+# --- the environment failing, which is still a refusal ----------------------
+#
+# ADDED 2026-11-05 to close P7's "every git deny case has a passing test".
+# The roadmap audit found these two uncovered and marked the criterion
+# partial rather than ticking it. They are not deny cases in the security
+# sense - nothing is refusing a patch, the environment is broken - but both
+# must surface as `GitAdapterError` rather than as a `FileNotFoundError` or a
+# `TimeoutExpired` escaping into the executor, which would be an unhandled
+# exception on a path that writes to a live target.
+
+
+def test_git_missing_from_path_is_a_refusal_not_a_crash(
+    area: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def no_git(*_a: object, **_k: object) -> None:
+        raise FileNotFoundError(2, "No such file or directory", "git")
+
+    monkeypatch.setattr("kavach.executor.adapters.git.subprocess.run", no_git)
+    with pytest.raises(git.GitAdapterError) as caught:
+        git.apply(diff_for("answer.txt", "old line", "new line"),
+                  area, area)
+    assert "not on PATH" in str(caught.value)
+
+
+def test_a_git_command_that_hangs_is_a_refusal_not_a_hang(
+    area: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`_run` passes a timeout; this pins that the expiry is translated.
+
+    An untranslated `TimeoutExpired` would propagate out of the adapter as
+    something no caller catches, mid-repair, on a HIGH action.
+    """
+    def hangs(*_a: object, **_k: object) -> None:
+        raise subprocess.TimeoutExpired(cmd="git", timeout=60.0)
+
+    monkeypatch.setattr("kavach.executor.adapters.git.subprocess.run", hangs)
+    with pytest.raises(git.GitAdapterError) as caught:
+        git.apply(diff_for("answer.txt", "old line", "new line"),
+                  area, area)
+    assert "timed out" in str(caught.value)

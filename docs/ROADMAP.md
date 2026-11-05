@@ -1211,19 +1211,23 @@ so a reader can check rather than trust.
       and `test_apply_patch.py::test_no_sandbox_means_no_action_rather_than_a_skipped_check`.
       `None` means nobody checked, and that is a refusal rather than a default.
 
-- [~] Every git deny case has a passing test — **the security-relevant ones, yes;
-      two environmental ones, no.** `test_git_adapter.py` covers the refusals
-      that bound what the adapter may touch: a root outside the boundary, a
-      missing directory, an empty patch, a moved file, a `..` escape that must
-      not write outside, wrong hunk line numbers, and bad content surviving a
-      recount — plus `::test_the_adapter_has_no_history_writing_code_path`,
-      which enforces the `AGENTS.md` rule by asserting the code to push, amend
-      or force-push does not exist rather than that it is guarded.
-      **Untested: `git is not on PATH` and `git <cmd> timed out`.** Both raise
-      `GitAdapterError` and so fail closed, and neither is a deny case in the
-      security sense — they are the environment being broken, not a patch
-      being refused. Left open rather than ticked, because the criterion says
-      *every*.
+- [x] Every git deny case has a passing test — closed 2026-11-05.
+      `test_git_adapter.py` covers the refusals that bound what the adapter
+      may touch: a root outside the boundary, a missing directory, an empty
+      patch, a moved file, a `..` escape that must not write outside, wrong
+      hunk line numbers, and bad content surviving a recount — plus
+      `::test_the_adapter_has_no_history_writing_code_path`, which enforces
+      the `AGENTS.md` rule by asserting the code to push, amend or
+      force-push does not exist rather than that it is guarded.
+      The audit on 2026-11-05 found two raises uncovered and this criterion
+      was left partial rather than ticked, because it says *every*. Both are
+      now covered: `::test_git_missing_from_path_is_a_refusal_not_a_crash`
+      and `::test_a_git_command_that_hangs_is_a_refusal_not_a_hang`. Neither
+      is a deny case in the security sense — nothing is refusing a patch,
+      the environment is broken — but an untranslated `FileNotFoundError` or
+      `TimeoutExpired` escaping the adapter would be an unhandled exception
+      mid-repair on a HIGH action, so both must surface as
+      `GitAdapterError`.
 
 ---
 
