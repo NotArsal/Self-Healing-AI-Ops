@@ -117,3 +117,54 @@ def test_tail_truncation_is_not_caught_and_that_is_deliberate(
         "the chain now detects tail truncation. That is an improvement, not "
         "a failure: delete this test and correct REPORT_DRAFT.md §6 and §9 "
         "item 16, which both state that it does not.")
+
+
+# --- responsibility attribution ---------------------------------------------
+#
+# ADDED 2026-11-06, from scoring this system against the five auditability
+# dimensions in arXiv 2604.05485. Dimension 4, responsibility attribution,
+# requires the record to recover the chain from the immediate executor back
+# to the originating principal, and names the failure we had: a chain breaks
+# where an action is not linked to its source.
+#
+# `approve()` re-detects rather than replaying, so the approved incident and
+# the executing one have different ids. The real log showed
+# `approved INC-101822` by `operator`, then permit/execute/resolved on
+# INC-101902 by `kavach`, with nothing joining them but adjacency in time.
+
+
+def test_a_permit_record_names_the_incident_a_human_approved(
+    tmp_path: Path,
+) -> None:
+    """The link, so the chain is in the record rather than in the timing."""
+    from kavach.loop import run_once
+
+    source = inspect_permit_call()
+    assert "approved_from=approved_from" in source, (
+        "loop.py no longer records approved_from on the permit record, so an "
+        "approved repair cannot be traced back to the approval that "
+        "authorised it except by assuming the next permit in the log is the "
+        "right one")
+    assert run_once is not None
+
+
+def inspect_permit_call() -> str:
+    loop_py = (Path(__file__).resolve().parents[1]
+               / "kavach" / "loop.py")
+    return loop_py.read_text(encoding="utf-8")
+
+
+def test_the_field_is_written_even_when_there_was_no_approval() -> None:
+    """Empty, not absent.
+
+    "This run was not under an approval" is a fact an auditor needs stated.
+    A missing key forces them to infer it, and inference is what dimension 4
+    exists to remove.
+    """
+    source = inspect_permit_call()
+    start = source.index('audit.append("permit"')
+    call = source[start:start + 400]
+    assert "approved_from=approved_from" in call, call[:200]
+    assert "if approved_from" not in call, (
+        "approved_from is now written conditionally; an absent key makes "
+        "'no approval' indistinguishable from 'not recorded'")

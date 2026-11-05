@@ -498,7 +498,26 @@ def run_once(
         decision: Decision = safety.permit(request, policy)
         inc.decision = decision.to_dict()
         if audit:
+            # `approved_from` ties this decision to the incident a human
+            # approved, and is recorded even when empty.
+            #
+            # ADDED 2026-11-06, after scoring this system against the
+            # auditability dimensions in arXiv 2604.05485. `approve()`
+            # re-detects rather than replaying, so the approved incident and
+            # the executing one have DIFFERENT ids: the log showed
+            # `approved INC-101822` by `operator`, then `permit`,
+            # `execute_start`, `execute_done` and `resolved` on INC-101902 by
+            # `kavach`, with nothing connecting them but being adjacent in
+            # time. That is the paper's named failure for responsibility
+            # attribution - a chain that breaks where an action is not linked
+            # to its source - and it would have been genuinely ambiguous had
+            # two approvals ever interleaved.
+            #
+            # Empty is written rather than omitted, because "this run was not
+            # under an approval" is a fact an auditor needs stated, not
+            # inferred from a missing key.
             audit.append("permit", incident_id=inc.incident_id,
+                         approved_from=approved_from,
                          **decision.to_dict())
 
         if decision.denied:
