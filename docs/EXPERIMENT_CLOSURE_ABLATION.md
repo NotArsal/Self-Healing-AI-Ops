@@ -264,3 +264,53 @@ That needs a fifth arm:
 Without E, the arm-B accuracy result above is suggestive and not attributable.
 **The full run should not be launched until E exists**, because re-running
 2.4 hours is cheap and re-interpreting an unattributable result is not.
+
+---
+
+## 11. Arm E, pre-registered 2026-11-07 before any five-arm run
+
+Added because §10 found that **arm B removes and adds at once**: it reaches
+size-matching by replacing non-discriminating real items with distractors,
+so B's accuracy collapse (18/21 → 9/21) could be the removal rather than the
+noise and the four-arm design cannot say which.
+
+> **Arm E — the same real items B keeps, and nothing added.**
+> `keep + protected`, no distractors. Shortest frame of all arms.
+
+### What the three comparisons now separate
+
+| comparison | holds constant | isolates |
+|---|---|---|
+| **B vs E** | the real signals present | **noise, alone** |
+| **A vs E** | absence of noise | **removal, alone** |
+| A vs B | frame size | the two combined, as before |
+
+E is constructed from the same `keep + protected` lists as B, in the same
+branch, so the two cannot drift apart about what counts as protected. A
+validity check refuses an E that is not shorter than the control, or that
+contains any item absent from the real frame.
+
+### Predictions, fixed before the run
+
+1. **E2 is the decisive one.** Compare E's *agreement* to A's and to B's:
+   - E within 0.10 of **A** → the arm-B collapse is **noise**.
+   - E within 0.10 of **B** → the arm-B collapse is **removal**, and B's
+     headline result in §10 is not about distractors at all.
+   - Between the two → both contribute, and neither may be claimed alone.
+2. **E tests §10's length story in the opposite direction.** §10 suggested
+   closure falls with frame *length*, from arm C. E is the **shortest** frame
+   of all five. If length is what matters, E's closure should be **at or
+   above A's**. If E's closure instead *falls*, the length account is wrong
+   and what matters is having enough real context, not having little of it.
+3. No prediction on E's closure-on-named-class. In E the non-detector
+   classes' discriminating evidence has been removed, so that figure is
+   partly mechanical and is reported, never scored — the same caveat that
+   applies to B.
+
+### What would make E uninterpretable
+
+If E's frame is so short that the model refuses or returns
+`INSUFFICIENT_EVIDENCE` in most cases, E measures "too little evidence to
+answer" rather than removal, and the comparison dies. The n=1 check gave 5
+items, 2433 tokens, and a correct diagnosis, so this is a real risk rather
+than a certainty — it must be read off the run and not assumed away.

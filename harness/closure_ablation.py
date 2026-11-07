@@ -97,12 +97,13 @@ from kavach.rca.evidence import EvidenceFrame, EvidenceItem  # noqa: E402
 from kavach.target import TargetClient, TargetEndpoints  # noqa: E402
 from kavach.verification import fast  # noqa: E402
 
-ARMS = ("A", "B", "C", "D")
+ARMS = ("A", "B", "C", "D", "E")
 ARM_LABEL = {
     "A": "control, the shipped frame",
     "B": "size-matched noise (PRIMARY)",
     "C": "unbounded noise",
     "D": "expectations stripped",
+    "E": "same items removed as B, nothing added",
 }
 
 # Metric families a detector reads. Anything whose Prometheus name starts with
@@ -260,16 +261,33 @@ def build_arm(
             stripped = deepcopy(i)
             stripped.expected = ""
             items.append(stripped)
-    elif arm in ("B", "C"):
+    elif arm in ("B", "C", "E"):
         # Metrics are the only kind a distractor can impersonate, so noise
         # displaces non-discriminating METRICS first and other kinds only if
         # the budget demands it. Service identity is never displaced: without
         # EV-S the model has to invent a service name, which `collect()`'s own
         # comment records as a real past failure and is not what this arm is
         # testing.
+        #
+        # Computed for B, C and E together because E must hold EXACTLY the
+        # real content B holds - that identity is what makes B vs E isolate
+        # noise, and it would not survive the two arms deciding separately
+        # what counts as protected.
         protected = [i for i in others if i.kind in ("service", "baseline")]
         displaceable = [i for i in others if i.kind not in ("service", "baseline")]
-        if arm == "B":
+        if arm == "E":
+            # ARM B REMOVES AND ADDS AT ONCE, which the 2026-11-07 pacing run
+            # exposed: it reaches size-matching by REPLACING non-discriminating
+            # real items with distractors, so a wrong answer in B could be the
+            # removal rather than the noise and the design could not say which.
+            #
+            # E holds exactly the real content B holds and adds nothing, so
+            # B vs E is the clean noise comparison - same real signals,
+            # distractors the only difference - and A vs E is the removal
+            # effect with no noise present. The three decompose what A vs B
+            # alone confounds.
+            items = keep + protected
+        elif arm == "B":
             room = len(displaceable)
             noise = as_items(distractors[:room], start=90)
             items = keep + protected + noise
@@ -294,6 +312,7 @@ def build_arm(
 
 def check_arm(
     arm: str, built: EvidenceFrame, fault_class: str, reference: int,
+    real_names: set[str] | None = None,
 ) -> str:
     """Empty string when the arm is what it claims to be, else why not.
 
@@ -313,6 +332,16 @@ def check_arm(
                 f"density with length")
     if arm == "C" and len(built.items) <= reference:
         return f"arm C is not longer than control ({len(built.items)} vs {reference})"
+    if arm == "E":
+        if len(built.items) >= reference:
+            return (f"arm E holds {len(built.items)} items against control's "
+                    f"{reference}; it is supposed to be the REMOVAL arm and "
+                    f"removed nothing")
+        intruders = sorted({i.name for i in built.items} - (real_names or set()))
+        if intruders:
+            return (f"arm E contains items that are not in the real frame "
+                    f"{intruders[:4]}; it must add nothing, or B vs E stops "
+                    f"isolating noise")
     if arm == "D" and any(i.expected for i in built.items):
         return "arm D still carries an `expected` field"
     if len({i.eid for i in built.items}) != len(built.items):
@@ -416,7 +445,7 @@ def summarise(run: Run) -> None:
     say("")
     say("  PAIRED against arm A, primary outcome = closure on the detector's class")
     index = {(o.fault_class, o.incident, o.rep, o.arm): o for o in ok}
-    for arm in ("B", "C", "D"):
+    for arm in ("B", "C", "D", "E"):
         pairs = [
             (index[k].closed_detector,
              index[(k[0], k[1], k[2], arm)].closed_detector)
@@ -496,7 +525,8 @@ def one_incident(
         for arm in ARMS:
             candidate = build_arm(arm, frame, fault_class, distractors, rng,
                                   shuffle)
-            why = check_arm(arm, candidate, fault_class, control_size)
+            why = check_arm(arm, candidate, fault_class, control_size,
+                            {i.name for i in frame.items})
             if why:
                 run.dropped.append(f"{fault_class}#{incident}: {why}")
                 continue
