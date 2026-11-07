@@ -40,6 +40,9 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT = ROOT / "harness" / "reports" / "closure-ablation.json"
 PRIMARY = "closed_detector"
 PREREGISTERED_DROP = 0.15
+# A diagnosis the model declines to make. Kavach never executes an UNKNOWN,
+# so these are safe outcomes and must not be pooled with confident errors.
+ABSTENTIONS = ("UNKNOWN", "")
 
 
 def say(*parts: object) -> None:
@@ -149,6 +152,24 @@ def main() -> int:
     say("    (mean max-min within one incident+arm. If this is as large as")
     say("     the A-to-B gap below, that gap is sampling noise - which")
     say("     EXPERIMENT_CLOSURE_ABLATION.md section 7 names as a refutation.)")
+
+    say("")
+    say("  OUTCOME SPLIT - an abstention is not an error (section 13.1)")
+    say(f"  {'arm':4} {'correct':>9} {'abstained':>11} {'confident wrong':>16}"
+        f" {'mean conf':>10}")
+    for arm in arms:
+        sub = [o for o in rows if o["arm"] == arm]
+        ok = sum(1 for o in sub if o["named"] == o["fault_class"])
+        abstained = sum(1 for o in sub if o["named"] in ABSTENTIONS)
+        bad = [o for o in sub
+               if o["named"] != o["fault_class"]
+               and o["named"] not in ABSTENTIONS]
+        mean_conf = (sum(float(o.get("confidence") or 0.0) for o in bad)
+                     / len(bad)) if bad else 0.0
+        say(f"  {arm:4} {ok:>9} {abstained:>11} {len(bad):>16}"
+            f" {mean_conf:>10.2f}")
+    say("    Only a confident wrong class executes a repair - an UNKNOWN")
+    say("    diagnosis never does. An arm that abstains degrades safely.")
 
     say("")
     say("  PAIRED against arm A (McNemar, exact, two-sided)")

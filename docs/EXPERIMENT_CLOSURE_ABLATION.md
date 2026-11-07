@@ -244,6 +244,13 @@ it, and it still reached another conclusion. It is the same claim §4.4a
 wanted to make, reached by a route that does not depend on the saturation
 argument that just failed.
 
+> **CORRECTED 2026-11-08, see §13.1.** Of arm B's 12 wrong answers, **9 were
+> `UNKNOWN`** — the model declined to conclude rather than concluding wrongly.
+> Across all runs arm B produced **63 abstentions and 3 confident wrong
+> classes**. The paragraph above is left as written because it is a dated
+> record, but *grounded and wrong* is not what arm B shows; §13.2 relocates
+> that finding to the control arm, where it is stronger.
+
 Per class, agreement: F06 is unshakeable (6/6 in every arm); **F01 collapses
 from 6/6 to 0/6 under arm B**; F07 was already weak (3/6) and goes to 0/6;
 F08 holds under B but fails under C and D.
@@ -377,3 +384,231 @@ for. Transient failures (5xx, timeouts) now retry the same cell after a
 pause, up to eight per incident; only a fatal error — a model that does not
 exist, a 401, a 403 — still aborts. A model that answered a moment ago and
 then 500s is weather, not a verdict.
+
+---
+
+## 13. Partial full run, 2026-11-08 — §10's headline claim is wrong
+
+The full run was **killed by the host after 15 of 60 incidents**, when Claude
+Code reaped the background shell under system memory pressure. That is not a
+failure of the run: no retries fired, no incidents dropped, no errors logged.
+It died between classes, so **F01 is complete** (15 incidents x 5 arms x 3
+reps = 225 observations) and F06/F07/F08 never started. No JSON artifact was
+written — the harness serialises at the end — so the figures below are parsed
+from the run log, which carries `named`, `closed(det)`, `cited` and `tokens`
+per observation but not the per-item frames.
+
+**The kill stranded an injected fault.** F06 was active with
+`rerank_threshold=0.999` when the process was SIGKILLed, so the `finally`
+revert never ran. Reverted manually; target back to `config_hash
+de4cfaed14a8bb98`, all four faults clear. **A fail-closed revert cannot
+survive SIGKILL, and nothing in this harness notices a fault left behind** —
+that belongs in the risk register, not in a footnote.
+
+### 13.1 The correction: arm B abstains, it does not err
+
+§10 claims arm B shows the model "naming the wrong fault class in 12 of
+them", and reads that as *grounded and wrong*. **Checked against the stored
+`named` values, that is wrong as written.**
+
+| artifact | arm B wrong | of which abstained (`UNKNOWN`) | confident wrong class |
+|---|---|---|---|
+| pacing (§10) | 12 | **9** | 3 — F01 named F02 at conf 0.80 |
+| five-arm pacing (§12) | 9 | **9** | 0 |
+| this partial run, F01 | 45 | **45** | 0 |
+| **total** | **66** | **63** | **3** |
+
+Under size-matched noise the model cites the discriminating evidence and then
+**declines to conclude**. It is not reaching a confident wrong answer; it is
+refusing to answer. In Kavach an `UNKNOWN` diagnosis **never executes**
+(`docs/AGENTS.md`), so arm B is the *safe* degradation, not the dangerous
+one. §10's framing inverts the safety reading of its own data.
+
+The surviving, weaker claim from arm B: **closure stays at 1.00 while
+usable accuracy goes to zero**, so Evidence Closure cannot stand alone as a
+quality metric. That holds. "Grounded and wrong" does not follow from it.
+
+### 13.2 The real grounded-and-wrong is in the control arm
+
+Separating abstentions from confident errors moves the finding to a different
+arm — and makes it stronger:
+
+| arm | confident wrong class | confidence | pattern |
+|---|---|---|---|
+| **A control** | 3/21 | **0.95** | F07 named F06 |
+| C unbounded | 9/21 and 6/15 | **0.95** | F07, F08, F06 named as each other |
+| D no expectations | 9/21 | **0.95** | F07, F08 named F06 |
+| B noise | 3/66 | 0.80 | F01 named F02 |
+
+**In the control arm — the real bounded frame, as shipped, with no noise
+added — F07 is diagnosed as F06 at 0.95 confidence while Evidence Closure
+reads 1.00.** The discriminating evidence is present, cited, and the
+conclusion is confidently wrong. That is the claim §4.4a wanted, it needs no
+ablation arm to make it, and unlike arm B's abstention **it is the failure
+mode that would execute a repair**: a confident F06 verdict routes to the
+retrieval repair, not to a human.
+
+This also reverses which arms look dangerous. B degrades to silence; A, C and
+D degrade to confident error. A metric that rewards A and punishes B has the
+safety ordering backwards.
+
+### 13.3 Why "45/45" and "p = 0.0001" must not be quoted
+
+The log gives arm B 0/45 agreement against A's 45/45, exact McNemar
+p = 0.0001 on 15 incident-level pairs. **That number is an artefact of
+repeated injection, not of 15 independent trials.** Distinct observable
+outcomes across all 15 F01 incidents and 3 reps:
+
+| arm | distinct `(named, cited, tokens)` of 45 obs |
+|---|---|
+| A | 4 — and 39 of 45 identical |
+| B | **1** |
+| C | 4 |
+| D | 3 |
+| E | **1** |
+
+Injecting F01 fifteen times on an idle target regenerates nearly the same
+evidence frame, and the model is near-deterministic at this temperature (the
+three reps differed at all in 11 of 75 cells, never in the named class — only
+in token and citation counts). The effective n for F01 is **close to 1, not
+45 or 15**. Repetition here measures reproducibility, which is total, and
+buys no statistical power at all.
+
+Fixing this needs incident **diversity** — concurrent load, warm versus cold
+corpus, overlapping faults — not more repetitions of an identical one. Until
+then F01's five-arm comparison is a demonstration, not an estimate, and §5's
+"60 incidents" is the wrong unit of cost.
+
+### 13.4 What stands, after all three pacing runs and this partial
+
+1. **Prediction 2 is refuted** (§10), unchanged.
+2. **Closure is insensitive to signal density and sensitive to frame length**
+   — B at 84% noise holds 1.00, C at 83 items drops to 0.57, p = 0.0039.
+3. **E sits on A, not between A and B** (§12), so arm B's behaviour is caused
+   by the distractors, not by the removal. Confirmed again here: E is 45/45
+   on F01 where B is 0/45.
+4. **Closure 1.00 coexists with a confidently wrong diagnosis in the control
+   arm.** New, and the most defensible claim of the four.
+5. **F06 is immune and F01 is destroyed under noise** — still only two
+   classes, and the partial run adds nothing about F07 or F08.
+
+Nothing here needs the remaining 45 incidents to be *true*; items 2, 3 and 5
+need them to be *general*.
+
+---
+
+## 14. The treatment was applied n=1, found 2026-11-08 by accident
+
+Found while verifying the dirty-target guard of §15, not by looking for it. A
+one-incident run on a target whose metric set had grown from 52 scraped
+distractors to 53 gave, on **the same fault, the same model, the same arm**:
+
+| run | distractors scraped | arm B on F01 |
+|---|---|---|
+| partial full run (§13) | 52 | `UNKNOWN`, 45/45, every incident |
+| guard verification | 53 | **`F01` correct**, cited 2, 3171 tokens |
+
+Token counts 3163 against 3171 — the frames are the same size. **One extra
+distractor flipped arm B from total collapse to a correct diagnosis.**
+
+### Why, and why it invalidates the strength of the arm-B claim
+
+`scrape_distractors` is called **once per run**, and arm B takes a
+deterministic **prefix** of that list (`distractors[:room]`). Verified: two
+successive draws return the same names in the same order, and no `rng` touches
+the selection. So within a run, every incident and every repetition in arm B
+received the **identical 27 distractors**.
+
+The experiment therefore varied:
+
+- **repetitions** — which measure nothing at this temperature (§13.3: the
+  three reps differed at all in 11 of 75 cells, never in the named class);
+- **incidents** — which barely vary, because re-injecting one fault on an idle
+  target regenerates nearly the same frame (§13.3: 1 distinct outcome in 45
+  for arms B and E);
+
+while holding **constant the one variable it claims causes the effect.** Arm
+B's treatment has an effective n of **one draw per run**. Three draws exist
+across the whole project, and they do not agree about the direction.
+
+**So "F01 collapses from 6/6 to 0/6 under noise" (§10) and "0/45" (§13) are
+one observation each, not 6 and 45.** The effect may well be real — two of
+three draws broke F01 completely and deterministically — but its size is
+unestimated and its sign is not established. Closure's insensitivity to noise
+(1.00 in arm B under every draw) is **unaffected**: that held across all three
+draws and is the claim §13.4 keeps.
+
+### The fix, pre-registered before any run uses it
+
+> The distractor list is shuffled **per incident**, on its own RNG stream
+> seeded `draw-{class}-{incident}`, so the draw varies with the cluster unit
+> the bootstrap already resamples. Every arm and every repetition within one
+> incident still shares one draw, so repetitions keep measuring only model
+> nondeterminism. `--shuffle` is untouched: separate stream.
+>
+> Each observation now records `draw`, the 8-character SHA-256 of its draw's
+> names in order, so the analysis can ask whether an arm's outcome tracks the
+> **draw** rather than the **arm**.
+
+### Predictions, fixed before the next run
+
+1. **Arm B's agreement on F01 will be intermediate, not 0/45 and not 45/45.**
+   If it is again all-or-nothing across 15 independently drawn distractor
+   sets, the draw does not matter after all and §13's determinism is a
+   property of F01 rather than of the sampling. That would refute this
+   section, and it is the cheapest way to find out.
+2. **Closure stays at 1.00 in arm B under every draw.** It did under all three
+   accidental draws. If it now moves, closure is draw-sensitive too and *no*
+   arm-B claim survives.
+3. **No prediction on arms A, C, D, E for F01.** A and E contain no
+   distractors; C contains all of them in a fixed order and is unaffected by a
+   reordering. Only B samples a subset, so only B can move. If A or E moves,
+   something other than the draw changed and the run is not comparable.
+
+### What this says about the experiment's cost model
+
+§5 prices the run in incidents. On this evidence **incidents are the wrong
+unit** — 15 repetitions of one fault against one draw buy almost no
+information, and the three accidental draws were worth more than the 225
+observations they came from. The next run's budget should buy **draws and
+fault classes**, not repetitions: reps to 1, and the hours spent on reps 2
+and 3 spent on F07 and F08 instead.
+
+---
+
+## 15. Fixed on 2026-11-08
+
+**A killed run leaves its fault injected, and nothing noticed.** The host
+reaped the full run mid-F06; `one_incident`'s `finally` cannot run under
+SIGKILL, so F06 stayed active at `rerank_threshold=0.999` until it was found
+by hand. It then happened a **second time the same day**, when a verification
+run was cut by its own timeout and stranded F01. Twice in one session, from
+two unrelated causes — this is the normal consequence of any abnormal
+termination, not an unlucky edge case.
+
+> The harness now refuses to start when any of F01, F06, F07 or F08 is already
+> active, and says `inject.py revert --all` clears it.
+
+Ordering matters and was got wrong on the first attempt. The check was first
+placed after the fast-set gate — but **an injected fault also fails the fast
+set**, so on a dirty target the operator would have been told to *warm the
+target*, which is the same species of misleading remedy as the preflight
+defect fixed on 2026-11-03. The guard now runs before both the LLM probe and
+the fast set, because it is read-only and the most specific. Verified both
+ways: with F06 injected it refuses and injects nothing; with the target clean
+it is silent and the run proceeds.
+
+**An abstention was being counted as an error.** The analysis had no notion of
+the difference, which is how §10 came to read 9 `UNKNOWN`s as the model
+"naming the wrong fault class". `closure_ablation_report.py` now prints, per
+arm, correct / abstained / confidently wrong with the mean confidence of the
+confident errors — the split that §13.1 corrects by hand, computed from the
+artifact so it cannot be missed again. Re-run against the stored pacing
+artifact it reproduces §13.1's table exactly, which is the cross-check that
+the parsing in §13 was right.
+
+**Not fixed, and now the top open item:** the deterministic revert cannot
+survive a kill. A guard that refuses the *next* run is a backstop, not a fix —
+between the kill and the next run the target sits broken with nothing
+reporting it. A watchdog that reverts on a missing heartbeat is the real
+answer and is not built.

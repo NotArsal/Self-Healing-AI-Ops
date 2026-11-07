@@ -72,6 +72,7 @@ import urllib.request
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -382,6 +383,10 @@ class Observation:
     confidence: float | None = None
     latency_s: float = 0.0
     error: str = ""
+    # Which distractor draw this incident got. Varies per incident now, so the
+    # analysis can ask whether an arm's outcome tracks the draw rather than
+    # the arm - which section 14 found it does.
+    draw: str = ""
 
 
 @dataclass
@@ -523,9 +528,21 @@ def one_incident(
         )
         control_size = len(frame.items)
 
+        # Arm B takes a PREFIX of this list, so a fixed order gave every
+        # incident in a run the same distractors: the treatment was applied
+        # once per run, not once per incident, while the design varied the
+        # things that barely vary. Two draws that differed by one metric gave
+        # opposite answers on F01 (section 14), so the draw is not a nuisance
+        # parameter - it is the treatment. Shuffled per incident, which is the
+        # cluster unit, on its own stream so `--shuffle` is unaffected.
+        draw = list(distractors)
+        random.Random(f"draw-{fault_class}-{incident}").shuffle(draw)
+        draw_id = sha256(
+            "\n".join(n for n, _ in draw).encode()).hexdigest()[:8]
+
         built: dict[str, EvidenceFrame] = {}
         for arm in ARMS:
-            candidate = build_arm(arm, frame, fault_class, distractors, rng,
+            candidate = build_arm(arm, frame, fault_class, draw, rng,
                                   shuffle)
             why = check_arm(arm, candidate, fault_class, control_size,
                             {i.name for i in frame.items})
@@ -546,6 +563,7 @@ def one_incident(
                 obs = Observation(
                     fault_class=fault_class, incident=incident, arm=arm,
                     rep=rep, items=len(arm_frame.items), prompt_tokens=0,
+                    draw=draw_id,
                 )
                 try:
                     t0 = time.perf_counter()
@@ -673,6 +691,22 @@ def main() -> int:
     distractors = scrape_distractors(TARGET, args.distractors)
     say(f"  distractors  {len(distractors)} real metrics no detector reads")
     say(f"               e.g. {', '.join(n for n, _ in distractors[:3])}")
+
+    # A SIGKILL skips one_incident's `finally`, so a killed run leaves its
+    # fault injected - which is exactly what happened on 2026-11-08 when the
+    # host reaped the full run mid-F06. It must be checked FIRST: an injected
+    # fault also fails the fast set, so behind that check the operator is told
+    # to warm the target instead of to revert. Starting dirty would
+    # measure the leftover and the new injection together, and nothing
+    # downstream could tell the difference.
+    dirty = [c for c in ("F01", "F06", "F07", "F08")
+             if build(c, client).is_active()]
+    if dirty:
+        raise SystemExit(
+            f"REFUSING: {', '.join(dirty)} already active on the target. "
+            f"Nothing has been injected. A killed run cannot revert itself, "
+            f"so this is most likely a leftover - `inject.py revert --all` "
+            f"clears it.")
 
     # BEFORE ANY INJECTION. The first smoke run injected F08, then found the
     # model unreachable, then reverted - burning an injection to learn

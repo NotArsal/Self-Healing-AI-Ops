@@ -1201,6 +1201,20 @@ what saturates the metric.** A reviewer who reads our 1.00 beside their 0.38
 as "better grounded" has it backwards: the two numbers are not measuring the
 same difficulty.
 
+> **CORRECTED 2026-11-08 — the mechanism above is refuted; the ceiling is
+> not.** That *curation* saturates the metric was pre-registered as a testable
+> prediction and tested in
+> [`EXPERIMENT_CLOSURE_ABLATION.md`](EXPERIMENT_CLOSURE_ABLATION.md).
+> Replacing ~84% of the frame with real-but-non-discriminating metrics, item
+> count held constant, **left closure at 1.00 with zero discordant pairs**
+> across three runs (7, 2 and 15 incidents; A vs B drop +0.00, p = 1.0000).
+> Closure is insensitive to signal density. It is sensitive to frame
+> **length**: at 83 items it falls to 0.57 (p = 0.0039). What saturates the
+> metric is that the frame is **short**, not that it is curated — the
+> extractor's selectivity does less work here than this section credits it
+> with, and a frame that is merely small reproduces the ceiling. Measured so
+> far on F01 and F06 only; whether it holds for F07 and F08 is pending.
+
 That has a consequence worth stating plainly. **These errors are not
 ungrounded in the sense Evidence Closure was built to detect.** The model
 looked at the right evidence and drew the wrong conclusion. That is a harder
