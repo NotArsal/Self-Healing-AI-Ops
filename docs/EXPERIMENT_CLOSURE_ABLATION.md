@@ -191,3 +191,76 @@ controlled experiment, and it does not depend on Kavach being novel.
 **Without prediction 2**, the honest paper is smaller and still real: three
 uncertainty channels tested and found not to separate, with the saturation
 reported as an observation whose cause is unresolved.
+
+---
+
+## 10. Pacing run, 2026-11-07 — prediction 2 is refuted
+
+**Not a result, and the numbers below must not be quoted as one.** 7 usable
+incidents (8 attempted, 1 dropped), 21 observations per arm, against the ≥60
+incidents §5 asks for. It is recorded here, immediately and before the full
+run, because **the pre-registered primary prediction failed** and §7 says
+that is the result rather than an invitation to re-read it.
+
+Artifact: `harness/reports/closure-ablation-pacing.json`.
+Wall clock: **17 minutes for 7 incidents**, so the full run is ≈2.4 hours.
+
+| arm | closure (detector) | 95% CI | agreement | grounded-and-wrong | items | tokens |
+|---|---|---|---|---|---|---|
+| A control | **1.00** | [1.00, 1.00] | 18/21 | 3/21 | 32 | 3622 |
+| B size-matched noise | **1.00** | [1.00, 1.00] | **9/21** | **12/21** | 32 | 3248 |
+| C unbounded noise | 0.57 | [0.14, 0.86] | 12/21 | 0/21 | 83 | 5022 |
+| D no expectations | 0.86 | [0.57, 1.00] | 12/21 | 6/21 | 32 | 3257 |
+
+McNemar, paired, exact: **A vs B drop +0.00, p = 1.0000, zero discordant
+pairs.** A vs C drop +0.43, p = 0.0039. A vs D drop +0.14, p = 0.2500.
+Within-cell spread across repetitions: 0.00.
+
+### What is refuted
+
+**Prediction 2 fails completely.** Arm B holds 32 items of which roughly 27
+are distractors — 84% noise — and closure stayed at 21/21 with *not one*
+discordant pair. **Curation is not what saturates Evidence Closure**, and
+§4.4a's explanation, which credits exactly that, is wrong as written.
+
+### What the data says instead, stated cautiously
+
+**Closure appears to depend on frame LENGTH, not on signal density.** Holding
+size constant and destroying the signal-to-noise ratio (B) changed nothing;
+making the frame longer (C, 83 items, 5022 tokens) dropped it to 0.57 at
+p = 0.0039. Size and token count covary perfectly here, so this cannot yet
+distinguish "too many items to scan" from "context-length degradation" —
+which §8 warned would be the likeliest way to get a wrong answer, and is.
+
+### The finding that is stronger than the hypothesis it replaces
+
+**In arm B the model cited the correct discriminating evidence in 21 of 21
+cases while naming the wrong fault class in 12 of them.** Agreement halved,
+18/21 → 9/21, with closure untouched.
+
+That is *grounded and wrong* demonstrated directly rather than inferred from
+a saturated metric: the discriminating evidence was present, the model cited
+it, and it still reached another conclusion. It is the same claim §4.4a
+wanted to make, reached by a route that does not depend on the saturation
+argument that just failed.
+
+Per class, agreement: F06 is unshakeable (6/6 in every arm); **F01 collapses
+from 6/6 to 0/6 under arm B**; F07 was already weak (3/6) and goes to 0/6;
+F08 holds under B but fails under C and D.
+
+### A design gap this run exposed, to fix before the full run
+
+**Arm B does two things at once.** Size-matching is achieved by *replacing*
+non-discriminating real items with distractors, so B both **adds noise and
+removes real signal**. A model getting the class wrong in B may be suffering
+from the removal rather than the noise, and this design cannot separate them.
+
+That needs a fifth arm:
+
+> **Arm E — same real items removed as in B, replaced with nothing.**
+> Shorter than A, no distractors. If E behaves like B, removal explains it;
+> if E behaves like A, noise does.
+
+Without E, the arm-B accuracy result above is suggestive and not attributable.
+**The full run should not be launched until E exists**, because re-running
+2.4 hours is cheap and re-interpreting an unattributable result is not.
