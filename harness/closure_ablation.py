@@ -485,10 +485,12 @@ def one_incident(
     reps: int,
     shuffle: bool,
     run: Run,
+    max_transient: int = 8,
 ) -> None:
     settings = get_settings()
     fault = build(fault_class, client)
     rng = random.Random(f"{fault_class}-{incident}")
+    transient = 0
 
     try:
         fault.inject()
@@ -538,7 +540,9 @@ def one_incident(
             return
 
         for arm, arm_frame in built.items():
-            for rep in range(1, reps + 1):
+            rep = 0
+            while rep < reps:
+                rep += 1
                 obs = Observation(
                     fault_class=fault_class, incident=incident, arm=arm,
                     rep=rep, items=len(arm_frame.items), prompt_tokens=0,
@@ -569,11 +573,34 @@ def one_incident(
                     obs.error = f"{type(exc).__name__}: {exc}"
                 run.observations.append(obs)
                 if obs.error and "LLM call failed" in obs.error:
-                    raise SystemExit(
-                        f"ABORTING after an LLM failure mid-run: {obs.error}"
-                        f"{chr(10)}  The fault has been reverted. Recording "
-                        f"hundreds of identical failures would waste the run "
-                        f"and the injections.")
+                    # TRANSIENT vs FATAL, and the five-arm pacing run of
+                    # 2026-11-07 is why this distinction exists: a single
+                    # Ollama HTTP 500 aborted the whole run twelve minutes
+                    # in, after the injections had already been paid for.
+                    # A model that does not exist is fatal and aborting is
+                    # right; a 500 or a timeout from a model that answered a
+                    # moment ago is weather.
+                    fatal = any(w in obs.error.lower() for w in
+                                ("does not exist", "not found", "404",
+                                 "unauthorized", "401", "forbidden", "403"))
+                    if fatal:
+                        raise SystemExit(
+                            f"ABORTING on a fatal LLM error: {obs.error}. "
+                            f"The fault has been reverted. Recording hundreds "
+                            f"of identical failures would waste the run.")
+                    transient += 1
+                    if transient > max_transient:
+                        raise SystemExit(
+                            f"ABORTING after {transient} transient LLM "
+                            f"failures, the last: {obs.error}. The fault has "
+                            f"been reverted. Past this many the model is not "
+                            f"having a bad minute, it is unwell.")
+                    say(f"      transient LLM failure {transient}/"
+                        f"{max_transient}, retrying this cell after a pause")
+                    time.sleep(10)
+                    run.observations.pop()
+                    rep -= 1
+                    continue
                 say(f"    {fault_class}#{incident} arm {arm} rep {rep}: "
                     f"named={obs.named or '-'} closed(det)={obs.closed_detector} "
                     f"cited={obs.cited} tok={obs.prompt_tokens}"

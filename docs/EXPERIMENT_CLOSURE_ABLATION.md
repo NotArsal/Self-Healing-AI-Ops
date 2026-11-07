@@ -314,3 +314,66 @@ If E's frame is so short that the model refuses or returns
 answer" rather than removal, and the comparison dies. The n=1 check gave 5
 items, 2433 tokens, and a correct diagnosis, so this is a real risk rather
 than a certainty — it must be read off the run and not assumed away.
+
+---
+
+## 12. Five-arm pacing run, 2026-11-07 — E2 is answered
+
+**Still not a result.** The run **aborted after twelve minutes** on a
+transient Ollama HTTP 500; the fail-fast fired and the fault was reverted,
+target confirmed clean. 68 of 69 diagnoses usable, arms unbalanced because
+the abort landed mid-incident. Artifact:
+`harness/reports/closure-ablation-pacing-5arm.json`.
+
+Arms must therefore be compared **on the cells where all of them exist**, not
+on their own totals — the per-arm totals below come from different subsets
+and comparing those would be the pooling error this project has already
+caught itself making once.
+
+### On the identical 12 cells (F01 and F06, 2 incidents, 3 reps)
+
+| arm | agreement | closure (detector) |
+|---|---|---|
+| A control | **12/12 = 1.00** | 12/12 = 1.00 |
+| B noise added | **6/12 = 0.50** | 12/12 = 1.00 |
+| E items removed, nothing added | **12/12 = 1.00** | 12/12 = 1.00 |
+
+### E2: the collapse is the noise, not the removal
+
+Removing the non-discriminating real items changed agreement by **0.00**.
+Replacing those same items with distractors **halved it**. Per §11's rule, E
+sits on A, not between A and B, so **the arm-B accuracy collapse is
+attributable to the distractors** and §10's result is about noise after all.
+The four-arm design could not have said this.
+
+**Closure stayed at 1.00 in all three arms.** A frame that is 84% distractors
+still gets the discriminating evidence cited every time, while the model
+reaches the wrong conclusion in half of them. *Grounded and wrong*, now with
+the cause isolated.
+
+The whole collapse is **F01**: 6/6 → 0/6 under noise. **F06 is 6/6 in every
+arm.** One class is destroyed by distractors and another is untouched, which
+is a finding in itself and needs the full run to confirm.
+
+### E3: the length account survives, weakly
+
+E is the shortest frame of the five — 5 items, 2432 tokens against the
+control's 32 and 3604 — and its closure is 1.00, at A's level. So short
+frames do not lose closure, and only the long arm C does (0.57, p = 0.0312).
+Consistent with length, though C still confounds length with item count.
+
+### What moved between the two pacing runs, and why nothing may be read into it
+
+Arm D closed at **0.86** in the four-arm run and **1.00** here, on 12
+observations against 21. That is a swing of the size the whole experiment is
+trying to detect, produced by nothing but sampling. It is the clearest
+possible argument for the ≥60 incidents §5 asks for, and the clearest
+possible warning against quoting any number on this page.
+
+### Fixed before the full run
+
+A transient HTTP 500 killed a run whose injections had already been paid
+for. Transient failures (5xx, timeouts) now retry the same cell after a
+pause, up to eight per incident; only a fatal error — a model that does not
+exist, a 401, a 403 — still aborts. A model that answered a moment ago and
+then 500s is weather, not a verdict.
