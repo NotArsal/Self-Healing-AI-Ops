@@ -619,9 +619,13 @@ def one_incident(
                     run.observations.pop()
                     rep -= 1
                     continue
+                # `draw` is logged as well as stored because the log has twice
+                # been the only surviving record of a run, and without it the
+                # outcome cannot be attributed to the draw - the one thing
+                # section 14 says is the treatment.
                 say(f"    {fault_class}#{incident} arm {arm} rep {rep}: "
                     f"named={obs.named or '-'} closed(det)={obs.closed_detector} "
-                    f"cited={obs.cited} tok={obs.prompt_tokens}"
+                    f"cited={obs.cited} tok={obs.prompt_tokens} draw={obs.draw}"
                     + (f"  {obs.error}" if obs.error else ""))
     finally:
         try:
@@ -744,6 +748,29 @@ def main() -> int:
 
     run = Run(at=datetime.now(UTC).isoformat(timespec="seconds"),
               model=settings.llm_model, shuffled=args.shuffle)
+    out = Path(args.json_out)
+
+    def flush() -> None:
+        """Write the artifact as it stands.
+
+        Called after EVERY incident, not only at the end. Three runs in a row
+        were lost - a memory reap, a timeout, and a KMODE_EXCEPTION bluescreen
+        on 2026-11-09 - and each time the observations existed in the log but
+        no artifact had been serialised, because serialising happened once in
+        the `finally`. A `finally` does not run under SIGKILL or a kernel
+        panic. Written to a temp file and replaced, so a crash mid-write
+        cannot leave a half-parsed artifact either.
+        """
+        tmp = out.with_suffix(out.suffix + ".part")
+        tmp.write_text(json.dumps(
+            {"at": run.at, "model": run.model, "shuffled": run.shuffled,
+             "arms": ARM_LABEL, "dropped": run.dropped,
+             "complete": False,
+             "observations": [o.__dict__ for o in run.observations]},
+            indent=2), encoding="utf-8")
+        tmp.replace(out)
+
+    finished = False
     try:
         for fault_class in [c.strip() for c in args.classes.split(",") if c.strip()]:
             say("")
@@ -751,14 +778,19 @@ def main() -> int:
             for incident in range(1, args.incidents + 1):
                 one_incident(fault_class, incident, client, llm, baseline,
                              distractors, args.reps, args.shuffle, run)
+                flush()
+        finished = True
     finally:
         summarise(run)
-        out = Path(args.json_out)
-        out.write_text(json.dumps(
-            {"at": run.at, "model": run.model, "shuffled": run.shuffled,
-             "arms": ARM_LABEL, "dropped": run.dropped,
-             "observations": [o.__dict__ for o in run.observations]},
-            indent=2), encoding="utf-8")
+        flush()
+        # `complete` is only true when the loop ran to the end. The `finally`
+        # also runs when the harness ABORTS - a fatal provider error, the
+        # transient budget exhausted - and marking those complete would be
+        # the same mistake as serialising only at the end.
+        if finished:
+            doc = json.loads(out.read_text(encoding="utf-8"))
+            doc["complete"] = True
+            out.write_text(json.dumps(doc, indent=2), encoding="utf-8")
         say("")
         say(f"  artifact {out}")
     return 0
