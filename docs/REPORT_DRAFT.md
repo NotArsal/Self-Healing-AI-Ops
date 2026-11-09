@@ -240,7 +240,7 @@ true thing about MTTD; this is why.
 | detection rate | 100% (20/20) | 100% (20/20) | 100% (20/20) | 100% (20/20) | >= 95% | met |
 | localisation | 100% (20/20) | 100% (20/20) | 100% (20/20) | 100% (20/20) | >= 80% | met *(one-way, see §6)* |
 | RCA accuracy, the model's own answer | 85% (17/20) | 85% (17/20) | 85% (17/20) | **90% (18/20)** | >= 75% | met |
-| repair action proposed | — | — | 90% (18/20) | **100% (20/20)** | *no target* | — |
+| repair action **correct** *(not "proposed", see §4.2)* | — | — | 90% (18/20) | **100% (20/20)** | *no target* | — |
 | answer is self-consistent | — | *(replayed)* | **60% (12/20)** | **65% (13/20)** | *measured, not enforced* | — |
 | auto-resolution | 75% (15/20) | 70% (14/20) | 75% (15/20) | **80% (16/20)** | >= 70% | met |
 | **false healing** | **0% (0/20)** | **0% (0/20)** | **0% (0/20)** | **0% (0/20)** | <= 5% | met |
@@ -1139,6 +1139,11 @@ The older "21 of 21" counted the bench rows together with the earlier targeted
 probes under a bookkeeping we have not re-derived, so it is not restated here;
 §5's table gives each count beside the thing it was counted over.
 
+**This is not 11 averted disasters, and §6 gives the price.** In 4 of the 11
+the model proposed the *correct* repair under a wrong class label and was
+refused anyway, because the gate checks the class. Quoting the 11 without that
+figure overstates what the cross-check saved.
+
 
 ### 4.4a Evidence closure is the third uncertainty channel, and it is saturated
 
@@ -1730,13 +1735,34 @@ two classes whose detectors read no PromQL, 54-74s for the two that wait on a
 because moving a threshold after seeing the data is how acceptance criteria
 stop meaning anything — and widening one is no better than lowering one.
 
-**Action-selection accuracy is unmeasured.** `RCA accuracy` counts the fault
-class the model names, not the repair it proposes. Run B found one incident
-where the class was right and the repair was not permitted for it, caught by
-the gate. Run D's report prints the 2×2 directly — 18 class-right and
-action-right, 2 class-wrong, **0 in the cell `RCA accuracy` cannot see** — so
-on run D the metric and the gate happen to agree. They are still different
-questions. See §4.2 and `RESEARCH_NOTES.md` §10.
+**`RCA accuracy` is not action-selection accuracy.** It counts the fault class
+the model names, not the repair it proposes; the two are measured separately
+and they disagree. Run B found one incident where the class was right and the
+repair was not permitted for it, caught by the gate. Run D's report prints the
+2×2 directly — 18 class-right and action-right, 2 class-wrong, **0 in the cell
+`RCA accuracy` cannot see** — so on run D the metric and the gate happen to
+agree. They are still different questions. See §4.2 and
+`RESEARCH_NOTES.md` §10.
+
+**And the gate has a measured cost, which belongs here rather than in §4.4.**
+Recomputed from the two artifacts that record the action live, runs C and D
+(40 injections): of the 5 wrong-class diagnoses, **4 proposed the correct
+repair for the injected class and all 4 were refused** — `llm_approved: false`,
+`executed: false`. On two injected F07s in each run the model named F06 and
+still reached for `rollback_prompt`, which is F07's repair.
+
+So "11 wrong diagnoses, 0 executed" (§4.4) is not 11 averted disasters. At
+least 4 of them would most likely have healed the target, and the
+deterministic cross-check refused them because it gates on the **class**, not
+on the action. That is the correct conservative call — the gate cannot know
+which wrong labels happen to carry right actions — but it is a cost, it is
+measurable, and a reviewer will ask for it. It also sharpens what the F07→F06
+failure is: in 10 of the 11 wrong diagnoses across all four runs the model
+named F06 for an injected F07, while often selecting F07's repair. That is a
+**labelling** failure more than a reasoning failure, and it is the same
+signature the closure ablation found independently in its control arm (F07
+named F06 at 0.95 confidence with Evidence Closure at 1.00,
+`EXPERIMENT_CLOSURE_ABLATION.md` §13.2).
 
 **Self-consistency is measured and not enforced, and that is a live decision,
 not an oversight.** 28 of 28 F06 diagnoses across three runs name F07's fault

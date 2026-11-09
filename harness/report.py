@@ -459,7 +459,10 @@ def emit(bench: Bench, classes: list[str], reps: int) -> bool:
     say(f"  {'localization (service)':<34} {pct(loc, detected):<18} >= 80%")
     say(f"  {'RCA accuracy (LLM own answer)':<34} {pct(rca_ok, n):<18} >= 75%")
     say(f"  {'  of which: fault class named':<34} {pct(rca_ok, n):<18} the figure above")
-    say(f"  {'  repair action proposed':<34} {pct(action_ok, n):<18} no target yet")
+    # NOT "an action was proposed" - this is action_correct, the proposed
+    # repair measured against the INJECTED class's permitted one. The old
+    # label read as coverage and was quoted that way in REPORT_DRAFT 4.1.
+    say(f"  {'  repair action correct':<34} {pct(action_ok, n):<18} no target yet")
     judged = [r for r in runs if r.fault_name_coherent is not None]
     coherent = sum(1 for r in judged if r.fault_name_coherent)
     say(f"  {'  answer is self-consistent':<34} "
