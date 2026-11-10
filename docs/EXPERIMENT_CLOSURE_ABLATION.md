@@ -1905,3 +1905,74 @@ measurement decision.
   perfect on F01 (48/48 and 46/46 including the F06 partial), so the data
   cannot discriminate a shared-frame bug from two arms that simply both
   succeed. It needs a class where the arms differ, which means F07.
+
+---
+
+## 27. Pre-registration: the F07-only cross-provider run, written 2026-11-10 before it starts
+
+§26.4 recommended this design and the owner chose it. Registered here with
+its predictions **before any of its numbers exist**, which is the only thing
+that makes §24.2's complaint about itself not repeat.
+
+### 27.1 The design, and the budget arithmetic corrected
+
+```
+harness/closure_ablation.py --classes F07 --incidents 15 --reps 3
+    --arms ABE --provider groq --model openai/gpt-oss-120b
+```
+
+135 diagnoses. One class, the same 15x3 shape as the F01 block that settled
+F01 in §26.2, so it is as well powered as the result it is being compared
+against.
+
+**A correction to §26.1's arithmetic, measured rather than assumed.** §26.1
+said three keys give "about 600k/day" on the strength of the limit being
+200,000 tokens per day per key. That was an assumption: an org-wide counter
+would have produced exactly the same abort message, because the rotation
+tries every key and reports the last failure. It was tested directly today -
+four requests on key 0, then one on key 1, reading
+`x-ratelimit-remaining-requests` each time:
+
+```
+key 0: 998, 997, 996, 995        <- its own counter decrements
+key 1: 998                       <- untouched by key 0's four
+```
+
+**The counters are per key.** So ~600k/day across three stands, and at a
+measured 3,480 prompt tokens per diagnosis this run needs **~470k, with
+~130k of headroom** - about 37 retries' worth. All three keys' daily
+counters had reset before the run started.
+
+### 27.2 Why F07 and not breadth
+
+F07 is the class §19.4 and §21.3 locate the pooled effect in, it is the one
+class with no cross-provider data, and §26.5 needs a class where arms B and E
+*differ* to discriminate its shared-frame suspicion. Dropping reps to 1 for
+four classes would buy breadth at the price of being unable to separate a
+model difference from the draw, which §16.3 already refused once.
+
+**F06 and F08 remain unmeasured cross-provider after this run**, and the
+report must keep saying so.
+
+### 27.3 The predictions
+
+| # | Prediction | Why it is risky |
+|---|---|---|
+| 1 | arm A's agreement on F07 >= 0.93 (at least 14 of 15 incidents) | arm A is 1.00 locally and 1.00 on F01 at 120B; below 0.93 would mean the control frame itself does not transfer, and nothing in this document would survive that |
+| 2 | **arm B's closure on F07 is the discriminating number.** >= 0.95 and F01's result generalizes to the class that carries the effect; <= 0.90 and the effect is cross-model where it matters most; between, inconclusive per §16.2's band | locally this is 0.79 and 0.81. A 120B model could go either way and the two outcomes say opposite things about §21.2 |
+| 3 | arms B and E give **different** name distributions on F07 | they were byte-identical on §24's 18-observation smoke. Identical again at 135 observations is to be treated as a suspected harness fault and inspected in code, **not** reported as a finding |
+| 4 | in arm B, `INSUFFICIENT_EVIDENCE` outnumbers confident-wrong answers | this is §24.3's metric-orthogonality claim as a test. At 120B on F01 there were zero abstentions because nothing was hard; on F07 the model should decline rather than guess if the claim is right |
+| 5 | 1 or 2 of the 15 incidents are dropped by the detector, concentrated at the start | F07's measured detection rate is 27/31 = 0.87 with every miss at trial 1 or 2 of a cold class (§25.3) |
+
+**The warm-up is deliberately NOT added**, even though §25.3 identified it and
+`one_incident` already warms up for F06 and F01. Adding a warm-up to F07
+between two runs that are being compared is exactly the tuning this document
+forbids itself (§7), and it would change the measured path mid-comparison
+(`AGENTS.md`). It belongs in its own pre-registration with its own run.
+
+### 27.4 What is recorded whatever happens
+
+If the run aborts again, the partial artifact is analysable per the
+flush-every-incident change and the abort is recorded as what it was - §26.1
+is the precedent, and a planning failure gets that label rather than a
+finding's.
