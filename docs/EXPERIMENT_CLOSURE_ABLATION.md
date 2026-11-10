@@ -2735,3 +2735,100 @@ is made after the F07 artifact exists and before this run starts.
 `F06` cross-provider is next, with a predicted null. One cloud model, one
 scale, one decoder path per model. And `reps=1` again gives up the
 within-cell spread §7 reads.
+
+---
+
+## 32. Pre-registration: F07 on gpt-oss-20b (NVIDIA), 15 x 1, arms A and B - the scale-versus-family test, written 2026-11-10, BLIND
+
+Owner's choice, 2026-11-10, asked when the owner pointed out that six other
+providers are configured. No `gpt-oss-20b` artifact exists anywhere in
+`harness/reports/`, so **this one is blind**, unlike §31.
+
+### 32.1 The question, and why only this model can answer it
+
+§30 and the report read the 7B-to-120B contrast as **scale**: confident
+wrong answers on `qwen2.5:7b`, refusals on `gpt-oss-120b`. Those two models
+differ in three things at once - size, model family, and decoder path
+(Ollama grammar against strict `json_schema`). `gpt-oss-20b` holds the
+family fixed and changes the size, and NVIDIA serves it through the same
+OpenAI-compatible strict structured-output contract as Groq. The contract
+matches; the implementation behind it need not, and that is stated rather
+than assumed away.
+
+- **Scale reading:** 20B behaves like 7B under noise - confident wrong.
+- **Family reading:** 20B behaves like 120B - it refuses. Then the report's
+  'what reverses with scale is the failure mode' is withdrawn to 'the
+  gpt-oss family refuses where qwen guesses'.
+
+### 32.2 The design
+
+```
+harness/closure_ablation.py --classes F07 --incidents 15 --reps 1
+    --arms AB --provider nvidia --model openai/gpt-oss-20b
+    --json-out harness/reports/closure-ablation-nvidia-20b-f07-ab.json
+```
+
+Same incidents as §29 - seeded per class and index - so the three models
+meet identical draws. `max_tokens` stays 2048. `gpt-oss-20b` is a reasoning
+model and spends hidden tokens from that budget; if answers truncate, that
+is a result about the model, and the budget is **not** raised or lowered to
+make the run pass.
+
+### 32.3 The primary outcome: arm B confident-wrong count
+
+Definition as §31.6: names a class other than the injected one, and is not
+`INSUFFICIENT_EVIDENCE` or `UNKNOWN`. Comparators: 120B F07 arm B from the
+**registered §29 artifact** once it exists (0 of 11 in §30's truncated run);
+local 7B F07 arm B, rep 1 only, **17/43**.
+
+One-sided Fisher exact, computed now against 120B at 0/15 and local at
+17/43:
+
+| 20B confident wrong of 15 | p, more than 120B | p, fewer than local 7B | reading |
+|---|---|---|---|
+| 0 | 1.000 | 0.0021 | **family** |
+| 1 | 0.500 | 0.0154 | **family** |
+| 2 | 0.241 | 0.0572 | **undecided** |
+| 3 | 0.112 | 0.1453 | **undecided** |
+| 4 | 0.0498 | 0.2846 | **scale** |
+| 5+ | <= 0.021 | >= 0.458 | **scale** |
+
+**The rule is fixed here:** <= 1 is the family reading, >= 4 the scale
+reading, and **2 or 3 is reported as undecided at this n** - not rounded
+towards whichever reading reads better. If the registered 120B run shows
+confident wrong answers of its own, the 'more than 120B' column is
+recomputed against its actual count, by the same test, before the 20B
+artifact is opened if the order allows.
+
+**Reported, not tested:** agreement in both arms, closure in both arms, mean
+confidence, drops. One observation is worth naming in advance: on the 7B
+model F07 arm-B closure was *not* saturated (28/45, 27/45, 36/39), while on
+120B it was 11/11. Where 20B lands on closure is a second, unregistered look
+at the same split and is reported as exploratory.
+
+### 32.4 When, and the guards that let it share a night with §29
+
+NVIDIA was **unresponsive** when this was written: a diagnosis-shaped call
+timed out at the client's 180s, and a 64-token call at 90s. So the run is
+launched by a poller, and only when all of these hold:
+
+- **two consecutive** diagnosis-shaped probes succeed through the real
+  client and the strict schema - still not proof that 30 calls will (§29.9),
+  so the abort path stays the fallback;
+- it is before **04:00 UTC on 2026-11-11** and the §29 run's one-shot lock
+  does not exist;
+- the target is healthy, unchanged (`config_hash de4cfaed14a8bb98`) and
+  clear.
+
+**Between incidents the target reads `clear`**, so without a guard the 06:15
+waiter could start §29's run in the middle of this one and interleave two
+experiments on one target. This run therefore holds a **target-busy lock**
+recording its pid, and the waiter will not start while a *live* process
+holds it. A stale lock from a killed process is ignored by the waiter -
+but a killed run can leave a fault **injected**, and then the waiter's
+`clear` gate holds §29 until a human reverts it. That is the cost of
+running this tonight: a possible delay to §29, never an interleaved or
+dirty measurement.
+
+**If NVIDIA stays unresponsive until 04:00, nothing runs.** A weaker
+experiment is not substituted because a provider happens to be configured.
