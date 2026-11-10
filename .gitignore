@@ -74,3 +74,10 @@ apps/console/lib/api/openapi.json
 graphify-out
 .claude/
 harness/reports/bench.json
+
+# A run started from apps/control-plane writes harness/reports/ relative to
+# its own cwd. The resulting EMPTY directory is invisible to git and silently
+# changed ruff import classification, so `make check` passed locally while CI
+# failed I001 on the same commit. Ignored so it can never be committed, and
+# `known-first-party` in pyproject.toml now makes its presence irrelevant.
+/apps/control-plane/harness/

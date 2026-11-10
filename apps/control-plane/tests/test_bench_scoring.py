@@ -25,7 +25,6 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from harness.report import CATALOGUE, Run  # noqa: E402
-
 from kavach.rca.validate import permitted_repair  # noqa: E402
 
 ARTIFACT = ROOT / "harness" / "reports" / "diagnoses-20261020.json"

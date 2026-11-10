@@ -77,6 +77,17 @@ line-length = 100
 # keeps it in its own block below third-party.
 src = ["."]
 
+[tool.ruff.lint.isort]
+# `harness` lives at the REPOSITORY root, not under this src root, so ruff
+# classified it by looking for a directory called `harness` next to `kavach`.
+# One existed on the author machine - an empty, UNTRACKED
+# `apps/control-plane/harness/reports/` left behind by a run started from the
+# wrong directory. Git cannot see an empty directory, so it was never
+# committed, and `make check` passed locally while CI failed I001 on the same
+# commit for four pushes: the gate was reading a filesystem CI does not have.
+# Naming it here removes the inference, so both environments agree.
+known-first-party = ["kavach", "harness"]
+
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM", "ARG", "PTH", "RUF", "TID"]
 # ARG is kept on deliberately: an unused argument in a graph node or adapter is
