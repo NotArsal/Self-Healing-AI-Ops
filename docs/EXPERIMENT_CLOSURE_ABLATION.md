@@ -2134,3 +2134,101 @@ question that needed it.
 **Nothing is being run on this design yet.** It changes the pre-registered
 shape and the quota is spent (196,017 of 200,000 used on a rolling window),
 so it needs its own registration and the owner's agreement first.
+
+---
+
+## 29. Pre-registration: F07, 15 incidents x 1 rep, arms A and B, written 2026-11-10 before the quota resets
+
+The owner approved §28.6's design. Registered before the run, as §27 was,
+and this time with the **outcome variable changed on the record** rather than
+chosen after seeing which one moved.
+
+### 29.1 The design
+
+```
+harness/closure_ablation.py --classes F07 --incidents 15 --reps 1
+    --arms AB --provider groq --model openai/gpt-oss-120b
+```
+
+30 diagnoses. Measured cost from §28: arm A 4,073 and arm B 3,739 prompt
+tokens per diagnosis, so **~117k prompt tokens, ~125k with completions**,
+against the organization's 200,000/day (§28.1). Fits one day with headroom
+for retries.
+
+**Arm E is not run.** §28.4's prediction 3 answered the only question that
+needed it, and its absence buys the headroom that makes 15 incidents fit.
+
+### 29.2 The primary outcome for this run is AGREEMENT, not closure
+
+§28.3 measured `closed_detector` at 1.00 in an arm whose agreement was 0.00.
+On this model the pre-registered PRIMARY **cannot distinguish a correct
+diagnosis from a refusal**, so continuing to lead with it would be reporting
+a number known in advance to be uninformative.
+
+**So for this run, and only on the record here before it starts:** the
+primary outcome is **agreement with the injected class**, and closure is
+reported as a secondary that is expected to saturate. This is a change of
+outcome variable mid-programme, which is exactly the move that invalidates
+a result when it is made *after* seeing the data - it is made here before,
+with the reason being a measured property of the metric (§28.3) rather than
+which number came out better.
+
+**The pooled four-class result in §21.2 and §21.6 is unaffected and is not
+restated on this basis.** It was measured on closure, on the local model,
+where closure does not saturate - arm B scored 0.79 and 0.81 there.
+
+### 29.3 The predictions
+
+| # | Prediction | If it fails |
+|---|---|---|
+| 1 | arm A agreement >= 0.93 (at least 14 of 15) | the control frame does not transfer and nothing downstream survives |
+| 2 | **PRIMARY: arm B agreement <= 0.50** | at >= 0.80 the collapse in §28.2 was the 3-incident draw, and the model-scale failure-mode story is withdrawn |
+| 3 | arm B confident-wrong count <= 2 of 15 | at >= 6 the zero-confident-wrong result was the draw, and §28.2's safety reading goes with it |
+| 4 | closure (detector) >= 0.95 in **both** arms | below that, §28.3's claim that the metric saturates on this model is wrong, and the primary should have stayed closure |
+| 5 | arm A mean confidence exceeds arm B's by >= 0.15 | the confidence signal does not track degradation on this model |
+| 6 | 1 to 3 of the 15 incidents dropped by the detector | outside that range, F07's 0.87 detection rate (§25.3) does not hold at this n |
+
+Prediction 4 is deliberately a prediction that the **metric fails**. If it
+holds, the report says so; a saturated primary is a finding about the
+measurement, and §22's audit exists because nothing had tested the
+measurement before.
+
+### 29.4 Analysis fixed in advance
+
+- McNemar, exact, **paired on the incident** - which with `reps=1` is the
+  diagnosis, so the pairing-unit fix is a no-op here and the cells are
+  unambiguous.
+- A perfect arm reports the Clopper-Pearson one-sided bound, not a
+  zero-width bootstrap interval (`perfect_arm_ceiling`). At 15 incidents
+  that bound is **0.181**; at 13, if two drop, **0.206**.
+- Dropped incidents are reported as dropped, not refilled. Refilling after
+  seeing which ones dropped would select on the outcome.
+
+### 29.5 What this run still cannot answer
+
+`F06` and `F08` remain unmeasured cross-provider and the report must keep
+saying so. One cloud model, one scale. And `reps=1` gives up the within-cell
+spread that §7's refutation condition reads - §28's arm A was 10/10 across
+three reps of four incidents, which is evidence that the spread is nil on
+this model and not a guarantee.
+
+### 29.6 When it runs
+
+Groq exposes **no remaining-tokens-per-day header** - only TPM (8,000) and
+RPD (1,000), both per key, which is what misled §27.1. The only reading of
+the daily figure is the `Used N` inside a 429, so the reset cannot be
+watched directly.
+
+The window is a rolling one: the abort at 06:00 UTC on 2026-11-10 reported
+196,017 used, and the ~100k spent between 00:05 and 02:00 UTC that day ages
+out at 00:05 to 02:00 UTC on 2026-11-11. **The run is therefore armed to
+start once a cheap probe confirms headroom, no earlier than 06:15 UTC on
+2026-11-11**, by which point the whole of the previous day's spend has aged
+out. The probe costs about 30 tokens and tests for ~6k of headroom by asking
+for a large completion the model will not use - the admission check reads the
+request, the accounting reads the actual tokens.
+
+**If the window turns out not to be 24h rolling, the run aborts the way §26
+and §28 did** - artifact flushed per incident, fault reverted - and the abort
+is the measurement of the window, recorded as such rather than as a finding
+about the model.
