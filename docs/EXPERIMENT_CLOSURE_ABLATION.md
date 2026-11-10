@@ -1943,6 +1943,15 @@ measured 3,480 prompt tokens per diagnosis this run needs **~470k, with
 ~130k of headroom** - about 37 retries' worth. All three keys' daily
 counters had reset before the run started.
 
+> **WRONG, AND CORRECTED BY §28.1 THE SAME DAY.** The counter read above is
+> `x-ratelimit-remaining-requests`, the **requests**-per-day limit, which is
+> per key. The **tokens**-per-day limit is per **organization**, which the
+> next abort message said in words I had truncated out of §26.1 with an
+> ellipsis. The day's budget is 200,000 tokens in total, not 600,000. The
+> paragraph is left standing because what it got wrong - presenting an
+> inference about one limit as a measurement of another - is the error worth
+> keeping on the page.
+
 ### 27.2 Why F07 and not breadth
 
 F07 is the class §19.4 and §21.3 locate the pooled effect in, it is the one
@@ -1976,3 +1985,152 @@ If the run aborts again, the partial artifact is analysable per the
 flush-every-incident change and the abort is recorded as what it was - §26.1
 is the precedent, and a planning failure gets that label rather than a
 finding's.
+
+---
+
+## 28. The F07 run aborted at 3 incidents, §27.1's correction was itself wrong, and the 28 diagnoses it did produce say something the four classes pooled could not
+
+Artifact `harness/reports/closure-ablation-groq-f07.json`, model
+`groq:openai/gpt-oss-120b`, arms A/B/E. **29 of 135 diagnoses, 28 usable,
+one incident dropped by the detector, then the same provider wall as §26.**
+
+### 28.1 I got the budget wrong a second time, in a worse way
+
+§27.1 said the daily token limit is per key and claimed to have *measured*
+it. The abort message:
+
+```
+Rate limit reached for model `openai/gpt-oss-120b` in organization
+`org_01m15ty1wke7mv33003mt6w6dq` service tier `on_demand` on tokens per
+day (TPD): Limit 200000, Used 196017 ... (all 3 keys tried)
+```
+
+**The TPD limit is per ORGANIZATION.** All three keys belong to one org, so
+the day's budget is **200,000 tokens in total, not 600,000.**
+
+What §27.1 actually measured was `x-ratelimit-remaining-requests` — the
+**requests**-per-day counter, which *is* per key. Two different limits, and I
+generalised from the one I could read to the one I needed. That is worse than
+§26.1's error, because §26.1 was an untested assumption while this was an
+assumption dressed as a measurement, and the sentence "tested directly today"
+made it harder to doubt rather than easier.
+
+The decisive evidence was in §26.1's own quoted text, and **I truncated the
+message with an ellipsis immediately before the words "in organization"**.
+Both errors were avoidable by reading what was already on the page.
+
+**The real budget:** 200,000 tokens/day across all keys, at a measured 3,609
+prompt tokens per diagnosis = **about 54 diagnoses per day**. The
+pre-registered 135 is a 2.5-day job and could not have run today under any
+key arrangement. §26.4's whole table is wrong by a factor of three and is
+superseded by §28.6.
+
+### 28.2 What the 28 diagnoses show
+
+Three incidents complete in all three arms (F07#1, #2, #4), a fourth
+(F07#3) dropped by the detector, a fifth cut off mid-arm.
+
+| arm | items | agreement | closure (detector) | abstentions | **confident-wrong** | mean confidence | evidence cited |
+|---|---|---|---|---|---|---|---|
+| A control | 35 | **10/10 = 1.00** | 10/10 = 1.00 | 0 | **0** | **0.90** | 4-5 |
+| B size-matched noise | 35 | **3/9 = 0.33** | **9/9 = 1.00** | **6** | **0** | **0.58** | 2 |
+| E same items removed | 4 | **0/9 = 0.00** | **9/9 = 1.00** | **9** | **0** | **0.52** | 2 |
+
+**Zero confident-wrong answers in 18 degraded diagnoses** (arms B and E,
+F07 only). The local 7B model's arm B produced 20, 46 and 40 confident-wrong
+answers across the three full runs at mean confidences of 0.78, 0.87 and
+0.86 (§21.4) - out of roughly 171 arm-B diagnoses each, and **pooled over
+four classes**, so that is a rate of order 0.25 against this run's 0 of 18
+on one class. Stated that way rather than as 106 against 0, which would
+compare a four-class total with a one-class sample. The 120B model
+responds to diluted or missing discriminating evidence by **declining** —
+which is the escalate-to-a-human path the architecture is built around — and
+its stated confidence tracks the degradation, 0.90 to 0.58 to 0.52.
+
+**This is the headline safety regression reversing with model scale**, and it
+is the thing the F01 block could not show, because nothing about F01 was hard
+enough for the 120B model to decline anything at all (§26.2: zero
+abstentions, 45/45 in every arm).
+
+### 28.3 The primary outcome saturated, so it measured nothing here
+
+`closed_detector` is **1.00 in every arm**, including the arm whose agreement
+is 0.00. §24.3 predicted exactly this and called it a property of the metric;
+this is that property measured on the class that carries the effect.
+
+Closure asks only whether the diagnosis cited the evidence that discriminates
+the injected class. An abstention that cites it scores 1.00. So on a model
+that abstains cleanly, **the pre-registered PRIMARY cannot distinguish a
+correct diagnosis from a refusal**, and the informative outcomes are
+agreement and stated confidence.
+
+§16's prediction 3 scored ">= 0.95 means the sensitivity was a 7B artefact."
+Arm B came back 9/9. **The band fires and the inference it licensed does
+not**: the honest reading is that the metric saturated on this model, not
+that grounding survived the noise — agreement fell from 1.00 to 0.33 in the
+same nine diagnoses. A pre-registered threshold can be met by a mechanism the
+pre-registration did not anticipate, and this is one.
+
+### 28.4 §27.3's predictions, scored
+
+| # | Prediction | Observed | Verdict |
+|---|---|---|---|
+| 1 | arm A agreement >= 0.93 | 10/10 on 4 incidents | **held where measured** |
+| 2 | arm B closure >= 0.95 or <= 0.90, discriminating | 1.00 — but see §28.3 | **band met, inference void** |
+| 3 | arms B and E give **different** name distributions | 3 F07 + 6 abstain vs 0 F07 + 9 abstain | **MET** |
+| 4 | abstentions outnumber confident-wrong in arm B | 6 against **0** | **MET decisively** |
+| 5 | 1-2 incidents dropped, **concentrated at the start** | 1 dropped, at **#3**, after #1 and #2 both succeeded | **count held, position did not** |
+
+**Prediction 3 settles §26.5.** The arms are genuinely different frames
+producing genuinely different behaviour, so the smoke's byte-identical
+distributions were the same 18 observations defeating both arms, not a
+harness fault passing one frame twice. That suspicion is closed.
+
+**Prediction 5's position failed, and one drop cannot adjudicate it.** F07
+had been exercised hours earlier by §25's runs, so a cold-class account
+predicts no drop at all; a drop at #3 after two clean incidents fits neither
+the positional story nor a flat 0.87 especially well. Recorded as not
+supporting §25.3's mechanism rather than refuting it, because n=1.
+
+### 28.5 Power, stated rather than implied
+
+Three incidents. `perfect_arm_ceiling` on three clusters is
+**1 - 0.05^(1/3) = 0.632** — a perfect arm here bounds the per-incident
+failure rate only below 63%, which is no bound at all. The 18 degraded
+diagnoses are six clusters, so the zero-confident-wrong count bounds that
+rate below **0.393**.
+
+**So §28.2 is a direction, not a rate, and §16.3's rule binds: these numbers
+are not quotable in the report as measurements.** What is quotable is the
+qualitative contrast with a named sample size — 0 confident-wrong in 18
+against 106 in the local runs' equivalent arms — and only with the 3-incident
+denominator in the same sentence.
+
+### 28.6 The design that fits 200,000 tokens, and what it gives up
+
+| design | diagnoses | tokens | fits one day |
+|---|---|---|---|
+| §27's, F07 15x3 arms ABE | 135 | ~490k | no, 2.5 days |
+| F07 15x3 arms AB | 90 | ~350k | no, 1.8 days |
+| **F07 15x1 arms AB** | **30** | **~117k** | **yes, with 40% headroom** |
+| F07 15x1 arms ABE | 45 | ~160k | marginal once retries are counted |
+
+**The recommendation is 15 incidents x 1 rep, arms A and B.**
+
+§26.4 rejected reps=1 and the reason it gave was wrong. It said reps=1 would
+leave the run "unable to separate a model difference from the draw" — but
+**the draw varies per incident, not per rep**, and since the pairing-unit fix
+of 2026-11-10 the unit of analysis *is* the incident, with reps collapsed by
+majority. Reps buy cell stability, not power. §16.3's objection was to **5
+incidents** at one rep, and transplanting it onto 15 incidents at one rep was
+sloppy.
+
+**What reps=1 genuinely gives up**, named rather than buried: the within-cell
+spread that §7's refutation condition reads. Arm A's 10/10 across three reps
+of four incidents says that spread is nil here, which is evidence and not a
+guarantee. Arm E is dropped because prediction 3 already answered the only
+question that needed it.
+
+**Nothing is being run on this design yet.** It changes the pre-registered
+shape and the quota is spent (196,017 of 200,000 used on a rolling window),
+so it needs its own registration and the owner's agreement first.

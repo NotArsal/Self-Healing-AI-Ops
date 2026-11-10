@@ -1281,8 +1281,23 @@ same difficulty.
 > abstentions**, against **18/45 and 36/45** for the same arm on
 > `qwen2.5:7b-instruct`. On `F01` the effect is **absent** at 120B. The run
 > was then stopped by Groq's 200,000-tokens-per-day cap before reaching
-> `F06`, `F07` or `F08`, so whether it is model-dependent on the class that
-> carries most of it — `F07` — is **unmeasured**. The pooled drop above is
+> `F06`, `F07` or `F08`. A second run on 2026-11-10 aimed at `F07` alone
+> hit the same cap after **3 complete incidents**, and is reported here as a
+> direction with its denominator rather than as a rate (§28.5). That
+> direction is this: on `F07` the 120B model's agreement does fall under
+> size-matched noise, 10/10 to **3/9** — but **none of the 18 degraded
+> diagnoses was a confident wrong answer**. Six of nine abstained, and mean
+> stated confidence fell from 0.90 to 0.58. The comparison is **0 of 18**
+> here, F07 only, against **40 of about 171** arm-B diagnoses on the local
+> model in the matched run, pooled over four classes (§21.4). So what
+> reverses with model scale may not be
+> the accuracy loss but the **failure mode**, from confident error to
+> refusal. Three incidents cannot establish a rate and this must not be
+> quoted as one. `F06` and `F08` remain unmeasured cross-provider.
+>
+> The cap is **200,000 tokens per day per organization**, not per key
+> (§28.1 corrects §27.1, which had that wrong), so the pre-registered
+> 135-diagnosis shape is a 2.5-day job. The pooled drop above is
 > over four classes and is not overturned by one of them vanishing; it is
 > narrowed to the local model until F07 is measured cross-provider.
 >
