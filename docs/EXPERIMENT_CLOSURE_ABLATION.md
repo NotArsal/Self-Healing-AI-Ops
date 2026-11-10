@@ -2832,3 +2832,15 @@ dirty measurement.
 
 **If NVIDIA stays unresponsive until 04:00, nothing runs.** A weaker
 experiment is not substituted because a provider happens to be configured.
+
+### 32.5 Withdrawn by the owner before any data, 2026-11-10 14:2x UTC
+
+The poller made one diagnosis-shaped probe at 14:16 UTC, which timed out at
+180s, and was then stopped on the owner's instruction. **No 20B incident was
+run, the target was never touched and no artifact exists.** The design and
+the decision rule above stand as written, so if this is ever run it is run
+against them, unchanged, and is still blind.
+
+The scale-versus-family question is therefore **open**, and the report's
+scale reading keeps the confound §32.1 names: 7B and 120B differ in size,
+family and decoder path at once.
