@@ -2008,6 +2008,16 @@ day (TPD): Limit 200000, Used 196017 ... (all 3 keys tried)
 **The TPD limit is per ORGANIZATION.** All three keys belong to one org, so
 the day's budget is **200,000 tokens in total, not 600,000.**
 
+> **ITS SECOND SENTENCE IS WRONG, AND §29.11 CORRECTS IT THE SAME DAY.**
+> That the limit is per organization holds. That **all three keys belong to
+> one organization was never checked** - it was inferred from one org id
+> appearing in one message. Two artifacts written five hours apart on
+> 2026-11-10 carry two **different** org ids, each independently drained to
+> ~196k of its own 200,000. The keys span at least two organizations and the
+> day's budget is **at least 400,000 tokens**, not 200,000. Left standing
+> because the error is the same shape a fifth time: one organization's limit
+> measured, the whole account's budget reported.
+
 What §27.1 actually measured was `x-ratelimit-remaining-requests` — the
 **requests**-per-day counter, which *is* per key. Two different limits, and I
 generalised from the one I could read to the one I needed. That is worse than
@@ -2458,3 +2468,42 @@ Two things do survive the thrashing:
   class. At that rate 15 incidents would drop ~7. n=4, so this is a signal to
   watch and not a refutation, and it is logged now so that noticing it later
   cannot be mistaken for having predicted it.
+
+### 29.11 The keys span at least two organizations, so the budget was never the binding constraint
+
+Prompted by the owner asking why three keys had not helped. §28.1 answered
+what every section since has repeated: one organization, 200,000 a day.
+**That is wrong, and the evidence was already in this repository.**
+
+| artifact | finished (UTC) | organization | Used of 200,000 |
+|---|---|---|---|
+| `closure-ablation-groq-full.json` | 2026-11-10 00:24 | `org_01jhmy8t...sh73` | 196,518 |
+| `closure-ablation-groq-f07.json` | 2026-11-10 05:44 | `org_01m15ty1...6w6dq` | 196,017 |
+
+Two organizations, each drained to within 4k of its own ceiling, five hours
+apart, on one day. `keys_for` reports **3 distinct keys**, and the rotation
+in `providers.py` emits `(all N keys tried)` only after the **last** key
+fails, so at both aborts every key was capped - which is why the rotation
+looked like it was not working. It was working. It bought a second full
+budget and that was spent too.
+
+**So the day's budget is at least 400,000 tokens and the run needs ~125,000.**
+There was room for three attempts. What consumed it was two runs aborted on
+unfunded rails (§29.7, §29.8) and four mis-sized probes (§29.9), not the
+size of the free tier. §29.6 and §29.9 both reported a cap as the obstacle.
+The obstacle was the spending.
+
+**What is still not known, and cannot be probed.** Whether the third key is a
+third organization or shares one of the two is unrecorded; a probe of each
+key separately at 09:50 UTC returned **admitted on all three**, which reveals
+no org id, because the id appears only inside a 429. And the admission check
+reads the requested tokens while the tokens-per-minute ceiling is 8,000, so
+**no probe can ever ask for more than 8,000 and no probe can confirm the
+125,000 the run needs.** A probe can falsify headroom and never establish it.
+
+**The 06:15 gate stands, with a reason that survives being checked.** Tokens
+spent now age out ~24h from now, which is *after* 06:15 on 2026-11-11, so an
+attempt today that aborts would consume the gate's own headroom. That is an
+argument from the window's mechanics rather than from a cap figure, and it is
+the first reason given for waiting that does not rest on a number measured
+somewhere adjacent to the one that mattered.
