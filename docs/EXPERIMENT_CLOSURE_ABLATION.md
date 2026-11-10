@@ -2956,3 +2956,37 @@ report's reproducibility wording must not imply more than this.
   Its timing condition is unchanged: this run's spend is in the window, and
   which organizations served it cannot be read, so no new budget argument
   is made.
+
+### 32.6 Reinstated by the owner on Groq, written before the run, still blind
+
+The owner reports an ongoing NVIDIA incident, consistent with the 180s and
+90s timeouts in §32.4. **Groq serves `openai/gpt-oss-20b`**, and the owner
+reinstated §32 there (2026-11-10, after §33). One change, made before any
+data:
+
+```
+harness/closure_ablation.py --classes F07 --incidents 15 --reps 1
+    --arms AB --provider groq --model openai/gpt-oss-20b
+    --json-out harness/reports/closure-ablation-groq-20b-f07-ab.json
+```
+
+**This is a stronger design than §32.2, not a fallback.** 20B and 120B now
+share the provider, the API and the serving implementation, so §32.1's
+caveat - the structured-output contract matches but the implementation
+behind it need not - no longer applies. What differs between the two runs
+is the model, and within the gpt-oss family that means its size.
+
+**What was measured before deciding, none of it an F07 incident:** two
+diagnosis-shaped synthetic calls through the real client and strict schema,
+both returned in 1.8s at 4,348 prompt and 847-1,007 completion tokens, inside
+the 2048 budget. On one key the 20B's `x-ratelimit-remaining-requests` read
+999 against the 120B's 994, so the **request** counters are per model. The
+daily **token** limit has no header; that it is per model too is likely, since
+the 429 names the model, and is not relied on. At ~4.8k tokens a diagnosis
+the run needs ~145k. If that is not available the run aborts as before.
+
+**Nothing else in §32 changes**: the same seeded incidents, the primary
+outcome, the comparators (120B now from the registered §33 run, 0 confident
+wrong of 15, which is the column §32.3 was computed against), and the rule -
+<= 1 confident wrong of 15 is the family reading, >= 4 the scale reading,
+2 or 3 undecided. §32.5's withdrawal is superseded by this.
