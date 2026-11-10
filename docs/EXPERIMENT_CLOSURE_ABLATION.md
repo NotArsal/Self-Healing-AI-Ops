@@ -2507,3 +2507,84 @@ attempt today that aborts would consume the gate's own headroom. That is an
 argument from the window's mechanics rather than from a cap figure, and it is
 the first reason given for waiting that does not rest on a number measured
 somewhere adjacent to the one that mattered.
+
+---
+
+## 30. Read-off: the F07 arms-AB run reached 12 of 15 incidents, and five of §29.3's six predictions are met
+
+Ran 2026-11-10 ~09:55-10:40 UTC on **Groq-direct**, §29.1's design unchanged,
+after §29.11 established that the budget was never the obstacle. Artifact
+`closure-ablation-groq-f07-ab-TRUNCATED-12of15.json`, `complete: false`.
+**24 observations, 23 usable, 12 incidents in arm A and 11 in arm B, no
+incident dropped by the detector.** It stopped on the daily token cap at
+incident 12, fault reverted, target verified clear on all four classes.
+
+### 30.1 The predictions, scored
+
+| # | Prediction | Measured | |
+|---|---|---|---|
+| 1 | arm A agreement >= 0.93 | **12/12 = 1.00** | met |
+| 2 | **PRIMARY: arm B agreement <= 0.50** | **0/11 = 0.00** | met |
+| 3 | arm B confident-wrong <= 2 | **0** - every arm B answer was `INSUFFICIENT_EVIDENCE`, a refusal, not a wrong class | met |
+| 4 | closure(detector) >= 0.95 in both arms | **1.00 and 1.00** | met |
+| 5 | arm A mean confidence exceeds arm B's by >= 0.15 | **0.894 - 0.734 = 0.160** | met by 0.010 |
+| 6 | 1 to 3 of 15 incidents dropped by the detector | **0 of 12** | **NOT met** |
+
+**Prediction 4 was a prediction that the metric fails, and it holds for the
+fourth rail running.** `closure(detector)` is 1.00 in an arm whose agreement
+is 0.00: the pre-registered PRIMARY cannot tell a correct diagnosis from a
+refusal on this model. §29.2 demoted it before the run for exactly this
+reason, and §28.3's claim now has 12 more incidents behind it.
+
+**Prediction 6 fails in the opposite direction to the one §29.10 warned**
+**about.** §29.10 logged 2 of 4 incidents dropped and said 15 would drop ~7.
+The full run dropped **none** of 12. So that signal was the small sample and
+not a trend - the warning was right to be logged and wrong in its direction.
+Under §25.3's 0.87 detection rate, 0 of 12 has probability 0.188, so this
+refutes the stated range without being evidence of anything much.
+
+### 30.2 The primary, on the outcome §29.2 registered
+
+**The harness printed `p=1.0000  <- prediction NOT met`, and that line is
+about the superseded primary.** It computes McNemar on `closed_detector`,
+which is 1.00 in both arms, so the test is comparing two saturated columns
+and can only return 1.0. §29.2 changed this run's primary to **agreement
+with the injected class**, on the record before the run started. On that
+outcome, paired on the incident:
+
+```
+b = 11  (arm A named F07, arm B did not)
+c =  0  (arm B named F07, arm A did not)
+exact McNemar, two-sided p = 0.000977     one-sided p = 0.000488
+```
+
+Complete separation on 11 paired incidents. Arm A's perfect score reports
+the **Clopper-Pearson one-sided ceiling of 0.2209** at k=12 (§29.4), not a
+zero-width interval - so the true arm A failure rate could be as high as 22%
+and this run would still look perfect. That bound is the honest limit of what
+12 incidents buy, and it is why the registered n is 15.
+
+### 30.3 Why the artifact was renamed and the registered run still stands
+
+The pre-registration says **15** incidents. Reporting 12 under the
+pre-registered filename would quietly substitute a smaller n for the one on
+the record, so the artifact is renamed to name its truncation and the
+pre-registered name is left free. The armed waiter fires at 06:15 UTC on
+2026-11-11 into a replenished window and runs the registered 15.
+
+**This section is written before that run exists.** If the 15-incident run
+disagrees with the numbers above, both are on the page and the full one is
+the result; recording the truncated run only after seeing whether the full
+one agreed would be choosing which to report. Note this is a *re-run of the
+same registered design*, not §29.4's forbidden move - that forbids refilling
+incidents **after seeing which ones dropped**, and nothing here was dropped.
+
+### 30.4 The pool, measured rather than inferred
+
+The abort reported `org_01m15ty1...` at **Used 198,820** of 200,000. At the
+05:44 abort the same organization read **196,017**, so only ~2,800 tokens of
+this run landed on it - while the run spent **~90,000 prompt tokens**
+(12 x 4,073 + 11 x 3,749). **~87,000 of it was served by other keys.** This
+is the first direct measurement that the rotation draws on more than one
+organization's budget, and it confirms §29.11 by a route that does not
+depend on reading org ids out of error messages.
