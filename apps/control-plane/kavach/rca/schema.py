@@ -101,9 +101,23 @@ class Diagnosis(BaseModel):
     evidence_ids: list[str] = Field(min_length=2, max_length=20)
     reasoning: str = Field(min_length=1, max_length=2000)
     candidate_repair: CandidateRepair
-    rejected_alternatives: list[RejectedAlternative] = Field(
-        default_factory=list, max_length=9
-    )
+    # REQUIRED, not optional with a default, for the reason given above
+    # about `evidence_ids`: a constrained decoder may skip an optional
+    # field. It was optional until 2026-11-09, when the first cloud call
+    # FOR A DIAGNOSIS refused the whole request - OpenAI strict mode requires
+    # every property to appear in `required`, and Groq answered HTTP 400
+    # naming this field. `OpenAiCompatClient`'s docstring had asserted
+    # our schemas already satisfied that; nothing tested it, because no
+    # provider had ever been asked for THIS schema. Cloud providers had
+    # served Kavach before - the P7 patch runs on Groq and Gemini - but
+    # `PatchProposal` is strict-conformant, so they never hit this.
+    #
+    # An empty list is still permitted: this makes the KEY mandatory,
+    # not the content. FR-10 wants alternatives actually considered,
+    # which a `min_length` would force into the grammar - that is a
+    # behaviour change with its own measurement cost and is NOT bundled
+    # in here.
+    rejected_alternatives: list[RejectedAlternative] = Field(max_length=9)
 
     @field_validator("evidence_ids")
     @classmethod

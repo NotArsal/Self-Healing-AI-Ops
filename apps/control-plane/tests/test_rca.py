@@ -660,3 +660,41 @@ def test_the_schema_still_works_without_declared_services() -> None:
     assert schema["properties"]["service"]["type"] == "string"
     assert "enum" not in schema["properties"]["service"]
     assert schema["additionalProperties"] is False
+
+
+def test_diagnosis_schema_is_openai_strict_conformant() -> None:
+    """Every cloud provider rejects a schema strict mode cannot accept.
+
+    Ollama's grammar decoder accepts an optional field; OpenAI-compatible
+    `response_format: json_schema` with `strict: true` refuses the whole
+    request unless EVERY property of EVERY object appears in `required` and
+    `additionalProperties` is false. So a new optional field on any RCA model
+    breaks all seven cloud providers while every local run stays green - which
+    is exactly what happened between 2026-10-19 and 2026-11-09.
+
+    No key, no network: the schema alone decides this.
+    """
+    problems: list[str] = []
+
+    def walk(node: object, path: str) -> None:
+        if isinstance(node, dict):
+            if node.get("type") == "object" and "properties" in node:
+                props = node["properties"]
+                required = node.get("required", [])
+                missing = [k for k in props if k not in required]
+                if missing:
+                    problems.append(f"{path or '/'}: not in required: "
+                                    f"{', '.join(sorted(missing))}")
+                if node.get("additionalProperties") is not False:
+                    problems.append(f"{path or '/'}: additionalProperties "
+                                    f"is not false")
+            for k, v in node.items():
+                walk(v, f"{path}/{k}")
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                walk(v, f"{path}[{i}]")
+
+    walk(Diagnosis.model_json_schema(), "")
+    assert not problems, (
+        "Diagnosis schema is not strict-conformant, so every cloud provider "
+        "will answer HTTP 400:\n  " + "\n  ".join(problems))

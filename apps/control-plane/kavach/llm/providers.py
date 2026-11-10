@@ -116,8 +116,16 @@ PROVIDERS: dict[str, Provider] = {
         name="groq",
         base_url="https://api.groq.com/openai/v1",
         key_env="KAVACH_GROQ_API_KEY",
-        default_model="llama-3.3-70b-versatile",
-        note="fast inference, open-weight models only",
+        default_model="openai/gpt-oss-120b",
+        note="fast inference, open-weight models only. Was "
+             "llama-3.3-70b-versatile until 2026-11-09, when GET "
+             "/v1/models returned 11 ids and that was not among them "
+             "- a run asking for it gets HTTP 404 'does not exist or "
+             "you do not have access to it'. Groq decommissions "
+             "models, so a default here has a shelf life; the "
+             "chat-capable ids on 2026-11-09 were openai/gpt-oss-120b, "
+             "openai/gpt-oss-20b, openai/gpt-oss-safeguard-20b, "
+             "qwen/qwen3.8-27b and allam-2-7b.",
     ),
     "gemini": Provider(
         name="gemini",
@@ -266,9 +274,19 @@ class OpenAiCompatClient:
 
     Structured output uses `response_format: {"type": "json_schema", ...}`
     with `strict: true`, which is the closest equivalent to Ollama's
-    grammar-constrained decoding. Our schemas already set
+    grammar-constrained decoding. Our schemas set
     `additionalProperties: false` and list every property in `required`,
     which strict mode requires, so they pass through unchanged.
+
+    That last sentence was ASSERTED HERE AND WRONG from 2026-10-19 to
+    2026-11-09. `Diagnosis.rejected_alternatives` had a default, so
+    Pydantic omitted it from `required`, and the first cloud call for a
+    DIAGNOSIS died on HTTP 400. `PatchProposal` is strict-conformant by
+    accident, so the P7 patch runs on Groq and Gemini worked and hid this.
+    Ollama's decoder does not care, so no local run could reveal it
+    either. It is now enforced by
+    `test_rca.py::test_diagnosis_schema_is_openai_strict_conformant`,
+    which walks the schema and needs no key, rather than restated here.
 
     A provider that does not support strict json_schema fails loudly here
     rather than quietly degrading to free text. Degrading would mean the
