@@ -503,3 +503,82 @@ def test_the_offline_rehearsal_blanks_every_provider_in_the_table() -> None:
         f"offline_rehearsal.sh blanks {sorted(listed - table)}, which no "
         f"provider uses. Harmless, but it inflates the 'n/n empty' count the "
         f"report quotes.")
+
+
+# --- routing a router ------------------------------------------------------
+
+
+def test_openrouter_pins_its_upstream_when_a_run_asks_for_one(
+    no_settings_key: None, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`openai/gpt-oss-120b` is served by ~26 upstreams quantized from
+    int4 to bf16. Two arms of an ablation landing on different ones differ
+    by hardware, not by the variable under test."""
+    monkeypatch.setenv("KAVACH_OPENROUTER_PIN", "groq")
+    fake = FakeUrlopen()
+    monkeypatch.setattr(urllib.request, "urlopen", fake)
+    providers.build("openrouter", model="m", api_key=SECRET).structured(
+        "s", "u", SCHEMA)
+
+    sent = json.loads(fake.request.data)
+    assert sent["provider"] == {"order": ["groq"],
+                                "allow_fallbacks": False}
+
+
+def test_without_the_pin_openrouter_routes_as_it_likes(
+    no_settings_key: None, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The pin is opt-in. Unset, the payload is exactly what it was."""
+    monkeypatch.delenv("KAVACH_OPENROUTER_PIN", raising=False)
+    fake = FakeUrlopen()
+    monkeypatch.setattr(urllib.request, "urlopen", fake)
+    providers.build("openrouter", model="m", api_key=SECRET).structured(
+        "s", "u", SCHEMA)
+
+    assert "provider" not in json.loads(fake.request.data)
+
+
+def test_the_pin_reaches_no_provider_but_the_router(
+    no_settings_key: None, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Groq has no upstreams to choose between, and a stray `provider`
+    key in its payload is at best ignored and at worst a 400. The pin is
+    OpenRouter's alone."""
+    monkeypatch.setenv("KAVACH_OPENROUTER_PIN", "groq")
+    fake = FakeUrlopen()
+    monkeypatch.setattr(urllib.request, "urlopen", fake)
+    providers.build("groq", model="m", api_key=SECRET).structured(
+        "s", "u", SCHEMA)
+
+    assert "provider" not in json.loads(fake.request.data)
+
+
+def test_a_routed_reply_records_the_machine_that_answered(
+    no_settings_key: None, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """What makes the pin a measurement rather than an assertion. If it is
+    ever ignored or misspelled, the artifact says which host really served
+    the call instead of recording the intention."""
+    body = json.dumps({
+        "model": "openai/gpt-oss-120b",
+        "provider": "Groq",
+        "choices": [{"message": {"content": '{"answer": "ok"}'}}],
+        "usage": {"prompt_tokens": 11, "completion_tokens": 22},
+    }).encode()
+    monkeypatch.setattr(urllib.request, "urlopen",
+                        FakeUrlopen(BytesIO(body)))
+    reply = providers.build("openrouter", model="m",
+                            api_key=SECRET).structured("s", "u", SCHEMA)
+
+    assert reply.provider == "openrouter>Groq"
+
+
+def test_an_unrouted_reply_keeps_the_plain_provider_name(
+    no_settings_key: None, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A body with no upstream field must not grow a `>` out of nowhere."""
+    monkeypatch.setattr(urllib.request, "urlopen", FakeUrlopen())
+    reply = providers.build("openrouter", model="m",
+                            api_key=SECRET).structured("s", "u", SCHEMA)
+
+    assert reply.provider == "openrouter"

@@ -408,6 +408,24 @@ class OpenAiCompatClient:
         }
         if self.provider.supports_seed:
             payload["seed"] = 42
+        # ONE MODEL ID, ~26 DIFFERENT MACHINES.
+        #
+        # OpenRouter is a router: `openai/gpt-oss-120b` is served by 26
+        # upstreams whose quantizations run from int4 to bf16. That is
+        # fine for ordinary use and fatal for a comparison - two arms of
+        # an ablation landing on int4 and bf16 differ by hardware, not by
+        # the variable under test, and nothing in the artifact would say
+        # so. A measurement run therefore names its upstream and refuses
+        # fallback.
+        #
+        # An environment variable rather than a table row because the pin
+        # is a property of A RUN, not of the provider: pinning the row
+        # would send this provider's default `anthropic/claude-sonnet-4.5`
+        # to an upstream that has never served it. Unset - the default -
+        # nothing is added and OpenRouter routes as it likes.
+        pin = os.environ.get("KAVACH_OPENROUTER_PIN", "").strip()
+        if pin and self.provider.name == "openrouter":
+            payload["provider"] = {"order": [pin], "allow_fallbacks": False}
         body = json.dumps(payload).encode()
         started = time.perf_counter()
         # Each key once, starting from the one that last worked. Only the
@@ -470,8 +488,27 @@ class OpenAiCompatClient:
             latency_s=elapsed,
             prompt_tokens=int(usage.get("prompt_tokens") or 0),
             completion_tokens=int(usage.get("completion_tokens") or 0),
-            provider=self.provider.name,
+            provider=_provenance(self.provider.name, data),
         )
+
+
+def _provenance(name: str, data: dict[str, Any]) -> str:
+    """Who answered - the endpoint called, and the machine behind it.
+
+    A router answers for someone else. `provider="openrouter"` names the
+    front door and loses the only part that affects the number, so where
+    the body says which upstream served the request, that travels too:
+    `openrouter>Groq`. Every other provider is unchanged.
+
+    This is what makes a pin a MEASUREMENT instead of an assertion. If
+    `KAVACH_OPENROUTER_PIN` is ever ignored, dropped or misspelled, the
+    artifact says which host really answered each call rather than
+    recording the intention and hiding the fact.
+    """
+    upstream = data.get("provider")
+    if name == "openrouter" and isinstance(upstream, str) and upstream:
+        return f"{name}>{upstream}"
+    return name
 
 
 def names() -> list[str]:

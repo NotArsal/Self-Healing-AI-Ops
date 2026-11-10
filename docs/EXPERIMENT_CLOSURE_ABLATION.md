@@ -2247,3 +2247,60 @@ aged out, and the run does not need to guess.
 and §28 did** - artifact flushed per incident, fault reverted - and the abort
 is the measurement of the window, recorded as such rather than as a finding
 about the model.
+
+### 29.7 AMENDMENT, written 2026-11-10 07:30 UTC, before the run: the rail changes, the model does not
+
+§29.6 above armed a 24-hour waiter on the Groq daily cap. The owner asked
+the obvious question - **why wait** - and the answer is that there was no
+good reason. The cap is a property of ONE ROUTE to the model, not of the
+model, and the route was never checked for alternatives before a day was
+committed to waiting on it. That is the error in §29.6, and it is a worse
+class of error than §27.1's: that one mistook which limit it had measured,
+this one did not look.
+
+**What was checked, 07:14-07:20 UTC.** OpenRouter serves
+`openai/gpt-oss-120b` from 26 upstreams, and **Groq is one of them**. A probe
+returned HTTP 200 with `provider: "Groq"` in the body, 96 tokens, cost
+$0.0000234. Same model id, same vendor, a billing rail the organization's
+200,000/day does not touch. The run costs an estimated **$0.03** there.
+
+**So the run is `--provider openrouter --model openai/gpt-oss-120b`, pinned
+to the `groq` upstream, today.** Everything else in §29.1-§29.5 is unchanged:
+same classes, same 15x1, same arms, same primary outcome (agreement), same
+six predictions, same analysis.
+
+**Why the pin is not optional.** Those 26 upstreams quantize from int4 to
+bf16. Unpinned, arm A of incident 7 could be served by an fp4 host and arm B
+by a bf16 one, and the A-vs-B contrast - the whole content of this run -
+would be confounded by hardware that nothing in the artifact names. An
+unpinned OpenRouter run would be strictly worse than waiting. `payload
+["provider"] = {"order": ["groq"], "allow_fallbacks": false}`, set by
+`KAVACH_OPENROUTER_PIN` and scoped to a run rather than written into the
+provider table, because pinning the row would route this provider's default
+`anthropic/claude-sonnet-4.5` to an upstream that has never served it.
+
+**The pin is recorded, not asserted.** `LlmResponse.provider` now carries
+`openrouter>Groq` when the body names an upstream, so if the pin is ever
+ignored, dropped or misspelled the artifact says which host actually answered
+each of the 30 calls. Four tests cover it and none needs a key (`PL-02`).
+
+**WHAT THIS RUN CANNOT ESTABLISH, and it is a real cost.** That
+OpenRouter-to-Groq is identical to Groq-direct **cannot be verified today,
+precisely because the direct rail is capped** - there is nothing to compare
+against. The specific risk is `reasoning_effort`: `gpt-oss-120b` spends
+hidden thinking tokens (18 of them on a two-word probe), and if the two rails
+default differently the model thinks a different amount for the same prompt.
+
+Two things bound that cost, and neither is a dismissal:
+
+- **The primary outcome is unaffected.** §29.3's prediction 2 is arm A
+  against arm B *within this run*, both arms on the same rail. A rail
+  difference shifts both arms together and cannot manufacture the contrast.
+- **The continuity with §28 is affected.** §28's 10/10 -> 3/9 was measured on
+  Groq-direct, so comparing §30 to it crosses a rail as well as an n. §28 is
+  3 incidents and already carries §28.5's statement that its numbers are not
+  quotable as rates; this adds a second reason, and the report must say both.
+
+The equivalence check - the identical design on Groq-direct once the cap
+lifts - is a separate run with its own pre-registration, and it is NOT
+assumed here. Until it exists, §30 reports a rail it did not control for.
