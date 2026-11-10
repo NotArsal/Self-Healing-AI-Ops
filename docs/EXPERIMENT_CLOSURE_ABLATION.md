@@ -2228,6 +2228,21 @@ out. The probe costs about 30 tokens and tests for ~6k of headroom by asking
 for a large completion the model will not use - the admission check reads the
 request, the accounting reads the actual tokens.
 
+**Measured while writing this, and it refines the window.** The probe was
+run once at 05:55 UTC on 2026-11-10 - about 25 minutes after the 429 that
+reported 196,017 of 200,000 used - and it was **admitted**, spending 111
+tokens. So the window is not a midnight bucket: capacity returns
+continuously as individual spends age out, which is consistent with the
+`try again in 13m11s` the abort offered. ~6k was already free 25 minutes
+later.
+
+That does **not** license starting early. The probe can only ever test for
+about 6k, because a request above the 8,000-token-per-minute limit is
+refused by the minute check instead and never reaches the daily one, so
+there is no probe that proves 125k of headroom. The clock gate stays where
+it is: by 06:15 UTC on 2026-11-11 the whole of the previous day's spend has
+aged out, and the run does not need to guess.
+
 **If the window turns out not to be 24h rolling, the run aborts the way §26
 and §28 did** - artifact flushed per incident, fault reverted - and the abort
 is the measurement of the window, recorded as such rather than as a finding
