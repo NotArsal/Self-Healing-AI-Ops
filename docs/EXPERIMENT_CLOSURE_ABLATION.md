@@ -2304,3 +2304,71 @@ Two things bound that cost, and neither is a dismissal:
 The equivalence check - the identical design on Groq-direct once the cap
 lifts - is a separate run with its own pre-registration, and it is NOT
 assumed here. Until it exists, §30 reports a rail it did not control for.
+
+### 29.8 SECOND AMENDMENT, written 2026-11-10 07:45 UTC, before the run: the Groq pin was unaffordable, and three probes in a row measured the wrong thing
+
+§29.7's run was launched and **aborted after 1 incident on HTTP 402**:
+`"This request requires more credits, or fewer max_tokens. You requested up
+to 2048 tokens, but can only afford 1455"`. The OpenRouter key is
+`is_free_tier: true`. Artifact kept as
+`closure-ablation-openrouter-groq-f07-ab-ABORTED.json`; the target was left
+clean and all four injectors read `clear` afterwards.
+
+**THE ERROR, AND IT IS THE SAME ERROR THREE TIMES.** §29.7 justified the rail
+on a probe that asked for `max_tokens: 20`. OpenRouter's affordability check
+reserves against the **requested** `max_tokens`, which a real diagnosis sets
+to 2048 - a fact written in this repository's own provider table, in the
+comment explaining why `max_tokens` is bounded at all, which names HTTP 402
+and quotes almost this message. It was read earlier the same morning and not
+connected.
+
+Then the correction was botched twice more:
+
+1. A "realistic" probe was built with 540 lines of filler and sent **16,316**
+   prompt tokens. Groq answered HTTP 413 - *tokens per minute (TPM): Limit
+   8000, Requested 17172* - which is the **per-minute** ceiling and says
+   nothing whatever about the daily budget. That probe was briefly taken as
+   evidence Groq was still capped. It was not evidence of anything.
+2. The same probe reached OpenRouter **unpinned**, succeeded, and was served
+   by `PrimeIntellect`. Had the pin been set it would have 402'd again.
+
+A probe sized to §28's measured 3,739-4,073 prompt tokens, with the real
+2048 output budget and the real strict schema, finally measured the thing:
+
+```
+pin=groq            FAIL HTTP 402 (unaffordable)
+pin=deepinfra       OK   openrouter>DeepInfra      prompt=3895  bf16   22.3s
+pin=primeintellect  OK   openrouter>PrimeIntellect prompt=3926  fp4     6.1s
+pin=(none)          OK   openrouter>Crusoe         prompt=4471  bf16    5.8s
+```
+
+**The common shape of all three errors: a quantity adjacent to the one that
+mattered was measured, and the generalisation was not checked.** §27.1 read
+the requests counter and reported the tokens limit. §29.7 read a 96-token
+call and reported that a 4,000-token one would work. The 16k probe read the
+per-minute ceiling and reported the daily one. Logging it here because the
+pattern, not any single instance, is the finding.
+
+**THE RUN AS IT NOW STANDS.** `--provider openrouter --model
+openai/gpt-oss-120b`, `KAVACH_OPENROUTER_PIN=deepinfra`, everything in
+§29.1-§29.5 unchanged: F07, 15x1, arms AB, primary outcome agreement, the
+same six predictions, the same analysis. Estimated cost under $0.01.
+
+**bf16 is a stronger host to report than Groq was, not a weaker one.**
+DeepInfra serves this model at bf16 - the unquantized native precision -
+whereas Groq's quantization is listed `unknown` and is not published. A third
+party can reproduce a bf16 result; they cannot reproduce an undisclosed one.
+So the rail change costs continuity with §28 and buys specificity.
+
+**WHAT IS NOW UNCONTROLLED, stated before the data exists.** §28 ran on
+Groq-direct at an undisclosed quantization; §30 runs at bf16 through a
+router. Comparing them crosses an n (3 to 15), a rail, and a precision.
+§29.3's primary is arm A against arm B *within* §30, both arms on one host,
+and that comparison is untouched by any of it. Every statement relating §30
+to §28 must name all three differences, and §28's numbers remain not
+quotable as rates (§28.5).
+
+**The free-tier balance may not last 15 incidents.** If it does not, the run
+aborts as §26, §28 and §29.7 did - artifact flushed per incident, fault
+reverted - and the partial is reported as a partial. That is a funding
+boundary, not a result about the model, and it will be labelled as one.

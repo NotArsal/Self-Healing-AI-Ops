@@ -1,0 +1,70 @@
+{
+  "at": "2026-11-10T07:23:55+00:00",
+  "model": "openrouter:openai/gpt-oss-120b",
+  "shuffled": false,
+  "arms": {
+    "A": "control, the shipped frame",
+    "B": "size-matched noise (PRIMARY)",
+    "C": "unbounded noise",
+    "D": "expectations stripped",
+    "E": "same items removed as B, nothing added"
+  },
+  "dropped": [],
+  "complete": false,
+  "observations": [
+    {
+      "fault_class": "F07",
+      "incident": 1,
+      "arm": "A",
+      "rep": 1,
+      "items": 35,
+      "prompt_tokens": 4073,
+      "named": "F07",
+      "closed_detector": true,
+      "closed_named": true,
+      "agreed": true,
+      "cited": 3,
+      "unresolved": 0,
+      "confidence": 0.92,
+      "latency_s": 4.59,
+      "error": "",
+      "draw": "a8aa304d"
+    },
+    {
+      "fault_class": "F07",
+      "incident": 1,
+      "arm": "B",
+      "rep": 1,
+      "items": 35,
+      "prompt_tokens": 3734,
+      "named": "INSUFFICIENT_EVIDENCE",
+      "closed_detector": true,
+      "closed_named": false,
+      "agreed": false,
+      "cited": 2,
+      "unresolved": 0,
+      "confidence": 0.94,
+      "latency_s": 3.86,
+      "error": "",
+      "draw": "a8aa304d"
+    },
+    {
+      "fault_class": "F07",
+      "incident": 2,
+      "arm": "A",
+      "rep": 1,
+      "items": 35,
+      "prompt_tokens": 0,
+      "named": "",
+      "closed_detector": false,
+      "closed_named": false,
+      "agreed": false,
+      "cited": 0,
+      "unresolved": 0,
+      "confidence": null,
+      "latency_s": 0.39,
+      "error": "LLM call failed: openrouter returned HTTP 402: {\"error\":{\"message\":\"This request requires more credits, or fewer max_tokens. You requested up to 2048 tokens, but can only afford 1455. To increase, visit https://openrouter.ai/settings/credits and upgrade to a paid account\",\"code\":402,\"metadata\":{\"limit_source\":\"openrouter_credits\",\"remedy_hint\":\"",
+      "draw": "21f9eff8"
+    }
+  ]
+}
