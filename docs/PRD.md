@@ -252,7 +252,7 @@ A project may only be moved out of `SIMULATION` after preflight passes (§8.1) *
 
 v1 defines exactly these **eight** classes. Each one is a closed tuple: **injector → detection signal → RCA path → repair action → verification probe → risk tier.** Anything outside the catalogue is an `UNKNOWN` failure and follows the unknown-failure flow (§8.4).
 
-**Seven of the eight have a v1 injector.** `F03`'s injector is deferred (§6.4) because no honest way to inject it against this target has been found yet. The class stays in the catalogue — its detection signal, repair and risk tier are all defined and its repair action is shared with `F05` — but it is excluded from `make bench` until its injector exists.
+**Four of the eight have a v1 injector** — `F01`, `F06`, `F07` and `F08`, which are the complete contents of `FAULTS` in `harness/inject.py`. *(Corrected 2026-11-10: this paragraph previously claimed seven, naming only `F03` as deferred. That was never true of the code. Every number in `EXPERIMENT_CLOSURE_ABLATION.md` and in `REPORT_DRAFT.md` §4 is measured over the four, which is why the error did not propagate into a result — but it did mis-state the project's coverage, and coverage is the thing a reviewer checks first.)* `F02`, `F03`, `F05` and `F09` stay in the catalogue — detection signal, repair and risk tier are defined for each — but are excluded from `make bench` until their injectors exist. `F02` is scheduled by `decisions/0023`; `F03` is deferred by §6.4 because no honest way to inject it against this target has been found.
 
 | ID | Fault class | Detection signal | Repair action | Risk |
 |---|---|---|---|---|

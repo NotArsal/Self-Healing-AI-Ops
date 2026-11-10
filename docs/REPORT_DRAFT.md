@@ -233,11 +233,59 @@ comparable to theirs**, and the per-class MTTD figures in this section should
 be read with that stated. The aggregate was already called the least useful
 true thing about MTTD; this is why.
 
+**Every MTTD figure in this section is conditional on detection concluding,
+and the denominator was assumed rather than measured until 2026-11-10.**
+`harness/detector_reproducibility.py` injects one class and runs the detector
+80 times, 20 per class, with no model in the loop
+(`EXPERIMENT_CLOSURE_ABLATION.md` §23):
+
+| class | detector concluded with the injected class |
+|---|---|
+| F01 | 20/20 |
+| F06 | 19/20 — the miss named **`F01`**, a wrong class, not an abstention |
+| F07 | **18/20** — both misses `INSUFFICIENT_EVIDENCE` |
+| F08 | 20/20 |
+
+**79 of 82 pooled with the two-trial smoke that preceded it, so about 96%.**
+The `>= 95%` target below is still met and no threshold moves, but the honest
+figure is 96% at n=82 rather than 100% at n=20, and every median above is a
+mean over the detections that concluded. On F07 that is 90% of injections —
+the same class whose healed rate is 1/5 in two of the three runs.
+
+**Both misses were then run down to mechanism, and they are two different
+things (`EXPERIMENT_CLOSURE_ABLATION.md` §25).** F06 run with nothing before
+it detects **5/5** including trial 1, so its 19/20 above is an artefact of
+the measurement's class ordering: F01's signal is an error rate over a
+60-second window, and that window still holds the tail of the preceding F01
+block when the first F06 is evaluated, so F01's rule fires on real-but-stale
+data. **F06's true rate in isolation is 20/20 and the row above understates
+it.** F07 is the opposite: run first, with nothing before it, it still misses
+trials 1 and 2 with the same verdict, so **F07's 0.90 is a property of the
+system on a cold class, not of the harness.** Run again immediately afterwards
+it is 6/6, so two injection cycles are enough to make it detectable and it
+then stays so. Pooled over every run: F07 **27/31 = 0.87**, every miss at
+trial 1 or 2 of a cold F07.
+
+**The consequence for this report is narrow and real:** a prompt regression
+that is the *first* of its kind on a target that has not seen one may not be
+detected on its first occurrence. That is a limitation of F07 detection, it
+is measured rather than suspected, and which of
+`prompt_regression.py`'s three `INSUFFICIENT_EVIDENCE` branches produces it
+is instrumented but not yet read — §25.4 names the test.
+
+**This corroborates the warm-up mechanism just established, from a second
+direction.** All three misses fell in the first or second trial of their class
+block, and F01's slowest detect of all 80 trials — 48.5s against a 24.4s
+median — was its trial 1. A positional effect is what a warm-up account
+predicts, and `mttd_ladder.py` found the rungs are warm-up rounds
+independently. The placement was not pre-registered, so §23.3 records it as an
+observation with its probability under chance (0.0007) rather than as a result.
+
 #### Headline metrics, all four runs
 
 | metric | run A | run B | run C | **run D** | `PRD.md` §10 target | |
 |---|---|---|---|---|---|---|
-| detection rate | 100% (20/20) | 100% (20/20) | 100% (20/20) | 100% (20/20) | >= 95% | met |
+| detection rate | 100% (20/20) | 100% (20/20) | 100% (20/20) | 100% (20/20) | >= 95% | met **met at n=20; 96% at n=82, also above** |
 | localisation | 100% (20/20) | 100% (20/20) | 100% (20/20) | 100% (20/20) | >= 80% | met *(one-way, see §6)* |
 | RCA accuracy, the model's own answer | 85% (17/20) | 85% (17/20) | 85% (17/20) | **90% (18/20)** | >= 75% | met |
 | repair action **correct** *(not "proposed", see §4.2)* | — | — | 90% (18/20) | **100% (20/20)** | *no target* | — |
@@ -1206,19 +1254,60 @@ what saturates the metric.** A reviewer who reads our 1.00 beside their 0.38
 as "better grounded" has it backwards: the two numbers are not measuring the
 same difficulty.
 
-> **CORRECTED 2026-11-08 — the mechanism above is refuted; the ceiling is
-> not.** That *curation* saturates the metric was pre-registered as a testable
-> prediction and tested in
+> **CORRECTED 2026-11-08, SUPERSEDED 2026-11-10 — the mechanism above is
+> refuted; the ceiling is not; and the first correction was itself measured
+> on too few classes.** That *curation* saturates the metric was
+> pre-registered as a testable prediction and tested in
 > [`EXPERIMENT_CLOSURE_ABLATION.md`](EXPERIMENT_CLOSURE_ABLATION.md).
-> Replacing ~84% of the frame with real-but-non-discriminating metrics, item
-> count held constant, **left closure at 1.00 with zero discordant pairs**
-> across three runs (7, 2 and 15 incidents; A vs B drop +0.00, p = 1.0000).
-> Closure is insensitive to signal density. It is sensitive to frame
-> **length**: at 83 items it falls to 0.57 (p = 0.0039). What saturates the
-> metric is that the frame is **short**, not that it is curated — the
-> extractor's selectivity does less work here than this section credits it
-> with, and a frame that is merely small reproduces the ceiling. Measured so
-> far on F01 and F06 only; whether it holds for F07 and F08 is pending.
+>
+> On F01 and F06 alone, replacing ~84% of the frame with
+> real-but-non-discriminating metrics left closure at 1.00 with zero
+> discordant pairs (A vs B drop +0.00, p = 1.0000), and that produced the
+> 2026-11-08 reading: closure is insensitive to signal density and sensitive
+> only to frame **length**, since at 83 items it falls to 0.57 (p = 0.0039).
+>
+> **Three full four-class runs refute the insensitivity half.** With F07 and
+> F08 included, size-matched noise *does* move closure: drop **+0.21**
+> (p = 0.0002, 59 incidents) and **+0.19** (p = 0.0010, 57 incidents) under
+> the shipped configuration, against **+0.09** (p = 0.125, 56 incidents) in
+> an earlier run that differed in two respects. `EXPERIMENT_CLOSURE_ABLATION.md`
+> §21.6 carries the exact wording this result is allowed to be reported in,
+> and §21.2 the decision rule that was fixed before the third run.
+>
+> **SCOPE CONDITION, 2026-11-10: the effect is model-dependent on at least
+> one class.** The cross-provider run (§26) completed its entire `F01` block
+> on `groq:openai/gpt-oss-120b` — 15 incidents x 3 reps x 3 arms — and the
+> noise arm scored **45/45 agreement and 45/45 closure with zero
+> abstentions**, against **18/45 and 36/45** for the same arm on
+> `qwen2.5:7b-instruct`. On `F01` the effect is **absent** at 120B. The run
+> was then stopped by Groq's 200,000-tokens-per-day cap before reaching
+> `F06`, `F07` or `F08`, so whether it is model-dependent on the class that
+> carries most of it — `F07` — is **unmeasured**. The pooled drop above is
+> over four classes and is not overturned by one of them vanishing; it is
+> narrowed to the local model until F07 is measured cross-provider.
+>
+> What survives from 2026-11-08 is the **length** sensitivity and the
+> **ceiling**: arm A holds 0.99 to 1.00 on every run. What does not survive
+> is "a frame that is merely small reproduces the ceiling" — it reproduces it
+> on the two classes where the model never confuses anything, and fails on
+> F07, where the control arm names the wrong class in half to two-thirds of
+> incidents while citing the right evidence. **The extractor's selectivity
+> does more work than the 2026-11-08 correction credited it with, and less
+> than this section originally claimed.**
+
+**Closure and correctness are orthogonal by construction, and that is the
+sharpest statement of why closure carries no uncertainty signal.**
+`closure_ablation.py::closed_on` asks one question — did the diagnosis cite
+an evidence item that discriminates the reference class — and asks nothing
+about what the diagnosis concluded. This matches Cloud-OpsBench's definition
+and is not a defect in ours. Its consequence is that **an abstention and a
+confident wrong answer both score 1.00** as long as the citation is right.
+Measured on `gpt-oss-120b`: 10 of 18 arm-B diagnoses returned
+`INSUFFICIENT_EVIDENCE` and every one of them closed
+(`EXPERIMENT_CLOSURE_ABLATION.md` §24.3). So a metric at a ceiling is not
+merely uninformative here — it is measuring a different thing from the one
+a risk gate needs, and no amount of additional data would make it separate
+right diagnoses from wrong ones.
 
 That has a consequence worth stating plainly. **These errors are not
 ungrounded in the sense Evidence Closure was built to detect.** The model
@@ -1706,6 +1795,33 @@ MTTR. All four runs share one Ollama and one corpus, and runs A–C share one
 host; run D is on the same machine rebuilt from empty, which controls for
 accumulated system state but not for hardware, OS or model.
 
+
+**The measurement environment, named — because every latency figure depends
+on it.** Recorded 2026-11-10; the paragraph above says hardware is not
+controlled for and never said what the hardware was.
+
+| | |
+|---|---|
+| CPU | Intel Core i7-14650HX, 16 cores / 24 threads |
+| GPU | NVIDIA RTX 4060 Laptop GPU, 8 GB VRAM |
+| RAM | 31.7 GB; the Docker Desktop VM is capped at 15.47 GiB |
+| OS | Windows 11 Home Single Language, 10.0.26300 |
+| Ollama | 0.40.15 |
+| Model | `qwen2.5:7b-instruct`, 5.1 GB |
+| Docker | 29.9.2, Compose 5.6.1 |
+
+Two facts there carry more weight than the rest. **The model is fully
+GPU-resident** — `ollama ps` reports `size=5.1GB vram=5.1GB`, so no measured
+number contains CPU offload or a partial-offload cliff. (VRAM is 8 GB despite
+WMI reporting 4 GB, a known 32-bit overflow; a 5.1 GB resident model rules
+4 GB out by itself.) And **the CPU hot spot is the target, not the control
+plane**: during a run `rag_backend` sits near 1170% CPU — about twelve cores,
+doing retrieval and reranking — while all eleven containers together hold
+roughly 1.9 GB resident, of which Prometheus, Grafana, Jaeger and the
+OpenTelemetry collector are about 350 MB combined. Kavach is not what makes
+this expensive to measure; the model-call count is.
+
+
 **The four runs are a weaker replication than four runs sounds.** They differ
 in date and in host build, and in nothing else that was chosen: same four
 classes, same detectors, same model at the same temperature, same prompts, same
@@ -1763,6 +1879,35 @@ named F06 for an injected F07, while often selecting F07's repair. That is a
 signature the closure ablation found independently in its control arm (F07
 named F06 at 0.95 confidence with Evidence Closure at 1.00,
 `EXPERIMENT_CLOSURE_ABLATION.md` §13.2).
+
+
+**The shipped evidence frame is part of the F07 failure, and deleting from it
+fixes the labelling.** Measured on three full runs, 2026-11-09 and twice on
+2026-11-10, one of them across a changed decoder grammar, so it survives a
+change that moved other numbers (`EXPERIMENT_CLOSURE_ABLATION.md` §17.2,
+§19.4, §21.3). On injected F07 the control arm — the frame Kavach actually
+ships — names the class correctly in **3 of 13**, **7 of 15** and **5 of 15**
+incidents. An arm holding the *same* frame with its non-discriminating,
+non-service, non-baseline items **removed** names it correctly in **13 of
+13**, **15 of 15** and **15 of 15**. Paired on the incident: b=10 c=0
+p=0.002, b=8 c=0 p=0.008, and b=10 c=0 p=0.002. Every one of the control
+arm's remaining confident errors, on every run, is F07 named F06 at 0.95.
+
+**The effect is certain; its size is not.** 23%, 47% and 33% across the three
+runs is a 14-point spread between two runs that differed in nothing at all,
+so the control arm's F07 rate should be read as *"between a quarter and a
+half"* and never as a point estimate. The arm-E side carries no such
+uncertainty: 43 of 43 incidents, three runs, zero misses.
+
+Two things follow, and the second is the limitation. **F07 is not an
+information deficit** — the evidence needed was present in the frame all
+along, and true-but-non-discriminating metrics were enough to misdirect the
+model. But **that arm is an oracle and cannot be shipped**: it selects items
+using the injected class, which is the unknown being diagnosed. So this
+measures how much the frame's own contents cost, and it is not a repair. The
+implementable direction — one frame per candidate class, scored separately —
+is named in §9 and has not been built or measured.
+
 
 **Self-consistency is measured and not enforced, and that is a live decision,
 not an oversight.** 28 of 28 F06 diagnoses across three runs name F07's fault
@@ -2105,7 +2250,10 @@ that only finds agreement is not credible: epistemic uncertainty as a priced
 risk dimension (2607.20005 decomposes risk into blast radius, reversibility
 **and** epistemic uncertainty — we have the first two; §4.2 rules out the
 two obvious candidates for the third and **§4.4a rules out the third,
-evidence closure, by showing it saturated at 37/37**); canary and progressive rollout; dependency-
+evidence closure, by showing it saturated** — 37/37 there, and 171/171 in the
+shipped arm of the closure ablation alongside 30 confidently wrong diagnoses
+on the same run, which is the sharpest form of the point: a channel pinned at
+1.00 cannot price anything); canary and progressive rollout; dependency-
 graph-guided search; production scale (Diviner at Meta, Log-Insight at Huawei,
 2606.09122 reporting *"autonomous resolution rates exceeding 90%"* at a cloud
 provider); and learning from incident history, which ADR 0009 cut.

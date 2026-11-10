@@ -481,6 +481,23 @@ then F01's five-arm comparison is a demonstration, not an estimate, and §5's
 
 ### 13.4 What stands, after all three pacing runs and this partial
 
+> **SUPERSEDED 2026-11-10 by §21. Items 2, 3 and 5 are the arm-B claims and
+> they come off this list.** All five were measured on F01 and F06 only, on
+> partial runs. With F07 and F08 included and three full runs on the board:
+> **item 2 is refuted** — size-matched noise does move closure (+0.21, +0.19
+> under the shipped configuration; §21.2), so "insensitive to signal density"
+> was an artefact of the two classes the model never confuses. **Item 5 is
+> incomplete rather than wrong** — F06 is immune on every run, but F07 turns
+> out to be the control arm's own failure (§19.4, §21.3), which this list
+> could not see. **Item 3 holds** and is the only arm-B claim that does:
+> arm E sits on arm A, 171/171, on all three full runs.
+>
+> **Items 1 and 4 are untouched** — prediction 2 is still refuted, and closure
+> 1.00 still coexists with a confidently wrong diagnosis in the control arm.
+> Item 4 is now the strongest claim in the whole experiment: 30 confident
+> wrong diagnoses in arm A on this run, every one of them citing the right
+> evidence.
+
 1. **Prediction 2 is refuted** (§10), unchanged.
 2. **Closure is insensitive to signal density and sensitive to frame length**
    — B at 84% noise holds 1.00, C at 83 items drops to 0.57, p = 0.0039.
@@ -578,6 +595,14 @@ and 3 spent on F07 and F08 instead.
 
 ## 15. Fixed on 2026-11-08
 
+> **NOTE 2026-11-10:** this section's named top open item — an unbuilt
+> heartbeat watchdog, because "a revert cannot survive a kill" — was written
+> before the dirty-target guard below existed and was not revisited after.
+> The guard makes a stranded fault a loud refusal costing one command rather
+> than a silent run on a contaminated target. `decisions/0022` argues the
+> watchdog should therefore **not** be built, and records what would have to
+> be decided if it were.
+
 **A killed run leaves its fault injected, and nothing noticed.** The host
 reaped the full run mid-F06; `one_incident`'s `finally` cannot run under
 SIGKILL, so F06 stayed active at `rerank_threshold=0.999` until it was found
@@ -612,3 +637,1271 @@ survive a kill. A guard that refuses the *next* run is a backstop, not a fix —
 between the kill and the next run the target sits broken with nothing
 reporting it. A watchdog that reverts on a missing heartbeat is the real
 answer and is not built.
+
+---
+
+## 16. Cross-provider extension, pre-registered 2026-11-09
+
+Everything measured so far is `qwen2.5:7b-instruct` on one local Ollama. A
+reviewer's first question is whether any of it survives a larger model, and
+the project has carried a seven-provider registry since 2026-10-19 without
+ever using it for a measurement. This section fixes what will be run, and
+what would count as a refutation, **before** the first cloud call.
+
+### 16.1 Prediction read-off for F01, and what I had already seen
+
+Honesty about the order of events, because it decides what may be called
+pre-registered: at **22:30 on 2026-11-09** I read the in-flight artifact of
+the third full run and saw F01's arm-B figures. F01 was complete at that
+point (15 incidents, 225 observations), so these are final numbers, but I
+had seen them before writing this section. Nothing below about F01 is
+pre-registered. F06 was 11 incidents in; F07 and F08 had not started.
+
+§14's three predictions, against the completed F01 block:
+
+| § | Prediction | Observed (F01, 15 incidents x 3 reps) | Verdict |
+|---|---|---|---|
+| 14.1 | arm B agreement intermediate, not 0/45 or 45/45 | **18/45 = 0.40** | confirmed |
+| 14.2 | arm B closure stays at 1.00 under every draw | **36/45 = 0.80** | **violated** |
+| 14.3 | A, C, D, E do not move on F01 | 45/45 agreement and closure, all four | held |
+
+### 16.2 Prediction 2 is violated substantively, and the threshold defect does not rescue it
+
+I recorded on 2026-11-08 that prediction 2 was badly specified — it said "if
+it now moves" and named no magnitude, so a single observation in 45 would
+trip a condition written to catch a real effect. That defect is real and the
+wording is corrected below. **It does not apply here.** The salvaged run's
+44/45 was the one-observation case the defect describes. 36/45 is nine
+observations and a 20-point drop. Arm B's closure is draw-sensitive, and the
+pre-registration's own consequence stands as written: no claim that arm B
+preserves closure survives.
+
+What this costs elsewhere in the project: §13.4 and `REPORT_DRAFT` §4.4a both
+rest on closure being saturated by frame *length* — arm B matched the control's
+item count, so a length account predicted it would keep closing. It did not.
+Either length is not sufficient, or closure is sensitive to *which* items fill
+the budget, which is the curation account §4.4a was corrected away from. I am
+not rewriting either section until F06, F07 and F08 are in; one fault class is
+not grounds for a third reversal.
+
+**Corrected threshold, binding on F07 and F08 of the current run (not yet
+produced) and on every run after it.** Arm B's closure is called unchanged if
+it is **>= 0.95** within a fault class, moved if **<= 0.90**, and the band
+between is reported as inconclusive rather than argued either way. Chosen
+because the three accidental draws and the salvaged run all sat at 0.98-1.00,
+so 0.95 is one bad observation in 45 and 0.90 is five.
+
+### 16.3 What the cross-provider run is, and what it is not
+
+**Model substituted 2026-11-09 23:43, before any usable call.** The
+pre-registered `llama-3.3-70b-versatile` **no longer exists**: the probe got
+HTTP 404 "does not exist or you do not have access to it" and refused with
+nothing injected. `GET /v1/models` returned 11 ids, no Llama chat model among
+them. Groq decommissions models, so the registry's default was stale and is
+now `openai/gpt-oss-120b` with the dated catalogue in its note. The run uses
+**`openai/gpt-oss-120b`** - the largest chat model the key can reach, which is
+also the harder test of the structured-output path. It is a different family
+from the measured `qwen2.5:7b-instruct`, so a difference cannot be attributed
+to scale alone; `qwen/qwen3.8-27b` is the scale-matched alternative on the
+same key and the choice for the quotable run is still open.
+
+**Provider (pre-registered, now unobtainable):** `groq`,
+`llama-3.3-70b-versatile`. Chosen because it is the key
+that exists and because 70B open-weight sits between the measured 7B and a
+frontier model — a difference that is attributable to scale rather than to
+also changing vendor, tokenizer and training corpus at once.
+
+**Arms A and B only.** Arms A, C, D and E are at 45/45 on both measures on the
+7B model. A larger model cannot score above 1.00, so those cells carry no
+information; ~85% of a five-arm cloud replication would measure a ceiling. The
+unsaturated question is arm B.
+
+**Amended 2026-11-09 23:45, after the local run completed and before any
+cloud call: arms A, B and E.** The local run's result moved the interesting
+comparison. Arm E - the shipped frame with its non-discriminating,
+non-service, non-baseline items removed - names F07 correctly 13/13 incidents
+where the control arm manages 3/13, and it is at least as good as the control
+on every class. A cross-provider check that omitted E would test the arm that
+turned out not to carry the effect. This widening is recorded here rather than
+applied silently, and it changes no prediction below: the smoke test's numbers
+may not be quoted either way.
+
+**Smoke test first:** 4 classes x 5 incidents x 1 rep x 3 arms = 60 calls, to
+prove the key, the structured-output path and the rate limit before spending
+the real run. Its numbers are for plumbing only and **may not be quoted** —
+5 incidents at 1 rep cannot separate a model difference from the draw.
+
+### Predictions, fixed before the first cloud call
+
+1. **Arm A stays at or near 1.00 on all four classes.** The control frame is
+   curated and small; if a 70B model cannot close it, the frame is broken
+   rather than the model weak, and the run is a harness failure, not a result.
+2. **Arm B's agreement rises above the 7B model's 0.40 on F01.** This is the
+   claim being tested. If it does not rise, noise sensitivity is not a
+   small-model artefact and the §13 story holds across scale.
+3. **Arm B's closure moves less than the 7B model's 0.80.** Scored against
+   16.2's band: >= 0.95 means closure sensitivity *was* a 7B artefact.
+4. **No prediction on F07 or F08 in either model.** Both are unmeasured at
+   the time of writing; a prediction made after reading the local run's F07
+   block would not be one.
+5. **A cloud result that is worse than the local one is a result, not a
+   configuration error.** The failure mode this guards against is retrying a
+   bad cloud number with a different model until it improves. Provider and
+   model are recorded in the artifact's `model` field as `provider:model` for
+   exactly this reason, and every attempt is reported.
+
+### Harness changes this required
+
+- `--model`, because `.env` holds an Ollama tag and `KAVACH_LLM_MODEL` is
+  read by the local runs too; a cross-provider run must not edit it.
+- `--arms`, which refuses any selection without A (every other arm is
+  validated against the control's item count) and refuses unknown letters.
+  Both refusals fire before the LLM probe, the fast set and any injection.
+- The artifact's `model` field is now `provider:model`. Earlier artifacts
+  carry a bare model tag and were all `ollama`.
+
+### Not negotiable
+
+No test may require a cloud key (`PL-02`). These runs stay in `harness/`,
+opt-in, never in `make check`. The cloud providers remain explicitly selected
+with no fallback to Ollama, so a quota failure must stop a run rather than
+quietly re-measure the local model.
+
+---
+
+## 17. Full four-class run, 2026-11-09 — the primary hypothesis failed and arm E beat the control
+
+First run to reach all four fault classes with per-incident draws (§14's fix).
+840 observations, 56 usable incidents, 0 model errors, target verified clean
+afterwards. Four incidents were dropped by the pre-registered rule — the
+detector returned `INSUFFICIENT_EVIDENCE` rather than the injected class, so
+every arm would have measured agreement with the wrong answer (F07#11, F07#14,
+F08#4, F08#8).
+
+Artifact: `harness/reports/closure-ablation-full.json`,
+model `qwen2.5:7b-instruct`, shuffle off.
+
+### 17.1 The pre-registered verdict: NOT MET
+
+| arm | label | closure (detector) | 95% cluster CI | vs A (McNemar) |
+|---|---|---|---|---|
+| A | control, shipped frame | **0.99** | [0.96, 1.00] | — |
+| B | size-matched noise (PRIMARY) | **0.90** | [0.82, 0.97] | drop +0.09, b=6 c=1, **p=0.125** |
+| C | unbounded noise | **0.54** | [0.41, 0.66] | drop +0.45, b=26 c=1, p<0.0001 |
+| D | expectations stripped | **0.77** | [0.64, 0.88] | drop +0.22, b=13 c=1, p=0.0018 |
+| E | same items removed as B, nothing added | **1.00** | [1.00, 1.00] | drop −0.01, b=0 c=1, p=1.00 |
+
+> **CORRECTED 2026-11-10 00:20 — the p-values above are not the ones this
+> section was first written with.** `closure_ablation_report.py` paired
+> McNemar **per diagnosis**, so 168 outcomes were treated as independent when
+> reps of one incident share a frame and a draw and the measured within-cell
+> spread is 0.01. `cluster_bootstrap` had always resampled incidents; the
+> McNemar beside it had not, and the two disagreed about what an observation
+> was. Pairing on the incident, as the bootstrap does, the first figures
+> become: A vs B p **0.0007 -> 0.125**, A vs D p **0.0000 -> 0.0018**, A vs C
+> unchanged at p<0.0001, A vs E unchanged in conclusion. Majority, `all` and
+> `any` aggregation give identical b and c on this run, so the rule does not
+> matter here. The table now carries the clustered values; the superseded ones
+> are named above so anything quoting them can be found. The script is fixed,
+> not worked around, and the fix makes every test more conservative.
+
+Within-cell spread across repetitions: 0.01. Reps are nearly deterministic, so
+the incident is the unit and reps buy almost nothing — §14's cost-model note
+is confirmed a second time.
+
+**Prediction 2 required arm B to drop >= 0.15 with p < 0.05. The drop is
++0.09 at p = 0.125.** It fails both halves of the condition — it is neither
+large enough nor significant once the incident is the unit. Per §7 this does
+not become a smaller claim by re-reading it: the size-matched-noise
+hypothesis, which has been the experiment's primary hypothesis since §5,
+**failed**. `REPORT_DRAFT`
+§4.4a's explanation goes with it.
+
+What survives, and is larger than the failed effect: **unbounded noise (C,
+−0.45) and stripped expectations (D, −0.22)**. Evidence volume and stated
+expectations matter. Matching the control's item count with noise does not.
+
+### 17.2 Arm E is perfect, and the control is not
+
+| arm | correct | abstained | confident wrong | mean conf of the wrong |
+|---|---|---|---|---|
+| A | 136/168 | 0 | **32** | 0.95 |
+| B | 78/168 | 70 | 20 | 0.78 |
+| C | 87/168 | 0 | 81 | 0.95 |
+| D | 90/168 | 0 | 78 | 0.95 |
+| E | **168/168** | 0 | **0** | — |
+
+Per class, class-naming agreement:
+
+| class | A | B | C | D | E |
+|---|---|---|---|---|---|
+| F01 | 45/45 | 18/45 | 45/45 | 45/45 | 45/45 |
+| F06 | 43/45 | 45/45 | 42/45 | 45/45 | 45/45 |
+| F07 | **9/39** | 3/39 | 0/39 | 0/39 | **39/39** |
+| F08 | 39/39 | 12/39 | 0/39 | 0/39 | 39/39 |
+
+**The control arm names F07 correctly in 3 of 13 incidents. Arm E names it in
+13 of 13.** Clustered on the incident, exact McNemar b=10, c=0, p=0.00195. No
+incident split across its reps, in either arm.
+
+Arm A's 32 confident errors are 30 F07→F06 at 0.95 and 2 F06→F07 at 0.95.
+This is the §13.2 signature at scale: **the grounded-and-wrong failures live
+in the control arm**, and they are the arm that would execute a repair.
+
+Closure and correctness are decoupled. On F07 arm A closes 39/39 while naming
+the class right 9/39 — the frame contains what the detector needs and the
+model still answers F06 confidently. A closure metric alone would have
+reported this frame as healthy.
+
+### 17.3 Arm E is an oracle arm and cannot be shipped as-is
+
+`build_arm` composes E as `discriminating_items(frame, fault_class)` plus the
+service and baseline items. **It selects evidence using the injected class.**
+In production the class is the unknown being diagnosed, so "just ship arm E"
+is circular, and this section must not be read as a repair recommendation.
+
+What E does establish, and what is new:
+
+1. **The F07 failure is not an information deficit.** The same frame, minus
+   its non-discriminating real items, yields 13/13. The evidence was always
+   sufficient; the model was distracted by true-but-irrelevant signal.
+2. **Real, non-discriminating evidence is not free.** Every prior section
+   treated added *noise* as the hazard. The hazard here is correct metrics
+   that do not discriminate, and the shipped frame includes them by default.
+3. **A plausible implementable direction, not yet tested:** build one frame
+   per candidate class and score each separately, so item selection is
+   conditioned on a hypothesis rather than on the answer. That is a design
+   change with its own pre-registration, not a conclusion of this run.
+
+### 17.4 What this costs the report
+
+- `REPORT_DRAFT` §4.4a: the mechanism is refuted a second time, now by the
+  primary test failing rather than by a correction. Rewrite required.
+- §13.4's "what stands" list: the arm-B claims come off it.
+- The F07 result belongs in §6 as a measured limitation of the shipped
+  evidence frame, with the 3/13 figure, not as a footnote.
+- Nothing here weakens a safety claim: arm B still degrades by abstaining
+  (70 abstentions, 20 confident errors at mean 0.78), and an UNKNOWN never
+  executes. The dangerous arm is the control.
+
+I am not rewriting those sections in the same pass that produced this result.
+They are listed so the next session does not have to rediscover them.
+
+---
+
+## 18. Grammar change and re-run, pre-registered 2026-11-09 23:55
+
+### What changed and why a re-run is required
+
+`Diagnosis.rejected_alternatives` was optional with a default; it is now a
+**required key** (empty list still permitted — the key is mandatory, the
+content is not). The reason was not this experiment: it is that OpenAI strict
+mode refuses any schema whose properties are not all in `required`, so the
+first cloud RCA call ever made died on HTTP 400.
+
+**Corrected 00:40, an hour after writing this section:** I first wrote that no
+cloud provider had ever served Kavach at all and that the registry had been
+unused since 2026-10-19. That is **wrong**. The P7 patch runs used it for
+real - `harness/reports/p7-e2e-groq-{2,3}.json` on Groq
+`openai/gpt-oss-120b` and `p7-patch-live-gemini.json` on Gemini, quoted in
+`REPORT_DRAFT` §4.5. They worked because `PatchProposal` happens to be
+strict-conformant: every property required, `additionalProperties: false`.
+`Diagnosis` was not, so the defect was specific to **the RCA schema**, which
+no cloud provider had been asked for. Ollama's decoder accepts an optional
+field, so three weeks of local RCA runs could not reveal it and the
+successful patch runs did not exercise it. Verified fixed: Groq accepted the schema on 2026-11-09 23:52,
+and `test_rca.py::test_diagnosis_schema_is_openai_strict_conformant` now walks
+the schema so a future optional field fails locally instead of silently
+breaking all seven providers. 642 tests pass, ruff and `mypy --strict` clean.
+
+**This alters the grammar the decoder is constrained by, which is part of the
+measured path.** §17's 840 observations were produced under the old grammar.
+They are not discarded and not re-labelled, but a quotable result may not mix
+the two, so the run is repeated with **identical parameters** — 4 classes, 15
+incidents, 3 reps, all five arms, shuffle off, same baseline, same local
+`qwen2.5:7b-instruct` — so that the grammar is the only difference between
+§17 and §19. Reps stay at 3 despite §14 and §17 both finding they buy almost
+nothing, because changing two things at once would make the comparison
+useless.
+
+**After this run, §19 is the quotable local result and §17 is the old-grammar
+measurement.**
+
+### Predictions, fixed before the run
+
+1. **§17.2's F07 result survives:** arm A names F07 correctly in **<= 6** of
+   its usable incidents and arm E in **>= 12**. If arm A reaches parity with
+   E, the F07 effect was an artefact of the old grammar and §17.2 falls
+   entirely.
+2. **The failed primary stays failed:** arm B's closure drop against A remains
+   **< 0.15**. If it now exceeds 0.15, the primary hypothesis did not fail —
+   it was measured under a grammar that suppressed the effect, and §17.1 must
+   be withdrawn rather than quoted.
+3. **Arms C and D stay well below A:** C <= 0.70, D <= 0.90 closure.
+4. **Forcing the key may improve everything, and that would be a finding.**
+   The model must now emit `rejected_alternatives`, and being made to name
+   what it ruled out is the kind of contrastive demand that can improve class
+   discrimination. If agreement rises materially across arms — above all if
+   arm A's F07 rises — that is a result about mandatory contrastive output and
+   gets its own section. It may not be folded into §17 or §19 as though the
+   grammar were incidental.
+5. **The four detector-side drops should recur.** F07#11, F07#14, F08#4 and
+   F08#8 were dropped because the detector returned
+   `INSUFFICIENT_EVIDENCE`, which is upstream of the model and unaffected by
+   its grammar. A materially different drop set means something other than
+   the grammar changed between the runs.
+
+### Amendment, 00:00, before the first observation: "identical" is not quite true
+
+The distractor pool is scraped live from the target's `/metrics`, and it has
+grown: **§17's run saw 49 metrics, this run sees 52.** The target accumulates
+Prometheus series as new handler and method label combinations appear, and
+`--distractors` sets a floor, not a cap, so the pool cannot be pinned to 49
+without a code change the measured path does not need.
+
+What this does and does not touch:
+
+- **Arms A, D and E contain no distractors and are unaffected.** Prediction 1,
+  the F07 headline, is an A-versus-E comparison and survives intact.
+- **Arm B is size-matched, so its item count is unchanged**, but it draws from
+  a 52-item list rather than a 49-item one, so the *content* of the noise
+  differs. Prediction 2 is still testable — the pre-registered threshold is a
+  drop magnitude, not a per-item comparison — but a difference from §17's arm
+  B may be the pool rather than the grammar.
+- **Arm C adds every distractor, so its frames are 3 items larger than
+  §17's.** Prediction 3 is correspondingly weaker: C is expected to stay below
+  A, and that is all this run can say about it.
+
+This is recorded rather than corrected because the alternative - freezing a
+synthetic pool - would make arm C measure a fixed fixture instead of the
+target's real metric surface, which is the thing the arm is about.
+
+---
+
+## 19. Re-run under the corrected grammar, 2026-11-10 — the primary is MET, and §17.1 is withdrawn
+
+885 observations, 59 usable incidents, 0 model errors, target verified clean.
+Artifact `harness/reports/closure-ablation-full-g2.json`, model
+`ollama:qwen2.5:7b-instruct`, distractor pool 52, shuffle off. One incident
+dropped by the pre-registered detector rule (F08#15).
+
+### 19.1 §18's five predictions, scored
+
+| § | Prediction | Observed | Verdict |
+|---|---|---|---|
+| 18.1 | arm A names F07 right in **<= 6** incidents, arm E in **>= 12** | A **7**/15, E **15**/15 | **bound missed by one incident**; effect confirmed, b=8 c=0, p=0.0078 |
+| 18.2 | arm B's closure drop stays **< 0.15** | drop **+0.21**, p=0.0002 | **VIOLATED** |
+| 18.3 | C <= 0.70 and D <= 0.90 | C **0.51**, D **0.76** | held |
+| 18.4 | forcing the key may improve everything, and that is its own finding | arm A's F07 agreement **23% to 47%** | **fired** — see 19.3 |
+| 18.5 | the four detector-side drops recur | **1** drop, F08#15; none of the four recurred | **VIOLATED** |
+
+Two violated, one held, one missed on its stated bound with the effect intact,
+one fired. §7 forbids re-reading any of these into a pass, and 18.1 is the one
+to watch: 7 is not <= 6, so the prediction fails as written even though arm E
+beats arm A decisively. Both facts are recorded.
+
+### 19.2 The primary hypothesis is MET, §17.1 is withdrawn, and the cause is confounded
+
+| arm | §17 (old grammar, pool 49) | §19 (new grammar, pool 52) |
+|---|---|---|
+| A control | 0.99 | **1.00** |
+| B size-matched noise | 0.90, drop +0.09, p=0.125 | **0.79, drop +0.21, p=0.0002** |
+| C unbounded noise | 0.54 | 0.51 |
+| D expectations stripped | 0.77 | 0.76 |
+| E removed, nothing added | 1.00 | 1.00 |
+
+§18.2 stated the consequence in advance: *"If it now exceeds 0.15, the primary
+hypothesis did not fail — it was measured under a grammar that suppressed it,
+and §17.1 must be withdrawn rather than quoted."* It does, so **§17.1 is
+withdrawn. Nothing in it may be quoted**, including its own correction of the
+p-values. The size-matched-noise hypothesis is **MET** on this run: the drop
+is 0.21 against a pre-registered 0.15, at p=0.0002, b=13 c=0.
+
+**But the cause cannot be attributed, and this run cannot carry the claim
+alone.** Two things differed from §17: the grammar, and the distractor pool
+(49 to 52), which §18's amendment recorded in advance as changing *which*
+distractors arm B draws. Arm B is the only arm that samples a subset, so arm B
+is exactly the arm both changes touch. A 0.09 result and a 0.21 result from
+two runs differing in two variables establishes neither.
+
+**What would settle it:** one more run under this grammar. If 0.21 reproduces,
+§17's 0.09 was the outlier and the grammar is the likely cause; if 0.09
+returns, the pool is. Until then the honest statement is **"the primary
+hypothesis is met in one of two runs, and the two runs differ in two
+variables."** That is weaker than §17.1's withdrawn claim *and* weaker than
+this run's verdict line, and it is what the report should say.
+
+### 19.3 §18.4 fired: the mandatory key helped the control arm and made the noise arm dangerous
+
+Requiring `rejected_alternatives` is a contrastive demand — the model must
+name what it ruled out. Both effects below are new and both matter.
+
+**It roughly doubled F07 class discrimination in the control arm.**
+
+| | §17 | §19 |
+|---|---|---|
+| arm A, F07 agreement | 9/39 diagnoses, 3/13 incidents (23%) | **21/45 diagnoses, 7/15 incidents (47%)** |
+| arm A, correct overall | 136/168 (81%) | **153/177 (86%)** |
+| arm A, confident wrong | 32 at 0.95 | **24 at 0.95** |
+
+**It also removed arm B's safe failure mode.**
+
+| arm B | §17 | §19 |
+|---|---|---|
+| abstentions | 70 | **45** |
+| confident wrong | 20 | **46** |
+| mean confidence of the wrong | 0.78 | **0.87** |
+
+§13.1's correction established that arm B *abstains rather than errs*, and
+that this makes noise a safe degradation because Kavach never executes an
+`UNKNOWN`. **Under the corrected grammar that is no longer true.** Forced to
+produce rejected alternatives, the noise arm commits to a confident wrong
+class more than twice as often and abstains a third less. §13.1 stands as a
+statement about the old grammar and must be qualified wherever it is quoted.
+
+The mechanism is plausible and untested: being required to name alternatives
+may push a model that would have declined into choosing between the
+candidates it just enumerated. That is a hypothesis for a future
+pre-registration, not a finding of this run.
+
+### 19.4 Arm E is still perfect, and F07 is still the control arm's failure
+
+Arm E: **177/177 correct, 0 abstentions, 0 confident errors, closure 1.00** —
+on both grammars. Per class, arm A versus arm E on incident-level agreement:
+
+| class | A | E | b | c | exact p |
+|---|---|---|---|---|---|
+| F01 | 15/15 | 15/15 | 0 | 0 | 1.00 |
+| F06 | 15/15 | 15/15 | 0 | 0 | 1.00 |
+| **F07** | **7/15** | **15/15** | 8 | 0 | **0.0078** |
+| F08 | 14/14 | 14/14 | 0 | 0 | 1.00 |
+
+The §17.2 finding survives the grammar change: removing the frame's
+non-discriminating, non-service, non-baseline items takes F07 from under half
+to all of it, and the control arm's remaining 24 confident errors are *all*
+F07 named as F06 at 0.95. §17.3's caveat stands unchanged — arm E selects
+items using the injected class, so it is an oracle and not a repair.
+
+### 19.5 §18.5 violated: detection is not reproducible run to run
+
+§17 dropped F07#11, F07#14, F08#4 and F08#8. §19 dropped F08#15. **No
+overlap.** The prediction assumed the detector is upstream of the model and
+therefore unaffected by a grammar change, which is true — and the drop set
+still moved completely.
+
+So the detector's `INSUFFICIENT_EVIDENCE` outcome on a given incident is **not
+reproducible across runs**. The plausible mechanism is that
+`drive_until_detectable` plus live metric windows make reaching a conclusion a
+timing phenomenon rather than a deterministic one, which is consistent with
+this project having already been bitten three times by windowed metrics read
+over windows shorter than their own contents.
+
+This is not a closure-ablation result; it is a **detection** result, and it
+bears on every MTTD figure in `REPORT_DRAFT` §4.1. It should be measured
+directly — the same incident, repeated, counting how often detection
+concludes — rather than inferred from two drop sets.
+
+### 19.6 A note that supports ADR 0023
+
+Arm B's wrong answers now include classes with **no injector**: `F05` nine
+times on F01, `F02` three times on F01, `F05` twelve times on F07. The output
+space is the eight-class catalogue, so this is legal, but it is evidence for
+`decisions/0023`: shown noisy LLM-endpoint evidence, the model already reaches
+for `F02` as the explanation. The confusable pair that ADR argues for is one
+the model is already making on its own.
+
+### 19.7 What this costs
+
+- **§17.1 is withdrawn.** Not corrected — withdrawn, per §18.2.
+- **§13.1 must be qualified** wherever quoted: arm B abstained safely under
+  the old grammar and does not under the new one.
+- **The primary hypothesis cannot be reported from one run.** One more run
+  under this grammar is the cheapest thing that would let it be stated at all.
+- **`REPORT_DRAFT` §4.4a** is still refuted as a mechanism; nothing here
+  revives it.
+- **MTTD figures need a reproducibility measurement** they do not currently
+  have.
+
+---
+
+## 20. Third run, pre-registered 2026-11-10 02:30 — a straight replication to break the §17/§19 tie
+
+### Why
+
+§19.2 left the primary hypothesis unreportable: 0.09 at p=0.125 in §17, 0.21
+at p=0.0002 in §19, with **two** variables differing between them (the
+grammar, and the distractor pool at 49 versus 52). Neither run can carry the
+claim. A replication of §19 changes nothing at all, so it separates "§19's
+result is real" from "§19's result is one draw of a noisy quantity" — which
+is the cheapest question that stands between this experiment and a reportable
+primary.
+
+**Nothing is changed from §19.** Same grammar, same four classes, 15
+incidents, 3 reps, five arms, shuffle off, same baseline, same local
+`qwen2.5:7b-instruct`. The distractor pool cannot be pinned (`--distractors`
+is a floor, not a cap) and is recorded with the result.
+
+### Predictions, fixed before the run
+
+1. **Arm B's closure drop is >= 0.15 again, at p < 0.05.** This is the whole
+   point. If it reproduces, §19's verdict stands and §17's 0.09 is the
+   outlier. **If it comes back below 0.15, the primary hypothesis is not met
+   and is not reportable from three runs either** — it would mean the quantity
+   swings across the pre-registered threshold between identical runs, which
+   is a statement about the measurement rather than about curation.
+2. **Arm E is 100% correct with zero confident errors**, as on both previous
+   runs. If arm E moves at all, something outside the design changed and the
+   run is not comparable.
+3. **Arm A names F07 correctly in 5 to 9 of 15 incidents** — the 47% band
+   §19 measured, stated as an interval because 7/15 is one incident wide.
+   Outside that band, §19.3's doubling claim needs re-examining before it is
+   quoted.
+4. **Arm B's safety regression replicates:** abstentions below 55 and
+   confident-wrong above 35. §19.3 is the only evidence that the mandatory
+   key removed arm B's safe failure mode, and it is a single run.
+5. **The drop set will differ again.** §18.5 was violated because detection
+   is not reproducible; the prediction now is that it stays irreproducible. A
+   drop set that matches either previous run exactly would be the surprise.
+
+### The decision rule, fixed now so it cannot be chosen later
+
+- **Three runs, two at >= 0.15:** report the primary as met, with all three
+  figures and the two changed variables disclosed in the same paragraph. Not
+  as a clean result.
+- **Three runs, two below 0.15:** report the primary as not met, and §19.2's
+  verdict line is withdrawn exactly as §17.1 was.
+- **Any 2-1 split in either direction:** report that the measurement does not
+  resolve the hypothesis at this sample size, and that the pre-registered
+  threshold sits inside the run-to-run variance. This is the outcome the
+  report should be most willing to state, because it is the one that is
+  easiest to hide.
+
+---
+
+## 21. Third run, 2026-11-10 04:39 — the replication holds and the decision rule fires
+
+855 observations, 57 usable incidents, 0 model errors, target verified clean.
+Artifact `harness/reports/closure-ablation-full-g3.json`, model
+`ollama:qwen2.5:7b-instruct`, **distractor pool 52 — identical to §19**,
+shuffle off. Three incidents dropped by the pre-registered detector rule
+(F08#2, F08#8, F08#11).
+
+The one thing a replication must prove about itself is that it changed
+nothing, and the pool is the variable that cannot be pinned by a flag. It
+came back 52, the same number §19 scraped, so this run differs from §19 in
+no recorded input.
+
+### 21.1 §20's five predictions, scored
+
+| § | Prediction | Observed | Verdict |
+|---|---|---|---|
+| 20.1 | arm B's drop **>= 0.15** at **p < 0.05** | drop **+0.19**, p **0.0010**, b=11 c=0 | **MET** |
+| 20.2 | arm E **171/171**, zero confident errors | 171/171, 0 abstentions, 0 errors | **held** |
+| 20.3 | arm A names F07 right in **5 to 9** of 15 | **5**/15 | **held at the floor** — see 21.3 |
+| 20.4 | arm B abstentions **< 55**, confident-wrong **> 35** | **42** and **40** | **held** |
+| 20.5 | the drop set differs again | F08#2, F08#8, F08#11 | **held**, with one recurrence |
+
+Four held, one met, none violated — the first run in this experiment where
+nothing was refuted. §7 forbids reading that as strength on its own: §20 was
+written to predict a repeat of §19, and a repeat is the cheapest thing a
+pre-registration can get right.
+
+### 21.2 The decision rule fires: the primary is MET, and the wording is fixed by §20
+
+| run | grammar | pool | arm A | arm B | drop | p |
+|---|---|---|---|---|---|---|
+| §17 | old | 49 | 0.99 | 0.90 | +0.09 | 0.125 |
+| §19 | **new** | **52** | 1.00 | 0.79 | **+0.21** | 0.0002 |
+| §21 | **new** | **52** | 1.00 | 0.81 | **+0.19** | 0.0010 |
+
+Two of three runs at >= 0.15. §20's rule, fixed before this run was
+launched: *"report the primary as met, with all three figures and the two
+changed variables disclosed in the same paragraph. Not as a clean result."*
+That is what the report does, and the paragraph is §21.6.
+
+**The confound is not resolved, and the claim no longer needs it resolved.**
+Why §17 measured 0.09 is still unknown — the grammar and the pool both
+differed, and no run isolates them. What the three runs do establish is
+narrower and sufficient: **under the grammar and pool that ship today, the
+drop is reproducibly >= 0.15** (0.21 and 0.19, two independent runs, 114
+incidents between them). §17's 0.09 was measured under a configuration that
+no longer exists in the codebase. The honest sentence is *"met under the
+current configuration, with one earlier run under a superseded configuration
+measuring 0.09"* — not *"met"*, and not *"the grammar caused it"*.
+
+**§7's refutation condition is not triggered.** Within-cell spread across
+repetitions is **0.01**, against an A-to-B gap of 0.19. §7 names "within-cell
+variance exceeds the A-to-B gap" as the condition that would make the gap
+sampling noise; it is nineteen times smaller.
+
+Arms C and D are stable across all three runs — C 0.54 / 0.51 / 0.57, D 0.77
+/ 0.76 / 0.77 — which is the background check that the harness itself did not
+drift between runs.
+
+### 21.3 §19.3's doubling claim does not survive the replication
+
+Prediction 20.3 held: 5 is inside the 5-to-9 band. It held **at the floor**,
+and §7 forbids reading a floor as a confirmation.
+
+| run | grammar | arm A names F07 correctly |
+|---|---|---|
+| §17 | old | 3/13 = **23%** |
+| §19 | new | 7/15 = **47%** |
+| §21 | new | 5/15 = **33%** |
+
+**The spread between the two identical runs (47% to 33%, 14 points) is larger
+than the gap between the lower of them and the old grammar (33% to 23%, 10
+points).** So the F07 improvement is not separable from run-to-run noise with
+only one old-grammar measurement. §19.3's "roughly doubled" is withdrawn as a
+claim; what survives is *"F07 discrimination under the new grammar measured
+47% and 33%, against a single old-grammar measurement of 23%"*, which is a
+set of numbers rather than an effect.
+
+This is the opposite of the §21.2 outcome and worth stating as such: the same
+replication that **strengthened** the primary hypothesis **dissolved** the
+incidental one. A replication that only ever confirms is not being read
+honestly.
+
+### 21.4 §19.3's safety finding replicates, and §13.1 is now qualified on two runs
+
+| arm B | §17 (old) | §19 (new) | §21 (new) |
+|---|---|---|---|
+| abstentions | 70 | 45 | **42** |
+| confident wrong | 20 | 46 | **40** |
+| mean confidence of the wrong | 0.78 | 0.87 | **0.86** |
+
+The two new-grammar runs agree closely, and both differ from the old one in
+the same direction and by a similar margin. **This is the most solid new
+result of the three runs**, because it is the only one measured twice under
+identical conditions with the same answer.
+
+§13.1 established that arm B *abstains rather than errs*, making noise a safe
+degradation since Kavach never executes an `UNKNOWN`. **That is a statement
+about the old grammar and must be qualified wherever it is quoted.** Under the
+shipped grammar the noise arm commits to a confident wrong class twice as
+often and abstains forty per cent less.
+
+Arm A's own confident errors moved the other way: 32 (§17), 24 (§19), **30**
+(§21) — a spread that contains §19's apparent improvement, so that too is
+noise rather than a gain.
+
+Arm B's confident-wrong classes again reach for classes with **no injector**:
+`F05` thirty times, `F02` three times, `F01` three times, `F08` three times.
+§19.6's support for `decisions/0023` is unchanged and now observed twice.
+
+### 21.5 Detection is irreproducible on a third run, and the drops are not uniform
+
+| run | incidents dropped by the detector |
+|---|---|
+| §17 | F07#11, F07#14, F08#4, F08#8 |
+| §19 | F08#15 |
+| §21 | F08#2, **F08#8**, F08#11 |
+
+Three runs, three different drop sets, and the count itself moves: 4, 1, 3.
+**F08#8 recurs** in §17 and §21, which is the first evidence that the drops
+are not purely random — but six of the eight drops across all three runs are
+F08 and the other two are F07, while **F01 and F06 have never once failed to
+detect**. That pattern says the irreproducibility is concentrated in the two
+classes whose detectors read windowed metrics, which is consistent with
+§19.5's proposed mechanism and still does not test it.
+
+§19.5's recommendation stands and is now more urgent: measure it directly —
+the same incident, repeated, counting how often detection concludes — rather
+than inferring from three drop sets. It bears on every MTTD figure in
+`REPORT_DRAFT` §4.1.
+
+### 21.6 The paragraph the report must carry
+
+> The size-matched-noise hypothesis is **met under the configuration that
+> ships**: replacing the frame's curated items with an equal number of real
+> but non-discriminating metrics drops evidence closure by **0.21** (p =
+> 0.0002, 59 incidents) and **0.19** (p = 0.0010, 57 incidents) across two
+> independent runs. A third, earlier run measured **0.09** (p = 0.125, 56
+> incidents) and did not meet the pre-registered 0.15 threshold. That run
+> differed in **two** respects — the diagnosis schema did not yet require
+> contrastive alternatives, and the live distractor pool held 49 metrics
+> rather than 52 — so **no run isolates which change is responsible**, and
+> the claim is restricted to the current configuration rather than extended
+> to the mechanism. The decision rule that selected this wording was fixed in
+> `EXPERIMENT_CLOSURE_ABLATION.md` §20 before the third run was launched.
+
+### 21.7 What is still not settled
+
+- **Why §17 was low.** A fourth run under the old grammar at pool 52 would
+  isolate it. It is one run's worth of compute and nothing else in the report
+  depends on the answer, so it is listed, not scheduled.
+- **The F07 effect size**, per §21.3 — two new-grammar runs disagree by 14
+  points and a third old-grammar point sits inside that spread.
+- **Detector reproducibility**, per §21.5. This is the one that blocks a
+  figure already in the report.
+- **Arm E remains an oracle** (§17.3), unchanged by three runs of perfect
+  scores. 171/171 is not a repair and must never be quoted as the shipped
+  system's performance.
+
+---
+
+## 22. Audit of the statistics, 2026-11-10 — one defect, one fix, and the gap that let both through
+
+Every p-value in §17, §19 and §21, and every one `REPORT_DRAFT` §4.4a repeats,
+comes from four functions in `harness/closure_ablation_report.py`. **Nothing
+tested any of them.** That is how the pairing defect of §19 survived three
+full runs, and it is the finding of this audit rather than a side note.
+
+### 22.1 The exact McNemar is correct
+
+`mcnemar` computes the two-sided exact binomial test at p=0.5, doubling the
+smaller tail — the standard exact McNemar. Checked against nine hand-computed
+reference values rather than against its own output:
+
+| b | c | p (hand) | arithmetic |
+|---|---|---|---|
+| 0 | 0 | 1.0 | no discordant pairs |
+| 1 | 0 | 1.0 | one discordant pair **cannot** be significant |
+| 5 | 5 | 1.0 | balanced; the doubling clips at 1.0 |
+| 4 | 2 | 0.6875 | 2(1+6+15)/64 |
+| 7 | 3 | 0.34375 | 2(1+10+45+120)/1024 |
+| 8 | 0 | 0.0078125 | 2/256 — the F07 A-vs-E figure |
+| 11 | 0 | 0.0009765625 | 2/2048 — §21's A-vs-B figure |
+| 13 | 0 | 0.000244140625 | 2/8192 — §19's A-vs-B figure |
+
+All nine match. Also verified: concordant pairs do not move the p-value, and
+swapping the arms swaps b and c and leaves p alone.
+
+### 22.2 The cluster bootstrap resamples the right unit, and is degenerate at the boundary
+
+`cluster_bootstrap` resamples **incidents** with replacement, which is the
+honest unit — reps of one incident share a frame, a fault and a detector
+verdict. That part was always right; it is the McNemar beside it that was
+wrong, and §19's correction brought them into agreement.
+
+**The defect found here is different and was being printed on every run.** The
+nonparametric bootstrap has no way to represent uncertainty at the boundary:
+when every incident closes, every resample also closes, so arms A and E print
+
+```
+A    control, the shipped frame       1.00  [1.00, 1.00]       171
+```
+
+A zero-width 95% interval on 57 incidents. The arithmetic is right and the
+number is misleading — a reader is entitled to read it as certainty, and
+"closure is at a ceiling" is a load-bearing claim in `REPORT_DRAFT` §4.4a and
+in §8's argument that epistemic uncertainty cannot be priced from closure.
+
+**Fixed by stating the ceiling instead of hiding behind the interval.**
+Observing k perfect incidents out of k bounds the per-incident failure rate at
+`1 - 0.05 ** (1/k)` with 95% confidence — the exact one-sided
+Clopper-Pearson bound. For 57 incidents that is **0.0512**, so the honest
+statement is *"at most about 5% of incidents fail to close"*, not *"none do"*.
+The report now prints it beside the degenerate interval and returns `nan` for
+any arm that is not perfect, because for those the bootstrap interval is the
+better statistic.
+
+The method was **not** swapped for Wilson or Clopper-Pearson throughout.
+Those ignore clustering and would overstate precision in the opposite
+direction, which is a worse error than the one being corrected.
+
+### 22.3 `within_cell_variance` computes a range, not a variance
+
+The function returns the mean of `max - min` across the reps of each
+(class, incident, arm) cell. §7's refutation condition is worded as
+*"within-cell variance exceeds the A-to-B gap"*, and the printed label
+already says *"within-cell spread"* and *"mean max-min"*, so the output is
+honest and only the function's name is loose.
+
+**Left as it is, with the direction recorded:** for three Bernoulli draws the
+range is at least as large as any spread measure that could replace it, so
+using it makes §7's refutation **harder** to trip, not easier. A statistic
+that errs toward refuting our own hypothesis is the right one to keep, and
+renaming it would churn a cited interface for nothing.
+
+### 22.4 The real finding: none of this was tested
+
+`apps/control-plane/tests/test_closure_ablation_statistics.py`, 16 test functions / 24 cases,
+no network and no artifact. The one that matters most is
+`tests/test_closure_ablation_statistics.py::test_cells_pairs_on_the_incident_not_the_diagnosis`
+— it fails if the pairing unit ever reverts to the diagnosis, which is the
+defect that read p=0.0007 where the honest answer was p=0.1250.
+
+Also covered: that the bootstrap resamples incidents (two disagreeing
+incidents must give `[0.00, 1.00]`, where a bootstrap over the six individual
+diagnoses would report a narrow interval the data does not support); that it
+is seeded and reproducible, because a p-value that moves between runs is not
+one; and that `(class, incident, arm)` keys separate F07#1 from F08#1, since
+every class numbers its incidents from 1.
+
+**This is the project's recurring defect in miniature, for the fifth time:** a
+fact recorded in one place with nothing checking that the other place still
+agrees. `test_doc_citations.py`'s own header lists the first four. The
+statistics were the fifth, and the reason they went unnoticed longest is that
+a wrong p-value still looks like a p-value.
+
+---
+
+## 23. Detection reproducibility, measured 2026-11-10 — §21.5's localization is wrong, and the real pattern is positional
+
+80 injections, 20 per class, no model calls. Script
+`harness/detector_reproducibility.py`, artifact
+`harness/reports/detector-reproducibility.json`, baseline
+`baseline-simple-rag-20261017T163257+0000.json`, 0 errors, every trial
+reverted.
+
+§19.5 and §21.5 both said this had to be measured directly rather than
+inferred from drop sets. It was, and **the inference was wrong.**
+
+### 23.1 The result
+
+| class | detected | rate | the misses | detect seconds (min / median / max) |
+|---|---|---|---|---|
+| F01 | 20/20 | **1.00** | — | 24.2 / 24.4 / **48.5** |
+| F06 | 19/20 | **0.95** | trial 1: **named `F01`** | 32.3 / 33.2 / 35.8 |
+| F07 | 18/20 | **0.90** | trials 1 **and** 2: `INSUFFICIENT_EVIDENCE` | 17.9 / 18.3 / 19.6 |
+| F08 | 20/20 | **1.00** | — | 16.9 / 17.3 / 17.9 |
+
+Pooled, **79 of 82** including the two-trial smoke that preceded this run
+(whose single F08 trial-1 miss is recorded here rather than dropped, because
+it is the same script against the same target and excluding it would be
+choosing data after seeing it). **So detection concludes correctly about 96%
+of the time and is not deterministic.** That is now measured rather than
+inferred.
+
+### 23.2 §21.5 said the irreproducibility was concentrated in F08. It is not.
+
+§21.5 reasoned that six of the eight ablation drops were F08, two were F07,
+and F01 and F06 never failed — therefore the instability lived in the two
+classes whose detectors read windowed metrics, with F08 the worst. Direct
+measurement gives almost the opposite ordering: **F08 is 20/20 here and F07
+is the weakest at 0.90, while F06 — which had never appeared in a drop set —
+fails too.**
+
+**§21.5's localization claim is withdrawn.** What survives from it is only the
+bare fact that the drop sets differ, which this section replaces with a rate.
+The lesson is the one §21.5 itself argued for and then partly ignored: three
+drop sets of size 4, 1 and 3 cannot locate anything, and reading an ordering
+out of them was over-reading my own evidence.
+
+### 23.3 The real pattern is positional, and it is not subtle
+
+Every miss is in the **first or second trial of its class block**:
+
+- F06 — trial 1 of 20.
+- F07 — trials 1 and 2 of 20.
+- F08 — trial 1 of the two-trial smoke, on a target that had just come up.
+- F01 — no miss, but trial 1 took **48.5s against a 24.4s median**, the
+  slowest detect in all 80 trials and nearly double the next.
+
+Three misses landing in the eight first-two-of-a-block slots out of 80 would
+happen by chance with probability **C(8,3)/C(80,3) = 0.0007**. That is not a
+proof of mechanism — the slots were not chosen in advance and this is a
+pattern found in the data, which §7's standards make an observation and not a
+result — but it is a far better candidate than the "timing phenomenon in
+windowed PromQL" §19.5 proposed, and it is cheap to test properly: inject one
+class twenty times on a freshly started stack, pre-registering that only the
+first trials may fail.
+
+**And it is not a new mechanism in this project — it is the one already
+measured.** `REPORT_DRAFT` §4.1 established on 2026-11-06, from
+`harness/mttd_ladder.py`, that F01's MTTD ladder is built out of **warm-up
+rounds**: one round of `warm_up_f01` costs 12.12s against 24.3s on a healthy
+target, twelve of twenty MTTD samples lie within 0.4s of a 12.12s lattice,
+and the scrape interval was ruled out rather than merely doubted. A warm-up
+account of *detection latency* was already the measured explanation there.
+This section finds a warm-up-shaped effect on *detection success*, from a
+different script with no model in the loop. Two independent measurements
+pointing at the same mechanism is much stronger than either alone, and it is
+why §19.5's windowed-PromQL proposal should not be carried further.
+
+**The consequence is that F07 and F08 may simply be missing a warm-up that
+F01 and F06 have.** `one_incident` calls `drive_until_detectable` for F06 and
+`warm_up_f01` for F01, and nothing for F07 or F08 — and F07 is the weakest
+class here at 0.90. That is a harness asymmetry, it is one line per class to
+test, and it must be **pre-registered before it is tried**, because "add a
+warm-up until the number improves" is exactly the shape of tuning this
+project forbids itself.
+
+**Why this matters more than the rate does.** A warm-up effect is a
+*harness* property with a fix (drive the target before measuring, which
+`drive_until_detectable` and `warm_up_f01` already do for F06 and F01 and
+nothing does for F07 and F08). A genuinely stochastic detector is a
+*product* property with no fix. The two have opposite consequences for the
+report, and the data now points at the first.
+
+**It does not explain the ablation's drops.** Those were F07#11, F07#14,
+F08#4, F08#8, F08#15, F08#2 and F08#11 — none of them the first incident of
+its block. So either the ablation's per-incident work (45 diagnoses, minutes
+of LLM latency between injections) produces a different timing regime, or
+there are two phenomena. Stated as open rather than resolved.
+
+### 23.4 The finding that actually bears on safety: F06 was named `F01`
+
+F07's two misses are `INSUFFICIENT_EVIDENCE`, which escalates to a human and
+is the safe outcome the architecture is built around. **F06's miss is a
+confident wrong class.** The ablation's drop rule folded both into one
+category — *"the detector said something other than the injected class"* —
+and that folding hid the distinction, exactly as `REPORT_DRAFT` §6 records a
+`broke` check being folded into an injector's pass condition and hiding a
+stochastic symptom.
+
+`PRD.md` §6 gives `F01` the repair `switch_llm_endpoint` and `F06` a
+different one, so a detector that names `F01` for an injected `F06` routes to
+a repair that cannot fix the fault. **What catches it is not checked here and
+must not be assumed** — the verification probe should fail and the undo stack
+should restore, which is the §4.5 mechanism, but that is a prediction about
+the pipeline and this measurement only ran the detector. It needs its own
+test before the report claims the pipeline degrades safely on a misdetection.
+
+This is one observation in 20. It is reported because the consequence is
+asymmetric, not because the rate is established.
+
+### 23.5 What `REPORT_DRAFT` §4.1 must now say
+
+Every MTTD figure in §4.1 is a mean over detections that **concluded**, and
+the denominator was never stated because it was assumed to be all of them. It
+is not: **about 4% of injections do not produce a correct detection**, and on
+F07 it is 10%. §4.1 must publish the conditional nature of the mean and the
+per-class rate beside it. That is a disclosure, not a new measurement, and it
+is the one item from §21.7's open list that is now closed.
+
+The detect latencies above are **not** MTTD and must not be read as such:
+they time one `run_all` over an already-faulted target, where §4.1 measures
+from injection to a recorded detection in the control plane. They are
+reported because trial 1's 48.5s on F01 is part of the positional evidence.
+
+---
+
+## 24. Cross-provider smoke, 2026-11-10 — the plumbing is proven, the numbers may not be quoted, and §23.3 was corroborated by accident
+
+Artifact `harness/reports/closure-ablation-groq-smoke2.json`, model
+`groq:openai/gpt-oss-120b`, 4 classes x 5 incidents x 1 rep x arms A/B/E.
+**54 of 54 diagnoses usable, 0 errors**, 4 transient LLM failures absorbed by
+the retry, 11.5 minutes wall clock of which 171s was model latency.
+
+### 24.1 What this establishes, which is only the plumbing
+
+§16.3 fixed in advance that the smoke's *numbers* are for plumbing only and
+**may not be quoted**, because 5 incidents at 1 rep cannot separate a model
+difference from the draw. That still binds, and §24.3 below is the reason it
+has to be said twice rather than once.
+
+What it does establish:
+
+- **A cloud provider now serves Kavach diagnoses end to end.** The first
+  attempt, 2026-11-09, died on the first call: Groq rejected the schema
+  because OpenAI strict mode requires every property in `required` and
+  `rejected_alternatives` was optional. That artifact
+  (`closure-ablation-groq-smoke.json`, 1 observation, 1 error) is kept as the
+  record. After the schema change the same run completes with zero errors.
+- **The retry handles Groq's rate limiting.** Four transient failures, all
+  absorbed, none reaching the 8-failure ceiling.
+- **The run is affordable.** 54 calls in 11.5 minutes at ~3.1s median
+  latency, which sizes the real run at roughly 1.5 to 2 hours.
+
+### 24.2 §23.3's positional pattern turned up again, in a script written for something else
+
+The smoke dropped exactly two incidents: **F06#1** and **F07#1**. Both are the
+**first incident of their class block**, and F06#1's detector verdict was
+**`F01`** — the same wrong class, on the same injected fault, that §23.1
+recorded as F06's single miss in 20 trials.
+
+**Ordering, because it decides what this is worth.** The smoke was launched at
+05:55 and §23 was written while it was in flight, from the detector
+measurement alone; I had not seen the smoke's drops when §23.3 proposed that
+only the first trials of a block fail. So this is **not** a pre-registered
+test — §23.3 was not registered anywhere before the run started, and the
+honest label is a prediction made in ignorance of a result that already
+existed on disk. It is stronger than fitting the pattern after the fact and
+weaker than a pre-registration, and it is recorded in that order.
+
+Running total of misdetections across both scripts: F06#1, F07#1, F07#2 (the
+detector measurement), F08#1 (the two-trial smoke), F06#1 and F07#1 (this
+smoke). **Six for six at position 1 or 2 of a block.** The pre-registered
+version of this test is §23.3's: one class, twenty injections, freshly started
+stack, registering before the run that only the first trials may fail.
+
+### 24.3 The part that must not be quoted, and must not be forgotten either
+
+Arm B's closure on the detector's class came back **1.00**, against 0.79 and
+0.81 on the local 7B model, with a drop of +0.00 and b=c=0.
+
+**That number cannot be reported** — §16.3, and 18 incidents at one rep. But
+it cannot be quietly dropped either, because of what it would mean if the
+full run reproduces it: §16's prediction 3 scored *">= 0.95 means closure
+sensitivity **was** a 7B artefact"*, and 1.00 clears that band. The primary
+hypothesis §21.2 just declared met would then be **met on one model and absent
+on another**, which is a scope condition on the headline result rather than a
+refutation of it.
+
+Two mechanisms are visible in the log and both need the full run to separate:
+
+- **Arm B abstained rather than mis-cited.** 10 of its 18 diagnoses returned
+  `INSUFFICIENT_EVIDENCE` while still citing the detector's discriminating
+  evidence, so `closed_detector` scored True. **The primary outcome does not
+  require the model to name the class** — only to cite the evidence that
+  discriminates it. A larger model that declines cleanly therefore scores a
+  perfect closure, and a 7B model that guesses wrong scores a poor one. That
+  is a property of the metric, not of grounding, and it belongs in
+  `REPORT_DRAFT` §4.4a whatever the full run says.
+- **Arm E also fell to 0.44 agreement**, where it is 1.00 on every local run.
+  On four items `gpt-oss-120b` abstains where `qwen2.5:7b-instruct` answers.
+  If that holds, §17.3's oracle caveat gains a second one: arm E's perfection
+  is a property of the local model too.
+
+**One thing to check rather than assume in the full run.** Arms B and E
+returned *identical* name distributions on this smoke — 10
+`INSUFFICIENT_EVIDENCE`, 5 `F01`, 3 `F06` each. Their frames are genuinely
+different (33 items / 3688 tokens against 4 items / 2952 tokens), so this is
+most likely the same incidents defeating both arms rather than a harness
+fault passing one frame twice. At 18 observations it is also exactly the
+coincidence that a bug would produce, and it costs nothing to confirm against
+540.
+
+**Pre-registered now, before the full run's numbers exist:** if arm B's
+closure on `gpt-oss-120b` comes back **>= 0.95** across 15 incidents x 3 reps,
+§21.2's "met under the configuration that ships" gains the clause **"and on
+the 7B model only"**, and `REPORT_DRAFT` §4.4a must carry the metric property
+in the first bullet above as the explanation. If it comes back **<= 0.90**,
+the effect is cross-model and §21.6's paragraph stands as written. Between
+those, inconclusive, per §16.2's band.
+
+---
+
+## 25. `F06#1` names `F01` three times out of three — pre-registered test, 2026-11-10 08:11
+
+### 25.1 The observation
+
+| when | script | what happened |
+|---|---|---|
+| detector reproducibility, §23 | `detector_reproducibility.py`, classes in order F01, F06, F07, F08 | F06 **trial 1** named `F01`; trials 2-20 all correct |
+| cross-provider smoke, §24 | `closure_ablation.py`, 5 incidents per class, same order | **F06#1** dropped, detector said `F01` |
+| cross-provider full run, §26 | `closure_ablation.py`, 15 incidents per class, same order | **F06#1** dropped, detector said `F01` |
+
+Three independent runs, three different scripts or configurations, **the same
+incident and the same wrong class every time.** §23.3 filed this under a
+generic "first trial of a block" pattern. It is not generic: F06#1 is
+*reproducible*, which makes it a defect with a mechanism rather than a
+stochastic miss.
+
+### 25.2 The candidate mechanism, and why the obvious test discriminates it
+
+In all three runs **F06 ran immediately after a block of F01 injections** —
+20, 5 and 15 of them. `PRD.md` §6 gives F01 the signal *"error rate on LLM
+spans > 20% over 60s"*, which is a windowed PromQL read. A window that still
+contains the tail of the preceding F01 block would make F01's rule fire on
+the first F06 evaluation, and F01 would win because it is a real signal on
+stale data rather than a false one on fresh data.
+
+This project has been bitten three separate times by a windowed metric read
+over a window shorter than its own contents, which is why this is the first
+candidate rather than a clever one.
+
+**The test is to run F06 with nothing before it.** Nothing else changes.
+
+### Prediction, fixed before the run
+
+1. **If the mechanism is F01 residue: F06 detects correctly on trial 1, 5/5.**
+   The contamination cannot exist if no F01 ran.
+2. **If the mechanism is a generic cold start: F06 trial 1 misses again**,
+   and the verdict may be anything.
+3. **The discriminating observation is the verdict, not the rate.** A miss
+   that says `INSUFFICIENT_EVIDENCE` supports a cold-start account; a miss
+   that says `F01` with no F01 anywhere in the run refutes both and means the
+   residue is older than this process.
+4. **F07 run first, also 5 trials, as the paired control.** §23 saw F07 miss
+   twice when it followed F06. F07's detector reads a prompt hash and **no
+   PromQL** (`REPORT_DRAFT` §4.1), so a window-contamination account predicts
+   F07 is **unaffected** by ordering and should miss at about the same rate
+   whether it runs first or not. If F07-first comes back 5/5, the window
+   account does not cover F07 and §23.3's single pattern is really two.
+
+No model is called; this is detector-only and costs about three minutes.
+
+### 25.3 Result: both predictions resolved, and §23.3's one pattern is two
+
+Artifacts `harness/reports/detector-f06-first.json`,
+`detector-f07-first.json`, `detector-f07-why.json`.
+
+| run | order | result |
+|---|---|---|
+| F06 alone, 5 trials | **nothing before it** | **5/5**, trial 1 included |
+| F07 alone, 5 trials | **nothing before it** | **3/5** — trials **1 and 2** missed, both `INSUFFICIENT_EVIDENCE` |
+| F07 alone, 6 trials | immediately after the F07 run above | **6/6** |
+
+**Prediction 1 is confirmed and the F06 mechanism is identified.** With no
+F01 before it, F06 detects correctly on its first trial. The `F06#1` → `F01`
+misdetection that reproduced three times out of three is caused by **the
+preceding block of F01 injections**, and the candidate mechanism in §25.2
+stands: F01's signal is an error rate over a 60-second window, and that
+window still contains the tail of the F01 block when the first F06 is
+evaluated, so F01's rule fires on real-but-stale data and wins.
+
+**Prediction 4 went the other way, which is the more useful outcome.** F07
+run first missed trials 1 and 2 anyway — the *same two positions* and the
+*same verdict* as in §23, where F07 followed F06. **F07's misses are
+ordering-independent**, so §23.3's single "first trial of a block" pattern is
+really **two unrelated phenomena** that happened to look alike:
+
+1. **F06 is contaminated by what ran before it.** Fixed by ordering, or by
+   waiting out the window. Not a property of F06's detector.
+2. **F07 needs to have been injected recently to be detectable.** Nothing
+   before it in the process matters; what matters is whether F07 itself has
+   been exercised. The third run — six trials immediately after the second —
+   is **6/6**, so once F07 has been through two cycles it stays detectable.
+
+F07 pooled across every run in this document: **27 of 31 = 0.87**, with all
+four misses at trial 1 or 2 of a cold F07.
+
+### 25.4 The branch is still unidentified, and that is recorded rather than guessed
+
+`prompt_regression.py` has three distinct paths to `INSUFFICIENT_EVIDENCE` —
+an unreachable control interface (`live_files` empty), a baseline holding
+digests without the text (`not repairable`), and too few changed files — and a
+bare verdict string cannot tell them apart. I had a hypothesis for which one
+fires and **it is not written here as a finding**, because the honest way to
+settle it is to read the detector's own reason.
+
+So `detect_once` now returns the detector's first reason and the script prints
+it on every miss (`detector_reproducibility.py`;
+`tests/test_detector_reproducibility.py::test_detect_once_returns_the_detectors_first_reason`
+covers it). The instrumented run then came back **6/6 with no miss to
+explain**, which is not a failure of the instrumentation — it is evidence in
+its own right, because it rules out F07 missing two in every six
+unconditionally.
+
+**The decisive test needs a cold F07 and is not run here.** It requires either
+restarting the target's stack or leaving F07 untouched long enough to go cold,
+and a stack restart is a mutation of the target that is not mine to make
+unattended while nothing is broken. Named as the next step, with the
+instrumentation already in place to read the answer when it is taken.
+
+### 25.5 What this changes elsewhere
+
+- **§23.3's localization is narrowed, not withdrawn.** The positional
+  observation was real; the single mechanism behind it was not.
+- **§19.5's windowed-PromQL proposal was right about F06 and wrong about
+  F07.** It is now a measured mechanism for one class and refuted for another.
+- **The ablation's drop rule should record the detector's reason too.** It
+  currently writes *"detector said X, not the injected class"* into
+  `run.dropped`, which is exactly the bare-verdict problem this section just
+  instrumented away in the other script. Not changed here: the ablation's
+  measured path must not be edited between runs that are being compared
+  (`AGENTS.md`, and §7's control-arm rule). It belongs in the next
+  pre-registration.
+- **`REPORT_DRAFT` §4.1's F06 row is fine and its F07 row needs a caveat.**
+  F06's 19/20 is an artefact of the measurement's ordering and would be 20/20
+  in isolation; F07's 0.90 is a property of the system on a cold class.
+
+---
+
+## 26. Cross-provider run, 2026-11-10 — F01 is complete and decisive, and the rest was stopped by a daily token cap
+
+Artifact `harness/reports/closure-ablation-groq-full.json`, model
+`groq:openai/gpt-oss-120b`, arms A/B/E, 4 classes x 15 incidents x 3 reps
+pre-registered. **It did not finish.** 142 of 540 diagnoses, 28 transient
+retries absorbed, then an abort.
+
+### 26.1 Why it stopped, and that the stop was my planning error
+
+```
+ABORTING after 9 transient LLM failures, the last: HTTP 429
+Rate limit reached for model `openai/gpt-oss-120b` ... service tier
+`on_demand` on tokens per day (TPD): Limit 200000, Used 196518,
+Requested 4511 (all 3 keys tried). The fault has been reverted.
+```
+
+**Groq's on-demand tier allows 200,000 tokens per day per key.** Three keys
+are configured, so about 600k/day. At a measured 3,480 prompt tokens per
+diagnosis the pre-registered run needs **about 2.0 million tokens — roughly
+3.3 days of the entire quota.** It was never going to finish.
+
+**I sized this run on wall-clock time and never checked the token budget**,
+which is the error. Worse, the smoke that preceded it consumed 191,799
+tokens — essentially one whole key's daily allowance — so the real run started
+already two-thirds through the day's capacity. The §16 pre-registration says a
+cloud result worse than the local one is a result and not a configuration
+error; it says nothing about a run that cannot physically complete, and the
+honest label for that is a planning failure rather than a finding.
+
+The abort itself behaved correctly: **the fault was reverted**, the artifact
+was flushed, and the partial run is analysable — which is what the
+flush-every-incident change of 2026-11-09 was for.
+
+### 26.2 The F01 block is complete, properly powered, and decisive
+
+15 incidents x 3 reps x 3 arms = **135 observations, every cell filled.**
+
+| | local `qwen2.5:7b-instruct` | **`gpt-oss-120b`** |
+|---|---|---|
+| arm A, F01 agreement | 45/45 | **45/45** |
+| arm B, F01 agreement | **18/45 = 0.40** | **45/45 = 1.00** |
+| arm B, F01 closure | **36/45 = 0.80** | **45/45 = 1.00** |
+| arm B, F01 abstentions | high (§16.1) | **0** |
+| arm E, F01 agreement | 45/45 | **45/45** |
+
+§16's predictions, scored:
+
+| § | Prediction | Observed | Verdict |
+|---|---|---|---|
+| 16, 1 | arm A at or near 1.00 **on all four classes** | 1.00 on F01; F06-F08 never ran | **partial** — held where measured |
+| 16, 2 | arm B's agreement rises above the 7B's **0.40** on F01 | **1.00** | **MET, decisively** |
+| 16, 3 | arm B's closure moves less than the 7B's 0.80; **>= 0.95** means the sensitivity was a 7B artefact | **1.00** | **MET** |
+| 16, 4 | no prediction on F07 or F08 | still none, and now none measured either | n/a |
+| 16, 5 | a worse cloud result is a result | not exercised — the cloud result is better | n/a |
+
+**So on F01, closure sensitivity to size-matched noise is a small-model
+artefact.** The 120B model is completely immune to the noise that takes the 7B
+from 45/45 to 18/45, in every arm, with zero abstentions.
+
+### 26.3 §24.3's pre-registered consequence fires, and only as far as F01
+
+§24.3 fixed this in advance: *"if arm B's closure comes back >= 0.95, §21.2's
+'met under the configuration that ships' gains the clause 'and on the 7B model
+only'."* It came back 1.00 on F01, so **the clause is owed** — and the
+pre-registration scoped it to a run that would have covered four classes,
+while what exists covers one.
+
+The precise statement the report may make:
+
+> On `F01`, the size-matched-noise effect is absent on
+> `openai/gpt-oss-120b` (45/45 in every arm, 15 incidents x 3 reps) and
+> present on `qwen2.5:7b-instruct` (arm B 18/45 agreement, 36/45 closure).
+> **The effect is therefore model-dependent on at least one of the four
+> classes.** Whether it is model-dependent on `F06`, `F07` or `F08` is
+> **unmeasured**: the cross-provider run was stopped by a provider token cap
+> before reaching them.
+
+**This does not overturn §21.2 and must not be reported as though it does.**
+The +0.19 and +0.21 drops are pooled over four classes, and §19.4 and §21.3
+locate the interesting part of the effect in **F07**, which has no
+cross-provider measurement at all. F01 vanishing at 120B removes one
+contributor to the pooled drop and says nothing about the others.
+
+### 26.4 What the remaining measurement costs, and the design that fits
+
+At 3,480 tokens per diagnosis against ~600k tokens/day:
+
+| design | calls | tokens | days of full quota |
+|---|---|---|---|
+| the run as pre-registered, 4 classes x 15 x 3 | 540 | ~2.0M | **3.3** |
+| the three unmeasured classes, 15 x 3 | 405 | ~1.5M | 2.5 |
+| all four classes at **reps = 1** | 180 | ~0.67M | 1.1 |
+| **F07 only, 15 x 3** | 135 | ~0.50M | **0.8** |
+
+**The recommendation is F07 only.** It is the class carrying the effect
+(§21.3, §19.4), it is the one class with no cross-provider data, it fits
+inside a single day's quota with headroom, and at 15 incidents x 3 reps it is
+as well powered as the F01 block that just settled F01. Dropping reps to 1
+across four classes buys breadth at the price of being unable to separate a
+model difference from the draw, which is the mistake §16.3 already refused
+once for the smoke.
+
+The alternative is a paid tier, which is the owner's call and not a
+measurement decision.
+
+### 26.5 Two things left open by the stop
+
+- **The F06 block never ran**, so the only F06 cross-provider observation is
+  the dropped `F06#1` — which §25.3 has now explained as F01-window
+  contamination rather than a model property. F06 is unmeasured.
+- **§24's arms-B-and-E coincidence is still open.** On this run both are
+  perfect on F01 (48/48 and 46/46 including the F06 partial), so the data
+  cannot discriminate a shared-frame bug from two arms that simply both
+  succeed. It needs a class where the arms differ, which means F07.
