@@ -74,26 +74,60 @@ if (hasDom) {
   Element.prototype.scrollIntoView = vi.fn();
 }
 
-// Node 22 exposes its own `localStorage` global, which is NOT available without
-// --localstorage-file, and it shadows the jsdom one. The result is
-// `window.localStorage === undefined`, so the theme toggle has nothing to read.
+// Node 22+ exposes its own `localStorage` global, which is NOT functional
+// without --localstorage-file (or in Node 25 where a non-functional object shadows
+// jsdom's Storage), resulting in missing Storage methods like `clear` or `getItem`.
 // A Map-backed stand-in keeps the persistence test honest while leaving the
 // component's own try/catch guards in place for the real browser cases.
-if (hasDom && !window.localStorage) {
+const isFunctionalStorage = (s: unknown): boolean => {
+  if (typeof s !== "object" || s === null) return false;
+  const candidate = s as Record<string, unknown>;
+  return (
+    typeof candidate.getItem === "function" &&
+    typeof candidate.setItem === "function" &&
+    typeof candidate.removeItem === "function" &&
+    typeof candidate.clear === "function" &&
+    typeof candidate.key === "function"
+  );
+};
+
+let storageFunctional = false;
+if (hasDom) {
+  try {
+    storageFunctional = isFunctionalStorage(window.localStorage);
+  } catch {
+    storageFunctional = false;
+  }
+}
+
+if (hasDom && !storageFunctional) {
   const store = new Map<string, string>();
+  const mockStorage = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => void store.set(key, String(value)),
+    removeItem: (key: string) => void store.delete(key),
+    clear: () => store.clear(),
+    key: (index: number) => [...store.keys()][index] ?? null,
+    get length() {
+      return store.size;
+    },
+  };
+
   Object.defineProperty(window, "localStorage", {
     configurable: true,
-    value: {
-      getItem: (key: string) => store.get(key) ?? null,
-      setItem: (key: string, value: string) => void store.set(key, String(value)),
-      removeItem: (key: string) => void store.delete(key),
-      clear: () => store.clear(),
-      key: (index: number) => [...store.keys()][index] ?? null,
-      get length() {
-        return store.size;
-      },
-    },
+    writable: true,
+    value: mockStorage,
   });
+
+  try {
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      writable: true,
+      value: mockStorage,
+    });
+  } catch {
+    // globalThis.localStorage may not be reconfigurable in all environments
+  }
 }
 
 afterEach(() => {

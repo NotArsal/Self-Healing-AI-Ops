@@ -9,6 +9,7 @@
  * Every row carries a word and an icon, never a colour alone (§10).
  */
 
+import { Sparkline } from "../charts/Sparkline";
 import { Icon } from "../ui/Icon";
 import { OkText } from "../ui/pills";
 import type { FleetMetrics, System } from "@/lib/api";
@@ -16,11 +17,30 @@ import type { FleetMetrics, System } from "@/lib/api";
 /** A rate the backend reports as null has no data behind it. Rendering it as
  *  0 would claim "instant" where the truth is "never measured", which is the
  *  one number this project must not fabricate. */
-function Readout({ label, value }: { label: string; value: string | null }) {
+function Readout({
+  label,
+  value,
+  visual,
+}: {
+  label: string;
+  value: string | null;
+  visual?: React.ReactNode;
+}) {
   return (
-    <div>
+    <div
+      style={{
+        padding: "var(--k-space-2) var(--k-space-3)",
+        background: "var(--k-surface-sunken)",
+        border: "1px solid var(--k-border-subtle)",
+        borderRadius: "var(--k-radius-sm)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 2,
+      }}
+    >
       <div className="k-mono-metric">{value ?? "—"}</div>
       <div className="k-xs k-faint">{label}</div>
+      {visual && <div style={{ marginTop: 4 }}>{visual}</div>}
     </div>
   );
 }
@@ -112,7 +132,7 @@ export function SystemHealth({
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr",
-                gap: "var(--k-space-3)",
+                gap: "var(--k-space-2)",
               }}
             >
               <Readout
@@ -131,6 +151,20 @@ export function SystemHealth({
                     ? null
                     : `${Math.round(metrics.repair_success_rate * 100)}%`
                 }
+                visual={
+                  metrics.repair_success_rate !== null &&
+                  metrics.repair_success_rate !== undefined ? (
+                    <Sparkline
+                      type="bullet"
+                      data={[Math.round(metrics.repair_success_rate * 100)]}
+                      max={100}
+                      label="Repair success rate"
+                      unit="%"
+                      height={5}
+                      color="var(--k-risk-low)"
+                    />
+                  ) : undefined
+                }
               />
               <Readout label="Auto-healed" value={String(metrics.auto_healed)} />
               <Readout label="Awaiting" value={String(metrics.awaiting)} />
@@ -145,12 +179,33 @@ export function SystemHealth({
       )}
 
       <div>
-        <h3 style={{ marginBottom: "var(--k-space-2)" }}>
-          Dependencies{" "}
-          <span className="k-xs k-faint" style={{ fontWeight: 400 }}>
-            {healthy}/{system.dependencies.length} ok
-          </span>
-        </h3>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: "var(--k-space-2)",
+            gap: "var(--k-space-2)",
+          }}
+        >
+          <h3 style={{ margin: 0 }}>
+            Dependencies{" "}
+            <span className="k-xs k-faint" style={{ fontWeight: 400 }}>
+              {healthy}/{system.dependencies.length} ok
+            </span>
+          </h3>
+          {system.dependencies.length > 0 && (
+            <Sparkline
+              type="bullet"
+              data={[healthy]}
+              max={system.dependencies.length}
+              label="Healthy dependencies ratio"
+              color={healthy === system.dependencies.length ? "var(--k-risk-low)" : "var(--k-risk-med)"}
+              width={64}
+              height={6}
+            />
+          )}
+        </div>
         <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {system.dependencies.map((dependency) => (
             <li
