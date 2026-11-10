@@ -1,0 +1,61 @@
+{
+  "at": "2026-11-10T00:33:54.703687+00:00",
+  "baseline": "baseline-simple-rag-20261017T163257+0000.json",
+  "trials": 6,
+  "rows": [
+    {
+      "fault_class": "F07",
+      "trial": 1,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 17.5,
+      "error": "",
+      "reason": "1 prompt file(s) differ from the captured known-good (['answer.txt']) and the fast set is failing. The prompt is the instruction the model follows, and the captured text is recorded, so the repair is a rollback to it"
+    },
+    {
+      "fault_class": "F07",
+      "trial": 2,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 17.81,
+      "error": "",
+      "reason": "1 prompt file(s) differ from the captured known-good (['answer.txt']) and the fast set is failing. The prompt is the instruction the model follows, and the captured text is recorded, so the repair is a rollback to it"
+    },
+    {
+      "fault_class": "F07",
+      "trial": 3,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 17.8,
+      "error": "",
+      "reason": "1 prompt file(s) differ from the captured known-good (['answer.txt']) and the fast set is failing. The prompt is the instruction the model follows, and the captured text is recorded, so the repair is a rollback to it"
+    },
+    {
+      "fault_class": "F07",
+      "trial": 4,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.51,
+      "error": "",
+      "reason": "1 prompt file(s) differ from the captured known-good (['answer.txt']) and the fast set is failing. The prompt is the instruction the model follows, and the captured text is recorded, so the repair is a rollback to it"
+    },
+    {
+      "fault_class": "F07",
+      "trial": 5,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.34,
+      "error": "",
+      "reason": "1 prompt file(s) differ from the captured known-good (['answer.txt']) and the fast set is failing. The prompt is the instruction the model follows, and the captured text is recorded, so the repair is a rollback to it"
+    },
+    {
+      "fault_class": "F07",
+      "trial": 6,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 17.59,
+      "error": "",
+      "reason": "1 prompt file(s) differ from the captured known-good (['answer.txt']) and the fast set is failing. The prompt is the instruction the model follows, and the captured text is recorded, so the repair is a rollback to it"
+    }
+  ]
+}

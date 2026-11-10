@@ -1,0 +1,47 @@
+{
+  "at": "2026-11-10T00:28:54.740706+00:00",
+  "baseline": "baseline-simple-rag-20261017T163257+0000.json",
+  "trials": 5,
+  "rows": [
+    {
+      "fault_class": "F06",
+      "trial": 1,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 31.67,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 2,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 32.44,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 3,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 32.89,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 4,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 32.7,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 5,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 32.34,
+      "error": ""
+    }
+  ]
+}

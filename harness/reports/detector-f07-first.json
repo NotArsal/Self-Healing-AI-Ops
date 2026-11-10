@@ -1,0 +1,47 @@
+{
+  "at": "2026-11-10T00:30:28.227987+00:00",
+  "baseline": "baseline-simple-rag-20261017T163257+0000.json",
+  "trials": 5,
+  "rows": [
+    {
+      "fault_class": "F07",
+      "trial": 1,
+      "verdict": "INSUFFICIENT_EVIDENCE",
+      "pass_rate": 0.0,
+      "seconds": 19.44,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 2,
+      "verdict": "INSUFFICIENT_EVIDENCE",
+      "pass_rate": 0.0,
+      "seconds": 18.55,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 3,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.73,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 4,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.14,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 5,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.06,
+      "error": ""
+    }
+  ]
+}

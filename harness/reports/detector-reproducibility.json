@@ -1,0 +1,647 @@
+{
+  "at": "2026-11-09T23:51:19.675547+00:00",
+  "baseline": "baseline-simple-rag-20261017T163257+0000.json",
+  "trials": 20,
+  "rows": [
+    {
+      "fault_class": "F01",
+      "trial": 1,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 48.53,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 2,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 24.3,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 3,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 24.42,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 4,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 24.31,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 5,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 24.3,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 6,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 24.25,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 7,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 24.39,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 8,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 24.38,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 9,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 24.3,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 10,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 24.31,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 11,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 24.3,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 12,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 24.31,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 13,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 24.36,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 14,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 25.34,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 15,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 24.38,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 16,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 24.38,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 17,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 24.38,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 18,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 24.34,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 19,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 24.33,
+      "error": ""
+    },
+    {
+      "fault_class": "F01",
+      "trial": 20,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 24.38,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 1,
+      "verdict": "F01",
+      "pass_rate": 0.0,
+      "seconds": 35.77,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 2,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 32.98,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 3,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 33.22,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 4,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 33.12,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 5,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 33.42,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 6,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 32.67,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 7,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 34.67,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 8,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 33.05,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 9,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 32.3,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 10,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 32.72,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 11,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 33.84,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 12,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 33.14,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 13,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 32.84,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 14,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 33.17,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 15,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 33.44,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 16,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 33.8,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 17,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 33.38,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 18,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 32.78,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 19,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 33.64,
+      "error": ""
+    },
+    {
+      "fault_class": "F06",
+      "trial": 20,
+      "verdict": "F06",
+      "pass_rate": 0.0,
+      "seconds": 33.95,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 1,
+      "verdict": "INSUFFICIENT_EVIDENCE",
+      "pass_rate": 0.0,
+      "seconds": 19.61,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 2,
+      "verdict": "INSUFFICIENT_EVIDENCE",
+      "pass_rate": 0.0,
+      "seconds": 18.14,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 3,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.05,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 4,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.52,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 5,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.14,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 6,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.36,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 7,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 17.94,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 8,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.53,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 9,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.39,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 10,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.94,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 11,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.25,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 12,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.67,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 13,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.56,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 14,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.05,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 15,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.5,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 16,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 17.97,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 17,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.3,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 18,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.7,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 19,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.08,
+      "error": ""
+    },
+    {
+      "fault_class": "F07",
+      "trial": 20,
+      "verdict": "F07",
+      "pass_rate": 0.0,
+      "seconds": 18.16,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 1,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 17.61,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 2,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 17.23,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 3,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 17.05,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 4,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 17.78,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 5,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 17.38,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 6,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 17.61,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 7,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 16.95,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 8,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 17.2,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 9,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 17.92,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 10,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 17.34,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 11,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 17.16,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 12,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 17.3,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 13,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 17.81,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 14,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 17.16,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 15,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 17.5,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 16,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 17.44,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 17,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 17.23,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 18,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 17.31,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 19,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 17.14,
+      "error": ""
+    },
+    {
+      "fault_class": "F08",
+      "trial": 20,
+      "verdict": "F08",
+      "pass_rate": 0.0,
+      "seconds": 16.94,
+      "error": ""
+    }
+  ]
+}
