@@ -2844,3 +2844,25 @@ against them, unchanged, and is still blind.
 The scale-versus-family question is therefore **open**, and the report's
 scale reading keeps the confound §32.1 names: 7B and 120B differ in size,
 family and decoder path at once.
+
+---
+
+### 29.12 Amendment, written before the run: the registered F07 run starts at ~14:30 UTC on 2026-11-10, not 06:15 on 2026-11-11
+
+The owner added a **fourth Groq key, from a new account and organization**
+(owner's statement, 2026-11-10 ~14:25 UTC; the org id cannot be read from
+here until a key returns a 429). Groq's daily limit is per organization
+(§28.1, §29.11), so a new organization brings a fresh 200,000 tokens against
+the run's ~125,000. The 06:15 gate existed only to let the drained
+organizations replenish, so it is moved to now.
+
+**Nothing measured changes.** Same command as §29.1, same model, same
+seeded incidents, and the waiter still requires target health,
+`config_hash de4cfaed14a8bb98` (§30's target state), all faults clear, no
+other experiment holding the target, and an admitted probe. Key rotation
+changes who is billed and nothing else (`providers.py`, `keys_for`).
+
+**What is still not knowable** is unchanged from §29.11: no probe can
+confirm 125k, because the per-minute ceiling is 8,000. If the new key is
+*not* in a new organization after all, the run aborts as §30's did and
+that abort is recorded as the measurement of the key, not the model.
