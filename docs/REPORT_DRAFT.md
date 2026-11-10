@@ -1284,27 +1284,36 @@ same difficulty.
 > `F06`, `F07` or `F08`. A second run on 2026-11-10 aimed at `F07` alone
 > hit the same cap after 3 incidents. The pre-registered F07 run
 > (`EXPERIMENT_CLOSURE_ABLATION.md` §29, whose primary outcome was changed to
-> **agreement** on the record before it started) then reached **12 of its
-> 15 incidents** the same day. Its read-off is §30:
+> **agreement** on the record before it started) then ran **all 15 of its
+> incidents**, none dropped. Its read-off is §33:
 >
 > | | arm A, shipped frame | arm B, size-matched noise |
 > |---|---|---|
-> | named F07 (agreement) | **12/12** | **0/11** |
-> | confident wrong answer | 0 | **0**, all 11 returned `INSUFFICIENT_EVIDENCE` |
-> | closure (detector) | 12/12 | 11/11 |
-> | mean stated confidence | 0.894 | 0.734 |
+> | named F07 (agreement) | **15/15** | **1/15** |
+> | confident wrong answer | 0 | **0**; 14 returned `INSUFFICIENT_EVIDENCE` |
+> | closure (detector) | 15/15 | 15/15 |
+> | mean stated confidence | 0.915 | 0.708 |
 >
-> Paired on the incident, b=11 c=0, **exact McNemar p = 0.00098**. On `F07`
-> the 120B model loses the class completely under size-matched noise, and
-> **not one of the 11 degraded diagnoses is a confident wrong answer.** On the
+> Paired on the incident, b=14 c=0, **exact McNemar p = 0.00012**. On `F07`
+> the 120B model all but loses the class under size-matched noise, and
+> **not one of the 15 noise-arm diagnoses is a confident wrong answer.** On the
 > local model the matched arm produced **40 confident wrong answers in about
 > 171** arm-B diagnoses, pooled over four classes (§21.4). So what reverses
 > with model scale is not the accuracy loss but the **failure mode**, from
 > confident error to refusal. That comparison crosses a class boundary
-> (F07 alone against four pooled) and must be quoted with it attached. Arm
-> A's perfect score carries a Clopper-Pearson one-sided 95% ceiling of
-> **0.22** at k=12, and the registered n of 15 has still to run. `F06` and
-> `F08` remain unmeasured cross-provider.
+> (F07 alone against four pooled) and must be quoted with it attached, and
+> "model scale" here is confounded with model family and decoder path (§6;
+> the test that would separate them was pre-registered and withdrawn before
+> data). Arm A's perfect score carries a Clopper-Pearson one-sided 95%
+> ceiling of **0.18** at k=15. `F06` and `F08` remain unmeasured
+> cross-provider.
+>
+> **`seed=42` does not make these runs reproducible.** A 12-incident run
+> earlier the same day put the same 23 seeded cells to the same model: the
+> named class matched in **22 of 23**, but class, confidence and citations
+> all matched in only **2 of 23**, and one cell's confidence moved from 0.20
+> to 0.85 (§33.2). Class-level results here reproduce; stated confidence
+> does not, and the confidence figures above should be read as one draw.
 >
 > The token budget is per organization, but §28.1's further claim that all
 > three keys share one organization was wrong (§29.11): two organization ids
@@ -1337,7 +1346,7 @@ confident wrong answer both score 1.00** as long as the citation is right.
 Measured on `gpt-oss-120b`: 10 of 18 arm-B diagnoses returned
 `INSUFFICIENT_EVIDENCE` and every one of them closed
 (`EXPERIMENT_CLOSURE_ABLATION.md` §24.3), and the registered F07 run adds
-11 of 11 more (§30). So a metric at a ceiling is not
+14 of 14 more (§33). So a metric at a ceiling is not
 merely uninformative here — it is measuring a different thing from the one
 a risk gate needs, and no amount of additional data would make it separate
 right diagnoses from wrong ones.
@@ -1942,8 +1951,8 @@ implementable direction — one frame per candidate class, scored separately —
 is named in §9 and has not been built or measured.
 
 **Scope: this is a local-model result.** On `groq:openai/gpt-oss-120b` the
-same shipped frame names injected F07 correctly in **12 of 12** incidents
-(`EXPERIMENT_CLOSURE_ABLATION.md` §30), and the earlier partial runs on that
+same shipped frame names injected F07 correctly in **15 of 15** incidents
+(`EXPERIMENT_CLOSURE_ABLATION.md` §33), and the earlier partial runs on that
 model agree in direction. So the misdirection above needs the frame's
 non-discriminating items *and* a 7B model; at 120B the shipped frame is
 enough. Two cautions travel with that. The two runs also differ in decoder

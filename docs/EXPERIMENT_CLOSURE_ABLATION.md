@@ -2866,3 +2866,93 @@ changes who is billed and nothing else (`providers.py`, `keys_for`).
 confirm 125k, because the per-minute ceiling is 8,000. If the new key is
 *not* in a new organization after all, the run aborts as §30's did and
 that abort is recorded as the measurement of the key, not the model.
+
+---
+
+## 33. Read-off: the registered F07 run, 15 of 15 incidents - five of six predictions met, and seed=42 does not make Groq reproducible
+
+Ran 2026-11-10 14:26-14:34 UTC on Groq-direct under §29.12, §29.1's command
+unchanged. Artifact `closure-ablation-groq-f07-ab.json`, **`complete: true`,
+30 of 30 diagnoses usable, no incident dropped**, target verified healthy,
+unchanged and clear afterwards. It finished, so the fourth key behaved as a
+new organization would; that is consistent with the owner's statement and
+is not a reading of the org id, which never appeared.
+
+**This is the result. §30's 12-incident run is superseded by it and kept on
+the page, as §30.3 required.**
+
+### 33.1 The predictions, scored
+
+| # | Prediction | §30, 12 incidents | **§33, registered 15** | |
+|---|---|---|---|---|
+| 1 | arm A agreement >= 0.93 | 12/12 | **15/15** | met |
+| 2 | **PRIMARY: arm B agreement <= 0.50** | 0/11 | **1/15 = 0.07** | met |
+| 3 | arm B confident wrong <= 2 | 0 | **0** | met |
+| 4 | closure (detector) >= 0.95 both arms | 1.00 / 1.00 | **1.00 / 1.00** | met |
+| 5 | arm A confidence exceeds arm B by >= 0.15 | 0.160 | **0.915 - 0.708 = 0.207** | met |
+| 6 | 1 to 3 of 15 dropped by the detector | 0 of 12 | **0 of 15** | **not met** |
+
+On **agreement**, the outcome §29.2 registered, paired on the incident:
+
+```
+b = 14  (arm A named F07, arm B did not)
+c =  0
+exact McNemar, two-sided p = 0.000122
+```
+
+Arm A's perfect score carries a **Clopper-Pearson one-sided ceiling of
+0.181** at k=15. The harness again printed `p=1.0000 <- prediction NOT
+met`; as §30.2 explains, that line tests the superseded closure primary,
+which is 1.00 in both arms and cannot move.
+
+The one arm-B agreement is **F07#9, named F07 at confidence 0.72**. Every
+other arm-B answer was `INSUFFICIENT_EVIDENCE`. Not one of the 15 was a
+confident wrong answer.
+
+### 33.2 The finding nobody registered: the seed fixes the inputs, not the outputs
+
+Incidents are seeded per class and index, and the provider is sent
+`seed=42`, so §30 and this run put **the same 23 cells** to the same model.
+Compared cell by cell on (named class, stated confidence, citations):
+
+- **identical in 2 of 23**;
+- **named class identical in 22 of 23** - only F07#9 arm B changed,
+  `INSUFFICIENT_EVIDENCE` at 0.85 to `F07` at 0.72;
+- stated confidence moved by up to **0.65** on one cell (F07#7 arm B, 0.20
+  to 0.85), and the citation count changed in roughly half the A cells.
+
+So on Groq, `seed=42` makes the **class-level** outcome close to
+reproducible (0.96) and the **confidence** not reproducible at all. Three
+consequences, each a correction:
+
+1. **Splicing would not have been 'the same observations'.** When the owner
+   asked to run only incidents 13-15, the reply was that the spliced n=15
+   'would give genuinely the same 15 observations the registered run
+   produces'. The inputs, yes; the outputs, no. Running the full 15 was
+   right for a reason the reply did not give.
+2. **§31.2 overstates what has been 'seen'.** F08#1-#5 are the same *inputs*
+   as `groq-smoke2`; their outputs are not fixed by the seed. The
+   disclosure stands - the class-level outcome is 0.96 reproducible - but
+   it is weaker than 're-measures incidents whose outcome I have seen'.
+3. **Prediction 5 is fragile in a way it did not state.** A threshold on
+   the mean confidence of 15 cells, when single cells move by 0.65 between
+   runs, is measuring run-to-run noise as much as the arm. 0.160 then 0.207
+   is that noise. The confidence channel is reported, and should not carry
+   weight at this n.
+
+Unregistered and exploratory, from two runs. It is reported because the
+report's reproducibility wording must not imply more than this.
+
+### 33.3 What follows
+
+- F07 cross-provider is **measured**: at 120B, size-matched noise costs the
+  class almost entirely (15/15 to 1/15) and produces **refusals, not
+  confident errors** (0 of 15), while closure stays at 1.00 and cannot see
+  it.
+- The scale reading still carries §32.1's confound - 7B and 120B differ in
+  size, family and decoder path - and §32, the test that would separate
+  them, was withdrawn before data.
+- §31's F08 run is unblocked on its first condition (this artifact exists).
+  Its timing condition is unchanged: this run's spend is in the window, and
+  which organizations served it cannot be read, so no new budget argument
+  is made.
