@@ -2372,3 +2372,89 @@ quotable as rates (§28.5).
 aborts as §26, §28 and §29.7 did - artifact flushed per incident, fault
 reverted - and the partial is reported as a partial. That is a funding
 boundary, not a result about the model, and it will be labelled as one.
+
+### 29.9 THIRD AMENDMENT, 2026-11-10 07:45 UTC: the same error a fourth time, and the wait was right for a reason never given
+
+The bf16 run aborted after **2 incidents** on the same HTTP 402, `"can only
+afford 1770"`. The OpenRouter account reads `total_credits: 0`, `total_usage:
+$0.198` - it was never funded and had roughly four diagnoses of dribble left.
+Artifact `closure-ablation-openrouter-deepinfra-f07-ab.json`, 4 usable
+observations, `complete: false`. Target clean afterwards, all four injectors
+`clear`.
+
+**§29.8 named the pattern and the very next action repeated it.** The probes
+in §29.8 established that **one** correctly-sized call is served. The run
+needs **thirty**. Nothing in that probe spoke to the thirtieth, and the
+balance was read in the same session - `is_free_tier: true`, `total_credits:
+0` - and not connected. Fourth instance:
+
+| | measured | reported |
+|---|---|---|
+| §27.1 | the requests-per-day counter | the tokens-per-day limit |
+| §29.7 | a 96-token call is served | a 4,000-token call will be |
+| §29.8a | the 8,000/min ceiling | the 200,000/day budget |
+| §29.9 | one call is affordable | thirty calls are |
+
+Writing the pattern down did not stop it. What would have: the probe's
+unit was never the run's unit, and no probe was ever asked to be.
+
+**THE TEMPTING FIX IS FORBIDDEN AND IS NOT TAKEN.** The 402 is a reservation
+against `max_tokens: 2048`; dropping it to 1024 would be admitted. The
+provider table records why 2048 exists - a reasoning model spends hidden
+thinking tokens from the same budget, and a smaller cap returned answers cut
+mid-string. Halving the output budget to fit a free tier would be weakening a
+measurement to make it pass, which `AGENTS.md` forbids outright. The budget
+stays; the run waits.
+
+**THE ROUTE SURVEY, now complete and measured rather than assumed.**
+
+| rail | serves `gpt-oss-120b` | state |
+|---|---|---|
+| groq direct | yes | **free**, 200k/day org-wide, spent until ~00:05-06:00 UTC 11 Nov |
+| openrouter | yes, 26 upstreams | credits 0, ~4 diagnoses of dribble |
+| ollamacloud | `gpt-oss:120b` | HTTP 402, add credits |
+| tokenrouter | yes | HTTP 403, $0.00 remaining |
+| nvidia | **no** - `gpt-oss-20b` only | would be a different model |
+| opencodezen | **no** - 45 models, none | - |
+
+**So the wait was right, and the reason given for it in §29.6 was not the
+reason.** §29.6 said wait because the cap is per-organization. The true
+reason is that every other route to this model is unfunded, which §29.6 never
+checked and §29.7-§29.9 then checked four times badly. A correct conclusion
+reached through an unchecked premise is not a correct inference, and the
+record says so rather than quietly keeping the right answer.
+
+**The run is re-armed on Groq-direct for 06:15 UTC on 11 Nov**, §29.1-§29.5
+unchanged, `KAVACH_OPENROUTER_PIN` unset. One day's 200,000 tokens covers
+~105k of prompt plus completions with roughly 70k spare, so it fits a single
+window without splitting.
+
+### 29.10 What the three partials already agree on, before the real run
+
+Not a result - 13 arm-A diagnoses across three hosts, which §16.3 binds, not
+§7. Recorded because it is cheap and it is consistent.
+
+| rail | precision | incidents | arm A named F07 | arm B named F07 |
+|---|---|---|---|---|
+| groq direct (§28) | undisclosed | 3 | 10/10 | 3/9 |
+| openrouter>Groq (§29.7) | undisclosed | 1 | 1/1 | 0/1 |
+| openrouter>DeepInfra | **bf16** | 2 | 2/2 | 0/2 |
+| pooled | - | 6 | **13/13** | **3/12** |
+
+Arm A perfect at 13 draws bounds the one-sided Clopper-Pearson ceiling at
+**0.206** - which is no bound worth quoting, and is stated so it cannot be
+mistaken for one.
+
+Two things do survive the thrashing:
+
+- **`closure(detector)` was 1.00 in every arm of all three runs**, on two
+  providers and two precisions, including arms whose agreement was 0.00.
+  §28.3's claim that the pre-registered PRIMARY saturates on this model class
+  has now replicated across rails, which is more than the aborted runs were
+  designed to show. §29.3's prediction 4 predicted exactly this.
+- **§29.3's prediction 6 is already in trouble.** It expected 1 to 3 of 15
+  incidents dropped; this run dropped **2 of 4** - `F07#2` and `F07#4`, both
+  because the DETECTOR said `INSUFFICIENT_EVIDENCE` rather than the injected
+  class. At that rate 15 incidents would drop ~7. n=4, so this is a signal to
+  watch and not a refutation, and it is logged now so that noticing it later
+  cannot be mistaken for having predicted it.
