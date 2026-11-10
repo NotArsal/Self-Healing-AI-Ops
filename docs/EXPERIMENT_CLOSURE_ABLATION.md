@@ -2588,3 +2588,150 @@ this run landed on it - while the run spent **~90,000 prompt tokens**
 is the first direct measurement that the rotation draws on more than one
 organization's budget, and it confirms §29.11 by a route that does not
 depend on reading org ids out of error messages.
+
+---
+
+## 31. Pre-registration: F08, 15 incidents x 1 rep, arms A and B, on Groq-direct - written 2026-11-10, before the run, and NOT blind
+
+Written before any of this run's data exists, while the registered F07 run
+(§29) is still pending. **It is not a blind pre-registration, and §31.2 says
+exactly what has already been seen.**
+
+### 31.1 Why F08, and not F06
+
+§30's most quotable reading - that what reverses with model scale is the
+**failure mode**, from confident error to refusal - currently compares F07 at
+120B against four classes pooled on the local model. It crosses a class
+boundary. The next run should remove that confound, and only one class can:
+
+| local `qwen2.5:7b`, arm B | agreement | confident wrong, rep 1 only |
+|---|---|---|
+| F06, three full runs | 135/135 | 0 |
+| F08, three full runs | 33/117 | **6/39 = 0.154** |
+
+Size-matched noise has **no effect on F06 locally**, so an F06 run on 120B
+can only return a null that both models share. **F08 is the one class where
+the local model gave confident wrong answers under noise**, so it is the only
+within-class test of the scale reading. F06 runs after this one, with a
+predicted null.
+
+### 31.2 What has already been seen
+
+| artifact | class | incidents | arm A agreement | arm B agreement | arm B confident wrong |
+|---|---|---|---|---|---|
+| `closure-ablation-groq-smoke2.json` | F08 | **#1-#5**, rep 1 | 5/5 | 0/5 | 0 |
+| `groq-full` + `groq-smoke2` | F06 | 7 incidents | 6/7 | 6/7 | 0 |
+
+**Incidents are seeded per class and index** (`closure_ablation.py:509`,
+`:551`), so F08#1-#5 here are **the same draws** the registered run will
+produce, on the same model with `seed=42`. A third of this run therefore
+re-measures incidents whose outcome I have seen. **Only F08#6-#15 are blind,
+and every F08-alone confirmatory figure below is computed on #6-#15 first**,
+then on all 15 with #1-#5 flagged. Choosing which subset to lead with after
+seeing the data would defeat the point, so it is fixed here.
+
+### 31.3 The design
+
+```
+harness/closure_ablation.py --classes F08 --incidents 15 --reps 1
+    --arms AB --provider groq --model openai/gpt-oss-120b
+    --json-out harness/reports/closure-ablation-groq-f08-ab.json
+```
+
+30 diagnoses. Measured in `groq-smoke2` at 4,081 (A) and 3,711 (B) prompt
+tokens, so **~117k prompt, ~125k with completions** - the same size as §29.1.
+
+**When.** Not before the registered F07 artifact exists (complete, or renamed
+after an abort), and not before **11:00 UTC on 2026-11-11**. The day holds at
+least 400,000 tokens across at least two organizations (§29.11). The F07 run
+spends ~125k from 06:15, and §30's run spent ~90k between 09:55 and 10:40 UTC
+on 2026-11-10, which ages out of the 24h window at ~10:40. After 11:00 the
+estimate is >= 275k free. **That is an estimate and no probe can confirm it**
+(the per-minute ceiling is 8,000), so an abort stays possible, and the abort
+path - fault reverted, artifact flushed per incident - is the fallback, as
+before.
+
+### 31.4 The primary outcome is agreement
+
+As §29.2, and now on more evidence than §29.2 had: `closed_detector` read
+**1.00 in every arm on both classes measured at 120B** - F01 at 45/45 in A,
+B and E, and F07 at 12/12 and 11/11 (§30). It cannot separate a correct
+diagnosis from a refusal on this model and is reported as a secondary that is
+expected to saturate.
+
+### 31.5 The predictions
+
+| # | Prediction | If it fails |
+|---|---|---|
+| 1 | arm A agreement >= 14 of 15 | the shipped frame does not transfer on F08 at 120B |
+| 2 | **PRIMARY: arm B agreement <= 0.50** | noise does not cost F08 the class at 120B; the effect is F07-specific |
+| 3 | arm B confident wrong <= 1 of 15 | the local rate (0.154, ~2.3 expected at 15) holds at 120B on F08 |
+| 4 | closure (detector) >= 0.95 in both arms | §30's saturation claim is wrong on F08 |
+| 5 | arm A mean confidence exceeds arm B's by >= 0.15 | confidence does not track degradation on F08 |
+| 6 | 0 to 2 of 15 incidents dropped by the detector | see below |
+
+**Prediction 6 has no measured rate behind it.** No F08 detection rate is
+recorded anywhere in this programme; the range rests on `groq-smoke2`
+dropping 0 of 5 F08 incidents and §30 dropping 0 of 12 F07. It is stated so
+that a surprising drop count is noticed, not because it is grounded.
+
+**Refutation of the scale reading.** If arm B shows **3 or more** confident
+wrong answers of 15 - the local rate - then 'the failure mode reverses with
+scale' is withdrawn to 'F07, at 120B, refuses', and §4.4a of the report
+says so.
+
+### 31.6 The scale test, with its power stated before the data
+
+**Confident wrong**, fixed here: the diagnosis names a fault class other than
+the injected one, and is not `INSUFFICIENT_EVIDENCE` or `UNKNOWN`, at any
+stated confidence. No threshold is needed: every such answer in the local
+comparator below stated confidence >= 0.8.
+
+**Local comparator, fixed now:** arm B, **rep 1 only**, so one diagnosis per
+incident and the clustering that `reps=3` introduces is not counted as
+independent evidence. F07: 17/43. F08: 6/39. Pooled: **23/82 = 0.280**.
+
+Two tests, one-sided Fisher exact (fewer confident wrong at 120B):
+
+1. **F08 alone, 120B vs local.** **Underpowered, whatever happens:** 0 of 15
+   gives p = 0.126, 1 of 15 gives p = 0.363. This test cannot establish the
+   scale reading at this n. It can only refute it, through 31.5's rule.
+2. **Class-matched pool, F07 + F08 at 120B vs F07 + F08 local.** With the
+   registered F07 run's 15, n = 30 at 120B. One-sided p = 0.0003 at 0
+   confident wrong, 0.0025 at 1, 0.0113 at 2, **0.0349 at 3**, 0.0829 at 4. The
+   rule: **p < 0.05 supports the scale reading on class-matched data.**
+   **Its F07 half is not blind** - §30 has 0 of 11 - so this is reported as a
+   class-matched comparison with half its data seen, never as a confirmatory
+   test.
+
+Both carry the confound §6 of the report names: the decoder path differs
+(Ollama grammar locally, strict `json_schema` on Groq), so model scale is the
+leading explanation, not an isolated one.
+
+### 31.7 Analysis fixed in advance
+
+- McNemar, exact, on **agreement**, paired on the incident.
+- A perfect arm reports the Clopper-Pearson one-sided ceiling: **0.181 at
+  15, 0.259 at 10** (the blind subset).
+- Dropped incidents are reported as dropped, not refilled.
+- F08-alone figures are computed on **#6-#15 first**, then on all 15 (§31.2).
+
+### 31.8 One harness change before this run, and why not before F07
+
+A detector drop records the verdict (`detector said INSUFFICIENT_EVIDENCE`)
+but not **why**, so §29.10's dropped incidents cannot be explained after the
+fact. `Detection.reasons` already carries that
+(`kavach/detection/base.py:76`). The detector-drop entry in
+`closure_ablation.py` gains the first three reasons, truncated.
+
+It is a change to a log string. It touches no observation, arm, prompt or
+metric, lands with a unit test, and must pass `make check`. **It is not made
+before the registered F07 run**, because that run is compared against §30's
+12 incidents and the measured path is frozen between runs being compared. It
+is made after the F07 artifact exists and before this run starts.
+
+### 31.9 What this run still cannot answer
+
+`F06` cross-provider is next, with a predicted null. One cloud model, one
+scale, one decoder path per model. And `reps=1` again gives up the
+within-cell spread §7 reads.

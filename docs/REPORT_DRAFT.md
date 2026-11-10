@@ -1282,24 +1282,41 @@ same difficulty.
 > `qwen2.5:7b-instruct`. On `F01` the effect is **absent** at 120B. The run
 > was then stopped by Groq's 200,000-tokens-per-day cap before reaching
 > `F06`, `F07` or `F08`. A second run on 2026-11-10 aimed at `F07` alone
-> hit the same cap after **3 complete incidents**, and is reported here as a
-> direction with its denominator rather than as a rate (§28.5). That
-> direction is this: on `F07` the 120B model's agreement does fall under
-> size-matched noise, 10/10 to **3/9** — but **none of the 18 degraded
-> diagnoses was a confident wrong answer**. Six of nine abstained, and mean
-> stated confidence fell from 0.90 to 0.58. The comparison is **0 of 18**
-> here, F07 only, against **40 of about 171** arm-B diagnoses on the local
-> model in the matched run, pooled over four classes (§21.4). So what
-> reverses with model scale may not be
-> the accuracy loss but the **failure mode**, from confident error to
-> refusal. Three incidents cannot establish a rate and this must not be
-> quoted as one. `F06` and `F08` remain unmeasured cross-provider.
+> hit the same cap after 3 incidents. The pre-registered F07 run
+> (`EXPERIMENT_CLOSURE_ABLATION.md` §29, whose primary outcome was changed to
+> **agreement** on the record before it started) then reached **12 of its
+> 15 incidents** the same day. Its read-off is §30:
 >
-> The cap is **200,000 tokens per day per organization**, not per key
-> (§28.1 corrects §27.1, which had that wrong), so the pre-registered
-> 135-diagnosis shape is a 2.5-day job. The pooled drop above is
-> over four classes and is not overturned by one of them vanishing; it is
-> narrowed to the local model until F07 is measured cross-provider.
+> | | arm A, shipped frame | arm B, size-matched noise |
+> |---|---|---|
+> | named F07 (agreement) | **12/12** | **0/11** |
+> | confident wrong answer | 0 | **0**, all 11 returned `INSUFFICIENT_EVIDENCE` |
+> | closure (detector) | 12/12 | 11/11 |
+> | mean stated confidence | 0.894 | 0.734 |
+>
+> Paired on the incident, b=11 c=0, **exact McNemar p = 0.00098**. On `F07`
+> the 120B model loses the class completely under size-matched noise, and
+> **not one of the 11 degraded diagnoses is a confident wrong answer.** On the
+> local model the matched arm produced **40 confident wrong answers in about
+> 171** arm-B diagnoses, pooled over four classes (§21.4). So what reverses
+> with model scale is not the accuracy loss but the **failure mode**, from
+> confident error to refusal. That comparison crosses a class boundary
+> (F07 alone against four pooled) and must be quoted with it attached. Arm
+> A's perfect score carries a Clopper-Pearson one-sided 95% ceiling of
+> **0.22** at k=12, and the registered n of 15 has still to run. `F06` and
+> `F08` remain unmeasured cross-provider.
+>
+> The token budget is per organization, but §28.1's further claim that all
+> three keys share one organization was wrong (§29.11): two organization ids
+> are on record, each drained to ~196k of 200,000 on 2026-11-10, so the day
+> holds **at least 400,000 tokens**. The cap was not what kept these runs
+> short; runs aborted on unfunded alternative rails were.
+>
+> **The pooled closure drop above is a local-model result.** On the 120B
+> model closure did not move on either class measured: `F01` and `F07` both
+> read 1.00 in both arms, while agreement on `F07` collapsed. So at 120B the
+> noise effect is real and the pre-registered metric cannot see it, which
+> is why §29.2 changed the run's primary outcome before the run started.
 >
 > What survives from 2026-11-08 is the **length** sensitivity and the
 > **ceiling**: arm A holds 0.99 to 1.00 on every run. What does not survive
@@ -1319,7 +1336,8 @@ and is not a defect in ours. Its consequence is that **an abstention and a
 confident wrong answer both score 1.00** as long as the citation is right.
 Measured on `gpt-oss-120b`: 10 of 18 arm-B diagnoses returned
 `INSUFFICIENT_EVIDENCE` and every one of them closed
-(`EXPERIMENT_CLOSURE_ABLATION.md` §24.3). So a metric at a ceiling is not
+(`EXPERIMENT_CLOSURE_ABLATION.md` §24.3), and the registered F07 run adds
+11 of 11 more (§30). So a metric at a ceiling is not
 merely uninformative here — it is measuring a different thing from the one
 a risk gate needs, and no amount of additional data would make it separate
 right diagnoses from wrong ones.
@@ -1922,6 +1940,18 @@ using the injected class, which is the unknown being diagnosed. So this
 measures how much the frame's own contents cost, and it is not a repair. The
 implementable direction — one frame per candidate class, scored separately —
 is named in §9 and has not been built or measured.
+
+**Scope: this is a local-model result.** On `groq:openai/gpt-oss-120b` the
+same shipped frame names injected F07 correctly in **12 of 12** incidents
+(`EXPERIMENT_CLOSURE_ABLATION.md` §30), and the earlier partial runs on that
+model agree in direction. So the misdirection above needs the frame's
+non-discriminating items *and* a 7B model; at 120B the shipped frame is
+enough. Two cautions travel with that. The two runs also differ in decoder
+path (Ollama grammar locally, strict `json_schema` on Groq), so model scale
+is the leading explanation and not an isolated one. And it does not make the
+frame harmless: the same 120B model loses the class entirely once the frame
+is padded with size-matched noise (§4.4a). "The shipped frame fails on F07"
+must be quoted with the model attached.
 
 
 **Self-consistency is measured and not enforced, and that is a live decision,
