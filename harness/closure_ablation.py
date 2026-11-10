@@ -69,6 +69,7 @@ import re
 import sys
 import time
 import urllib.request
+from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -449,13 +450,23 @@ def summarise(run: Run) -> None:
     # Paired comparisons against the control, on the primary outcome.
     say("")
     say("  PAIRED against arm A, primary outcome = closure on the detector's class")
-    index = {(o.fault_class, o.incident, o.rep, o.arm): o for o in ok}
+    # THE PAIRING UNIT IS THE INCIDENT, NOT THE DIAGNOSIS. Reps of one
+    # incident share a frame and a draw and the measured within-cell spread
+    # is 0.01, so pairing per diagnosis treats the same observation three
+    # times as three independent ones and inflates every p-value. On the
+    # 2026-11-09 run that was the difference between p=0.0007 and p=0.1250
+    # for the primary comparison. Fixed 2026-11-10 here and in
+    # closure_ablation_report.py, which had the same defect while its
+    # bootstrap next to it had always resampled incidents.
+    grouped: dict[tuple[str, int, str], list[bool]] = defaultdict(list)
+    for o in ok:
+        grouped[(o.fault_class, o.incident, o.arm)].append(o.closed_detector)
+    index = {k: sum(v) * 2 > len(v) for k, v in grouped.items()}
     for arm in ("B", "C", "D", "E"):
         pairs = [
-            (index[k].closed_detector,
-             index[(k[0], k[1], k[2], arm)].closed_detector)
+            (index[k], index[(k[0], k[1], arm)])
             for k in index
-            if k[3] == "A" and (k[0], k[1], k[2], arm) in index
+            if k[2] == "A" and (k[0], k[1], arm) in index
         ]
         if not pairs:
             continue
@@ -467,7 +478,7 @@ def summarise(run: Run) -> None:
             drop = a_rate - x_rate
             verdict = ("  <- PREDICTION MET" if drop >= 0.15 and p < 0.05
                        else "  <- prediction NOT met")
-        say(f"    A vs {arm}: n={len(pairs)}  A={a_rate:.2f}  {arm}={x_rate:.2f}"
+        say(f"    A vs {arm}: incidents={len(pairs)}  A={a_rate:.2f}  {arm}={x_rate:.2f}"
             f"  drop={a_rate - x_rate:+.2f}  b={b} c={c}  p={p:.4f}{verdict}")
 
     if run.dropped:
@@ -489,6 +500,7 @@ def one_incident(
     distractors: list[tuple[str, float]],
     reps: int,
     shuffle: bool,
+    arms: tuple[str, ...],
     run: Run,
     max_transient: int = 8,
 ) -> None:
@@ -541,7 +553,7 @@ def one_incident(
             "\n".join(n for n, _ in draw).encode()).hexdigest()[:8]
 
         built: dict[str, EvidenceFrame] = {}
-        for arm in ARMS:
+        for arm in arms:
             candidate = build_arm(arm, frame, fault_class, draw, rng,
                                   shuffle)
             why = check_arm(arm, candidate, fault_class, control_size,
@@ -658,6 +670,18 @@ def main() -> int:
                          "the API being measured. Default follows Settings; "
                          "pass `ollama` to match a container that has no "
                          "provider set.")
+    ap.add_argument("--model", default="",
+                    help="override KAVACH_LLM_MODEL. .env holds an Ollama "
+                         "tag, and a cloud provider answers a 404 for it - "
+                         "so a cross-provider run must name its own model "
+                         "here rather than edit .env, which the in-flight "
+                         "local runs also read.")
+    ap.add_argument("--arms", default="".join(ARMS),
+                    help="which arms to run, e.g. AB. A is mandatory: arm B "
+                         "is size-matched to the control, so no arm can be "
+                         "validated without it. Arms A, C, D and E are "
+                         "saturated at 1.00 on qwen2.5:7b-instruct, so a "
+                         "cross-provider check only needs A and B.")
     ap.add_argument("--shuffle", action="store_true",
                     help="shuffle item order in EVERY arm. Off by default so "
                          "arm A is the shipped frame exactly; on, it tests "
@@ -674,8 +698,19 @@ def main() -> int:
         config=f"{TARGET}/v1/admin/config",
         admin_token=settings.target_admin_token))
     provider = args.provider or settings.llm_provider
-    llm = providers.build(provider, settings.llm_model,
-                          ollama_base_url=args.ollama)
+    model = args.model or settings.llm_model
+    llm = providers.build(provider, model, ollama_base_url=args.ollama)
+
+    arms = tuple(c for c in args.arms.strip().upper())
+    unknown = [c for c in arms if c not in ARMS]
+    if unknown:
+        raise SystemExit(f"--arms {args.arms!r}: not an arm: "
+                         f"{', '.join(unknown)}. Arms are {''.join(ARMS)}.")
+    if "A" not in arms:
+        raise SystemExit(
+            "REFUSING: --arms must include A. Every other arm is validated "
+            "against the control's item count, so dropping A does not save "
+            "work - it makes the run unusable.")
 
     baseline, source = newest_baseline()
     if not baseline:
@@ -687,7 +722,11 @@ def main() -> int:
     say(f"  provider     {provider}"
         + ("  (overridden; .env says "
            f"{settings.llm_provider!r})" if args.provider else ""))
-    say(f"  model        {settings.llm_model}")
+    say(f"  model        {model}"
+        + ("  (overridden; .env says "
+           f"{settings.llm_model!r})" if args.model else ""))
+    say(f"  arms         {''.join(arms)}"
+        + ("" if len(arms) == len(ARMS) else "  (subset)"))
     say(f"  ollama       {args.ollama}")
     say(f"  baseline     {source}")
     say(f"  shuffle      {args.shuffle}")
@@ -732,7 +771,7 @@ def main() -> int:
     except Exception as exc:
         raise SystemExit(
             f"REFUSING: provider {provider!r} cannot serve "
-            f"{settings.llm_model!r}. Nothing has been injected. "
+            f"{model!r}. Nothing has been injected. "
             f"[{type(exc).__name__}: {str(exc)[:160]}] "
             f"  The API container does not read .env - compose passes only "
             f"what its `environment:` block lists - so KAVACH_LLM_PROVIDER "
@@ -747,7 +786,7 @@ def main() -> int:
             "target first - a cold stack fails this and it is not a bug.")
 
     run = Run(at=datetime.now(UTC).isoformat(timespec="seconds"),
-              model=settings.llm_model, shuffled=args.shuffle)
+              model=f"{provider}:{model}", shuffled=args.shuffle)
     out = Path(args.json_out)
 
     def flush() -> None:
@@ -777,7 +816,8 @@ def main() -> int:
             say(f"--- {fault_class} ---")
             for incident in range(1, args.incidents + 1):
                 one_incident(fault_class, incident, client, llm, baseline,
-                             distractors, args.reps, args.shuffle, run)
+                             distractors, args.reps, args.shuffle, arms,
+                             run)
                 flush()
         finished = True
     finally:

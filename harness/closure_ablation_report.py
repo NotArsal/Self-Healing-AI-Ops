@@ -88,6 +88,55 @@ def cluster_bootstrap(
     return rate, lo, hi
 
 
+def perfect_arm_ceiling(rows: list[dict[str, Any]], field: str) -> float:
+    """One-sided 95% upper bound on the per-incident failure rate, or nan.
+
+    WHY THIS EXISTS. The cluster bootstrap is degenerate at the boundary: when
+    every incident closes, every resample also closes, so it reports
+    `[1.00, 1.00]` - a zero-width interval on a finite sample. That is correct
+    arithmetic and a misleading number. Arms A and E print it on every run,
+    and a reader is entitled to read a zero-width interval as certainty.
+
+    Observing k perfect incidents out of k says the failure probability is at
+    most `1 - 0.05 ** (1 / k)` with 95% confidence (the exact one-sided
+    Clopper-Pearson bound, which for 57 incidents is about 0.05). Returns nan
+    unless the arm is actually perfect, because for any other arm the
+    bootstrap interval is the better statistic and this bound would be loose.
+    """
+    by_cluster: dict[tuple[str, int], list[bool]] = defaultdict(list)
+    for o in rows:
+        by_cluster[(o["fault_class"], o["incident"])].append(bool(o[field]))
+    clusters = list(by_cluster.values())
+    if not clusters or not all(all(c) for c in clusters):
+        return float("nan")
+    return float(1.0 - 0.05 ** (1.0 / len(clusters)))
+
+
+def cells(rows: list[dict[str, Any]], field: str
+          ) -> dict[tuple[str, int, str], bool]:
+    """One outcome per (class, incident, arm), by majority of its reps.
+
+    THE PAIRING UNIT IS THE INCIDENT, NOT THE DIAGNOSIS. Reps of one incident
+    share a frame and a draw, and the measured within-cell spread is 0.01 -
+    they are very nearly the same observation three times. Pairing per
+    diagnosis treated 168 correlated outcomes as independent and inflated
+    every p-value: on the 2026-11-09 run A vs B read p=0.0007 per diagnosis
+    and p=0.1250 per incident, which is the difference between a significant
+    result and none. `cluster_bootstrap` had always resampled incidents; the
+    McNemar beside it had not, and the two disagreed about what an
+    observation was.
+
+    Majority rather than `all` or `any` because it degrades gracefully if
+    reps ever stop being deterministic. On that run all three rules gave
+    identical b and c.
+    """
+    grouped: dict[tuple[str, int, str], list[bool]] = defaultdict(list)
+    for o in rows:
+        grouped[(o["fault_class"], o["incident"], o["arm"])].append(
+            bool(o[field]))
+    return {k: sum(v) * 2 > len(v) for k, v in grouped.items()}
+
+
 def mcnemar(pairs: list[tuple[bool, bool]]) -> tuple[int, int, float]:
     b = sum(1 for a, x in pairs if a and not x)
     c = sum(1 for a, x in pairs if x and not a)
@@ -143,8 +192,13 @@ def main() -> int:
         sub = [o for o in rows if o["arm"] == arm]
         rate, lo, hi = cluster_bootstrap(sub, PRIMARY, args.draws)
         rates[arm] = rate
+        ceiling = perfect_arm_ceiling(sub, PRIMARY)
+        note = ("" if ceiling != ceiling          # nan: not a perfect arm
+                else f"  <- zero width because the arm is perfect; the"
+                     f" 95% one-sided bound on its per-incident failure"
+                     f" rate is {ceiling:.3f}")
         say(f"  {arm:4} {labels.get(arm, '')[:30]:30} {rate:6.2f}"
-            f"  [{lo:.2f}, {hi:.2f}]{'':>4} {len(sub):>5}")
+            f"  [{lo:.2f}, {hi:.2f}]{'':>4} {len(sub):>5}{note}")
 
     spread = within_cell_variance(rows, PRIMARY)
     say("")
@@ -173,28 +227,25 @@ def main() -> int:
 
     say("")
     say("  PAIRED against arm A (McNemar, exact, two-sided)")
-    index = {(o["fault_class"], o["incident"], o["rep"], o["arm"]): o
-             for o in rows}
+    cell = cells(rows, PRIMARY)
     for arm in [a for a in arms if a != "A"]:
-        pairs = [(bool(index[k][PRIMARY]),
-                  bool(index[(k[0], k[1], k[2], arm)][PRIMARY]))
-                 for k in index
-                 if k[3] == "A" and (k[0], k[1], k[2], arm) in index]
+        pairs = [(cell[k], cell[(k[0], k[1], arm)])
+                 for k in cell
+                 if k[2] == "A" and (k[0], k[1], arm) in cell]
         if not pairs:
             continue
         b, c, p = mcnemar(pairs)
         drop = rates.get("A", 0.0) - rates.get(arm, 0.0)
-        say(f"    A vs {arm}: n={len(pairs):4}  drop={drop:+.2f}"
+        say(f"    A vs {arm}: incidents={len(pairs):3}  drop={drop:+.2f}"
             f"  discordant b={b} c={c}  p={p:.4f}")
 
     say("")
     say("  PRE-REGISTERED VERDICT (prediction 2: arm B drops >= "
         f"{PREREGISTERED_DROP:.2f} and p < 0.05)")
     if "A" in rates and "B" in rates:
-        pairs = [(bool(index[k][PRIMARY]),
-                  bool(index[(k[0], k[1], k[2], "B")][PRIMARY]))
-                 for k in index
-                 if k[3] == "A" and (k[0], k[1], k[2], "B") in index]
+        pairs = [(cell[k], cell[(k[0], k[1], "B")])
+                 for k in cell
+                 if k[2] == "A" and (k[0], k[1], "B") in cell]
         _, _, p = mcnemar(pairs)
         drop = rates["A"] - rates["B"]
         met = drop >= PREREGISTERED_DROP and p < 0.05
