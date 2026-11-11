@@ -1298,22 +1298,55 @@ same difficulty.
 > the 120B model all but loses the class under size-matched noise, and
 > **not one of the 15 noise-arm diagnoses is a confident wrong answer.** On the
 > local model the matched arm produced **40 confident wrong answers in about
-> 171** arm-B diagnoses, pooled over four classes (§21.4). So what reverses
-> with model scale is not the accuracy loss but the **failure mode**, from
-> confident error to refusal. That comparison crosses a class boundary
-> (F07 alone against four pooled) and must be quoted with it attached, and
-> "model scale" here is confounded with model family and decoder path (§6;
-> the test that would separate them was pre-registered and withdrawn before
-> data). Arm A's perfect score carries a Clopper-Pearson one-sided 95%
-> ceiling of **0.18** at k=15. `F06` and `F08` remain unmeasured
-> cross-provider.
+> 171** arm-B diagnoses, pooled over four classes (§21.4), and **17 of 43**
+> on F07 alone, one diagnosis per incident. So what differs between the
+> models is not the accuracy loss but the **failure mode**: confident error
+> on qwen, refusal on gpt-oss. Arm A's perfect score carries a
+> Clopper-Pearson one-sided 95% ceiling of **0.18** at k=15.
 >
-> **`seed=42` does not make these runs reproducible.** A 12-incident run
-> earlier the same day put the same 23 seeded cells to the same model: the
-> named class matched in **22 of 23**, but class, confidence and citations
-> all matched in only **2 of 23**, and one cell's confidence moved from 0.20
-> to 0.85 (§33.2). Class-level results here reproduce; stated confidence
-> does not, and the confidence figures above should be read as one draw.
+> **It is not model size.** A pre-registered, blind test
+> (`EXPERIMENT_CLOSURE_ABLATION.md` §32, read off in §34) ran the same design
+> on **gpt-oss-20b**, on the same provider and serving stack as the 120B. It
+> scored 15/15 and 0/15 with **zero confident wrong answers and 15 of 15
+> abstentions** - the 120B's behaviour at a sixth of the size - so the
+> pre-registered rule returned the family reading (against the 7B, one-sided
+> Fisher p = 0.0021).
+>
+> **And it is not model family.** A second pre-registered, blind run put
+> **qwen3.8-27b** - a qwen model - on the same Groq strict-decoding path
+> (§36, read off in §37). It gave **zero confident wrong answers**, and
+> size-matched noise had **no effect on it at all**: 15/15 in both arms, at
+> the same stated confidence. So confident wrong answers under noise appear
+> on **one model only, qwen2.5-7b run locally**; three cloud models from two
+> families gave **0 of 45**. What separates the 7B from the rest - decoder
+> path, qwen version or size within qwen - is not isolated, and the run's
+> registration said in advance that this outcome could not isolate it. The
+> claim this supports is: **under size-matched noise, the small local model
+> guesses confidently; the cloud models tested either refuse (gpt-oss) or
+> are unaffected (qwen3.8).** And the noise effect itself is model-specific,
+> not a property of the frame.
+>
+> **The gpt-oss behaviour holds on F08 too.** F08 is the one class where qwen gave confident
+> wrong answers under noise (6 of 39), so it is the within-class check. The
+> pre-registered F08 run on `gpt-oss-120b` (§31, read off in §35) met **all
+> six** of its predictions: 15/15 and 0/15, zero confident wrong answers,
+> 15 of 15 abstentions, b=15 c=0, p = 0.00006, with the blind incidents
+> scored first and agreeing. On F08 alone the qwen comparison is
+> underpowered (p = 0.126), as the registration said it would be. Pooled
+> over the two classes, class-matched, gpt-oss-120b gives **0 of 30**
+> confident wrong answers against qwen's **23 of 82**, one-sided Fisher
+> **p = 0.0003**; the F07 half of that was seen before it was registered.
+> `F06` was not run cross-provider: the ablation closed with §37 and the
+> class's predicted result was a null.
+>
+> **The class-level result reproduces across draws; stated confidence does
+> not.** A 12-incident run earlier the same day met the same incidents with
+> a **different** noise draw - the distractor pool is scraped live, so no
+> two runs share one - and live evidence values. The named class matched in
+> **22 of 23** cells; class, confidence and citations together in only
+> **2 of 23**, and one cell's confidence moved from 0.20 to 0.85 (§33.2,
+> corrected in §33.4). The confidence figures above should be read as one
+> draw.
 >
 > The token budget is per organization, but §28.1's further claim that all
 > three keys share one organization was wrong (§29.11): two organization ids
@@ -1323,9 +1356,10 @@ same difficulty.
 >
 > **The pooled closure drop above is a local-model result.** On the 120B
 > model closure did not move on either class measured: `F01` and `F07` both
-> read 1.00 in both arms, while agreement on `F07` collapsed. So at 120B the
-> noise effect is real and the pre-registered metric cannot see it, which
-> is why §29.2 changed the run's primary outcome before the run started.
+> read 1.00 in both arms, while agreement on `F07` collapsed; the 20B reads
+> 1.00 in both arms on `F07` too. So on gpt-oss the noise effect is real and
+> the pre-registered metric cannot see it, which is why §29.2 changed the
+> run's primary outcome before the run started.
 >
 > What survives from 2026-11-08 is the **length** sensitivity and the
 > **ceiling**: arm A holds 0.99 to 1.00 on every run. What does not survive
@@ -1950,17 +1984,17 @@ measures how much the frame's own contents cost, and it is not a repair. The
 implementable direction — one frame per candidate class, scored separately —
 is named in §9 and has not been built or measured.
 
-**Scope: this is a local-model result.** On `groq:openai/gpt-oss-120b` the
-same shipped frame names injected F07 correctly in **15 of 15** incidents
-(`EXPERIMENT_CLOSURE_ABLATION.md` §33), and the earlier partial runs on that
-model agree in direction. So the misdirection above needs the frame's
-non-discriminating items *and* a 7B model; at 120B the shipped frame is
-enough. Two cautions travel with that. The two runs also differ in decoder
-path (Ollama grammar locally, strict `json_schema` on Groq), so model scale
-is the leading explanation and not an isolated one. And it does not make the
-frame harmless: the same 120B model loses the class entirely once the frame
-is padded with size-matched noise (§4.4a). "The shipped frame fails on F07"
-must be quoted with the model attached.
+**Scope: this is a qwen-7B result, and not a size effect.** The same shipped
+frame names injected F07 correctly in **15 of 15** incidents on
+`gpt-oss-120b` and **15 of 15** on `gpt-oss-20b`
+(`EXPERIMENT_CLOSURE_ABLATION.md` §33, §34). So the misdirection above needs
+the frame's non-discriminating items *and* the qwen model; on both gpt-oss
+models the shipped frame is enough. One caution travels with that: qwen ran
+through a different decoder path (Ollama grammar locally, strict
+`json_schema` on Groq), so model family and decoder are not separated. And it
+does not make the frame harmless: both gpt-oss models lose the class almost
+entirely once the frame is padded with size-matched noise (§4.4a). "The
+shipped frame fails on F07" must be quoted with the model attached.
 
 
 **Self-consistency is measured and not enforced, and that is a live decision,

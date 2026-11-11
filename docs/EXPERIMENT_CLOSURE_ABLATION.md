@@ -2990,3 +2990,335 @@ outcome, the comparators (120B now from the registered §33 run, 0 confident
 wrong of 15, which is the column §32.3 was computed against), and the rule -
 <= 1 confident wrong of 15 is the family reading, >= 4 the scale reading,
 2 or 3 undecided. §32.5's withdrawal is superseded by this.
+
+### 33.4 CORRECTION to §33.2, §31.2 and §32.2: the seed does not fix the inputs either
+
+§33.2 said the seed 'fixes the inputs, not the outputs'. **The inputs were
+not fixed.** The two runs logged a `draw` id for every arm-B cell, and
+**0 of 12** shared incidents have the same one. The distractor pool is
+**scraped live from Prometheus at the start of each run**
+(`closure_ablation.py:165`, `scrape_distractors`); only the shuffle of that
+pool is seeded. A different pool shuffled with the same seed is a different
+draw. The real evidence frame is collected live as well. The claim was made
+from the seed without reading the draw ids printed on every line - the same
+error as §29.9, a property asserted from an adjacent one.
+
+**What survives, and is stronger than §33.2 said:** the named class matched
+in **22 of 23** cells across two runs whose noise and evidence values both
+differed. That is robustness of the class-level outcome to the draw, not
+only to sampling.
+
+**Withdrawn:** that `seed=42` fails to reproduce Groq's outputs. With
+different inputs, the confidence swings in §33.2 may be entirely the draw;
+these runs cannot isolate the model's own nondeterminism. Consequence 3
+of §33.2 - that prediction 5's confidence threshold is fragile at this n -
+stands, because the swings are real whatever their cause.
+
+**§31.2 is overstated in the other direction.** `groq-smoke2`'s F08#1-#5
+had their own scraped pool, so the registered F08 run will not meet the
+same draws. Those incidents are less 'seen' than §31.2 says; the
+disclosure stays, and the #6-#15-first rule stays, because it was fixed
+before the data.
+
+**§32.2's 'the three models meet identical draws' is wrong** for the same
+reason. It does not touch §32's test, which compares confident-wrong rates
+between models and never pairs incidents across them.
+
+---
+
+## 34. Read-off: §32 on gpt-oss-20b - zero confident wrong of 15, so the pre-registered rule returns the FAMILY reading and size is ruled out
+
+Ran 2026-11-10 14:44 UTC on Groq under §32.6, the command unchanged.
+Artifact `closure-ablation-groq-20b-f07-ab.json`, **`complete: true`, 30 of
+30 usable, none dropped**, target healthy, unchanged and clear afterwards,
+target-busy lock released.
+
+| F07, arm B = size-matched noise | gpt-oss-20b (§34) | gpt-oss-120b (§33) | qwen2.5-7b, local, rep 1 |
+|---|---|---|---|
+| arm A agreement | **15/15** | 15/15 | 25-47% across three runs |
+| arm B agreement | **0/15** | 1/15 | - |
+| **arm B confident wrong** | **0 of 15** | 0 of 15 | **17 of 43** |
+| arm B abstentions | **15 of 15** | 14 of 15 | - |
+| closure, A / B | 15/15 / 15/15 | 15/15 / 15/15 | not saturated in B |
+
+Agreement, paired on the incident: b=15 c=0, exact McNemar p = 0.000061.
+
+**§32.3's rule, applied as written:** 0 confident wrong of 15 is <= 1, the
+**family reading**. Against the local 7B (17/43) the one-sided Fisher p is
+**0.0021**; against 120B (0/15) it is 1.000. A model six times smaller than
+the 120B does exactly what the 120B does.
+
+### 34.1 What this establishes, and what it does not
+
+- **Size is ruled out** as the explanation for refusing instead of
+  guessing, within the gpt-oss family, between 20B and 120B. The report's
+  'what reverses with model scale is the failure mode' is **withdrawn**.
+- **Family and decoder path are not separated.** §32.1 named three
+  differences between qwen-7B and gpt-oss-120b. 20B removes size, and
+  sharing Groq removes the implementation difference between the two
+  gpt-oss runs - but qwen-7B still differs from *both* in family **and** in
+  decoder path (Ollama grammar against strict `json_schema`). The finding
+  is: **the gpt-oss models refuse where qwen guesses**, for a reason that
+  is family or decoder path, not size.
+- F07 only, one draw per incident, `reps=1`, and draws are not shared
+  across runs (§33.4); the test compares rates, not paired incidents.
+
+### 34.2 Exploratory, not registered
+
+- **The 20B abstains with low stated confidence, the 120B with high.** Mean
+  arm-B confidence 0.143 against 0.708, both while returning
+  `INSUFFICIENT_EVIDENCE`. One draw each, and §33.4 shows confidence is
+  unstable across draws, so this is a pattern to look at, not a result.
+- **Closure saturates on both gpt-oss models and not on qwen**, so §28.3's
+  saturation is a property of the family or decoder, not of size either.
+- **The shipped-frame F07 failure in §6 of the report is not a size
+  effect either:** arm A is 15/15 on 20B as on 120B, against 25-47% on
+  qwen-7B.
+
+### 31.10 Amendment, written before the run: F08 starts ~15:00 UTC on 2026-11-10
+
+Owner's request. §31.3's 'not before 11:00 UTC on 2026-11-11' was a
+**budget estimate**, not a design choice, and both of §31.3's other
+conditions now hold: the registered F07 artifact exists (§33), and §31.8's
+harness change has landed - the detector-drop entry now carries the
+detector's first three reasons (`closure_ablation.py`,
+`detector_drop_note`, with `test_closure_ablation_drop_note.py`). It is a
+log string and changes no observation, arm, prompt or metric.
+
+**The budget, as far as it can be read:** each of the four Groq keys,
+probed separately at 14:57 UTC, was admitted at 7,900 requested tokens on
+`gpt-oss-120b`, so no organization behind them is within 7.9k of its
+cap. That cannot confirm ~125k, for §29.11's reason. If it runs short,
+the run aborts as §30's did, the partial is renamed and kept, and the
+registered 15 is run again in a later window. **Nothing else in §31
+changes**, including the #6-#15-first rule, which §33.4 showed is more
+conservative than it needed to be.
+
+### 31.11 The early start aborted at 2 incidents - the budget, not the model
+
+Started 14:59 UTC, stopped 15:01 on Groq's tokens-per-day cap with **all
+four keys** returning 429. The fault was reverted and the target verified
+clear. Partial kept as `closure-ablation-groq-f08-ab-TRUNCATED-2of15.json`:
+F08#1 and #2, arm A named F08 both times, arm B abstained both times, 4 of
+5 diagnoses usable. **Two incidents score nothing**, and §31's predictions
+are not read off on them.
+
+The abort named a **third organization**, `org_01m1efhv...`, at 196,404 of
+200,000, after `org_01jhmy8t...` and `org_01m15ty1...`. The owner states
+all four keys come from **different Google accounts**, which normally means
+four organizations and ~800k tokens a day on this model; three distinct
+org ids are now on record, consistent with that. Today's 120B spend - two
+aborted F07 attempts, the 12-incident run and the registered 15 - used
+most of all of it.
+
+**§31.10's probe did exactly what §29.11 said a probe can do, and no more:**
+four admissions at 7,900 tokens showed no org was within 7.9k of its cap,
+and said nothing about 125k. The amendment named this abort as the
+fallback, so it is recorded as the measurement of the budget and not of
+the model.
+
+**The registered 15 is re-run in full in a later window**, as §31.10
+fixed - not resumed from #3, since §33.4 showed no two runs share a draw.
+
+One side observation, not relied on: the 20B run (§34) spent ~145k between
+14:44 and 14:52 without a single 429 while the 120B budget was this close
+to empty, which is further evidence that the daily limit is per model.
+
+### 31.12 Amendment, written before the run: the registered 15 re-runs now, on a fifth key
+
+The owner added a **fifth Groq key, from another Google account**
+(owner's statement, 2026-11-10 ~15:10 UTC), bringing an organization whose
+`gpt-oss-120b` budget has not been drawn on today. Five distinct keys
+confirmed by count; each admitted 7,900 requested tokens when probed
+separately, which as always rules out an empty key and confirms nothing
+about 125k.
+
+**The full registered 15 is run from scratch**, as §31.11 fixed - not
+resumed from #3 - with §31.3's command and artifact name, and every other
+part of §31 unchanged. The aborted partial stays as
+`closure-ablation-groq-f08-ab-TRUNCATED-2of15.json` and is not pooled. If
+this attempt also runs short, it is recorded the same way, as a
+measurement of the budget.
+
+---
+
+## 35. Read-off: the registered F08 run - all six predictions met, and the class-matched pool separates at p = 0.0003
+
+Ran 2026-11-10 15:05 UTC on Groq under §31.12, §31.3's command unchanged.
+Artifact `closure-ablation-groq-f08-ab.json`, **`complete: true`, 30 of 30
+usable, none dropped**, target healthy, unchanged and clear afterwards,
+target-busy lock released. The fifth key behaved as a fresh organization
+would; its org id never appeared.
+
+### 35.1 The predictions, scored - blind subset first, as §31.2 fixed
+
+| # | Prediction | **blind, #6-#15** | all 15 | |
+|---|---|---|---|---|
+| 1 | arm A agreement >= 14 of 15 | **10/10** | 15/15 | met |
+| 2 | **PRIMARY: arm B agreement <= 0.50** | **0/10** | 0/15 | met |
+| 3 | arm B confident wrong <= 1 of 15 | **0** | 0 | met |
+| 4 | closure (detector) >= 0.95 both arms | **1.00 / 1.00** | 1.00 / 1.00 | met |
+| 5 | arm A confidence exceeds arm B by >= 0.15 | **0.312** | 0.282 | met |
+| 6 | 0 to 2 of 15 dropped by the detector | **0** | 0 | met |
+
+**All six met** - the first run in this programme to manage that. On
+agreement, paired on the incident: blind b=10 c=0, exact McNemar
+**p = 0.0020**; all 15 b=15 c=0, **p = 0.000061**. Every arm-B answer was
+`INSUFFICIENT_EVIDENCE`. Arm A's ceiling is 0.259 on the blind 10 and
+0.181 on 15. Prediction 5 is reported and, per §33.2, carries little
+weight: confidence is unstable across draws.
+
+### 35.2 The two tests §31.6 fixed in advance
+
+1. **F08 alone, 120B against local 7B (6/39):** one-sided Fisher p = **0.126**
+   on all 15 and 0.233 on the blind 10. §31.6 said this test **cannot**
+   establish anything at this n, whatever happens; it does not. Its
+   refutation rule - 3 or more confident wrong - is not triggered (0).
+2. **Class-matched pool, F07 + F08:** gpt-oss-120b **0 of 30** confident
+   wrong (§33 and §35) against qwen-7B **23 of 82**, one-sided Fisher
+   **p = 0.0003**, below §31.6's 0.05. Its F07 half was seen before this
+   was registered, as §31.6 states, so it is a class-matched comparison
+   with half its data seen, not a confirmatory test.
+
+### 35.3 What this establishes
+
+§31 was registered when the reading was still called 'scale'. §34 has
+since ruled size out, so what this run extends is §34's wording: **on F07
+and F08, the gpt-oss models refuse where qwen guesses**, for a reason that
+is model family or decoder path. F08 was the only class where the local
+model gave confident wrong answers under noise, so this is the
+within-class check §31.1 asked for, and it holds.
+
+**Still open:** F06 cross-provider (predicted null, §31.9); separating
+family from decoder path; and every gpt-oss figure is one draw per
+incident on one provider.
+
+---
+
+## 36. Pre-registration: F07 on qwen3.8-27b (Groq, strict), 15 x 1, arms A and B - family against decoder path, written 2026-11-10, BLIND, and the last ablation run
+
+Owner's decision: one last ablation run, then F02. No `qwen3.8` artifact
+exists in `harness/reports/`, so this is blind. It also discharges §16.3's
+open 'scale-matched control'.
+
+### 36.1 The question
+
+§34 ruled size out and left two explanations for 'gpt-oss refuses where
+qwen guesses': **model family**, or **decoder path** (qwen2.5-7b ran under
+Ollama's grammar locally; both gpt-oss runs used Groq's strict
+`json_schema`). `qwen/qwen3.8-27b` on Groq is a qwen model on gpt-oss's
+path:
+
+- Groq lists it among the **strict-mode, constrained-decoding** models
+  with both gpt-oss models (console.groq.com/docs/structured-outputs,
+  read 2026-11-10 via Context7). The same page's summary table says strict
+  is 'Limited (GPT-OSS 20B, 120B)', contradicting its own model list; the
+  explicit list is taken, and the inconsistency is recorded here.
+- The client sends `strict: true` (`providers.py:391`), verified, not
+  assumed.
+- Two diagnosis-shaped calls through the real client: 4,277 prompt and 291
+  completion tokens, 1.2s each, inside the 2048 budget.
+
+### 36.2 The design
+
+```
+harness/closure_ablation.py --classes F07 --incidents 15 --reps 1
+    --arms AB --provider groq --model qwen/qwen3.8-27b
+    --json-out harness/reports/closure-ablation-groq-qwen27b-f07-ab.json
+```
+
+~30 diagnoses at ~4.2k tokens, ~126k, on this model's own budget.
+`max_tokens` stays 2048.
+
+### 36.3 The primary outcome, the rule, and which outcomes are clean
+
+Arm-B confident-wrong count of 15, defined as §31.6. Comparators: gpt-oss
+**0 of 15** on both 120B (§33) and 20B (§34); local qwen2.5-7b **17 of 43**.
+§32.3's p-values apply unchanged, since the comparator counts are the same.
+
+| qwen3.8-27b confident wrong of 15 | reading | how clean |
+|---|---|---|
+| **>= 4** | **family**: a qwen model guesses even on gpt-oss's decoder path (p <= 0.0498 against 0/15) | **clean** - against gpt-oss, only the family differs |
+| 2 or 3 | undecided at this n | - |
+| **<= 1** | **not family**: on this path qwen refuses too (p <= 0.0154 fewer than qwen2.5-7b) | **not clean** - against qwen2.5-7b, decoder path, qwen version (3.8 vs 2.5) and size (27B vs 7B) all differ, and §34 ruled size out only *within gpt-oss* |
+
+**Stated before the data:** only the >= 4 outcome isolates a cause. A
+<= 1 outcome rules family out and leaves decoder path, version and size
+inside qwen unseparated - it is reported as exactly that and not as 'the
+decoder did it'.
+
+**Reported, not tested:** arm-A agreement (qwen2.5-7b's was 25-47%, both
+gpt-oss models 15/15, so where qwen3.8 lands bears on whether the shipped-
+frame F07 failure in report §6 is a qwen trait); closure in both arms
+(saturated on gpt-oss, not on qwen2.5); mean confidence.
+
+### 36.4 Guards
+
+The same launcher as §32.6: target healthy, `config_hash
+de4cfaed14a8bb98`, all faults clear, target-busy lock held for the run. If
+the budget runs short, the partial is renamed, recorded, and not scored.
+**After this run the closure ablation is closed**: F06 cross-provider
+(predicted null, §31.9) is not run, and the next work is F02.
+
+---
+
+## 37. Read-off: §36 on qwen3.8-27b - noise has no effect at all, family is ruled out, and the ablation closes
+
+Ran 2026-11-10 15:21 UTC on Groq, strict `json_schema`, §36.2's command
+unchanged. Artifact `closure-ablation-groq-qwen27b-f07-ab.json`,
+**`complete: true`, 30 of 30 usable, none dropped**, target healthy,
+unchanged and clear afterwards, target-busy lock released.
+
+| F07 | qwen3.8-27b (§37) | gpt-oss-20b (§34) | gpt-oss-120b (§33) | qwen2.5-7b, local |
+|---|---|---|---|---|
+| arm A agreement | **15/15** | 15/15 | 15/15 | 25-47% |
+| **arm B agreement** | **15/15** | 0/15 | 1/15 | low |
+| arm B confident wrong | **0 of 15** | 0 of 15 | 0 of 15 | 17 of 43 |
+| arm B abstentions | 0 | 15 | 14 | - |
+| mean confidence A / B | 0.950 / 0.950 | 0.887 / 0.143 | 0.915 / 0.708 | - |
+| closure A / B | 15/15 / 15/15 | 15/15 / 15/15 | 15/15 / 15/15 | not saturated in B |
+
+### 37.1 The rule, applied as written
+
+0 confident wrong of 15 is <= 1: **family is ruled out.** A qwen model on
+gpt-oss's decoder path does not guess wrong under noise (one-sided Fisher
+p = 0.0021 fewer than qwen2.5-7b). §36.3 said in advance that this outcome
+is **not clean**: against qwen2.5-7b, decoder path, qwen version (3.8 vs
+2.5) and size (27B vs 7B) all differ and are not separated. It is reported
+as exactly that - not as 'the decoder did it'.
+
+### 37.2 What it changes, beyond what §36 was built to ask
+
+§36 framed two outcomes, guess or refuse. **qwen3.8-27b did neither: size-
+matched noise had no measurable effect on it**, 15/15 in both arms at the
+same stated confidence. Three consequences, all unregistered and therefore
+exploratory, but each a correction to how the earlier sections read:
+
+1. **Confident wrong answers under noise occur on one model only:
+   qwen2.5-7b, run locally.** The three cloud models, from two families,
+   gave **0 of 45**. §34's and §35's 'the gpt-oss models refuse where qwen
+   guesses' narrows to 'the small local model guesses'.
+2. **The noise effect itself is model-specific.** It costs the class on
+   gpt-oss (which then abstains) and on qwen2.5-7b (which then guesses),
+   and costs nothing on qwen3.8-27b - as it cost nothing on F01 at 120B
+   (§26). 'Size-matched noise degrades the diagnosis' is a statement about
+   particular models, not about the frame.
+3. **Closure saturates on all three cloud models and fails to saturate
+   only on the local one**, so §28.3's saturation is not a family property
+   either; it tracks the local setup.
+
+**A known gap in this run's record:** seven transient LLM failures were
+retried and the run never neared the abort threshold, but the harness
+discards a failed observation without logging its error text
+(`closure_ablation.py`, the transient branch), so whether they were rate
+limits or schema failures is unrecorded. Retries repeat the same cell, so
+they cannot select which incidents were measured.
+
+### 37.3 The closure ablation is closed
+
+As §36.4 fixed. F06 cross-provider is not run. What the programme
+established, in the form the report may quote: closure saturates and
+cannot separate right answers from refusals on every cloud model tested;
+size-matched noise costs gpt-oss the class and produces refusals, not
+confident errors; and confident errors under noise were observed only on
+the local 7B model. The next work is F02.

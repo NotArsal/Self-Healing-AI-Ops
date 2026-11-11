@@ -162,6 +162,22 @@ def newest_baseline() -> tuple[dict[str, Any], str]:
 # --- distractors ------------------------------------------------------------
 
 
+def detector_drop_note(fault_class: str, incident: int,
+                       detection: det.Detection) -> str:
+    """The `dropped` entry for an incident the detector did not attribute.
+
+    EXPERIMENT_CLOSURE_ABLATION.md section 31.8. Until 2026-11-10 this recorded
+    the verdict and not WHY, so section 29.10's two dropped incidents could not
+    be explained after the fact. `Detection.reasons` already carried the why.
+    A log string only: no observation, arm, prompt or metric reads it.
+    """
+    why = "; ".join(r[:120] for r in detection.reasons[:3]) or "none recorded"
+    return (f"{fault_class}#{incident}: detector said "
+            f"{detection.fault_class or detection.verdict}, not the injected "
+            f"class; every arm would measure agreement with the wrong answer. "
+            f"detector reasons: {why}")
+
+
 def scrape_distractors(url: str, need: int) -> list[tuple[str, float]]:
     """Real metrics the target exports that no detector reads.
 
@@ -524,10 +540,7 @@ def one_incident(
             pre.passed, pre.pass_rate,
         )
         if detection.fault_class != fault_class:
-            run.dropped.append(
-                f"{fault_class}#{incident}: detector said "
-                f"{detection.fault_class or detection.verdict}, not the injected "
-                f"class; every arm would measure agreement with the wrong answer")
+            run.dropped.append(detector_drop_note(fault_class, incident, detection))
             return
 
         frame = ev.collect(
