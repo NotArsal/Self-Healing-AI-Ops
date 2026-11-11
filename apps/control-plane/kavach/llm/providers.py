@@ -563,3 +563,49 @@ def build(
         # override of one of them must not quietly revert the others.
         spec = replace(spec, base_url=base_url)
     return OpenAiCompatClient(spec, model=model, api_key=api_key)
+
+
+class BackupClient:
+    """A primary model and ONE declared backup, tried only if the primary fails.
+
+    This is the explicit fallback the module header allows, not the silent one
+    it refuses: the backup is named in config (`KAVACH_LLM_BACKUP_*`), and the
+    response that comes back still carries the provider and model that actually
+    answered, so every result stays attributable.
+
+    "Fails" means the primary raised `LlmError`: unreachable, timed out, rate
+    limited, or an unusable reply. A primary that answers - however wrong - is
+    never second-guessed here. Asking a second model because the first one
+    disagreed with the detector would be asking until something agrees, which
+    turns the diagnosis into the detector's answer with extra steps.
+    """
+
+    def __init__(self, primary: LlmClient, backup: LlmClient) -> None:
+        self.primary = primary
+        self.backup = backup
+        self.model = primary.model
+
+    def available(self) -> bool:
+        return self.primary.available() or self.backup.available()
+
+    def structured(self, system: str, user: str, schema: dict[str, Any],
+                   temperature: float = 0.0) -> LlmResponse:
+        try:
+            return self.primary.structured(system, user, schema, temperature)
+        except LlmError as first:
+            try:
+                return self.backup.structured(system, user, schema, temperature)
+            except LlmError as second:
+                raise LlmError(f"primary failed: {first}; "
+                               f"backup failed: {second}") from second
+
+
+def build_with_backup(provider: str, model: str, ollama_base_url: str = "",
+                      backup_provider: str = "",
+                      backup_model: str = "") -> LlmClient:
+    """`build()` plus the declared backup, if one is declared. Empty = none."""
+    primary = build(provider, model, ollama_base_url=ollama_base_url)
+    if not backup_provider.strip():
+        return primary
+    return BackupClient(primary, build(backup_provider, backup_model,
+                                       ollama_base_url=ollama_base_url))

@@ -45,6 +45,8 @@ class RcaResult:
     evidence: EvidenceFrame | None = None
     deterministic: det.Detection | None = None
     model: str = ""
+    # Which provider answered: with a backup declared it can differ per call.
+    provider: str = ""
     latency_s: float = 0.0
     prompt_tokens: int = 0
     completion_tokens: int = 0
@@ -70,6 +72,7 @@ class RcaResult:
         return {
             "at": self.at,
             "model": self.model,
+            "provider": self.provider,
             "latency_s": round(self.latency_s, 2),
             "prompt_tokens": self.prompt_tokens,
             "completion_tokens": self.completion_tokens,
@@ -182,6 +185,7 @@ def diagnose(
         return result
 
     result.model = response.model
+    result.provider = response.provider
     result.latency_s = response.latency_s
     result.prompt_tokens = response.prompt_tokens
     result.completion_tokens = response.completion_tokens

@@ -208,6 +208,9 @@ class ValidationOut(BaseModel):
 class RcaOut(BaseModel):
     at: str
     model: str
+    # Which provider answered. With a declared backup it can differ per call,
+    # so it is part of the record, not something to infer from config.
+    provider: str = ""
     latency_s: float
     prompt_tokens: int = 0
     completion_tokens: int = 0

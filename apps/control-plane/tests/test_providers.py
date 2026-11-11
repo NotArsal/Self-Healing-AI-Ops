@@ -582,3 +582,54 @@ def test_an_unrouted_reply_keeps_the_plain_provider_name(
                             api_key=SECRET).structured("s", "u", SCHEMA)
 
     assert reply.provider == "openrouter"
+
+
+class _Fake:
+    """A model client that answers as `name`, or raises if `fails`."""
+
+    def __init__(self, name: str, fails: bool = False) -> None:
+        self.model, self.fails, self.calls = name, fails, 0
+
+    def available(self) -> bool:
+        return not self.fails
+
+    def structured(self, system: str, user: str, schema: dict[str, Any],
+                   temperature: float = 0.0) -> Any:
+        from kavach.llm.client import LlmResponse
+        self.calls += 1
+        if self.fails:
+            raise LlmError(f"{self.model}: 429 rate limited")
+        return LlmResponse(raw='{"fault_class": "F06"}', model=self.model,
+                           latency_s=0.1, provider=self.model)
+
+
+def test_the_backup_answers_only_when_the_primary_fails() -> None:
+    ok, backup = _Fake("groq"), _Fake("gemini")
+    r = providers.BackupClient(ok, backup).structured("s", "u", {})
+    assert r.provider == "groq" and backup.calls == 0
+
+    down = _Fake("groq", fails=True)
+    r = providers.BackupClient(down, backup).structured("s", "u", {})
+    assert r.provider == "gemini"  # provenance names who actually answered
+
+
+def test_a_wrong_but_well_formed_answer_never_reaches_the_backup() -> None:
+    """Asking a second model because the first disagreed is not a fallback."""
+    wrong, backup = _Fake("groq"), _Fake("gemini")
+    r = providers.BackupClient(wrong, backup).structured("s", "u", {})
+    assert r.parsed() == {"fault_class": "F06"} and backup.calls == 0
+
+
+def test_both_failing_raises_and_names_both() -> None:
+    client = providers.BackupClient(_Fake("groq", True), _Fake("gemini", True))
+    with pytest.raises(LlmError, match=r"primary failed.*groq.*backup failed.*gemini"):
+        client.structured("s", "u", {})
+
+
+def test_no_backup_declared_means_the_plain_client() -> None:
+    c = providers.build_with_backup("ollama", "qwen2.5:7b-instruct")
+    assert isinstance(c, OllamaClient)
+    b = providers.build_with_backup("ollama", "qwen2.5:7b-instruct",
+                                    backup_provider="ollama",
+                                    backup_model="llama3.2")
+    assert isinstance(b, providers.BackupClient) and isinstance(b, LlmClient)

@@ -92,6 +92,7 @@ export const resolvedIncident: Incident = {
   rca: {
     at: "2026-10-04T10:45:40+00:00",
     model: "llama3.2",
+    provider: "ollama",
     latency_s: 2.2,
     prompt_tokens: 1840,
     completion_tokens: 210,

@@ -442,3 +442,12 @@ def test_stage_names_cover_the_loop() -> None:
         "detect", "evidence", "diagnose", "validate",
         "plan", "repair", "verify", "resolve",
     )
+
+
+def test_the_rca_record_says_which_provider_answered() -> None:
+    """Dropped by the response model until 2026-11-11, so the bench read `?`."""
+    from kavach.api.routes import _rca
+
+    out = _rca({"at": "t", "model": "openai/gpt-oss-120b", "provider": "groq",
+                "latency_s": 1.0, "approved": True, "evidence": {}})
+    assert out is not None and out.provider == "groq"

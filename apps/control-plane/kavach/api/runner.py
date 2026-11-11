@@ -386,8 +386,10 @@ class LoopRunner:
         inside this wrapper, because the loop sees RCA as one opaque call.
         """
         s = self.settings
-        llm = providers.build(s.llm_provider, s.llm_model,
-                              ollama_base_url=s.llm_base_url)
+        llm = providers.build_with_backup(
+            s.llm_provider, s.llm_model, ollama_base_url=s.llm_base_url,
+            backup_provider=s.llm_backup_provider,
+            backup_model=s.llm_backup_model)
         services = set(s.target_services())
         baseline_value, _ = self.baseline()
         baseline_doc = self.baseline_doc()

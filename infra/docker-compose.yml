@@ -152,6 +152,13 @@ services:
       # accident. `tests/test_model_default.py` pins the three places that
       # have to agree.
       KAVACH_LLM_MODEL: ${KAVACH_LLM_MODEL:-qwen2.5:7b-instruct}
+      # Absent until 2026-11-11: .env said `groq` and the container never saw
+      # it, so every bench ran on the Ollama default. Default stays ollama, so
+      # no cloud key is required (PL-02).
+      KAVACH_LLM_PROVIDER: ${KAVACH_LLM_PROVIDER:-ollama}
+      # One backup, asked only when the primary fails to answer. Empty = none.
+      KAVACH_LLM_BACKUP_PROVIDER: ${KAVACH_LLM_BACKUP_PROVIDER:-}
+      KAVACH_LLM_BACKUP_MODEL: ${KAVACH_LLM_BACKUP_MODEL:-}
       KAVACH_LOG_LEVEL: ${KAVACH_LOG_LEVEL:-INFO}
       # Kavach's own files. The package lives at /app/kavach with no repository
       # around it, so the root cannot be derived from __file__ the way it can

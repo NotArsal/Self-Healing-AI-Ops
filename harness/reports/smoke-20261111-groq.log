@@ -1,0 +1,88 @@
+==============================================================================
+make bench - live metrics over repeated injections
+==============================================================================
+  mode               APPROVAL
+  corpus             {'chunks': 30.0, 'files': 2.0}
+  plan               2 classes x 1 reps = 2 injections
+  estimated runtime  ~0.8h, paced under permit()'s blast radius. Unattended by design.
+
+  RCA model          openai/gpt-oss-120b via groq
+
+  rep 1 F02  detect=473.5s llm=F02(0.92)->switch_llm_endpoint resolved=True mttr=741.1 false_heal=False clean=True
+  rep 1 F07  detect=19.3s llm=F07(0.93)->rollback_prompt resolved=True mttr=66.7 false_heal=False clean=True
+
+==============================================================================
+METRICS  (PRD section 10)
+==============================================================================
+  DENOMINATOR: 2 fault classes x 1 reps = 2 injections, 2 usable
+  Classes: F02, F07. Not the seven PRD section 6
+  assumed: F05 dropped, F03 never had an injector, F09 closed on
+  measurement as not injectable. F02 restored by ADR 0023.
+
+  metric                             value              target
+  detection rate                     100% (2/2)         >= 95%
+  localization (service)             100% (2/2)         >= 80%
+  RCA accuracy (LLM own answer)      100% (2/2)         >= 75%
+    of which: fault class named      100% (2/2)         the figure above
+    repair action correct            100% (2/2)         no target yet
+    answer is self-consistent        100% (2/2)         measured, NOT enforced
+  auto-resolution rate               100% (2/2)         >= 70% of LOW
+  FALSE HEALING                      0% (0/2)           <= 5%
+  rollback correctness               n/a                100%
+  MTTD (median)                      246.4s             < 30s
+    first verdict (median)           251.4s             detect+RCA+gate, no target
+  MTTR (median)                      403.9s             < 180s
+  audit completeness                 100% (2/2)         100%
+  audit chain intact                 True               True
+  target state clean after run       100% (2/2)         100%
+
+------------------------------------------------------------------------------
+CONDITIONALS (PRD section 10.1) - the part a reviewer asks about
+------------------------------------------------------------------------------
+  P(heal | diagnosis correct)  100% (2/2)
+  P(heal | diagnosis WRONG)    n/a
+  P(diagnosis correct | heal)  100% (2/2)
+
+  A high auto-resolution rate next to a high P(heal | wrong) means a
+  symptom-matcher with an LLM attached. Report both or neither.
+
+------------------------------------------------------------------------------
+LOCALIZATION, WITH ITS DENOMINATOR (PRD section 10.2)
+------------------------------------------------------------------------------
+  Every implemented fault lands on `backend`, so this is a 1-way
+  choice dressed as a 2-way one. Stated first because a reviewer
+  finds it in one question.
+    F02 -> backend    1
+    F07 -> backend    1
+
+------------------------------------------------------------------------------
+DETERMINISTIC CROSS-CHECK
+------------------------------------------------------------------------------
+  LLM diagnoses refused: 0/2
+
+------------------------------------------------------------------------------
+CLASS ACCURACY IS NOT ACTION ACCURACY
+------------------------------------------------------------------------------
+                        action right    action wrong    
+  class right           2               0               
+  class wrong           0               0               
+
+  `RCA accuracy` is the class row totals. The top-right cell is the
+  one it cannot see: a correct fault class with a repair that class
+  may not use. The gate catches it; the metric scores it correct.
+
+  fault_name matches its own class code: 2/2
+
+------------------------------------------------------------------------------
+THROUGHPUT CEILING (FR-16), measured not assumed
+------------------------------------------------------------------------------
+  permit() allows 5 incident starts per sliding
+  hour and an approved heal costs 2. This bench
+  waited 0 minutes in total to stay
+  underneath it. Nothing was reset, raised or disabled.
+  => Kavach performs at most 2 approved heals per hour
+     and halts rather than widening. That is a demo constraint as
+     much as an operational one.
+
+  artifact D:\Vit\Academics Sem-5\EDI\Self-Healing AI Ops\harness\reports\smoke-20261111-groq.json
+BENCH_EXIT rc=0

@@ -114,6 +114,7 @@ def _rca(d: dict[str, Any] | None) -> s.RcaOut | None:
     return s.RcaOut(
         at=d.get("at", ""),
         model=d.get("model", ""),
+        provider=d.get("provider", "") or "",
         latency_s=d.get("latency_s", 0.0),
         prompt_tokens=d.get("prompt_tokens", 0),
         completion_tokens=d.get("completion_tokens", 0),
@@ -245,8 +246,16 @@ async def system(
     direct_ok = await asyncio.to_thread(llm.available)
     deps.append(s.Dependency(
         name="Ollama, Kavach path", ok=direct_ok,
-        detail=(f"model {settings.llm_model}" if direct_ok else "not reachable"),
-        endpoint=f"{settings.llm_base_url} (direct, never proxied)",
+        # The provider is part of the provenance: harness/kavach_baseline.py
+        # rca_model() stamps this detail into every bench artifact.
+        detail=(f"model {settings.llm_model} via {settings.llm_provider}"
+                + (f", backup {settings.llm_backup_model} via "
+                   f"{settings.llm_backup_provider}"
+                   if settings.llm_backup_provider else "")
+                if direct_ok else "not reachable"),
+        endpoint=(f"{settings.llm_base_url} (direct, never proxied)"
+                  if settings.llm_provider == "ollama"
+                  else f"{settings.llm_provider} API (direct, never proxied)"),
     ))
 
     prom_ok, prom_detail = await asyncio.to_thread(

@@ -191,6 +191,9 @@ class Run:
     # including three that healed correctly - carrying F07's name.
     llm_fault_name: str = ""
     llm_confidence: float | None = None
+    # "model via provider" that actually answered: with a backup declared,
+    # a rate-limited primary means a different model diagnosed this run.
+    llm_answered_by: str = ""
     llm_approved: bool | None = None
     # The validator's own words, verbatim, rather than this harness's
     # reconstruction of why a diagnosis was refused. The two can disagree,
@@ -349,6 +352,9 @@ def one_run(client: TargetClient, fault_class: str, rep: int,
             conf = diag.get("confidence")
             r.llm_confidence = float(conf) if conf is not None else None
             r.llm_approved = bool((inc.get("rca") or {}).get("approved"))
+            rca = inc.get("rca") or {}
+            r.llm_answered_by = (f"{rca.get('model') or '?'} via "
+                                 f"{rca.get('provider') or '?'}")
 
         if inc.get("status") == "AWAITING_APPROVAL":
             code, second = api(
@@ -692,7 +698,7 @@ def main() -> int:
                 f"({r.llm_confidence})->{r.llm_action or '-'} "
                 f"resolved={r.resolved} "
                 f"mttr={r.mttr_s} false_heal={r.false_healing} "
-                f"clean={r.state_clean}"
+                f"clean={r.state_clean} by={r.llm_answered_by or '-'}"
                 + (f"  {r.error[:70]}" if r.error else ""))
     bench.paced_wait_total_s = pacer.waited_s
 

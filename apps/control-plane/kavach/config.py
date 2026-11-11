@@ -109,6 +109,11 @@ class Settings(BaseSettings):
     # provider from which key happens to be set.
     llm_provider: str = "ollama"
 
+    # ONE backup model, asked only when the primary fails to answer
+    # (`llm/providers.py` BackupClient). Empty = no backup, the default.
+    llm_backup_provider: str = ""
+    llm_backup_model: str = ""
+
     # Cloud keys. No defaults, deliberately: a credential literal in source is
     # a credential in git history. Empty means "that provider is unavailable",
     # which is a correct and supported state, not an error.
