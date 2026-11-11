@@ -59,11 +59,16 @@ sys.path[:0] = [str(ROOT), str(CONTROL_PLANE)]
 
 from harness.faults.base import Fault  # noqa: E402
 from harness.faults.f01_endpoint_outage import F01EndpointOutage  # noqa: E402
+from harness.faults.f02_latency_degradation import F02LatencyDegradation  # noqa: E402
 from harness.faults.f06_retrieval_collapse import F06RetrievalCollapse  # noqa: E402
 from harness.faults.f07_prompt_regression import F07PromptRegression  # noqa: E402
 from harness.faults.f08_config_regression import F08ConfigRegression  # noqa: E402
 from kavach.config import get_settings  # noqa: E402
 from kavach.detection.endpoint_outage import QUERIES as F01_QUERIES  # noqa: E402
+from kavach.detection.latency_degradation import QUERIES as F02_QUERIES  # noqa: E402
+from kavach.detection.latency_degradation import (  # noqa: E402
+    Thresholds as F02Thresholds,
+)
 from kavach.detection.retrieval_collapse import QUERIES as F06_QUERIES  # noqa: E402
 from kavach.detection.retrieval_collapse import Thresholds  # noqa: E402
 from kavach.onboarding.manifest import load as load_manifest  # noqa: E402
@@ -75,7 +80,7 @@ FAST_SET = CONTROL_PLANE / "kavach" / "verification" / "fast_set.yaml"
 API = "http://127.0.0.1:8080"
 TARGET = "http://127.0.0.1:8000"
 PROM = "http://127.0.0.1:9091"
-CLASSES = ["F01", "F06", "F07", "F08"]
+CLASSES = ["F01", "F02", "F06", "F07", "F08"]
 
 
 def say(m: str = "") -> None:
@@ -121,11 +126,17 @@ def prompts_dir() -> Path:
 def build(fault_class: str, client: TargetClient) -> Fault:
     if fault_class == "F01":
         return F01EndpointOutage(corpus_probe=corpus)
+    if fault_class == "F02":
+        return F02LatencyDegradation(corpus_probe=corpus)
     if fault_class == "F06":
         return F06RetrievalCollapse(client, corpus_probe=corpus)
     if fault_class == "F07":
         return F07PromptRegression(client, prompts_dir(), corpus_probe=corpus)
-    return F08ConfigRegression(client, corpus_probe=corpus)
+    if fault_class == "F08":
+        return F08ConfigRegression(client, corpus_probe=corpus)
+    # Was a silent fall-through to F08: asking for any other class quietly
+    # injected F08 and reported it under the requested name.
+    raise ValueError(f"no injector for {fault_class!r}")
 
 
 def rca_model() -> str:
@@ -267,6 +278,23 @@ def warm_up_f01(client: TargetClient, max_rounds: int = 6) -> float:
     return round(time.time() - t0, 1)
 
 
+def warm_up_f02(client: TargetClient, max_rounds: int = 6) -> float:
+    """F02 reads a two-minute generation p95, so it needs load like F01.
+
+    The detector's own queries and floor, so the warm-up cannot stop on a
+    reading the detector would not act on. One fast-set round under the
+    fault is ~235s (three ~78s chats), so this is normally one round.
+    """
+    floor = F02Thresholds().p95_floor_s
+    t0 = time.time()
+    for _ in range(max_rounds):
+        fast.run(client, FAST_SET, check_health=False)
+        v = promql(F02_QUERIES["generation_p95_s"])
+        if v is not None and v > floor:
+            return round(time.time() - t0, 1)
+    return round(time.time() - t0, 1)
+
+
 @dataclass
 class Measurement:
     fault_class: str
@@ -351,6 +379,8 @@ def measure(client: TargetClient, fault_class: str, rca: bool) -> Measurement:
             m.warmup_s = drive_until_detectable(client)
         elif fault_class == "F01":
             m.warmup_s = warm_up_f01(client)
+        elif fault_class == "F02":
+            m.warmup_s = warm_up_f02(client)
 
         code, started = api(f"/v1/loop/run?rca={'true' if rca else 'false'}",
                             "POST")

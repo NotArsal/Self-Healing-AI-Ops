@@ -66,9 +66,12 @@ METRIC_QUERIES: dict[str, str] = {
         '(sum(rate(ragapp_llm_requests_total{outcome!="ok"}[2m])) or vector(0)) '
         "/ clamp_min(sum(rate(ragapp_llm_requests_total[2m])), 1e-9)"
     ),
+    # 2m, matching detection/latency_degradation.py, for the same reason as
+    # `llm_error_ratio` above. It was 5m, which did not matter while no
+    # detector decided on it; F02's detector now does (2026-11-10).
     "llm_generation_latency_p95": (
         "histogram_quantile(0.95, sum by (le) "
-        '(rate(ragapp_llm_duration_seconds_bucket{operation="generation"}[5m])))'
+        '(rate(ragapp_llm_duration_seconds_bucket{operation="generation"}[2m])))'
     ),
     "db_pool_in_use": "max(ragapp_db_pool_in_use)",
     "chat_error_ratio": (

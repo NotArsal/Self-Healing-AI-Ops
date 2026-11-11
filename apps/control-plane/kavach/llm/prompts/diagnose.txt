@@ -63,6 +63,15 @@ Read them as a table, not as prose. No class here is more likely than another.
       still look HEALTHY during an outage, because it is remembering
       observations from before it. That is stale, not evidence.
 
+  error_ratio NEAR ZERO + llm_generation_latency_p95 FAR ABOVE its expected
+  value (several times it, not a little) + grounding INTACT
+      The model WAS reached and DID answer, correctly, but slowly. The
+      endpoint is degraded, not down.  --> F02
+
+      Not F01: under F01 the calls fail, so the error ratio is high. Here
+      they succeed late. The fast set can fail on its TIME BUDGET with every
+      answer correct; that is this fault's symptom, not a quality problem.
+
   error_ratio NEAR ZERO + grounding LOST (kept_chunks near zero, or a high
   empty_context_ratio) + similarity NORMAL
       Chunks were retrieved and then discarded by the rerank filter.  --> F06
@@ -100,7 +109,7 @@ Read them as a table, not as prose. No class here is more likely than another.
   anything else
       UNKNOWN or INSUFFICIENT_EVIDENCE. Both are correct answers.
 
-A class not in that table - F02, F03, F05, F09 - may still be the honest
+A class not in that table - F03, F05, F09 - may still be the honest
 diagnosis, and you should name it when the evidence says so. There is simply no
 repair implemented for it, so `candidate_repair` will be "none".
 

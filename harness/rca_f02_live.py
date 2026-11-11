@@ -1,0 +1,265 @@
+"""P6 acceptance: does RCA name F02 in at least 8 of 10 runs?
+
+Derived from `rca_f01_live.py`; one frame, ten diagnoses, for the reason that
+file gives. The fault is a 12s latency toxic on the primary listener.
+
+THE MODEL IS THE CONFIGURED ONE. The F01 script defaults to llama3.2; the
+stack's documented model is qwen2.5:7b-instruct (`infra/docker-compose.yml`
+records llama3.2 scoring 0/10 on F07 and F08), so F02 is measured with what
+actually runs.
+
+THE TRAP THIS MEASURES. F01 and F02 share an endpoint and a repair. The prompt
+row added for F02 (`llm/prompts/diagnose.txt`) separates them on the error
+ratio: under F02 the model is reached and answers late.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import statistics
+import sys
+import urllib.parse
+import urllib.request
+from collections import Counter
+from datetime import UTC, datetime
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path[:0] = [str(ROOT), str(ROOT / "apps" / "control-plane")]
+
+from harness.faults.f01_endpoint_outage import BACKUP, PRIMARY  # noqa: E402
+from harness.faults.f02_latency_degradation import F02LatencyDegradation  # noqa: E402
+from kavach.detection import base as det  # noqa: E402
+from kavach.detection import catalogue  # noqa: E402, F401 - registers detectors
+from kavach.llm.client import OllamaClient  # noqa: E402
+from kavach.rca import evidence as ev  # noqa: E402
+from kavach.rca.engine import diagnose  # noqa: E402
+from kavach.target import TargetClient, TargetEndpoints  # noqa: E402
+from kavach.verification import fast  # noqa: E402
+
+FAST_SET = ROOT / "apps" / "control-plane" / "kavach" / "verification" / "fast_set.yaml"
+
+TARGET = "http://127.0.0.1:8000"
+PROM = "http://127.0.0.1:9091"
+SERVICES = {"backend", "db", "frontend", "toxiproxy", "prometheus"}
+CONFIDENCE_THRESHOLD = 0.75
+
+ERROR_RATIO = (
+    '(sum(rate(ragapp_llm_requests_total{outcome!="ok"}[2m])) or vector(0)) '
+    "/ clamp_min(sum(rate(ragapp_llm_requests_total[2m])), 1e-9)"
+)
+ERROR_RATIO_FLOOR = 0.50
+GEN_P95 = (
+    "histogram_quantile(0.95, sum by (le) (rate("
+    'ragapp_llm_duration_seconds_bucket{operation="generation"}[2m])))'
+)
+GEN_P95_FLOOR = 8.0
+
+
+def say(m: str = "") -> None:
+    print(m, flush=True)
+
+
+def promql(_url: str, query: str) -> float | None:
+    url = PROM + "/api/v1/query?query=" + urllib.parse.quote(query)
+    try:
+        with urllib.request.urlopen(url, timeout=10) as r:
+            res = json.loads(r.read())["data"]["result"]
+        return float(res[0]["value"][1]) if res else None
+    except Exception:
+        return None
+
+
+def corpus() -> dict[str, float | None]:
+    return {"chunks": promql("", "ragapp_corpus_chunks"),
+            "files": promql("", "ragapp_corpus_files")}
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--ollama", default="http://127.0.0.1:11434")
+    ap.add_argument("--model", default="qwen2.5:7b-instruct")
+    ap.add_argument("--reps", type=int, default=10)
+    ap.add_argument("--json-out",
+                    default=str(ROOT / "harness" / "reports" / "p6-f02-rca.json"))
+    args = ap.parse_args()
+
+    client = TargetClient(TargetEndpoints(
+        health=TARGET + "/healthz", chat=TARGET + "/v1/chat",
+        config=TARGET + "/v1/admin/config",
+        admin_token=os.environ.get("KAVACH_TARGET_ADMIN_TOKEN", "")))
+    llm = OllamaClient(args.ollama, args.model)
+
+    say("=" * 74)
+    say("P6 ACCEPTANCE: RCA names F02 in >= 8 of 10 runs?")
+    say("=" * 74)
+    say(f"  model              {args.model} at {args.ollama}")
+    say(f"  ollama reachable   {llm.available()}")
+    say(f"  confidence gate    {CONFIDENCE_THRESHOLD}")
+    if not llm.available():
+        say("  Ollama is not reachable; cannot measure.")
+        return 1
+
+    pre_corpus = corpus()
+    pre_endpoint = str(client.settings()["llm_base_url"])
+    say(f"  pre-state          endpoint={pre_endpoint} corpus={pre_corpus}")
+    say("")
+
+    fault = F02LatencyDegradation(corpus_probe=corpus)
+    results: list[dict[str, object]] = []
+
+    try:
+        fault.inject()
+        say(f"  injected: {PRIMARY} toxics={[t.get('name') for t in fault._toxics()]}, "
+            f"{BACKUP} enabled={fault._proxy(BACKUP).get('enabled')}")
+
+        say("  driving load until the 2m generation p95 crosses 8s")
+        p95 = None
+        for round_no in range(1, 7):
+            r = fast.run(client, FAST_SET, check_health=False)
+            p95, ratio = promql("", GEN_P95), promql("", ERROR_RATIO)
+            say(f"    round {round_no}: fast set {r.pass_rate:.0%} in {r.total_s:.0f}s, "
+                f"generation p95 = {p95}, error ratio = {ratio}")
+            if p95 is not None and p95 > GEN_P95_FLOOR:
+                break
+        assert p95 is not None and p95 > GEN_P95_FLOOR, (
+            f"generation p95 stuck at {p95}; the fault is not yet detectable"
+        )
+
+        # The deterministic answer this is measured against.
+        pre = fast.run(client, FAST_SET, check_health=False)
+        detection = det.run_all(
+            det.registry.specs(),
+            det.Signals(prometheus_url=PROM, promql=promql, client=client),
+            pre.passed, pre.pass_rate,
+        )
+        say(f"  deterministic      {detection.verdict} "
+            f"{detection.fault_class} {detection.fault_name}")
+        assert detection.fault_class == "F02", (
+            f"deterministic detection says {detection.fault_class}, so this "
+            f"would measure agreement with the wrong answer"
+        )
+
+        frame = ev.collect(client, PROM, promql, pre,
+                           baseline_rerank_threshold=0.35)
+        say(f"  evidence frame     {len(frame.items)} items, "
+            f"{len(frame.problems)} collection problem(s)")
+        say("")
+
+        for i in range(1, args.reps + 1):
+            # NOT `r`: that name holds a FastVerificationResult above, and
+            # reusing it here hid the real type from mypy.
+            rca = diagnose(frame, detection, CONFIDENCE_THRESHOLD, llm=llm,
+                           declared_services=SERVICES)
+            d = rca.diagnosis
+            latency = round(rca.latency_s, 1)
+            row: dict[str, object] = {
+                "rep": i,
+                "fault_class": d.fault_class if d else None,
+                "service": d.service if d else None,
+                "confidence": d.confidence if d else None,
+                "repair": d.candidate_repair if d else None,
+                "approved": rca.approved,
+                "latency_s": latency,
+                "cited": list(d.evidence_ids) if d else [],
+                # 1200, not 160: the first version cut the reasoning before
+                # its conclusion, so a transposed-evidence diagnosis had to be
+                # re-run to be read. The artifact is the audit trail.
+                "reasoning": (d.reasoning[:1200] if d else (rca.error or "")[:1200]),
+            }
+            results.append(row)
+            say(f"  rep {i:2}  {row['fault_class']!s:<22} "
+                f"conf={row['confidence']!s:<5} "
+                f"repair={row['repair']!s:<20} "
+                f"approved={rca.approved}  {latency}s")
+            if not rca.approved and rca.rejection_reasons:
+                say(f"          rejected: {rca.rejection_reasons[0][:120]}")
+    finally:
+        say("")
+        fault.revert()
+        client.apply_settings({"llm_base_url": pre_endpoint})
+        say(f"  reverted; {PRIMARY} restored_exactly={fault.restored_exactly()}, "
+            f"endpoint={client.settings()['llm_base_url']}")
+
+    post_corpus = corpus()
+    classes = Counter(str(r["fault_class"]) for r in results)
+    correct = classes.get("F02", 0)
+    approved = sum(1 for r in results if r["approved"])
+    lat = [float(str(r["latency_s"])) for r in results]
+
+    say("")
+    say("=" * 74)
+    say("RESULT")
+    say("=" * 74)
+    say(f"  classes returned   {dict(classes)}")
+    say(f"  correct (F02)      {correct}/{len(results)}   (acceptance: >= 8/10)")
+    say(f"  validator approved {approved}/{len(results)}")
+    if lat:
+        say(f"  RCA latency        min {min(lat):.1f}s mean "
+            f"{statistics.mean(lat):.1f}s max {max(lat):.1f}s  (PF-02 budget 45s)")
+    say(f"  corpus             {pre_corpus} -> {post_corpus}")
+
+    # Copied-skeleton canary. Checks BOTH generations of leak, because the
+    # first version of this canary only knew the old strings and therefore
+    # reported PASS on a run where every repetition came back with the
+    # skeleton's `confidence: 0.0` and `candidate_repair: "none"` - a sound
+    # diagnosis that could never authorise anything.
+    leaked = [r["rep"] for r in results
+              if any(s in str(r["reasoning"])
+                     for s in ("0.658", "0.999", "the endpoint is serving"))]
+    skeleton_values = [r["rep"] for r in results
+                       if r["confidence"] == 0.0 or r["repair"] == "none"]
+    say(f"  old strings copied {leaked or 'none'}")
+    say(f"  skeleton defaults  {skeleton_values or 'none'}  "
+        f"(confidence 0.0 or repair none)")
+
+    # A CORRECT CLASS IS NOT A USABLE DIAGNOSIS, and the criterion is only
+    # worth anything if it measures one. A diagnosis the validator refuses can
+    # never drive a repair, so counting it as correct would be exactly the
+    # false-healthy verdict this project forbids.
+    expected_repair = det.registry.repair_for("F02")
+    named_repair = sum(1 for r in results if r["repair"] == expected_repair)
+    say(f"  named the repair   {named_repair}/{len(results)}  "
+        f"(expected {expected_repair!r})")
+
+    passed = (
+        correct >= 8
+        and approved >= 8
+        and len(results) == args.reps
+        and pre_corpus == post_corpus
+        and not leaked
+        and not skeleton_values
+    )
+    say("")
+    say(f"  F02 RCA ACCEPTANCE: {'PASS' if passed else 'FAIL'}")
+    if correct >= 8 and approved < 8:
+        say(f"    class correct {correct}/{len(results)} but only "
+            f"{approved}/{len(results)} survived validation - the class is "
+            f"right and the diagnosis is unusable")
+
+    out = Path(args.json_out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps({
+        "at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "model": args.model,
+        "reps": len(results),
+        "correct_f02": correct,
+        "classes": dict(classes),
+        "validator_approved": approved,
+        "latency_s": lat,
+        "old_strings_copied_in": leaked,
+        "skeleton_defaults_in": skeleton_values,
+        "named_expected_repair": named_repair,
+        "corpus_before": pre_corpus,
+        "corpus_after": post_corpus,
+        "passed": passed,
+        "runs": results,
+    }, indent=2, default=str) + "\n", encoding="utf-8")
+    say(f"  artifact {out}")
+    return 0 if passed else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

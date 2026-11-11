@@ -44,6 +44,7 @@ sys.path[:0] = [str(ROOT), str(ROOT / "apps" / "control-plane")]
 
 from harness.faults.base import Fault  # noqa: E402
 from harness.faults.f01_endpoint_outage import F01EndpointOutage  # noqa: E402
+from harness.faults.f02_latency_degradation import F02LatencyDegradation  # noqa: E402
 from harness.faults.f06_retrieval_collapse import F06RetrievalCollapse  # noqa: E402
 from harness.faults.f07_prompt_regression import F07PromptRegression  # noqa: E402
 from harness.faults.f08_config_regression import F08ConfigRegression  # noqa: E402
@@ -96,6 +97,8 @@ def prompts_dir() -> Path:
 FAULTS: dict[str, Builder] = {
     # F01 drives Toxiproxy's admin API, not the target, so it takes no client.
     "F01": lambda _client, corpus: F01EndpointOutage(corpus_probe=corpus),
+    # F02 is F01's listener with a latency toxic instead of disabled.
+    "F02": lambda _client, corpus: F02LatencyDegradation(corpus_probe=corpus),
     "F06": lambda client, corpus: F06RetrievalCollapse(client, corpus_probe=corpus),
     # F07 writes a FILE rather than a setting, so it needs the prompts
     # directory as well as the control interface - it uses the first to inject
@@ -226,6 +229,9 @@ def _assumed_pre_state(name: str, fault: Fault) -> dict[str, Any]:
 
         proxy = fault._proxy(PRIMARY)  # type: ignore[attr-defined]
         return {"proxy": {**proxy, "enabled": True}}
+    if name == "F02":
+        # Healthy is "no toxic on the primary listener", a documented constant.
+        return {"toxics": []}
     if name == "F06":
         from harness.faults.f06_retrieval_collapse import (
             EXPECTED_HEALTHY_THRESHOLD,
@@ -263,6 +269,9 @@ def _describe(name: str, fault: Fault) -> str:
 
             enabled = fault._proxy(PRIMARY).get("enabled")  # type: ignore[attr-defined]
             return f"{PRIMARY} enabled={enabled}"
+        if isinstance(fault, F02LatencyDegradation):
+            names = [t.get("name") for t in fault._toxics()]
+            return f"{fault.proxy} toxics={names}"
         if name == "F06":
             return f"rerank_threshold={fault.current_threshold()}"  # type: ignore[attr-defined]
         if name == "F07":

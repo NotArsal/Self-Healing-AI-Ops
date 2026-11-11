@@ -1,0 +1,180 @@
+{
+  "at": "2026-11-10T16:40:18+00:00",
+  "model": "qwen2.5:7b-instruct",
+  "reps": 10,
+  "correct_f02": 10,
+  "classes": {
+    "F02": 10
+  },
+  "validator_approved": 10,
+  "latency_s": [
+    18.6,
+    8.3,
+    8.3,
+    8.3,
+    8.3,
+    8.3,
+    8.3,
+    8.3,
+    8.3,
+    8.3
+  ],
+  "old_strings_copied_in": [],
+  "skeleton_defaults_in": [],
+  "named_expected_repair": 10,
+  "corpus_before": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "corpus_after": {
+    "chunks": 30.0,
+    "files": 2.0
+  },
+  "passed": true,
+  "runs": [
+    {
+      "rep": 1,
+      "fault_class": "F02",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 18.6,
+      "cited": [
+        "EV-M06",
+        "EV-M07",
+        "EV-V00",
+        "EV-V01",
+        "EV-V02",
+        "EV-V03"
+      ],
+      "reasoning": "LLM error ratio is 0.0 (healthy), indicating the model was reached. However, the latency p95 is 14.65s, which is far above the healthy value of 4.0s. Grounding is intact, as evidenced by the fast set cases being PASS with grounded=True. The fast set overall is FAIL, which is consistent with the high latency. The logs show normal reranking and expansion query generation, ruling out prompt or configuration issues."
+    },
+    {
+      "rep": 2,
+      "fault_class": "F02",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.3,
+      "cited": [
+        "EV-M06",
+        "EV-M07"
+      ],
+      "reasoning": "EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20), indicating the model was reached and answered correctly. EV-M07 shows llm_generation_latency_p95 = 14.65s (healthy: < 4.0s), which is far above the healthy threshold. This rules out F01 (outage) and F06 (retrieval collapse) as the model was reached and latency is the only issue."
+    },
+    {
+      "rep": 3,
+      "fault_class": "F02",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.3,
+      "cited": [
+        "EV-M06",
+        "EV-M07"
+      ],
+      "reasoning": "EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20), indicating the model was reached and answered correctly. EV-M07 shows llm_generation_latency_p95 = 14.65s (healthy: < 4.0s), which is far above the healthy threshold. This rules out F01 (outage) and F06 (retrieval collapse) as the model was reached and latency is the only issue."
+    },
+    {
+      "rep": 4,
+      "fault_class": "F02",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.3,
+      "cited": [
+        "EV-M06",
+        "EV-M07"
+      ],
+      "reasoning": "EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20), indicating the model was reached and answered correctly. EV-M07 shows llm_generation_latency_p95 = 14.65s (healthy: < 4.0s), which is far above the healthy threshold. This rules out F01 (outage) and F06 (retrieval collapse) as the model was reached and latency is the only issue."
+    },
+    {
+      "rep": 5,
+      "fault_class": "F02",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.3,
+      "cited": [
+        "EV-M06",
+        "EV-M07"
+      ],
+      "reasoning": "EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20), indicating the model was reached and answered correctly. EV-M07 shows llm_generation_latency_p95 = 14.65s (healthy: < 4.0s), which is far above the healthy threshold. This rules out F01 (outage) and F06 (retrieval collapse) as the model was reached and latency is the only issue."
+    },
+    {
+      "rep": 6,
+      "fault_class": "F02",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.3,
+      "cited": [
+        "EV-M06",
+        "EV-M07"
+      ],
+      "reasoning": "EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20), indicating the model was reached and answered correctly. EV-M07 shows llm_generation_latency_p95 = 14.65s (healthy: < 4.0s), which is far above the healthy threshold. This rules out F01 (outage) and F06 (retrieval collapse) as the model was reached and latency is the only issue."
+    },
+    {
+      "rep": 7,
+      "fault_class": "F02",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.3,
+      "cited": [
+        "EV-M06",
+        "EV-M07"
+      ],
+      "reasoning": "EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20), indicating the model was reached and answered correctly. EV-M07 shows llm_generation_latency_p95 = 14.65s (healthy: < 4.0s), which is far above the healthy threshold. This rules out F01 (outage) and F06 (retrieval collapse) as the model was reached and latency is the only issue."
+    },
+    {
+      "rep": 8,
+      "fault_class": "F02",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.3,
+      "cited": [
+        "EV-M06",
+        "EV-M07"
+      ],
+      "reasoning": "EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20), indicating the model was reached and answered correctly. EV-M07 shows llm_generation_latency_p95 = 14.65s (healthy: < 4.0s), which is far above the healthy threshold. This rules out F01 (outage) and F06 (retrieval collapse) as the model was reached and latency is the only issue."
+    },
+    {
+      "rep": 9,
+      "fault_class": "F02",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.3,
+      "cited": [
+        "EV-M06",
+        "EV-M07"
+      ],
+      "reasoning": "EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20), indicating the model was reached and answered correctly. EV-M07 shows llm_generation_latency_p95 = 14.65s (healthy: < 4.0s), which is far above the healthy threshold. This rules out F01 (outage) and F06 (retrieval collapse) as the model was reached and latency is the only issue."
+    },
+    {
+      "rep": 10,
+      "fault_class": "F02",
+      "service": "backend",
+      "confidence": 0.9,
+      "repair": "switch_llm_endpoint",
+      "approved": true,
+      "latency_s": 8.3,
+      "cited": [
+        "EV-M06",
+        "EV-M07"
+      ],
+      "reasoning": "EV-M06 shows llm_error_ratio = 0.0 (healthy: < 0.20), indicating the model was reached and answered correctly. EV-M07 shows llm_generation_latency_p95 = 14.65s (healthy: < 4.0s), which is far above the healthy threshold. This rules out F01 (outage) and F06 (retrieval collapse) as the model was reached and latency is the only issue."
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "question": "What ROC-AUC did the LSTM model achieve?",
+  "asks": 3,
+  "results": [
+    {
+      "latency_ms": 0,
+      "chat_s": [
+        10.1,
+        6.2,
+        6.2
+      ],
+      "chat_errors": [],
+      "generation_calls": 3.0,
+      "generation_p95_s": 0.9749999999999999,
+      "generation_above_8s": 0.0,
+      "llm_errors_by_op": {
+        "embedding": 0,
+        "query_expansion": 0,
+        "generation": 0
+      }
+    },
+    {
+      "latency_ms": 4000,
+      "chat_s": [
+        29.9,
+        30.2,
+        30.0
+      ],
+      "chat_errors": [],
+      "generation_calls": 3.0,
+      "generation_p95_s": 7.799999999999999,
+      "generation_above_8s": 0.0,
+      "llm_errors_by_op": {
+        "embedding": 0,
+        "query_expansion": 0,
+        "generation": 0
+      }
+    },
+    {
+      "latency_ms": 6000,
+      "chat_s": [
+        42.3,
+        43.0,
+        42.4
+      ],
+      "chat_errors": [],
+      "generation_calls": 3.0,
+      "generation_p95_s": 7.799999999999999,
+      "generation_above_8s": 0.0,
+      "llm_errors_by_op": {
+        "embedding": 0,
+        "query_expansion": 0,
+        "generation": 0
+      }
+    },
+    {
+      "latency_ms": 7500,
+      "chat_s": [
+        51.2,
+        51.4,
+        51.6
+      ],
+      "chat_errors": [],
+      "generation_calls": 3.0,
+      "generation_p95_s": 14.474999999999998,
+      "generation_above_8s": 2.0,
+      "llm_errors_by_op": {
+        "embedding": 0,
+        "query_expansion": 0,
+        "generation": 0
+      }
+    },
+    {
+      "latency_ms": 9000,
+      "chat_s": [
+        60.0,
+        61.0,
+        60.4
+      ],
+      "chat_errors": [],
+      "generation_calls": 3.0,
+      "generation_p95_s": 14.649999999999999,
+      "generation_above_8s": 3.0,
+      "llm_errors_by_op": {
+        "embedding": 0,
+        "query_expansion": 0,
+        "generation": 0
+      }
+    },
+    {
+      "latency_ms": 12000,
+      "chat_s": [
+        78.1,
+        78.2,
+        78.4
+      ],
+      "chat_errors": [],
+      "generation_calls": 3.0,
+      "generation_p95_s": 14.649999999999999,
+      "generation_above_8s": 3.0,
+      "llm_errors_by_op": {
+        "embedding": 0,
+        "query_expansion": 0,
+        "generation": 0
+      }
+    }
+  ]
+}

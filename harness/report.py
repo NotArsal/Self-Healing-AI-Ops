@@ -6,12 +6,14 @@ injections, unattended.
 
 TWO CORRECTIONS TO THE SPEC, BOTH FORCED BY WHAT THE PROJECT ACTUALLY IS
 
-**The denominator is four, not seven.** `PRD.md` §6 says "7 injectable
+**The denominator is five, not seven.** `PRD.md` §6 says "7 injectable
 faults x 5 reps = 35 injections", written when seven classes had injectors.
-`F02` and `F05` were dropped by `ROADMAP.md`'s week-10 checkpoint, `F03`
-never had an honest injector (§6.4), and `F09` was closed on measurement as
-not injectable (§12). Four remain: `F01`, `F06`, `F07`, `F08`. The
-denominator is printed with every table precisely because it shrank.
+`F05` was dropped by `ROADMAP.md`'s week-10 checkpoint, `F03` never had an
+honest injector (§6.4), and `F09` was closed on measurement as not
+injectable (§12). `F02` was dropped at the same checkpoint and restored by
+ADR 0023. Five remain: `F01`, `F02`, `F06`, `F07`, `F08`. The denominator is
+printed with every table precisely because it shrank, and every bench
+before 2026-11-10 was run over four.
 
 **It cannot run fast, and that is the finding rather than the problem.**
 `permit()`'s blast radius allows five incidents an hour and an approved heal
@@ -69,6 +71,7 @@ from harness.kavach_baseline import (  # noqa: E402
     rca_model,
     wait_terminal,
     warm_up_f01,
+    warm_up_f02,
 )
 from kavach.config import get_settings  # noqa: E402
 
@@ -314,6 +317,8 @@ def one_run(client: TargetClient, fault_class: str, rep: int,
             r.warmup_s = drive_until_detectable(client)
         elif fault_class == "F01":
             r.warmup_s = warm_up_f01(client)
+        elif fault_class == "F02":
+            r.warmup_s = warm_up_f02(client)
 
         code, started = api("/v1/loop/run?rca=true", "POST")
         pacer.spend(1)
@@ -419,9 +424,9 @@ def emit(bench: Bench, classes: list[str], reps: int) -> bool:
     say("=" * 78)
     say(f"  DENOMINATOR: {len(classes)} fault classes x {reps} reps = "
         f"{len(classes) * reps} injections, {n} usable")
-    say(f"  Classes: {', '.join(classes)}. Four, not the seven PRD section 6")
-    say("  assumed: F02/F05 dropped, F03 never had an injector, F09 closed")
-    say("  on measurement as not injectable.")
+    say(f"  Classes: {', '.join(classes)}. Not the seven PRD section 6")
+    say("  assumed: F05 dropped, F03 never had an injector, F09 closed on")
+    say("  measurement as not injectable. F02 restored by ADR 0023.")
     say("")
 
     detected = sum(1 for r in runs if r.detected)
@@ -513,7 +518,7 @@ def emit(bench: Bench, classes: list[str], reps: int) -> bool:
     say("LOCALIZATION, WITH ITS DENOMINATOR (PRD section 10.2)")
     say("-" * 78)
     say("  Every implemented fault lands on `backend`, so this is a 1-way")
-    say("  choice dressed as a 4-way one. Stated first because a reviewer")
+    say(f"  choice dressed as a {len(classes)}-way one. Stated first because a reviewer")
     say("  finds it in one question.")
     conf: Counter[tuple[str, str]] = Counter(
         (r.fault_class, r.service or "none") for r in runs if r.detected)

@@ -1075,6 +1075,76 @@ returns rather than on what the action object holds. P6 asks that a new fault
 change nothing in the core; the seam held where it was built and was missing
 here, which is a more useful result than claiming zero.
 
+### F02 acceptance: 7 of 8 — detection time is the miss, and it is structural
+
+Fifth fault class, restored by `ADR 0023` as the second confusable pair: F02
+shares F01's endpoint **and** its repair, so a wrong class label still yields
+the right action. The live vertical is **13 of 13** in both modes, and the
+stability run is **20/20**.
+
+| | Criterion | F02 |
+|---|---|---|
+| ✅ | Injector deterministic, reverts cleanly, 20 cycles stable | `harness/stability_f02.py`: **20/20**, min 249.8s / mean 250.8s / max 256.0s, settings identical, corpus `30/2` unchanged, **stack identical `True`** |
+| ❌ | Detection fires within 30s | **240.9s** (`p6-f02-live.json`, run → parked). See below |
+| ✅ | Diagnosis names the right class in ≥8 of 10 | **10/10** on qwen2.5:7b, **10/10 validator-approved**, 10/10 naming `switch_llm_endpoint`, mean 9.3s (`p6-f02-rca.json`) |
+| ✅ | Repair executes; inverse restores prior state exactly | Live in APPROVAL and AUTONOMOUS (`ALLOW_AUTO / LOW`), plus **20 further times** in the stability run, each inverse checked against the pre-state witness |
+| ✅ | All three fast verification probes pass | After failover, within budget, 100% |
+| ✅ | Integration test green in CI | `tests/test_f02_loop.py`, 7 tests, offline; `tests/test_f02_detection.py`, 18 tests |
+| ✅ | Forced-verification-failure test green | `test_f02_loop.py`: the failover lands, verification is forced to fail, the loop unwinds and escalates |
+| ✅ | Ownership and deny-list still pass for this action | `tests/test_safety.py`; no new allow-list entry — `permitted_repair()` derives F02's single action from the detector registry |
+
+**"Broke" is stricter for F02 than for F01, on purpose.** F01 breaks the fast
+set on quality (0% pass). F02 must break it on **time only**: over the 120s
+budget **and** 100% of answers still correct. Requiring both proves, every
+cycle, that the slowdown never quietly turned into wrong answers — which is
+what would make F02 indistinguishable from F01. 20 of 20 cycles met both.
+
+**The injector was chosen by a measured sweep** (`harness/sweep_f02_latency.py`,
+`f02-latency-sweep.json`): toxic values 0–12000ms, three asks each, reading the
+histogram bucket deltas rather than a rate window. 9s and 12s both put 3/3
+generation calls past the 8s floor with zero errors; 12s was taken for margin.
+Every LLM call in a chat (four embeddings, query expansion, generation) shares
+the primary listener, so one chat under the fault is ~78s.
+
+#### Why detection takes 241s, not 30s
+
+The metric is not the bottleneck: once a slow generation has completed,
+Prometheus has the p95 immediately. **The loop is.** `loop.py` runs the full
+fast set before every detection (`pre_fast`) — shared by all five detectors —
+and F02's detector requires it to fail as its residue guard. Under F02 that
+set is three ~78s chats run serially, so detection cannot conclude in less
+than ~235s. F01 detects in 15.1s because a refused call fails in milliseconds.
+
+This is recorded as a miss, not re-scoped. The threshold was not changed and
+the fast set was not shortened to reach it. **Three options, none taken — the
+choice belongs to the owner:**
+
+1. **Record it as a known limit.** Honest and free: latency faults are slower
+   to confirm than outages by construction, because a histogram observes a call
+   when it *ends*.
+2. **Stop the fast set early once it is over budget.** Verdict at the first
+   check past 120s (~156s here). Halves it; still misses 30s; touches shared
+   verification code every class uses.
+3. **A cheaper confirmation for F02** — one timed probe, or `/healthz`, which
+   already returns 503 under F02 (its Ollama check has a 5s timeout). Could
+   reach the target, but changes what "confirmed" means in the core loop and
+   needs a design decision first.
+
+#### Where the seam held, and the one place it did not
+
+Detector, injector, evidence entry and tests were additive, and the repair
+was reused unchanged. **The RCA prompt was not.** `llm/prompts/diagnose.txt`
+needed an F02 row in its decision table: without one the model had no way to
+say "reached and answered, late" and F01 was the only endpoint class it could
+name. P6's rule is that a new fault changes nothing in `llm/`; for RCA that
+rule does not hold, and every new class will need a row. Whether that row
+moved any other class is what the five-class bench re-run measures.
+
+One window fix rode along: `llm_generation_latency_p95` in
+`rca/evidence.py` moved from `[5m]` to `[2m]`, so the evidence the model reads
+covers the same window the detector fired on — the same fix the error ratio
+needed for F01.
+
 ---
 
 ## P7 — Git isolation, knowledge base, Laya shadow ⚠️ PARTIALLY REVIVED 2026-10-19

@@ -26,6 +26,7 @@ from __future__ import annotations
 from kavach.detection import (
     config_regression,
     endpoint_outage,
+    latency_degradation,
     prompt_regression,
     retrieval_collapse,
 )
@@ -33,6 +34,10 @@ from kavach.detection.base import registry
 
 # F01 — the endpoint is visibly down; HTTP status carries the fault.
 registry.register(endpoint_outage.SPEC)
+
+# F02 - the same endpoint answers, late. Separated from F01 by F01's own 0.50
+# error-ratio floor read from the other side, so the two cannot both claim.
+registry.register(latency_degradation.SPEC)
 
 # F06 — the endpoint is up and the answers are wrong; HTTP status carries
 # nothing, and detection has to come from grounding metrics.

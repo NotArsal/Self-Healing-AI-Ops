@@ -90,6 +90,7 @@ CONFIG_KEYS = ("rerank_threshold", "llm_model", "llm_base_url", "max_tokens",
 #   F08 config_regression - the settings comparison and the config hash
 DISCRIMINATING: dict[str, tuple[str, ...]] = {
     "F01": ("llm_error_ratio",),
+    "F02": ("llm_generation_latency_p95",),
     "F06": ("retrieval_top_similarity_p50", "retrieval_kept_chunks_mean",
             "retrieval_empty_context_ratio"),
     "F07": ("prompt_file_hashes",),
