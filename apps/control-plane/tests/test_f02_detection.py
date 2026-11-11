@@ -100,3 +100,38 @@ def test_collect_reads_every_query_through_the_injected_promql() -> None:
     readings = collect(Signals(prometheus_url="http://prom", promql=fake))
     assert set(readings) == set(QUERIES)
     assert seen == list(QUERIES.values())
+
+
+# --- F06 must not claim from a window with no retrievals in it --------------
+# Bench 2026-11-10, INC-201735: under F02 a chat takes ~78s, so F06's [1m]
+# kept_chunks window often holds no retrieval. The query divided by
+# `clamp_min(count, 1e-9)` and read that as 0 kept chunks - F06's own
+# signature - so F06 claimed beside F02 and the loop refused to choose.
+
+
+def test_kept_chunks_reads_an_empty_window_as_no_series_not_zero() -> None:
+    from kavach.detection import retrieval_collapse
+    from kavach.rca.evidence import METRIC_QUERIES as FRAME_QUERIES
+
+    q = retrieval_collapse.QUERIES["kept_chunks_mean"]
+    assert "clamp_min" not in q and "> 0)" in q
+    assert FRAME_QUERIES["retrieval_kept_chunks_mean"] == q
+
+
+def test_f02_with_an_empty_retrieval_window_is_claimed_by_f02_alone() -> None:
+    from kavach.detection import retrieval_collapse
+
+    values: dict[str, float | None] = {
+        **{QUERIES[k]: v for k, v in SLOW.items()},
+        **dict(zip(endpoint_outage.QUERIES.values(), (0.0, 12.0, 0.2, 3.0), strict=True)),
+        retrieval_collapse.QUERIES["similarity_p50"]: 0.65,
+        retrieval_collapse.QUERIES["kept_chunks_mean"]: None,  # no series
+        retrieval_collapse.QUERIES["empty_context_ratio"]: 0.0,
+        "ragapp_corpus_chunks": 30.0,
+    }
+    specs = [s for s in det.registry.specs() if s.fault_class in {"F01", "F02", "F06"}]
+    d = det.run_all(specs, Signals(prometheus_url="http://prom",
+                                   promql=lambda _u, e: values[e]),
+                    fast_set_passed=False, fast_set_pass_rate=1.0)
+    assert d.verdict is Verdict.FAULT
+    assert d.fault_class == "F02"

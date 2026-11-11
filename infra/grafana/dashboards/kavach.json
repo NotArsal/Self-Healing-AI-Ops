@@ -101,7 +101,7 @@
             "type": "prometheus",
             "uid": "kavach-prometheus"
           },
-          "expr": "rate(ragapp_retrieval_kept_chunks_sum[1m]) / clamp_min(rate(ragapp_retrieval_kept_chunks_count[1m]), 1e-9)",
+          "expr": "rate(ragapp_retrieval_kept_chunks_sum[1m]) / (rate(ragapp_retrieval_kept_chunks_count[1m]) > 0)",
           "legendFormat": "kept chunks per query [1m]",
           "refId": "A",
           "range": true

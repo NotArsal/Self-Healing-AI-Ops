@@ -153,9 +153,19 @@ QUERIES: dict[str, str] = {
     # rather than zero - safe, but blind at exactly the moment it is asked.
     # 1m holds about three rounds and still cuts worst-case detection from
     # 241s to 55s.
+    #
+    # NO RETRIEVALS IS NO SERIES, NOT ZERO KEPT - corrected 2026-11-10.
+    # The denominator was `clamp_min(..., 1e-9)`, so a window with samples
+    # but no retrievals read 0/1e-9 = 0: "every chunk filtered out", which
+    # is F06's own signature. The "sparse returns None" above was only true
+    # with fewer than two samples. Under F02 a chat takes ~78s, so a 1m
+    # window often holds none, and F06 claimed alongside F02 in the bench
+    # (INC-201735). `> 0` drops the series instead, which `_promql` reads as
+    # None. Checked against stored data: 2.0 with traffic, no series in the
+    # empty window, and still 0 during a real F06 (kept 0 with traffic).
     "kept_chunks_mean": (
         "rate(ragapp_retrieval_kept_chunks_sum[1m]) "
-        "/ clamp_min(rate(ragapp_retrieval_kept_chunks_count[1m]), 1e-9)"
+        "/ (rate(ragapp_retrieval_kept_chunks_count[1m]) > 0)"
     ),
     # WINDOW MEASURED, NOT CHOSEN - 1m, and this one IS a spec change.
     #

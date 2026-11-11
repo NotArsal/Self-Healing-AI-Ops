@@ -1,0 +1,25 @@
+uv --directory apps/control-plane run python -I ../../harness/report.py --json-out 'D:/Vit/Academics Sem-5/EDI/Self-Healing AI Ops/harness/reports/bench-20261110-night.json'
+==============================================================================
+make bench - live metrics over repeated injections
+==============================================================================
+  mode               APPROVAL
+  corpus             {'chunks': 30.0, 'files': 2.0}
+  plan               5 classes x 5 reps = 25 injections
+  estimated runtime  ~10.0h, paced under permit()'s blast radius. Unattended by design.
+
+  RCA model          qwen2.5:7b-instruct
+
+  rep 1 F01  detect=60.6s llm=F01(0.9)->switch_llm_endpoint resolved=True mttr=123.9 false_heal=False clean=True
+  rep 1 F02  detect=472.6s llm=F06(0.95)->rollback_config resolved=False mttr=None false_heal=False clean=True
+  rep 1 F06  detect=Nones llm=-(None)->- resolved=False mttr=None false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 47.9 min for the window to slide. Nothing is being reset.
+  rep 1 F07  detect=18.0s llm=F06(0.95)->rollback_config resolved=False mttr=None false_heal=False clean=True
+  rep 1 F08  detect=17.7s llm=F08(0.9)->rollback_config resolved=True mttr=108.9 false_heal=False clean=True
+    pacing: 5 incidents in the last hour, limit 5. Waiting 2.6 min for the window to slide. Nothing is being reset.
+    pacing: 4 incidents in the last hour, limit 5. Waiting 5.5 min for the window to slide. Nothing is being reset.
+  rep 2 F01  detect=48.6s llm=F01(0.9)->switch_llm_endpoint resolved=True mttr=109.0 false_heal=False clean=True
+    pacing: 5 incidents in the last hour, limit 5. Waiting 46.4 min for the window to slide. Nothing is being reset.
+    pacing: 4 incidents in the last hour, limit 5. Waiting 1.0 min for the window to slide. Nothing is being reset.
+  rep 2 F02  detect=Nones llm=-(None)->- resolved=False mttr=None false_heal=False clean=True
+  rep 2 F06  detect=Nones llm=-(None)->- resolved=False mttr=None false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 1.5 min for the window to slide. Nothing is being reset.

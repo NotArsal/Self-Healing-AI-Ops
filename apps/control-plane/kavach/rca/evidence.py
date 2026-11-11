@@ -50,7 +50,7 @@ METRIC_QUERIES: dict[str, str] = {
     # identically` now pins this pair the same way.
     "retrieval_kept_chunks_mean": (
         "rate(ragapp_retrieval_kept_chunks_sum[1m]) "
-        "/ clamp_min(rate(ragapp_retrieval_kept_chunks_count[1m]), 1e-9)"
+        "/ (rate(ragapp_retrieval_kept_chunks_count[1m]) > 0)"
     ),
     "retrieval_empty_context_ratio": (
         "(sum(rate(ragapp_retrieval_empty_context_total[1m])) or vector(0)) "

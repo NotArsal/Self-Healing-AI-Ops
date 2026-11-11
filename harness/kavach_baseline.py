@@ -233,7 +233,16 @@ def drain(client: TargetClient, max_rounds: int = 40) -> tuple[bool, float]:
     metric read while it still remembers the previous experiment. Draining
     some of the windows is not draining the windows.
 
-    So this reads all three signals directly and waits for every one to be
+    IT DRAINS GENERATION LATENCY TOO - THE SEVENTH INSTANCE, 2026-11-10
+    F02 joined the bench without this, and its first F06 run came back
+    ambiguous: generation p95 at [2m] still read 13.6s from F02's slow calls,
+    F06 broke the fast set, and both detectors claimed. F02's residue guard
+    only clears it when the fast set PASSES, so any next fault that fails the
+    set inherits F02. Drained to the declared 4.0s SLO, not the detector's 8s
+    floor, for the reason the error ratio drains to the frame ceiling: the
+    frame labels anything above the SLO abnormal.
+
+    So this reads all four signals directly and waits for every one to be
     healthy. `empty_context_ratio` is the slow one: it is still `[10m]`
     because it mirrors a declared `window_s: 600` in the target manifest,
     which `kept_chunks_mean` does not, so shortening it would be a spec
@@ -246,6 +255,7 @@ def drain(client: TargetClient, max_rounds: int = 40) -> tuple[bool, float]:
         kept = promql(F06_QUERIES["kept_chunks_mean"])
         empty = promql(F06_QUERIES["empty_context_ratio"])
         errors = promql(F01_QUERIES["llm_error_ratio"])
+        gen_p95 = promql(F02_QUERIES["generation_p95_s"])
         kept_ok = kept is None or kept >= t.kept_chunks_floor
         empty_ok = empty is None or empty <= t.empty_context_ceiling
         # Against the RCA FRAME's ceiling (0.20), not the F01 detector's
@@ -256,7 +266,9 @@ def drain(client: TargetClient, max_rounds: int = 40) -> tuple[bool, float]:
         # twice. F01Thresholds was imported for that one comparison and is
         # gone with it; `F01_QUERIES` stays, because the QUERY is still right.
         errors_ok = errors is None or errors < FRAME_ERROR_RATIO_CEILING
-        if kept_ok and empty_ok and errors_ok:
+        # Half the detector's floor, which is 2 x the declared SLO.
+        latency_ok = gen_p95 is None or gen_p95 < F02Thresholds().p95_floor_s / 2
+        if kept_ok and empty_ok and errors_ok and latency_ok:
             return True, round(time.time() - t0, 1)
     return False, round(time.time() - t0, 1)
 
