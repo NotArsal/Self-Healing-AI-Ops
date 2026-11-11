@@ -1,0 +1,36 @@
+uv --directory apps/control-plane run python -I ../../harness/report.py --json-out 'D:/Vit/Academics Sem-5/EDI/Self-Healing AI Ops/harness/reports/bench-20261111-night.json'
+==============================================================================
+make bench - live metrics over repeated injections
+==============================================================================
+  mode               APPROVAL
+  corpus             {'chunks': 30.0, 'files': 2.0}
+  plan               5 classes x 5 reps = 25 injections
+  estimated runtime  ~10.0h, paced under permit()'s blast radius. Unattended by design.
+
+  RCA model          qwen2.5:7b-instruct
+
+  rep 1 F01  detect=60.7s llm=F01(0.9)->switch_llm_endpoint resolved=True mttr=124.0 false_heal=False clean=True
+  rep 1 F02  detect=472.4s llm=F06(0.95)->rollback_config resolved=False mttr=None false_heal=False clean=True
+  rep 1 F06  detect=66.4s llm=F06(0.95)->rollback_config resolved=True mttr=143.7 false_heal=False clean=True
+    pacing: 5 incidents in the last hour, limit 5. Waiting 45.5 min for the window to slide. Nothing is being reset.
+    pacing: 4 incidents in the last hour, limit 5. Waiting 0.5 min for the window to slide. Nothing is being reset.
+  rep 1 F07  detect=17.9s llm=F06(0.95)->rollback_config resolved=False mttr=None false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 4.6 min for the window to slide. Nothing is being reset.
+  rep 1 F08  detect=16.2s llm=F08(0.8)->rollback_config resolved=True mttr=93.8 false_heal=False clean=True
+    pacing: 5 incidents in the last hour, limit 5. Waiting 4.5 min for the window to slide. Nothing is being reset.
+    pacing: 4 incidents in the last hour, limit 5. Waiting 0.6 min for the window to slide. Nothing is being reset.
+  rep 2 F01  detect=48.5s llm=F01(0.9)->switch_llm_endpoint resolved=True mttr=108.9 false_heal=False clean=True
+    pacing: 5 incidents in the last hour, limit 5. Waiting 45.2 min for the window to slide. Nothing is being reset.
+    pacing: 4 incidents in the last hour, limit 5. Waiting 5.5 min for the window to slide. Nothing is being reset.
+  rep 2 F02  detect=471.8s llm=F06(0.95)->rollback_config resolved=False mttr=None false_heal=False clean=True
+  rep 2 F06  detect=64.4s llm=F06(0.95)->rollback_config resolved=True mttr=141.9 false_heal=False clean=True
+  rep 2 F07  detect=18.4s llm=F07(0.95)->rollback_prompt resolved=True mttr=99.8 false_heal=False clean=True
+    pacing: 5 incidents in the last hour, limit 5. Waiting 49.0 min for the window to slide. Nothing is being reset.
+    pacing: 4 incidents in the last hour, limit 5. Waiting 6.9 min for the window to slide. Nothing is being reset.
+  rep 2 F08  detect=17.4s llm=F08(0.8)->rollback_config resolved=True mttr=105.9 false_heal=False clean=True
+  rep 3 F01  detect=72.8s llm=F01(0.9)->switch_llm_endpoint resolved=True mttr=133.2 false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 55.2 min for the window to slide. Nothing is being reset.
+  rep 3 F02  detect=472.9s llm=F06(0.95)->rollback_config resolved=False mttr=None false_heal=False clean=True
+  rep 3 F06  detect=65.7s llm=F06(0.95)->rollback_config resolved=True mttr=142.8 false_heal=False clean=True
+  rep 3 F07  detect=19.1s llm=F06(0.95)->rollback_config resolved=False mttr=None false_heal=False clean=True
+    pacing: 4 incidents in the last hour, limit 5. Waiting 50.2 min for the window to slide. Nothing is being reset.

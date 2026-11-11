@@ -243,6 +243,21 @@ def reading(value: float | None) -> tuple[float | None, str]:
     return round(value, 4), ""
 
 
+def fast_set_summary(r: FastVerificationResult) -> str:
+    """The EV-V00 value: the verdict AND which of the three probes failed it.
+
+    It used to read `FAIL (100% of cases)` under F02 - a slow but correct fast
+    set - which reads as "every case failed". Measured 2026-11-10/11, qwen2.5:7b
+    then diagnosed F02 as F06 in 5 of 5 live runs. Naming the probe that failed
+    removes that misreading for every class, not just F02.
+    """
+    verdict = "PASS" if r.passed else "FAIL"
+    time_word = "within" if r.within_budget else "OVER"
+    return (f"{verdict}: health {'ok' if r.health_ok else 'FAIL'}, "
+            f"{r.pass_rate:.0%} of cases passed, "
+            f"took {r.total_s:.0f}s, {time_word} the {r.budget_s}s budget")
+
+
 def collect(
     client: TargetClient,
     prometheus_url: str,
@@ -364,9 +379,9 @@ def collect(
 
     # --- fast verification: the user-visible symptom
     frame.add(eid="EV-V00", kind="verification", name="fast_set_overall",
-              value=f"{'PASS' if fast_result.passed else 'FAIL'} "
-                    f"({fast_result.pass_rate:.0%} of cases)",
-              expected="PASS (100%)")
+              value=fast_set_summary(fast_result),
+              expected=f"PASS: health ok, 100% of cases passed, "
+                       f"within the {fast_result.budget_s}s budget")
     for n, c in enumerate(fast_result.cases, start=1):
         frame.add(
             eid=f"EV-V{n:02d}", kind="verification", name=f"fast_case_{c.case_id}",

@@ -1075,7 +1075,7 @@ returns rather than on what the action object holds. P6 asks that a new fault
 change nothing in the core; the seam held where it was built and was missing
 here, which is a more useful result than claiming zero.
 
-### F02 acceptance: 7 of 8 — detection time is the miss, and it is structural
+### F02 acceptance: 6 of 8 at best — detection time is a structural miss, and the 10/10 RCA did not survive the live loop
 
 Fifth fault class, restored by `ADR 0023` as the second confusable pair: F02
 shares F01's endpoint **and** its repair, so a wrong class label still yields
@@ -1086,7 +1086,7 @@ stability run is **20/20**.
 |---|---|---|
 | ✅ | Injector deterministic, reverts cleanly, 20 cycles stable | `harness/stability_f02.py`: **20/20**, min 249.8s / mean 250.8s / max 256.0s, settings identical, corpus `30/2` unchanged, **stack identical `True`** |
 | ❌ | Detection fires within 30s | **240.9s** (`p6-f02-live.json`, run → parked). See below |
-| ✅ | Diagnosis names the right class in ≥8 of 10 | **10/10** on qwen2.5:7b, **10/10 validator-approved**, 10/10 naming `switch_llm_endpoint`, mean 9.3s (`p6-f02-rca.json`) |
+| ❌ | Diagnosis names the right class in ≥8 of 10 | **Corrected 2026-11-11.** `p6-f02-rca.json` recorded **10/10**, but that is ONE frame diagnosed ten times, built with `check_health=False`. In the bench the live loop builds a fresh frame per incident and qwen2.5:7b said **F06 at 0.95 in the first two of two** (INC-181800 truncated run, INC-203649). **Final, five-rep bench with the EV-V00 fix: 0/5**, every one F06 at 0.95 (`bench-20261111-evv00.json`); **0/10** live-loop diagnoses in all. The validator rejected every one: nothing written, no heal. See below |
 | ✅ | Repair executes; inverse restores prior state exactly | Live in APPROVAL and AUTONOMOUS (`ALLOW_AUTO / LOW`), plus **20 further times** in the stability run, each inverse checked against the pre-state witness |
 | ✅ | All three fast verification probes pass | After failover, within budget, 100% |
 | ✅ | Integration test green in CI | `tests/test_f02_loop.py`, 7 tests, offline; `tests/test_f02_detection.py`, 18 tests |
@@ -1105,6 +1105,64 @@ histogram bucket deltas rather than a rate window. 9s and 12s both put 3/3
 generation calls past the 8s floor with zero errors; 12s was taken for margin.
 Every LLM call in a chat (four embeddings, query expansion, generation) shares
 the primary listener, so one chat under the fault is ~78s.
+
+#### The 10/10 that became 0/2 — measured on the wrong frame
+
+The acceptance script diagnosed one frame ten times, the pattern every
+`rca_f0x_live.py` uses, and with `check_health=False`. The loop builds a new
+frame per incident, with `/healthz` included (503 under F02, because its
+Ollama check has a 5s timeout). Ten diagnoses of one frame are one
+observation; the bench is the first time F02 was diagnosed the way the
+product diagnoses it.
+
+In INC-203649 the frame was correct and the model **misread it**: it said the
+fast cases were `grounded=False` (all three read `grounded=True`) and called
+`llm_generation_latency_p95 = 14.65` healthy against a stated `< 4.0s`, then
+ruled F02 out on that reading and named F06 at 0.95. One frame line is
+genuinely misleading and is a candidate cause, not a proven one:
+`fast_set_overall = FAIL (100% of cases)` means *every case passed but the set
+was over budget*, and reads as *every case failed*. It was left alone during
+the night bench, which then gave F02 → F06 in 3 of 3 more runs (5 of 5 with the
+two above; `bench-20261111-TRUNCATED.log`, cut short by a laptop restart).
+
+**Changed 2026-11-11 on the owner's decision.** EV-V00 now names each probe:
+`FAIL: health FAIL, 100% of cases passed, took 236s, OVER the 180s budget`
+(`evidence.fast_set_summary`, tested in `test_f02_detection.py`). The prompt
+was not touched. The line is shared by every class, so the change is measured
+by a fresh full five-class bench, not by an F02-only rerun — a fix that helps
+F02 and costs another class must show up as that.
+
+**Measured: the fix did not move F02.** Five-class bench, 2026-11-11,
+`bench-20261111-evv00.log` / `.json`, 25/25 usable, target clean 25/25:
+
+| Class | LLM class right | Healed | Notes |
+|---|---|---|---|
+| F01 | 5/5 | 5/5 | |
+| F02 | **0/5** | 0/5 | F06 at 0.95 every time; all rejected by the validator |
+| F06 | 5/5 | 5/5 | |
+| F07 | 1/5 | 0/5 | F06 ×4 (pre-existing confusion). Rep 5 named F07 and was approved, then the approved re-run re-diagnosed it as F06 and was rejected — see below |
+| F08 | 5/5 | 5/5 | |
+
+RCA accuracy 64% (target ≥ 75%), auto-resolution 60% (target ≥ 70%),
+**false healing 0/25**, P(heal | diagnosis wrong) 0/9, P(diagnosis correct | heal)
+15/15, MTTD median 48.6s (target < 30s), MTTR median 112.0s (target < 180s),
+audit chain intact. The EV-V00 wording is kept: it is accurate, which the old
+line was not, but it is **not** the cause. The cause is open; what is measured
+is that qwen2.5:7b answers F06 at 0.95 for both classes whose symptom is a
+failing fast set with good retrieval numbers.
+
+**An approval does not carry the diagnosis.** By design (`loop.py`,
+`approved_from`) an approved incident re-detects and re-diagnoses from scratch,
+because the world may have moved. With a stable diagnoser that costs nothing;
+with this one it means a human-approved correct diagnosis (F07 rep 5,
+INC-142743) was overturned by the second RCA call and nothing was repaired. It
+is the one miss in P(heal | diagnosis correct) = 15/16. Not changed: whether
+the approved plan or a fresh diagnosis should win is a design decision for the
+owner.
+
+The deterministic cross-check rejected every wrong diagnosis, so the safety
+claim holds — the class claim does not yet. Final count comes from the
+five-rep bench.
 
 #### Why detection takes 241s, not 30s
 

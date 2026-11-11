@@ -135,3 +135,22 @@ def test_f02_with_an_empty_retrieval_window_is_claimed_by_f02_alone() -> None:
                     fast_set_passed=False, fast_set_pass_rate=1.0)
     assert d.verdict is Verdict.FAULT
     assert d.fault_class == "F02"
+
+
+def test_ev_v00_names_the_probe_that_failed_not_just_the_verdict() -> None:
+    """`FAIL (100% of cases)` read as "every case failed"; the model then said F06."""
+    from kavach.rca.evidence import fast_set_summary
+    from kavach.verification.fast import CaseResult, FastVerificationResult
+
+    def run(ok: bool, total_s: float) -> FastVerificationResult:
+        case = CaseResult("c1", "q", "kw", ok, ok, ok, total_s / 3)
+        return FastVerificationResult(cases=[case] * 3, total_s=total_s,
+                                      budget_s=180, health_ok=True)
+
+    slow = fast_set_summary(run(True, 236.0))  # F02: correct but late
+    assert slow == ("FAIL: health ok, 100% of cases passed, "
+                    "took 236s, OVER the 180s budget")
+    wrong = fast_set_summary(run(False, 30.0))  # quality fault, on time
+    assert wrong.startswith("FAIL") and "0% of cases passed" in wrong
+    assert "within the 180s budget" in wrong
+    assert fast_set_summary(run(True, 30.0)).startswith("PASS")
