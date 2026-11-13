@@ -1,0 +1,636 @@
+{
+  "at": "2026-11-12T06:04:09+00:00",
+  "primary_clean_at_end": true,
+  "healthy": {
+    "summary": {
+      "serial": {
+        "n": 10,
+        "total_s": {
+          "min": 17.1,
+          "median": 17.700000000000003,
+          "max": 21.8
+        },
+        "passed": 10,
+        "health_ok": 10,
+        "within_budget": 10,
+        "quality_ok": 10
+      },
+      "parallel": {
+        "n": 10,
+        "total_s": {
+          "min": 10.9,
+          "median": 11.25,
+          "max": 11.4
+        },
+        "passed": 10,
+        "health_ok": 10,
+        "within_budget": 10,
+        "quality_ok": 10
+      },
+      "speedup_median": 1.57
+    },
+    "rows": [
+      {
+        "mode": "serial",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 21.8,
+        "case_s": [
+          10.4,
+          5.8,
+          5.6
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "parallel",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 11.4,
+        "case_s": [
+          11.4,
+          10.7,
+          11.1
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "parallel",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 11.3,
+        "case_s": [
+          10.8,
+          11.3,
+          11.1
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "serial",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 17.1,
+        "case_s": [
+          5.7,
+          5.8,
+          5.6
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "serial",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 18.0,
+        "case_s": [
+          5.9,
+          5.6,
+          6.5
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "parallel",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 10.9,
+        "case_s": [
+          10.7,
+          10.5,
+          10.9
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "parallel",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 11.1,
+        "case_s": [
+          11.1,
+          10.9,
+          10.0
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "serial",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 17.1,
+        "case_s": [
+          5.7,
+          5.8,
+          5.6
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "serial",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 17.3,
+        "case_s": [
+          5.7,
+          5.8,
+          5.8
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "parallel",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 11.2,
+        "case_s": [
+          10.8,
+          10.6,
+          11.1
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "parallel",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 11.3,
+        "case_s": [
+          10.9,
+          10.7,
+          11.2
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "serial",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 17.6,
+        "case_s": [
+          5.9,
+          5.5,
+          6.2
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "serial",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 17.8,
+        "case_s": [
+          6.0,
+          5.9,
+          5.9
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "parallel",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 11.4,
+        "case_s": [
+          11.1,
+          10.9,
+          11.4
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "parallel",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 11.2,
+        "case_s": [
+          11.2,
+          10.5,
+          10.8
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "serial",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 18.7,
+        "case_s": [
+          6.2,
+          6.0,
+          6.5
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "serial",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 18.2,
+        "case_s": [
+          6.0,
+          5.9,
+          6.3
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "parallel",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 11.3,
+        "case_s": [
+          10.8,
+          11.0,
+          11.3
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "parallel",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 11.1,
+        "case_s": [
+          10.4,
+          10.8,
+          11.0
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "serial",
+        "passed": true,
+        "health_ok": true,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 17.3,
+        "case_s": [
+          5.7,
+          5.6,
+          5.9
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      }
+    ]
+  },
+  "f02": {
+    "summary": {
+      "serial": {
+        "n": 5,
+        "total_s": {
+          "min": 233.8,
+          "median": 234.1,
+          "max": 235.2
+        },
+        "passed": 0,
+        "health_ok": 0,
+        "within_budget": 0,
+        "quality_ok": 5
+      },
+      "parallel": {
+        "n": 5,
+        "total_s": {
+          "min": 82.7,
+          "median": 83.0,
+          "max": 83.2
+        },
+        "passed": 0,
+        "health_ok": 0,
+        "within_budget": 5,
+        "quality_ok": 5
+      },
+      "speedup_median": 2.82
+    },
+    "rows": [
+      {
+        "mode": "serial",
+        "passed": false,
+        "health_ok": false,
+        "within_budget": false,
+        "quality_ok": true,
+        "total_s": 234.8,
+        "case_s": [
+          78.2,
+          78.2,
+          78.5
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "parallel",
+        "passed": false,
+        "health_ok": false,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 83.0,
+        "case_s": [
+          83.0,
+          82.5,
+          81.8
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "parallel",
+        "passed": false,
+        "health_ok": false,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 82.7,
+        "case_s": [
+          82.2,
+          82.4,
+          82.7
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "serial",
+        "passed": false,
+        "health_ok": false,
+        "within_budget": false,
+        "quality_ok": true,
+        "total_s": 235.2,
+        "case_s": [
+          78.1,
+          78.3,
+          78.7
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "serial",
+        "passed": false,
+        "health_ok": false,
+        "within_budget": false,
+        "quality_ok": true,
+        "total_s": 233.9,
+        "case_s": [
+          78.0,
+          78.0,
+          77.9
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "parallel",
+        "passed": false,
+        "health_ok": false,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 83.0,
+        "case_s": [
+          82.0,
+          83.0,
+          82.6
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "parallel",
+        "passed": false,
+        "health_ok": false,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 83.2,
+        "case_s": [
+          82.5,
+          83.2,
+          82.9
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "serial",
+        "passed": false,
+        "health_ok": false,
+        "within_budget": false,
+        "quality_ok": true,
+        "total_s": 233.8,
+        "case_s": [
+          78.1,
+          77.9,
+          77.8
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "serial",
+        "passed": false,
+        "health_ok": false,
+        "within_budget": false,
+        "quality_ok": true,
+        "total_s": 234.1,
+        "case_s": [
+          78.2,
+          77.9,
+          78.0
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      },
+      {
+        "mode": "parallel",
+        "passed": false,
+        "health_ok": false,
+        "within_budget": true,
+        "quality_ok": true,
+        "total_s": 83.2,
+        "case_s": [
+          83.0,
+          82.8,
+          83.2
+        ],
+        "case_passed": [
+          true,
+          true,
+          true
+        ],
+        "errors": []
+      }
+    ]
+  }
+}

@@ -189,6 +189,71 @@ def test_a_rejection_is_recorded_and_escalates(tmp_path: Path) -> None:
     assert "INC-1" not in runner.awaiting()
 
 
+def _plan(incident_id: str = "INC-1") -> loop.ApprovedPlan:
+    return loop.ApprovedPlan(
+        incident_id=incident_id, fault_class="F06", service="backend",
+        action="rollback_config", requested_settings={"rerank_threshold": 0.35},
+        rca={}, diagnosed_by="deterministic")
+
+
+@pytest.mark.asyncio
+async def test_approve_hands_the_parked_plan_to_the_rerun(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ADR 0025: the approval carries the plan the operator saw, not just an id."""
+    runner = a_runner(tmp_path)
+    runner._awaiting["INC-1"] = {"plan": _plan(), "use_rca": False}
+    seen: dict[str, Any] = {}
+
+    async def start(use_rca: bool = True,
+                    approved: loop.ApprovedPlan | None = None) -> loop.Incident:
+        seen.update(use_rca=use_rca, approved=approved)
+        return loop.Incident(incident_id="INC-2", project="p")
+
+    monkeypatch.setattr(runner, "start", start)
+    await runner.approve("INC-1")
+
+    assert seen == {"use_rca": False, "approved": _plan()}
+    row = next(r for r in runner.audit.rows() if r["event"] == "approved")
+    assert row["plan"]["action"] == "rollback_config"
+
+
+@pytest.mark.asyncio
+async def test_a_parked_run_records_the_plan_it_parked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Without this there is nothing for an approval to bind to."""
+    import asyncio
+
+    from kavach.safety.engine import ProjectPolicy
+
+    runner = a_runner(tmp_path)
+
+    def run_once(*_: Any, incident_id: str = "", **__: Any) -> loop.Incident:
+        return loop.Incident(
+            incident_id=incident_id, project="p",
+            status=loop.IncidentStatus.AWAITING, fault_class="F06",
+            service="backend", planned_action="rollback_config",
+            diagnosed_by="deterministic",
+            action={"requested_settings": {"rerank_threshold": 0.35}})
+
+    monkeypatch.setattr(loop, "run_once", run_once)
+    monkeypatch.setattr(runner, "baseline", lambda: (0.35, "test"))
+    monkeypatch.setattr(runner, "baseline_doc", lambda: {})
+    monkeypatch.setattr(runner, "repair_values", lambda: {})
+    monkeypatch.setattr(runner, "fast_set_path", lambda: tmp_path / "unused.yaml")
+    monkeypatch.setattr(runner, "policy",
+                        lambda: ProjectPolicy(name="p", compose_project="c"))
+
+    inc = await runner.start(use_rca=False)
+    for _ in range(500):
+        if not runner._running:
+            break
+        await asyncio.sleep(0.01)
+
+    assert runner._awaiting[inc.incident_id]["plan"] == _plan(inc.incident_id)
+
+
 def test_a_parked_incident_is_listed_until_it_is_decided(tmp_path: Path) -> None:
     runner = a_runner(tmp_path)
     runner._awaiting["INC-1"] = {}

@@ -423,9 +423,10 @@ class LoopRunner:
         return stage
 
     async def start(
-        self, use_rca: bool = True, approved_from: str = ""
+        self, use_rca: bool = True, approved: loop.ApprovedPlan | None = None
     ) -> loop.Incident:
         """Begin a run. Returns as soon as the incident exists, not when it ends."""
+        approved_from = approved.incident_id if approved else ""
         with self._lock:
             if self._running:
                 raise LoopBusyError(
@@ -469,7 +470,8 @@ class LoopRunner:
 
         publish("run", "started",
                 (f"operator APPROVED {approved_from}; re-detecting and "
-                 f"re-preparing against the target as it is now. "
+                 f"re-preparing against the target as it is now; the approval "
+                 f"covers only the plan that was approved. "
                  if approved_from else "operator started a loop run ")
                 + f"mode {policy.mode}; baseline {baseline_value} from {source}; "
                 + ("LLM RCA enabled" if use_rca else "deterministic only"))
@@ -503,7 +505,7 @@ class LoopRunner:
                     safety=self.safety,
                     policy=policy,
                     audit=self.audit,
-                    approved_from=approved_from,
+                    approved=approved,
                     repair_values=self.repair_values(),
                     baseline=self.baseline_doc(),
                 )
@@ -521,6 +523,9 @@ class LoopRunner:
                         # How this plan was DERIVED, so approving it re-derives
                         # it the same way. See `approve()`.
                         "use_rca": use_rca,
+                        # WHAT the operator is about to be shown, so the
+                        # approval binds to it (ADR 0025).
+                        "plan": loop.ApprovedPlan.of(result),
                         "at": datetime.now(UTC).isoformat(timespec="seconds"),
                     }
                 ok = result.status is loop.IncidentStatus.RESOLVED
@@ -562,10 +567,12 @@ class LoopRunner:
         is the real one. A resumed plan would restore a value that was true
         when the dialog opened.
 
-        What the approval authorises is therefore the DECISION, not a frozen
-        payload - which is also why the re-run still passes `permit()`: every
-        other rule, including the deny-list and the breaker, is evaluated
-        again.
+        What the approval authorises is the PLAN the operator was shown -
+        fault, service, action and requested settings - rebuilt against the
+        target as it is now, not a frozen payload. A re-run that reaches a
+        different plan runs unapproved, which in APPROVAL mode parks it again
+        (ADR 0025). The re-run still passes `permit()`: every other rule,
+        including the deny-list and the breaker, is evaluated again.
         """
         with self._lock:
             if incident_id not in self._awaiting:
@@ -578,10 +585,12 @@ class LoopRunner:
                     f"a loop run is already in flight ({self._running})"
                 )
             parked = self._awaiting.pop(incident_id)
+        plan: loop.ApprovedPlan = parked["plan"]
 
         self.audit.append("approved", incident_id=incident_id, actor="operator",
-                          note="re-detected and re-prepared; the decision was "
-                               "approved, not a frozen payload")
+                          note="re-detected and re-prepared; the approval covers "
+                               "this plan only",
+                          plan=plan.to_dict())
         # The approval travels as evidence on the request, NOT as a mode
         # override. Flipping the project to AUTONOMOUS for the duration was the
         # first implementation and it did not work: AUTONOMOUS routes a MEDIUM
@@ -596,10 +605,11 @@ class LoopRunner:
         # incident escalated. The human had approved a sound plan and the
         # system answered by doing nothing - because approval silently changed
         # the pipeline. What a human approves is the decision, and the decision
-        # has to be reached the same way twice.
+        # has to be reached the same way twice. Since ADR 0025 the LLM is only
+        # asked again if the detector no longer agrees with the approved plan.
         return await self.start(
             use_rca=bool(parked.get("use_rca", True)),
-            approved_from=incident_id,
+            approved=plan,
         )
 
     def reject(self, incident_id: str, reason: str) -> None:

@@ -1160,6 +1160,12 @@ is the one miss in P(heal | diagnosis correct) = 15/16. Not changed: whether
 the approved plan or a fresh diagnosis should win is a design decision for the
 owner.
 
+**Update 2026-11-12, ADR 0025.** Decided and built: an approval binds to the
+plan it approved. If re-detection still names the approved class and service,
+the approved diagnosis is reused and the LLM is not asked again. If the plan
+changed, the approval does not cover it, and in APPROVAL mode the incident parks
+again.
+
 The deterministic cross-check rejected every wrong diagnosis, so the safety
 claim holds — the class claim does not yet. Final count comes from the
 five-rep bench.
@@ -1187,6 +1193,17 @@ choice belongs to the owner:**
    already returns 503 under F02 (its Ollama check has a 5s timeout). Could
    reach the target, but changes what "confirmed" means in the core loop and
    needs a design decision first.
+
+**Update 2026-11-12, ADR 0026.** None of the three was taken. The owner
+chose a fourth: detection's pre-check asks the three cases at once, and
+verifying a repair stays serial. Measured offline (`fastset-parallel-20261112`):
+the F02 fast set takes 234s one at a time and 83s at once, with the same
+verdict in all 30 runs. **Measured live** (`bench-20261112-f02-parallel`, 5
+reps, gpt-oss-120b via Groq): F02 MTTD median 327.1s, down from 473.3s. The
+loop's own part fell from ~239s to ~91s; the other ~236s is the harness
+warm-up, which is unchanged. RCA is still 5/5 at the same confidence, healed
+5/5, 0 false heals. It still misses 30s by about 11x. Breakdown and caveats
+are in ADR 0026, "Measured".
 
 #### Where the seam held, and the one place it did not
 

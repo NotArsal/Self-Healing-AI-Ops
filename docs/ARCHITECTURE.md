@@ -1312,8 +1312,8 @@ verification:
     # The case set lives in KAVACH, not here (PRD §13): it must be
     # deterministic, local, and independent of the target's RAGAS harness.
     # This key names it; it is not a path inside the target repo.
-    set: kavach/verification/fast_set.yaml   # EXACTLY 3, run serially
-    max_duration_s: 120                # serial, never concurrent
+    set: kavach/verification/fast_set.yaml   # EXACTLY 3
+    max_duration_s: 120                # serial when verifying; detection at once (ADR 0026)
   full:                                # FR-07a — research only, never in the loop
     runner: evaluation/evaluate.py     # the target's 40-case RAGAS harness
     schedule_s: 0                      # 0 = on demand only

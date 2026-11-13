@@ -1,0 +1,93 @@
+==============================================================================
+make bench - live metrics over repeated injections
+==============================================================================
+  mode               APPROVAL
+  corpus             {'chunks': 30.0, 'files': 2.0}
+  plan               1 classes x 5 reps = 5 injections
+  estimated runtime  ~2.0h, paced under permit()'s blast radius. Unattended by design.
+
+  RCA model          openai/gpt-oss-120b via groq, backup gemini-2.5-flash via gemini
+
+  rep 1 F02  detect=322.5s llm=F02(0.92)->switch_llm_endpoint resolved=True mttr=436.7 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+  rep 2 F02  detect=322.6s llm=F02(0.92)->switch_llm_endpoint resolved=True mttr=436.4 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 47.3 min for the window to slide. Nothing is being reset.
+  rep 3 F02  detect=330.4s llm=F02(0.92)->switch_llm_endpoint resolved=True mttr=446.2 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 0.8 min for the window to slide. Nothing is being reset.
+  rep 4 F02  detect=330.7s llm=F02(0.92)->switch_llm_endpoint resolved=True mttr=446.4 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 47.3 min for the window to slide. Nothing is being reset.
+  rep 5 F02  detect=327.1s llm=F02(0.93)->switch_llm_endpoint resolved=True mttr=448.1 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+
+==============================================================================
+METRICS  (PRD section 10)
+==============================================================================
+  DENOMINATOR: 1 fault classes x 5 reps = 5 injections, 5 usable
+  Classes: F02. Not the seven PRD section 6
+  assumed: F05 dropped, F03 never had an injector, F09 closed on
+  measurement as not injectable. F02 restored by ADR 0023.
+
+  metric                             value              target
+  detection rate                     100% (5/5)         >= 95%
+  localization (service)             100% (5/5)         >= 80%
+  RCA accuracy (LLM own answer)      100% (5/5)         >= 75%
+    of which: fault class named      100% (5/5)         the figure above
+    repair action correct            100% (5/5)         no target yet
+    answer is self-consistent        100% (5/5)         measured, NOT enforced
+  auto-resolution rate               100% (5/5)         >= 70% of LOW
+  FALSE HEALING                      0% (0/5)           <= 5%
+  rollback correctness               n/a                100%
+  MTTD (median)                      327.1s             < 30s
+    first verdict (median)           333.1s             detect+RCA+gate, no target
+  MTTR (median)                      446.2s             < 180s
+  audit completeness                 100% (5/5)         100%
+  audit chain intact                 True               True
+  target state clean after run       100% (5/5)         100%
+
+------------------------------------------------------------------------------
+CONDITIONALS (PRD section 10.1) - the part a reviewer asks about
+------------------------------------------------------------------------------
+  P(heal | diagnosis correct)  100% (5/5)
+  P(heal | diagnosis WRONG)    n/a
+  P(diagnosis correct | heal)  100% (5/5)
+
+  A high auto-resolution rate next to a high P(heal | wrong) means a
+  symptom-matcher with an LLM attached. Report both or neither.
+
+------------------------------------------------------------------------------
+LOCALIZATION, WITH ITS DENOMINATOR (PRD section 10.2)
+------------------------------------------------------------------------------
+  Every implemented fault lands on `backend`, so this is a 1-way
+  choice dressed as a 1-way one. Stated first because a reviewer
+  finds it in one question.
+    F02 -> backend    5
+
+------------------------------------------------------------------------------
+DETERMINISTIC CROSS-CHECK
+------------------------------------------------------------------------------
+  LLM diagnoses refused: 0/5
+
+------------------------------------------------------------------------------
+CLASS ACCURACY IS NOT ACTION ACCURACY
+------------------------------------------------------------------------------
+                        action right    action wrong    
+  class right           5               0               
+  class wrong           0               0               
+
+  `RCA accuracy` is the class row totals. The top-right cell is the
+  one it cannot see: a correct fault class with a repair that class
+  may not use. The gate catches it; the metric scores it correct.
+
+  fault_name matches its own class code: 5/5
+
+------------------------------------------------------------------------------
+THROUGHPUT CEILING (FR-16), measured not assumed
+------------------------------------------------------------------------------
+  permit() allows 5 incident starts per sliding
+  hour and an approved heal costs 2. This bench
+  waited 95 minutes in total to stay
+  underneath it. Nothing was reset, raised or disabled.
+  => Kavach performs at most 2 approved heals per hour
+     and halts rather than widening. That is a demo constraint as
+     much as an operational one.
+
+  artifact D:\Vit\Academics Sem-5\EDI\Self-Healing AI Ops\harness\reports\bench-20261112-f02-parallel.json
+BENCH_EXIT rc=0

@@ -587,3 +587,152 @@ def test_detection_stamps_the_instant_it_concluded(fast_set: Path) -> None:
     started = datetime.fromisoformat(inc.detected_at)
     assert datetime.fromisoformat(concluded) >= started, (
         "detection cannot conclude before the incident opened")
+
+
+# --- ADR 0025: an approval binds to the plan it approved --------------------
+#
+# The parked plan here is F06's own: `rollback_config` back to the baseline
+# threshold. Each test changes one thing between park and approval and asks
+# whether the approval still executes.
+
+
+def _gate(tmp_path: Path) -> dict[str, Any]:
+    from kavach.safety.engine import ProjectPolicy, SafetyEngine
+    return {
+        "safety": SafetyEngine(registry),
+        "policy": ProjectPolicy(
+            name="simple-rag", compose_project="target_rag-app",
+            services=frozenset({"backend", "db"}),
+            allowed_actions=frozenset({"rollback_config", "switch_llm_endpoint"}),
+            mode="APPROVAL"),
+        "audit": AuditLog(tmp_path / "audit.jsonl"),
+    }
+
+
+def _park(t: FakeTarget, fast_set: Path, gate: dict[str, Any]) -> Any:
+    from kavach.loop import ApprovedPlan
+    parked = run_once(t, "http://prom", fast_set, promql_for(t),
+                      BASELINE_THRESHOLD, incident_id="INC-P", **gate)
+    assert parked.status is IncidentStatus.AWAITING and t.writes == []
+    return ApprovedPlan.of(parked)
+
+
+def _permit_row(gate: dict[str, Any]) -> dict[str, Any]:
+    log: AuditLog = gate["audit"]
+    return [r for r in log.rows() if r["event"] == "permit"][-1]
+
+
+def test_an_approval_does_not_run_a_plan_for_a_different_fault(
+    fast_set: Path, tmp_path: Path,
+) -> None:
+    """The operator approved F01's endpoint switch; the re-run finds F06.
+
+    Before ADR 0025 the approval travelled as a bare incident id, so the F06
+    rollback ran under a click on an F01 dialog.
+    """
+    from dataclasses import replace
+    t = FakeTarget(BAD_THRESHOLD)
+    gate = _gate(tmp_path)
+    other = replace(_park(t, fast_set, gate), fault_class="F01",
+                    action="switch_llm_endpoint",
+                    requested_settings={"llm_base_url": "http://backup"})
+
+    inc = run_once(t, "http://prom", fast_set, promql_for(t),
+                   BASELINE_THRESHOLD, incident_id="INC-A", approved=other, **gate)
+
+    assert t.writes == [], "a plan nobody approved was executed"
+    assert inc.status is IncidentStatus.AWAITING
+    assert "plan changed since INC-P was approved" in inc.outcome
+    row = _permit_row(gate)
+    assert row["approved_from"] == "INC-P"
+    assert "F01" in row["approval_mismatch"]
+
+
+def test_an_approval_does_not_run_different_settings(
+    fast_set: Path, tmp_path: Path,
+) -> None:
+    """Same fault, same action, a different value than the operator saw."""
+    from dataclasses import replace
+    t = FakeTarget(BAD_THRESHOLD)
+    gate = _gate(tmp_path)
+    stale = replace(_park(t, fast_set, gate),
+                    requested_settings={"rerank_threshold": 0.5})
+
+    inc = run_once(t, "http://prom", fast_set, promql_for(t),
+                   BASELINE_THRESHOLD, incident_id="INC-A", approved=stale, **gate)
+
+    assert t.writes == []
+    assert inc.status is IncidentStatus.AWAITING
+    assert "rerank_threshold" in _permit_row(gate)["approval_mismatch"]
+
+
+def test_a_plan_that_still_holds_runs_without_asking_the_llm_again(
+    fast_set: Path, tmp_path: Path,
+) -> None:
+    """The measured problem: a second RCA call overturned an approved, correct
+    diagnosis 3 times in 45 runs. The diagnosis the operator read is carried
+    over; the deterministic detector re-checks the world."""
+    from dataclasses import replace
+    t = FakeTarget(BAD_THRESHOLD)
+    gate = _gate(tmp_path)
+    approved = replace(
+        _park(t, fast_set, gate), diagnosed_by="llm_rca",
+        rca={"diagnosis": {"fault_class": "F06", "confidence": 0.9}})
+
+    def llm(*_: Any) -> RcaResult:
+        raise AssertionError("the LLM was asked again after an approval")
+
+    inc = run_once(t, "http://prom", fast_set, promql_for(t),
+                   BASELINE_THRESHOLD, incident_id="INC-A", rca=llm,
+                   approved=approved, **gate)
+
+    assert inc.status is IncidentStatus.RESOLVED, inc.escalation_reason
+    assert t.settings()["rerank_threshold"] == BASELINE_THRESHOLD
+    assert inc.rca == approved.rca and inc.diagnosed_by == "llm_rca"
+    row = _permit_row(gate)
+    assert row["approved_from"] == "INC-P" and row["approval_mismatch"] == ""
+
+
+# --- ADR 0026: detection asks all cases at once; verification one at a time --
+
+
+class _SlowTarget(FakeTarget):
+    def ask(self, question: str, timeout: float = 240.0) -> str:
+        import time
+        time.sleep(0.3)
+        return super().ask(question, timeout)
+
+
+def test_parallel_fast_set_gives_the_serial_verdict_faster(fast_set: Path) -> None:
+    from kavach.verification import fast
+    for threshold in (BASELINE_THRESHOLD, BAD_THRESHOLD):
+        t = _SlowTarget(threshold)
+        ser = fast.run(t, fast_set)
+        par = fast.run(t, fast_set, parallel=True)
+        assert par.passed == ser.passed
+        assert [c.case_id for c in par.cases] == [c.case_id for c in ser.cases]
+        assert [c.passed for c in par.cases] == [c.passed for c in ser.cases]
+        assert ser.total_s >= 0.9 and par.total_s < 0.6, (ser.total_s, par.total_s)
+        assert par.parallel and not ser.parallel
+
+
+def test_detection_asks_at_once_and_verification_one_at_a_time(
+    fast_set: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """In parallel the 120s budget is about 3x looser, so the check that
+    decides whether a REPAIR worked must stay serial."""
+    from kavach.verification import fast
+    calls: list[bool] = []
+    real = fast.run
+
+    def spy(client: TargetClient, path: str | Path, check_health: bool = True,
+            parallel: bool = False) -> FastVerificationResult:
+        calls.append(parallel)
+        return real(client, path, check_health, parallel)
+
+    monkeypatch.setattr(fast, "run", spy)
+    t = FakeTarget(BAD_THRESHOLD)
+    inc = run_once(t, "http://prom", fast_set, promql_for(t), BASELINE_THRESHOLD)
+
+    assert inc.status is IncidentStatus.RESOLVED
+    assert calls == [True, False], "detection parallel, verification serial"

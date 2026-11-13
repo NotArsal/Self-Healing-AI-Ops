@@ -13,6 +13,7 @@ the recovery path.
 from __future__ import annotations
 
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -55,6 +56,9 @@ class FastVerificationResult:
     budget_s: int = 120
     health_ok: bool = False
     health_detail: str = ""
+    # True when the cases were asked at once (ADR 0026). `total_s` is then the
+    # slowest case, not the sum, which anything reading the time must know.
+    parallel: bool = False
 
     @property
     def quality_ok(self) -> bool:
@@ -83,6 +87,7 @@ class FastVerificationResult:
             "pass_rate": self.pass_rate,
             "total_s": round(self.total_s, 2),
             "budget_s": self.budget_s,
+            "parallel": self.parallel,
             "cases": [
                 {
                     "case_id": c.case_id,
@@ -165,13 +170,22 @@ def run(
     client: TargetClient,
     fast_set_path: str | Path,
     check_health: bool = True,
+    parallel: bool = False,
 ) -> FastVerificationResult:
-    """Run the set serially, never concurrently."""
+    """Run the set. Serially unless `parallel`, which asks every case at once.
+
+    `parallel` is for DETECTION only (ADR 0026); the loop verifies a repair
+    serially. The budget was set for a serial run. In parallel the wall time is
+    the slowest case, not the sum, so the same budget is about 3x looser, and a
+    repair that left the target slow could pass verification. Measured
+    2026-11-12: healthy 17.7s -> 11.3s, under F02 234s -> 83s, the same verdict
+    in all 30 runs.
+    """
     cases, budget = load_cases(fast_set_path)
     # The set's own vocabulary, not the module's. See `load_markers`: this is
     # a no-op for the first target, whose set declares exactly the constants.
     refusal_markers, sources_marker = load_markers(fast_set_path)
-    result = FastVerificationResult(budget_s=budget)
+    result = FastVerificationResult(budget_s=budget, parallel=parallel)
 
     if check_health:
         try:
@@ -188,8 +202,7 @@ def run(
         result.health_ok = True
         result.health_detail = "skipped"
 
-    started = time.perf_counter()
-    for case in cases:
+    def ask(case: dict[str, Any]) -> CaseResult:
         cid = str(case.get("id", "?"))
         q = str(case["question"])
         kw = str(case["expected_keyword"])
@@ -197,16 +210,22 @@ def run(
         try:
             answer = client.ask(q)
         except TargetError as exc:
-            result.cases.append(CaseResult(cid, q, kw, False, False, False,
-                                           time.perf_counter() - t0, str(exc)))
-            continue
+            return CaseResult(cid, q, kw, False, False, False,
+                              time.perf_counter() - t0, str(exc))
         low = answer.lower()
-        result.cases.append(CaseResult(
+        return CaseResult(
             case_id=cid, question=q, expected_keyword=kw,
             keyword_present=kw.lower() in low,
             non_refusal=not any(m in low for m in refusal_markers),
             sources_block=sources_marker in low,
             latency_s=time.perf_counter() - t0,
-        ))
+        )
+
+    started = time.perf_counter()
+    if parallel and cases:
+        with ThreadPoolExecutor(max_workers=len(cases)) as pool:
+            result.cases = list(pool.map(ask, cases))   # keeps the set's order
+    else:
+        result.cases = [ask(c) for c in cases]
     result.total_s = time.perf_counter() - started
     return result

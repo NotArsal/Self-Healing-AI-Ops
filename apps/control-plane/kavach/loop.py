@@ -24,7 +24,7 @@ from __future__ import annotations
 import contextlib
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass, field, fields
+from dataclasses import asdict, dataclass, field, fields
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -215,6 +215,48 @@ class Incident:
         return "\n".join(lines)
 
 
+@dataclass(frozen=True)
+class ApprovedPlan:
+    """The plan a human read and approved. ADR 0025.
+
+    An approval used to travel as a bare incident id, and `permit()` took any
+    non-empty id as "a human said yes" to whatever the re-run reached. This is
+    what the operator was actually shown, so the approval covers it and
+    nothing else.
+    """
+
+    incident_id: str
+    fault_class: str
+    service: str
+    action: str
+    requested_settings: dict[str, Any]
+    rca: dict[str, Any]
+    diagnosed_by: str
+
+    @classmethod
+    def of(cls, inc: Incident) -> ApprovedPlan:
+        return cls(
+            incident_id=inc.incident_id,
+            fault_class=inc.fault_class or "",
+            service=inc.service or "",
+            action=inc.planned_action or "",
+            requested_settings=dict(inc.action.get("requested_settings") or {}),
+            rca=dict(inc.rca),
+            diagnosed_by=inc.diagnosed_by,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    def mismatch(self, fault_class: str, service: str, action: str,
+                 requested_settings: dict[str, Any]) -> str:
+        """Empty when the re-run reached this plan; otherwise what differs."""
+        found = {"fault_class": fault_class, "service": service,
+                 "action": action, "requested_settings": requested_settings}
+        return "; ".join(f"{k} {getattr(self, k)!r} -> {v!r}"
+                         for k, v in found.items() if getattr(self, k) != v)
+
+
 def _corpus(promql: Callable[[str, str], float | None], prometheus_url: str) -> dict[str, Any]:
     return {
         "chunks": promql(prometheus_url, "ragapp_corpus_chunks"),
@@ -235,7 +277,7 @@ def run_once(
     safety: SafetyEngine | None = None,
     policy: ProjectPolicy | None = None,
     audit: AuditLog | None = None,
-    approved_from: str = "",
+    approved: ApprovedPlan | None = None,
     repair_values: dict[str, Any] | None = None,
     baseline: dict[str, Any] | None = None,
 ) -> Incident:
@@ -253,10 +295,15 @@ def run_once(
     explicitly, which is what it did before the gate existed. `audit` records
     the decision and the outcome to the hash-chained log.
 
-    `approved_from` is the incident a human approved. It re-detects and
+    `approved` is the plan a human approved (ADR 0025). It re-detects and
     re-prepares from scratch — the world may have moved — and the approval
     travels into `permit()` as evidence, not as a mode override. Everything
-    except the mode and confidence gates is therefore evaluated again.
+    except the mode and confidence gates is therefore evaluated again. If the
+    detector still finds the approved fault, the diagnosis the human read is
+    carried over and the LLM is not asked again. The approval reaches
+    `permit()` only if the re-run rebuilt the same plan - fault, service,
+    action and requested settings. Otherwise the run is judged as unapproved,
+    which in APPROVAL mode parks it for a fresh approval.
 
     `repair_values` maps an action name to the one declared value its builder
     needs: the captured baseline threshold for `rollback_config`, the declared
@@ -295,9 +342,13 @@ def run_once(
 
     # --- DETECT: metrics plus the fast set, no LLM
     _notify(on_event, "detect", "started",
-            f"detection started for {project}; running the 3-case fast set and "
-            f"reading retrieval metrics")
-    pre_fast = fast.run(client, fast_set_path)
+            f"detection started for {project}; running the 3-case fast set "
+            f"(all cases at once) and reading retrieval metrics")
+    # All cases at once HERE ONLY (ADR 0026): under F02 this takes detection's
+    # fast set from ~234s to ~83s. VERIFY below stays serial, because there the
+    # 120s budget is a safety check on the repair and in parallel it would be
+    # about 3x looser.
+    pre_fast = fast.run(client, fast_set_path, parallel=True)
     # Every registered detector, not one imported by name. `run_all` returns a
     # single verdict and refuses to choose when two detectors claim at once.
     #
@@ -357,11 +408,27 @@ def run_once(
             f"detected {detection.fault_class} {detection.fault_name} on "
             f"{detection.service}; fast set {pre_fast.pass_rate:.0%}")
 
+    # --- APPROVED, AND THE DETECTOR STILL AGREES: carry the diagnosis over.
+    # ADR 0025. A second LLM call overturned an approved, correct diagnosis
+    # 3 times in 45 runs. The validator only accepts a class the detector
+    # names, so a detector that still names it IS the re-check; asking the
+    # model again only adds a chance to lose the approval.
+    if (approved is not None
+            and approved.fault_class == detection.fault_class
+            and approved.service == detection.service):
+        inc.rca = dict(approved.rca)
+        inc.diagnosed_by = approved.diagnosed_by
+        inc.planned_action = known_faults().get(detection.fault_class or "")
+        _notify(on_event, "diagnose", "ok",
+                f"detection still finds {detection.fault_class} on "
+                f"{detection.service}, as approved on {approved.incident_id}; "
+                f"the approved diagnosis is carried over, the LLM is not asked again")
+
     # --- DIAGNOSE (optional): LLM RCA, gated by deterministic validation.
     # The LLM proposes; validate.py decides. A rejected diagnosis escalates
     # rather than falling back to the deterministic plan, because silently
     # ignoring a refused diagnosis would make the gate decorative.
-    if rca is not None:
+    elif rca is not None:
         _notify(on_event, "diagnose", "started",
                 "collecting evidence and requesting an LLM diagnosis")
         rca_result = rca(pre_fast, detection, baseline_value)
@@ -483,6 +550,16 @@ def run_once(
     # --- GATE: permit() decides. The loop proposes, it does not authorise.
     if safety is not None and policy is not None:
         diagnosis = (inc.rca.get("diagnosis") or {}) if inc.rca else {}
+        # ADR 0025: the approval covers the plan the human saw and no other.
+        approved_from = approved.incident_id if approved else ""
+        mismatch = approved.mismatch(
+            inc.fault_class or "", inc.service or "", action.name,
+            dict(action.to_dict().get("requested_settings") or {}),
+        ) if approved else ""
+        if mismatch:
+            _notify(on_event, "gate", "info",
+                    f"the plan changed since {approved_from} was approved "
+                    f"({mismatch}); the approval does not cover it")
         request = ActionRequest(
             action=action.name,
             incident_id=inc.incident_id,
@@ -493,7 +570,7 @@ def run_once(
             has_inverse=bool(getattr(action, "inverse_settings", None)),
             confidence=diagnosis.get("confidence"),
             diagnosis_class=str(diagnosis.get("fault_class") or ""),
-            operator_approved=approved_from,
+            operator_approved="" if mismatch else approved_from,
         )
         decision: Decision = safety.permit(request, policy)
         inc.decision = decision.to_dict()
@@ -518,6 +595,7 @@ def run_once(
             # inferred from a missing key.
             audit.append("permit", incident_id=inc.incident_id,
                          approved_from=approved_from,
+                         approval_mismatch=mismatch,
                          **decision.to_dict())
 
         if decision.denied:
@@ -572,6 +650,9 @@ def run_once(
                 f"{proposal.get('inverse_settings', {})} -> "
                 f"{proposal.get('requested_settings', {})}, not executed"
             )
+            if mismatch:
+                inc.outcome = (f"the plan changed since {approved_from} was "
+                               f"approved ({mismatch}); " + inc.outcome)
             inc.action = action.to_dict()
             inc.corpus_after = inc.corpus_before
             return inc

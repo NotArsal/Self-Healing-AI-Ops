@@ -253,9 +253,12 @@ def fast_set_summary(r: FastVerificationResult) -> str:
     """
     verdict = "PASS" if r.passed else "FAIL"
     time_word = "within" if r.within_budget else "OVER"
+    # Said outright when the cases ran at once (ADR 0026): the time is then the
+    # slowest case, and read as a serial total it would understate the latency.
+    how = " with all cases asked at once" if r.parallel else ""
     return (f"{verdict}: health {'ok' if r.health_ok else 'FAIL'}, "
             f"{r.pass_rate:.0%} of cases passed, "
-            f"took {r.total_s:.0f}s, {time_word} the {r.budget_s}s budget")
+            f"took {r.total_s:.0f}s{how}, {time_word} the {r.budget_s}s budget")
 
 
 def collect(

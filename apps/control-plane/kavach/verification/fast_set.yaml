@@ -3,7 +3,8 @@
 # This file lives in KAVACH, not in the target (PRD.md §13): the probe must be
 # deterministic, local, and independent of the target's RAGAS harness.
 #
-# Three cases, run SERIALLY, inside 120s. All checks are string operations -
+# Three cases, inside 120s. SERIAL when verifying a repair; the detection
+# pre-check asks all three at once (ADR 0026). All checks are string operations -
 # no LLM judge, no embedding similarity, no RAGAS, no cloud API (FR-07b).
 #
 # ---------------------------------------------------------------------------
@@ -61,7 +62,7 @@ project: simple-rag
 
 budget:
   max_duration_s: 120
-  execution: serial          # never concurrent
+  execution: serial          # verifying a repair; detection runs at once (ADR 0026)
   corpus_fingerprint:        # guards against silent corpus drift
     chunks: 30
     files: ["919.pdf", "1662.pdf"]

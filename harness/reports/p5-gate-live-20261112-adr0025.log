@@ -1,0 +1,94 @@
+==========================================================================
+P5 LIVE: the safety gate on a real F06, through the HTTP API
+==========================================================================
+  GET /v1/mode            200  {'mode': 'APPROVAL', 'enforced': True, 'manifest_mode': 'APPROVAL', 'overridden': False, 'allowed_actions': ['rollback_config', 'rollback_prompt', 'switch_llm_endpoint'], 'denied_mutations': ['data_delete', 'database_drop', 'embed_model_change', 'migration', 'scale_to_zero'], 'confidence_threshold': 0.75}
+  pre-state               threshold=0.35 hash=de4cfaed14a8bb98
+  pre-state corpus        {'chunks': 30.0, 'files': 2.0}
+
+--------------------------------------------------------------------------
+1. INJECT F06: rerank_threshold -> 0.999
+--------------------------------------------------------------------------
+  live threshold          0.999
+  driving load until the grounding average crosses the floor
+    round 1: fast set 0% in 20.7s, kept_chunks mean = 0.0
+  detectable              True (kept_chunks mean = 0.0)
+
+--------------------------------------------------------------------------
+2. RUN THE LOOP IN APPROVAL MODE: it must PARK and write NOTHING
+--------------------------------------------------------------------------
+  POST /v1/loop/run       202  {'incident_id': 'INC-064542', 'started_at': '2026-11-12T06:45:42+00:00', 'mode': 'APPROVAL', 'rca_enabled': True, 'approved_from': ''}
+    [   0.0s] DETECTED
+    [  20.1s] AWAITING_APPROVAL
+  status                  AWAITING_APPROVAL
+  fault_class / service   F06 / backend
+  outcome                 REQUIRE_APPROVAL: planned rollback_config {'rerank_threshold': 0.999} -> {'rerank_threshold': 0.35}, not executed
+  escalation_reason       
+  decision                {"verdict": "REQUIRE_APPROVAL", "action": "rollback_config", "risk_tier": "MEDIUM", "mode": "APPROVAL", "reasons": ["mode_policy: REQUIRE_APPROVAL under APPROVAL for a MEDIUM-risk action"], "checks": [{"name": "project_ownership", "passed": true, "detail": "backend in target_rag-app"}, {"name": "deny_list", "passed": true, "detail": "no denied mutation or parameter"}, {"name": "allow_list", "passed": true, "detail": "rollback_config"}, {"name": "action_known", "passed": true, "detail": "rollback
+  prepared action         {"incident_id": "INC-064542", "action": "rollback_config", "risk_tier": "MEDIUM", "idempotency_key": "82893a6bbe2fa54a17bb", "requested_settings": {"rerank_threshold": 0.35}, "inverse_settings": {"rerank_threshold": 0.999}, "config_hash_before": "383a51b120ada7c3", "config_hash_after": "", "restored
+  live threshold after    0.999  (must still be 0.999)
+
+--------------------------------------------------------------------------
+3. APPROVE: it must now execute and restore the captured value
+--------------------------------------------------------------------------
+  POST .../approve        202  {'incident_id': 'INC-064602', 'started_at': '2026-11-12T06:46:02+00:00', 'mode': 'APPROVAL', 'rca_enabled': True, 'approved_from': 'INC-064542'}
+    [   0.0s] DETECTED
+    [  35.1s] RESOLVED
+  status                  RESOLVED
+  outcome                 resolved: rollback_config applied {'rerank_threshold': 0.999} -> {'rerank_threshold': 0.35}
+  escalation_reason       
+  action executed flag    True
+  wrote                   {'rerank_threshold': 0.999} -> {'rerank_threshold': 0.35}
+  config hash             383a51b120ada7c3 -> de4cfaed14a8bb98
+  live threshold now      0.35
+  re-approve same id      409 (want 409)  {"detail":"INC-064542 is not awaiting approval; waiting: none"}
+
+  reverted; live threshold 0.35
+
+--------------------------------------------------------------------------
+5. AUDIT CHAIN
+--------------------------------------------------------------------------
+  rows                    60  chain_intact=True
+    21+00:00 permit                 {"incident_id": "INC-042758", "actor": "kavach"}
+    96+00:00 execute_start          {"incident_id": "INC-042758", "actor": "kavach"}
+    49+00:00 execute_done           {"incident_id": "INC-042758", "actor": "kavach"}
+    88+00:00 resolved               {"incident_id": "INC-042758", "actor": "kavach"}
+    47+00:00 diagnose               {"incident_id": "INC-051421", "actor": "kavach"}
+    43+00:00 permit                 {"incident_id": "INC-051421", "actor": "kavach"}
+    82+00:00 approved               {"incident_id": "INC-051421", "actor": "operator"}
+    97+00:00 diagnose               {"incident_id": "INC-051445", "actor": "kavach"}
+    06+00:00 permit                 {"incident_id": "INC-051445", "actor": "kavach"}
+    59+00:00 execute_start          {"incident_id": "INC-051445", "actor": "kavach"}
+    85+00:00 execute_done           {"incident_id": "INC-051445", "actor": "kavach"}
+    83+00:00 resolved               {"incident_id": "INC-051445", "actor": "kavach"}
+    18+00:00 store_init             {"incident_id": "", "actor": "kavach"}
+    66+00:00 diagnose               {"incident_id": "INC-064542", "actor": "kavach"}
+    02+00:00 permit                 {"incident_id": "INC-064542", "actor": "kavach"}
+    75+00:00 approved               {"incident_id": "INC-064542", "actor": "operator"}
+    19+00:00 permit                 {"incident_id": "INC-064602", "actor": "kavach"}
+    47+00:00 execute_start          {"incident_id": "INC-064602", "actor": "kavach"}
+    96+00:00 execute_done           {"incident_id": "INC-064602", "actor": "kavach"}
+    62+00:00 resolved               {"incident_id": "INC-064602", "actor": "kavach"}
+  events                  ['permit', 'execute_start', 'execute_done', 'resolved', 'diagnose', 'permit', 'approved', 'diagnose', 'permit', 'execute_start', 'execute_done', 'resolved', 'diagnose', 'permit', 'approved', 'diagnose', 'permit', 'execute_start', 'execute_done', 'resolved', 'diagnose', 'permit', 'approved', 'diagnose', 'permit', 'execute_start', 'execute_done', 'resolved', 'diagnose', 'permit', 'approved', 'diagnose', 'permit', 'execute_start', 'execute_done', 'resolved', 'diagnose', 'permit', 'approved', 'diagnose', 'permit', 'execute_start', 'execute_done', 'resolved', 'diagnose', 'permit', 'approved', 'diagnose', 'permit', 'execute_start', 'execute_done', 'resolved', 'store_init', 'diagnose', 'permit', 'approved', 'permit', 'execute_start', 'execute_done', 'resolved']
+
+==========================================================================
+SUMMARY
+==========================================================================
+  PASS  injected
+  PASS  fault_is_detectable
+  PASS  run_reports_approval_mode
+  PASS  parked_at_awaiting
+  PASS  gate_wrote_nothing
+  PASS  approve_accepted
+  PASS  approve_cites_source
+  PASS  executed_the_repair
+  PASS  resolved
+  PASS  unwound_cleanly_when_verification_failed
+  PASS  approval_is_single_use
+  PASS  audit_chain_intact
+  PASS  audit_records_the_execution
+  corpus {'chunks': 30.0, 'files': 2.0} -> {'chunks': 30.0, 'files': 2.0}  unchanged
+  final threshold 0.35
+
+  FULL VERTICAL (detect, park, write nothing, approve, execute, verify, resolve): PROVEN
+  artifact D:\Vit\Academics Sem-5\EDI\Self-Healing AI Ops\harness\reports\p5-gate-live.json
+rc=0

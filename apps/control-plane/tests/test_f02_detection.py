@@ -154,3 +154,17 @@ def test_ev_v00_names_the_probe_that_failed_not_just_the_verdict() -> None:
     assert wrong.startswith("FAIL") and "0% of cases passed" in wrong
     assert "within the 180s budget" in wrong
     assert fast_set_summary(run(True, 30.0)).startswith("PASS")
+
+
+def test_ev_v00_says_when_the_cases_ran_at_once() -> None:
+    """ADR 0026. In parallel the time is the slowest case; read as a serial
+    total, '83s, within the budget' would understate an F02 latency."""
+    from kavach.rca.evidence import fast_set_summary
+    from kavach.verification.fast import CaseResult, FastVerificationResult
+
+    case = CaseResult("c1", "q", "kw", True, True, True, 83.0)
+    r = FastVerificationResult(cases=[case] * 3, total_s=83.0, budget_s=120,
+                               health_ok=False, parallel=True)
+    assert fast_set_summary(r) == (
+        "FAIL: health FAIL, 100% of cases passed, took 83s with all cases "
+        "asked at once, within the 120s budget")
