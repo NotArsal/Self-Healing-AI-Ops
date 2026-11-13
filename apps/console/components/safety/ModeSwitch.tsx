@@ -46,14 +46,24 @@ export function ModeSwitch({
   const apply = async (mode: Mode): Promise<void> => {
     setBusy(true);
     setFailed("");
-    const { data, error } = await api.PUT("/v1/mode", { body: { mode } });
-    setBusy(false);
-    setConfirming(null);
-    if (error || !data) {
-      setFailed("The control plane refused the mode change.");
-      return;
+    // try/finally: `api.PUT` REJECTS when the control plane is down, and the
+    // plain `setBusy(false)` after the await never ran - every segment stayed
+    // disabled with no message.
+    try {
+      const { data, error } = await api.PUT("/v1/mode", { body: { mode } });
+      if (error || !data) {
+        setFailed("The control plane refused the mode change.");
+        return;
+      }
+      onChanged(data);
+    } catch {
+      setFailed(
+        "Cannot reach the Kavach control plane. Start it with `make dev-api`, then check the mode before trying again.",
+      );
+    } finally {
+      setBusy(false);
+      setConfirming(null);
     }
-    onChanged(data);
   };
 
   const choose = (mode: Mode): void => {

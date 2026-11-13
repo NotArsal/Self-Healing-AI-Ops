@@ -90,7 +90,8 @@ export function Timeline({
         >
           {events.map((event) => (
             <li
-              key={event.seq}
+              // seq restarts with the API process; seq + at does not repeat.
+              key={`${event.seq}|${event.at}`}
               style={{
                 display: "grid",
                 gridTemplateColumns: "76px 16px 1fr",

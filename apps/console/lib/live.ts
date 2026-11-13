@@ -82,16 +82,29 @@ export function useSystem(): {
 }
 
 /**
- * Loop events over the WebSocket, de-duplicated by `seq`.
+ * Loop events over the WebSocket, de-duplicated by `seq` plus `at`.
  *
  * The replay buffer the server sends on connect can overlap what is already
- * held, and a reconnect re-sends it, so `seq` is the identity. Without that a
- * dropped connection would duplicate the whole timeline.
+ * held, and a reconnect re-sends it. Without de-duplication a dropped
+ * connection would duplicate the whole timeline.
+ *
+ * `seq` ALONE IS NOT AN IDENTITY. It is a counter in the API process and
+ * starts again at 1 when the API restarts. Keyed on `seq` alone, every event
+ * after a restart was dropped as already seen, so the timeline froze until the
+ * page was reloaded. Each event carries the server's `at` timestamp, so the
+ * pair stays unique across restarts. Events are also ordered by `at`, so the
+ * new process's low numbers land after the old ones instead of before them.
  */
+// ponytail: `at` ordering trusts the server clock; a backwards clock step
+// would misorder lines. A server boot id on each event fixes that if it shows.
+const eventKey = (e: LoopEvent): string => `${e.seq}|${e.at}`;
+const byTime = (a: LoopEvent, b: LoopEvent): number =>
+  a.at < b.at ? -1 : a.at > b.at ? 1 : a.seq - b.seq;
+
 export function useEvents(): { events: LoopEvent[]; connected: boolean } {
   const [events, setEvents] = useState<LoopEvent[]>([]);
   const [connected, setConnected] = useState(false);
-  const seen = useRef<Set<number>>(new Set());
+  const seen = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     let socket: WebSocket | null = null;
@@ -114,9 +127,10 @@ export function useEvents(): { events: LoopEvent[]; connected: boolean } {
         } catch {
           return;
         }
-        if (seen.current.has(event.seq)) return;
-        seen.current.add(event.seq);
-        setEvents((previous) => [...previous, event].sort((a, b) => a.seq - b.seq));
+        const key = eventKey(event);
+        if (seen.current.has(key)) return;
+        seen.current.add(key);
+        setEvents((previous) => [...previous, event].sort(byTime));
       };
       socket.onclose = () => {
         setConnected(false);
@@ -189,10 +203,14 @@ function useLoadUntilReady(attempt: () => Promise<boolean>): void {
 /** Incident list plus the selected incident's full detail. */
 export function useIncidents(selectedId: string): {
   incidents: Incident[];
+  /** False until the first list arrives: `[]` before then means "not yet
+   *  known", not "none". Stays false while the API is unreachable. */
+  loaded: boolean;
   selected: Incident | null;
   refresh: () => void;
 } {
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState<Incident | null>(null);
 
   const load = useCallback(async () => {
@@ -203,6 +221,7 @@ export function useIncidents(selectedId: string): {
       const { data } = await api.GET("/v1/incidents");
       if (!data) return false;
       setIncidents(data as Incident[]);
+      setLoaded(true);
       return true;
     } catch {
       return false;
@@ -233,6 +252,7 @@ export function useIncidents(selectedId: string): {
 
   return {
     incidents,
+    loaded,
     selected,
     refresh: () => {
       void load();

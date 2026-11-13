@@ -13,8 +13,10 @@
 "use client";
 
 import { LoopRing, ringStage } from "./LoopRing";
+import { ICOSAHEDRON } from "../ascii/icosahedron";
 import { StatePill } from "../ui/pills";
 import type { IncidentSummary, LoopEvent } from "@/lib/api";
+import { BAR_CELLS, bar, seconds } from "@/lib/ascii";
 import { type LoopStage } from "@/lib/tokens";
 import { stateVar } from "@/lib/tokens";
 
@@ -57,22 +59,46 @@ export function IncidentStream({
   selectedId,
   onSelect,
   events,
+  loading = false,
 }: {
   incidents: IncidentSummary[];
   selectedId: string;
   onSelect: (id: string) => void;
   events: LoopEvent[];
+  /** True until the first list arrives. An empty list before then is not
+   *  "no incidents", and drawing that empty state flashed on every load. */
+  loading?: boolean;
 }) {
   return (
-    <section aria-labelledby="stream-heading">
+    <section aria-labelledby="stream-heading" aria-busy={loading}>
       <h2 id="stream-heading" style={{ marginBottom: "var(--k-space-3)" }}>
         Incidents
       </h2>
 
-      {incidents.length === 0 ? (
-        <p className="k-sm k-muted" style={{ margin: 0 }}>
-          No incidents. Kavach is watching one project and has run no loop yet.
-        </p>
+      {loading ? (
+        // §8 Loading: a skeleton block the height of one row, never a spinner.
+        <div
+          data-testid="incidents-skeleton"
+          style={{
+            height: 64,
+            borderRadius: "var(--k-radius-sm)",
+            background: "var(--k-surface-raised)",
+          }}
+        />
+      ) : incidents.length === 0 ? (
+        <>
+          {/* Decoration only (§7.12 A): the sentence carries the meaning. */}
+          <pre
+            aria-hidden="true"
+            className="k-ascii-art"
+            style={{ marginBottom: "var(--k-space-3)" }}
+          >
+            {ICOSAHEDRON}
+          </pre>
+          <p className="k-sm k-muted" style={{ margin: 0 }}>
+            No incidents. Kavach is watching one project and has run no loop yet.
+          </p>
+        </>
       ) : (
         <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {incidents.map((incident) => {
@@ -140,6 +166,11 @@ export function IncidentStream({
 
 export function HistoryTable({ incidents }: { incidents: IncidentSummary[] }) {
   if (incidents.length === 0) return null;
+  // Bars scale to the longest FINISHED incident; open ones are not drawn (§7.12 B).
+  const longest = Math.max(
+    0,
+    ...incidents.map((i) => seconds(i.detected_at, i.resolved_at) ?? 0),
+  );
   return (
     <section aria-labelledby="history-heading" style={{ marginTop: "var(--k-space-5)" }}>
       <h2 id="history-heading" style={{ marginBottom: "var(--k-space-3)" }}>
@@ -167,6 +198,9 @@ export function HistoryTable({ incidents }: { incidents: IncidentSummary[] }) {
               Detected
             </th>
             <th scope="col" style={{ padding: "6px 8px", fontWeight: 500 }}>
+              Duration
+            </th>
+            <th scope="col" style={{ padding: "6px 8px", fontWeight: 500 }}>
               Status
             </th>
             <th scope="col" style={{ padding: "6px 8px", fontWeight: 500 }}>
@@ -186,6 +220,21 @@ export function HistoryTable({ incidents }: { incidents: IncidentSummary[] }) {
               <td style={{ padding: "6px 8px" }}>
                 {incident.detected_at.slice(11, 19) || "—"}
               </td>
+              <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
+                {/* "—", not "open": `resolved_at` is set only on RESOLVED
+                    (loop.py), so an empty one also means NO_FAULT, APPROVED
+                    or ESCALATED, all finished. The status pill says which. */}
+                {seconds(incident.detected_at, incident.resolved_at) === null ? (
+                  "—"
+                ) : (
+                  <>
+                    <span aria-hidden="true" className="k-muted">
+                      {bar(seconds(incident.detected_at, incident.resolved_at) ?? 0, longest)}
+                    </span>{" "}
+                    {duration(incident.detected_at, incident.resolved_at)}
+                  </>
+                )}
+              </td>
               <td style={{ padding: "6px 8px" }}>
                 <StatePill status={incident.status} />
               </td>
@@ -199,6 +248,12 @@ export function HistoryTable({ incidents }: { incidents: IncidentSummary[] }) {
           ))}
         </tbody>
       </table>
+      {longest > 0 && (
+        <p className="k-xs k-faint" style={{ margin: "var(--k-space-2) 0 0" }}>
+          Duration bars scale to the longest finished incident here ({longest}s).
+          One cell is {(longest / BAR_CELLS).toFixed(1)}s.
+        </p>
+      )}
     </section>
   );
 }

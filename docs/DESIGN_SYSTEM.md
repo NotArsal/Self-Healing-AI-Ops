@@ -42,7 +42,7 @@ One consequence worth stating because it looks like an inconsistency otherwise: 
 
 - **Colour is data.** Hue means risk tier or incident state, and nothing else. There is no "brand accent" applied to arbitrary elements.
 - **Density over whitespace.** This is an operator's screen. A reviewer should be able to see an entire incident — evidence, diagnosis, plan, risk, verification — without scrolling.
-- **Monospace is functional, not stylistic.** It is used only for machine-generated strings: trace IDs, container names, log lines, metric values, diffs, action names. Never for labels or headings. A monospace label would be costume; a monospace trace ID is legibility.
+- **Monospace is functional, not stylistic.** It is used only for machine-generated strings: trace IDs, container names, log lines, metric values, diffs, action names. Never for labels or headings. A monospace label would be costume; a monospace trace ID is legibility. The one exception is ASCII art, under the conditions in §7.12.
 - **No decorative cards.** A bordered surface means "this is a discrete object with its own state." If the content has no state, it does not get a border.
 
 ---
@@ -104,6 +104,8 @@ Deliberately a different hue family from risk, so a user never confuses "this is
   --k-state-rolledback:#F58A47;  /* distinct from both resolved and escalated */
   --k-state-escalated: #F2605C;
 ```
+
+`APPROVED` (ADR 0025 follow-up) takes no signal hue. It renders in `--k-text-muted` with a chevron, because that row is finished and its fix runs as another incident. Signal colours are for live state.
 
 ### 2.4 The one gradient
 
@@ -324,6 +326,49 @@ The hash-chain link renders as a small chain icon; a broken chain renders in `--
 
 `--k-mono-metric` value, `--k-text-xs` muted label beneath, optional 48px sparkline. Used for MTTD, MTTR, auto-resolution rate. No card border — these are readings, not objects.
 
+### 7.12 ASCII art
+
+Permitted in two forms and nowhere else. Added by `docs/decisions/0027`. Nothing in this section relaxes §2.4 (one gradient), §9 (the Loop Ring is the only motion) or §11.
+
+**Source.** Pieces come from the `ascii-magic-art` library (MIT, `https://www.ascii-magic.com/ascii`). A piece is **copied into the repo** with its licence text and source URL beside it. It is never loaded from `ascii-magic.com` at run time and never fetched by `npx` at run time: the demo must work offline (§6.1, `UX-06`), and a safety console does not run a third-party script. The photo-based pieces `ocean-sunset` and `starry-ridge` are under the Unsplash licence, not MIT, and are never copied in.
+
+**A. Decorative, still frames.** Permitted in exactly three places:
+
+1. the empty states ("No active incident", "No incidents"),
+2. the rail brand mark,
+3. the boot and connecting screen.
+
+Rules:
+
+- **One frame, no timer, no `requestAnimationFrame`.** Not animated, not on hover.
+- **One size, `.k-ascii-art`: 8px mono on an 8px line.** The smallest type token (`--k-mono-sm`, 12/18) would make an 18-row frame 324px tall. This size is for decorative still frames only, where no character has to be read; data-bound ASCII uses `--k-mono-sm`.
+- **One ink, `--k-text-muted`.** No signal hue, no gradient, no glow. The brand mark is flat ink and never takes `--k-loop-gradient` (§2.4).
+- **It never carries meaning.** `aria-hidden="true"`; the sentence beside it says everything it says. An empty state keeps its sentence and its primary action (§8) and drops the art the moment real data arrives.
+- **Technical and structural subjects only.** No mascots, wands, sparkles or characters (§11). This product's argument is that its reasoning is inspectable, not that it is magic.
+- **Fits 1280×720 without scrolling.** The rail mark must be legible at 40×40, and where it cannot be, the rail shows the text initial instead.
+
+**B. Data-bound.** ASCII drawn from real values. The library's stock pieces are not used for this: they carry hard-coded demo data (labels such as `payments-svc`, release numbers). A data-bound piece is our own function from the real value to a frame of text.
+
+Rules:
+
+- **Only values the API returned.** If there is no value, draw nothing and show the §8 empty or pending state. Never placeholder or sample numbers, in the product or in a screenshot.
+- **Every plotted value is also printed as a number beside it**, as confidence already is (§2.5). A bar rounds; the number does not. State the bar's resolution where it is drawn.
+- **Unknown stays visible.** A probe or stage that has not run, or is not implemented, renders as pending, never omitted. The SLO-window probe stays permanently pending (§7.8).
+- **Redraws when the data changes, and does not animate between states.** A data change is state, not motion. No easing, no tween, no idle effect.
+- **Monospace with `font-variant-numeric: tabular-nums`**, like every other machine value (§3.2).
+- **Hue only as §2 allows:** risk tier or incident state, and only where its text label is also on screen. Otherwise `--k-text`, `--k-text-muted`.
+- **`aria-hidden="true"` on the art, and an adjacent text summary** that carries the same facts (§10).
+
+Initial set, each verified against the generated API types:
+
+| Piece | Reads | Fields |
+|---|---|---|
+| Loop stages | the live events of the selected incident | `EventOut.stage`, `EventOut.status` |
+| Incident durations | the incident history | `IncidentSummary.detected_at`, `IncidentSummary.resolved_at` (empty means no end time: still running, or finished without RESOLVED. Drawn as "—", never as a bar, never as complete) |
+| Verification probes | the selected incident's verification | `VerificationOut.health_ok`, `quality_ok`, `cases[].passed`, `cases[].latency_s`, `total_s`, `budget_s` |
+
+Anything not in this table needs to be added to it, with the field it reads, before it is built.
+
 ---
 
 ## 8. States
@@ -364,6 +409,8 @@ Sparing and deliberate. Motion that answers a user action is welcome; motion tha
 
 Permitted: hover/focus transitions, disclosure expand/collapse, drawer and overlay entry, the Loop Ring stage advance, and a single state-colour crossfade when an incident changes state.
 
+ASCII art (§7.12) adds no motion. A decorative piece is a still frame; a data-bound piece redraws when its data changes and does not animate between states. The Loop Ring remains the only motion that is not a response to a user action.
+
 **Forbidden:** fade-and-slide-up entrances on page sections or lists, staggered reveals, any looping animation other than the Loop Ring, parallax, animated gradients on backgrounds.
 
 All motion respects `prefers-reduced-motion: reduce` — transitions drop to 0ms, the ring stops rotating, state changes still render.
@@ -381,6 +428,7 @@ Non-negotiable. The console is read on a projector by people who did not build i
 - **Live regions:** incident state changes announce via `aria-live="polite"`. A new HIGH-risk approval request uses `aria-live="assertive"`.
 - **Targets:** 40×40px minimum for anything clickable, 44×44 on touch.
 - **Zoom:** usable at 200% without horizontal page scroll. Evidence panes may scroll internally.
+- **ASCII art** (§7.12) is `aria-hidden="true"` and never the only carrier of a fact: the same facts are in adjacent text, which a screen reader and a washed-out projector can both read. Its ink is `--k-text-muted`, which must meet the 4.5:1 contrast above.
 
 ---
 
@@ -423,3 +471,7 @@ Specific things not to generate in this product. These are the tells.
 - A monospace face on labels, headings or body copy.
 - Toasts for events the user can already see on screen.
 - Sparkles, wands, or any visual vocabulary that frames the AI as magic. This product's entire argument is that its reasoning is inspectable.
+- ASCII art anywhere other than the §7.12 placements, or any animated ASCII.
+- An ASCII chart, gauge or table that shows placeholder, sample or demo numbers, in the product or in a screenshot.
+- Loading an ASCII piece from a CDN, or fetching one with `npx`, at run time.
+- ASCII art whose subject is a character, a mascot or a scene. Structure and data only.

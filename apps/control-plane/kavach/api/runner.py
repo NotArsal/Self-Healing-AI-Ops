@@ -443,115 +443,124 @@ class LoopRunner:
             incident_id = f"INC-{datetime.now(UTC).strftime('%H%M%S')}"
             self._running = incident_id
 
-        event_loop = asyncio.get_running_loop()
-
-        def publish(stage: str, status: str, message: str) -> None:
-            bus.publish_threadsafe(
-                event_loop, stage, status, message, incident_id=incident_id
-            )
-            # The same sink the console watches, now also marking the
-            # run span. Riding the existing callback rather than adding
-            # calls inside `loop.run_once` keeps the loop free of
-            # telemetry entirely; `stage_event` swallows and is a no-op
-            # when no collector is configured.
-            telemetry.stage_event(stage, status, message)
-
-        # Resolved before the first event, so a manifest that will not parse is
-        # reported to the caller rather than surfacing inside a worker thread.
+        # Everything from here to the thread start can raise - an unreadable
+        # manifest, an LLM provider that will not build - and only the worker
+        # clears the slot. Released here instead, or one bad setting left the
+        # loop "already in flight" until the process restarted.
         try:
-            policy = self.policy()
-        except Exception as exc:
-            # A missing safety policy is the same class of refusal as a missing
-            # baseline: there is nothing safe to run under.
-            raise NoBaselineError(
-                f"the manifest could not be read, so there is no safety policy "
-                f"to run under: {exc}"
-            ) from exc
+            event_loop = asyncio.get_running_loop()
 
-        publish("run", "started",
-                (f"operator APPROVED {approved_from}; re-detecting and "
-                 f"re-preparing against the target as it is now; the approval "
-                 f"covers only the plan that was approved. "
-                 if approved_from else "operator started a loop run ")
-                + f"mode {policy.mode}; baseline {baseline_value} from {source}; "
-                + ("LLM RCA enabled" if use_rca else "deterministic only"))
+            def publish(stage: str, status: str, message: str) -> None:
+                bus.publish_threadsafe(
+                    event_loop, stage, status, message, incident_id=incident_id
+                )
+                # The same sink the console watches, now also marking the
+                # run span. Riding the existing callback rather than adding
+                # calls inside `loop.run_once` keeps the loop free of
+                # telemetry entirely; `stage_event` swallows and is a no-op
+                # when no collector is configured.
+                telemetry.stage_event(stage, status, message)
 
-        client = self.client()
-        rca_stage = self._rca_stage(client, publish) if use_rca else None
-
-        inc = loop.Incident(
-            incident_id=incident_id,
-            project=self.settings.target_project,
-            detected_at=datetime.now(UTC).isoformat(timespec="seconds"),
-        )
-        self._remember(inc)
-
-        # A @contextmanager is also a decorator, which wraps the whole
-        # run in one span without re-indenting the body. No-op when no
-        # collector is configured.
-        @telemetry.heal_span(incident_id)
-        def work() -> None:
+            # Resolved before the first event, so a manifest that will not parse is
+            # reported to the caller rather than surfacing inside a worker thread.
             try:
-                result = loop.run_once(
-                    client,
-                    self.settings.prometheus_url,
-                    self.fast_set_path(),
-                    _promql,
-                    baseline_value,
-                    project=self.settings.target_project,
-                    incident_id=incident_id,
-                    rca=rca_stage,
-                    on_event=publish,
-                    safety=self.safety,
-                    policy=policy,
-                    audit=self.audit,
-                    approved=approved,
-                    repair_values=self.repair_values(),
-                    baseline=self.baseline_doc(),
-                )
-                self._remember(result)
-                telemetry.record_incident(result)
-                if result.decision:
-                    self.store.save_decision(incident_id, result.decision)
-                if result.status is loop.IncidentStatus.AWAITING:
-                    # Park it. The human now has the plan, the risk tier, the
-                    # pre-state and the inverse, which is everything the
-                    # approval dialog needs (DESIGN_SYSTEM §7.7).
-                    self._awaiting[incident_id] = {
-                        "baseline_value": baseline_value,
-                        "policy": policy,
-                        # How this plan was DERIVED, so approving it re-derives
-                        # it the same way. See `approve()`.
-                        "use_rca": use_rca,
-                        # WHAT the operator is about to be shown, so the
-                        # approval binds to it (ADR 0025).
-                        "plan": loop.ApprovedPlan.of(result),
-                        "at": datetime.now(UTC).isoformat(timespec="seconds"),
-                    }
-                ok = result.status is loop.IncidentStatus.RESOLVED
-                quiet = result.status is loop.IncidentStatus.NO_FAULT
-                publish(
-                    "resolve",
-                    "ok" if ok else ("info" if quiet else "failed"),
-                    result.outcome or result.escalation_reason or str(result.status),
-                )
+                policy = self.policy()
             except Exception as exc:
-                # Total on purpose: this runs in a worker thread, where an
-                # escaping exception would vanish and leave the slot held.
-                logger.exception("loop run failed", incident_id=incident_id)
-                inc.status = loop.IncidentStatus.ESCALATED
-                inc.escalation_reason = f"{type(exc).__name__}: {exc}"
-                inc.outcome = "escalated; the run did not complete"
-                self._remember(inc)
-                telemetry.record_incident(inc)
-                publish("resolve", "failed", inc.escalation_reason)
-            finally:
-                with self._lock:
-                    self._running = ""
+                # A missing safety policy is the same class of refusal as a missing
+                # baseline: there is nothing safe to run under.
+                raise NoBaselineError(
+                    f"the manifest could not be read, so there is no safety policy "
+                    f"to run under: {exc}"
+                ) from exc
 
-        threading.Thread(
-            target=work, name=f"kavach-loop-{incident_id}", daemon=True
-        ).start()
+            publish("run", "started",
+                    (f"operator APPROVED {approved_from}; re-detecting and "
+                     f"re-preparing against the target as it is now; the approval "
+                     f"covers only the plan that was approved. "
+                     if approved_from else "operator started a loop run ")
+                    + f"mode {policy.mode}; baseline {baseline_value} from {source}; "
+                    + ("LLM RCA enabled" if use_rca else "deterministic only"))
+
+            client = self.client()
+            rca_stage = self._rca_stage(client, publish) if use_rca else None
+
+            inc = loop.Incident(
+                incident_id=incident_id,
+                project=self.settings.target_project,
+                detected_at=datetime.now(UTC).isoformat(timespec="seconds"),
+            )
+            self._remember(inc)
+
+            # A @contextmanager is also a decorator, which wraps the whole
+            # run in one span without re-indenting the body. No-op when no
+            # collector is configured.
+            @telemetry.heal_span(incident_id)
+            def work() -> None:
+                try:
+                    result = loop.run_once(
+                        client,
+                        self.settings.prometheus_url,
+                        self.fast_set_path(),
+                        _promql,
+                        baseline_value,
+                        project=self.settings.target_project,
+                        incident_id=incident_id,
+                        rca=rca_stage,
+                        on_event=publish,
+                        safety=self.safety,
+                        policy=policy,
+                        audit=self.audit,
+                        approved=approved,
+                        repair_values=self.repair_values(),
+                        baseline=self.baseline_doc(),
+                    )
+                    self._remember(result)
+                    telemetry.record_incident(result)
+                    if result.decision:
+                        self.store.save_decision(incident_id, result.decision)
+                    if result.status is loop.IncidentStatus.AWAITING:
+                        # Park it. The human now has the plan, the risk tier, the
+                        # pre-state and the inverse, which is everything the
+                        # approval dialog needs (DESIGN_SYSTEM §7.7).
+                        self._awaiting[incident_id] = {
+                            "baseline_value": baseline_value,
+                            "policy": policy,
+                            # How this plan was DERIVED, so approving it re-derives
+                            # it the same way. See `approve()`.
+                            "use_rca": use_rca,
+                            # WHAT the operator is about to be shown, so the
+                            # approval binds to it (ADR 0025).
+                            "plan": loop.ApprovedPlan.of(result),
+                            "at": datetime.now(UTC).isoformat(timespec="seconds"),
+                        }
+                    ok = result.status is loop.IncidentStatus.RESOLVED
+                    quiet = result.status is loop.IncidentStatus.NO_FAULT
+                    publish(
+                        "resolve",
+                        "ok" if ok else ("info" if quiet else "failed"),
+                        result.outcome or result.escalation_reason or str(result.status),
+                    )
+                except Exception as exc:
+                    # Total on purpose: this runs in a worker thread, where an
+                    # escaping exception would vanish and leave the slot held.
+                    logger.exception("loop run failed", incident_id=incident_id)
+                    inc.status = loop.IncidentStatus.ESCALATED
+                    inc.escalation_reason = f"{type(exc).__name__}: {exc}"
+                    inc.outcome = "escalated; the run did not complete"
+                    self._remember(inc)
+                    telemetry.record_incident(inc)
+                    publish("resolve", "failed", inc.escalation_reason)
+                finally:
+                    with self._lock:
+                        self._running = ""
+
+            threading.Thread(
+                target=work, name=f"kavach-loop-{incident_id}", daemon=True
+            ).start()
+        except BaseException:
+            with self._lock:
+                self._running = ""
+            raise
         return inc
 
     # --- approval -----------------------------------------------------------
@@ -607,10 +616,26 @@ class LoopRunner:
         # the pipeline. What a human approves is the decision, and the decision
         # has to be reached the same way twice. Since ADR 0025 the LLM is only
         # asked again if the detector no longer agrees with the approved plan.
-        return await self.start(
-            use_rca=bool(parked.get("use_rca", True)),
-            approved=plan,
-        )
+        try:
+            new = await self.start(
+                use_rca=bool(parked.get("use_rca", True)),
+                approved=plan,
+            )
+        except Exception as exc:
+            # Nothing ran: `start()` raises only before its worker exists.
+            # Park the plan again so the approval is not lost with the error.
+            with self._lock:
+                self._awaiting.setdefault(incident_id, parked)
+            self.audit.append("approval_not_run", incident_id=incident_id,
+                              reason=f"{type(exc).__name__}: {exc}")
+            raise
+        old = self.find(incident_id)
+        if old is not None:
+            old.status = loop.IncidentStatus.APPROVED
+            old.outcome = (f"approved by the operator; the fix runs as "
+                           f"{new.incident_id}")
+            self._remember(old)
+        return new
 
     def reject(self, incident_id: str, reason: str) -> None:
         """A human refused the plan. The reason is required, and recorded.
@@ -618,12 +643,16 @@ class LoopRunner:
         Required because a rejection without one teaches nobody anything, and
         the knowledge base (P7) is built from exactly these.
         """
+        # Checked BEFORE the plan is removed. Checked after, a reason of three
+        # spaces passed the API's length rule, was refused here, and took the
+        # parked plan with it: the incident could then be neither approved nor
+        # rejected.
+        if not reason.strip():
+            raise ValueError("a rejection needs a reason")
         with self._lock:
             if incident_id not in self._awaiting:
                 raise NotAwaitingError(f"{incident_id} is not awaiting approval")
             self._awaiting.pop(incident_id)
-        if not reason.strip():
-            raise ValueError("a rejection needs a reason")
         self.audit.append("rejected", incident_id=incident_id,
                           actor="operator", reason=reason)
         inc = self._incidents.get(incident_id)

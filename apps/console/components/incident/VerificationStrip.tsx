@@ -16,6 +16,7 @@
 import { Icon } from "../ui/Icon";
 import { ProbePill } from "../ui/pills";
 import type { Incident, Verification } from "@/lib/api";
+import { BAR_CELLS, bar } from "@/lib/ascii";
 
 const probeState = (
   value: boolean | null | undefined,
@@ -95,6 +96,22 @@ export function VerificationStrip({
               </li>
             ))}
           </ul>
+
+          {/* Data-bound ASCII (§7.12 B): the numbers beside the bar are the
+              facts; the bar is aria-hidden and only shows the proportion. */}
+          {bar(v.total_s, v.budget_s) && (
+            <p className="k-mono-sm k-num" style={{ margin: 0 }}>
+              <span aria-hidden="true" className="k-muted">
+                {bar(v.total_s, v.budget_s)}
+              </span>{" "}
+              {v.total_s}s of {v.budget_s}s budget
+              {v.within_budget ? "" : ", over budget"}
+              <span className="k-faint">
+                {" "}
+                · one cell is {(v.budget_s / BAR_CELLS).toFixed(1)}s
+              </span>
+            </p>
+          )}
 
           <dl
             style={{

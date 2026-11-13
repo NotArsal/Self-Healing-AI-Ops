@@ -34,6 +34,8 @@ const STATE_ICON: Record<string, IconName> = {
   HEALING: "activity",
   RESOLVED: "check",
   ESCALATED: "cross",
+  AWAITING_APPROVAL: "shield-alert",
+  APPROVED: "chevron-right",
 };
 
 export function StatePill({ status }: { status: string }) {

@@ -219,6 +219,35 @@ describe("live updates", () => {
     );
   });
 
+  // The API's `seq` restarts at 1 with the process. Keyed on `seq` alone, every
+  // event after an API restart was dropped as "already seen".
+  it("keeps showing events after the API restarts and its seq starts again", async () => {
+    render(<Harness />);
+    await waitFor(() => expect(lastSocket()).toBeDefined());
+    const before = lastSocket();
+    act(() => before?.receive(fx.events[0]));
+    act(() => before?.receive(fx.events[1]));
+
+    // The API goes away; the hook reconnects to the new process on its own.
+    act(() => before?.close());
+    await waitFor(() => expect(lastSocket()).not.toBe(before), { timeout: 4000 });
+    act(() =>
+      lastSocket()?.receive({
+        ...fx.events[0],
+        at: "2026-10-04T11:00:00.000+00:00",
+        incident_id: "INC-110000",
+        message: "first run after the restart",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText(/first run after the restart/)).toBeInTheDocument(),
+    );
+    // Newest last, although its seq (1) is lower than the old process's 2.
+    const lines = screen.getAllByRole("listitem").map((li) => li.textContent ?? "");
+    expect(lines.at(-1)).toMatch(/first run after the restart/);
+  });
+
   it("announces new timeline lines to assistive technology", () => {
     render(<Timeline events={fx.events} connected />);
     const list = screen.getByRole("list");
@@ -590,7 +619,10 @@ describe("no colour-only state indicators", () => {
   });
 
   it("pairs every incident state with a word", () => {
-    for (const status of ["DETECTED", "HEALING", "RESOLVED", "ESCALATED", "NO_FAULT"]) {
+    for (const status of [
+      "DETECTED", "HEALING", "RESOLVED", "ESCALATED", "NO_FAULT",
+      "AWAITING_APPROVAL", "APPROVED",
+    ]) {
       const { unmount } = render(<StatePill status={status} />);
       const word = status.replace(/_/g, " ").toLowerCase();
       expect(
@@ -598,6 +630,15 @@ describe("no colour-only state indicators", () => {
       ).toBeInTheDocument();
       unmount();
     }
+  });
+
+  // The token table said AWAITING while the server says AWAITING_APPROVAL, so
+  // the one state that is blocked on a human rendered in the muted fallback.
+  it("colours awaiting approval with the awaiting token, not the fallback", () => {
+    render(<StatePill status="AWAITING_APPROVAL" />);
+    expect(screen.getByText("Awaiting approval")).toHaveStyle({
+      color: "var(--k-state-awaiting)",
+    });
   });
 });
 

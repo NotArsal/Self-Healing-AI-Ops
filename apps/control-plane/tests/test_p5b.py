@@ -13,8 +13,10 @@ from typing import Any
 import pytest
 
 from kavach import loop
+from kavach.api import routes
 from kavach.api.runner import (
     LoopRunner,
+    NoBaselineError,
     NotAwaitingError,
     policy_from_manifest,
 )
@@ -169,6 +171,9 @@ def test_a_rejection_requires_a_reason(tmp_path: Path) -> None:
     runner._awaiting["INC-1"] = {}
     with pytest.raises(ValueError, match="needs a reason"):
         runner.reject("INC-1", "   ")
+    # Three spaces pass the API's length rule; refusing them must not cost
+    # the plan, or the incident can be neither approved nor rejected.
+    assert "INC-1" in runner.awaiting()
 
 
 def test_a_rejection_is_recorded_and_escalates(tmp_path: Path) -> None:
@@ -216,6 +221,60 @@ async def test_approve_hands_the_parked_plan_to_the_rerun(
     assert seen == {"use_rca": False, "approved": _plan()}
     row = next(r for r in runner.audit.rows() if r["event"] == "approved")
     assert row["plan"]["action"] == "rollback_config"
+
+
+def _parked_runner(tmp_path: Path) -> LoopRunner:
+    runner = a_runner(tmp_path)
+    inc = loop.Incident(incident_id="INC-1", project="simple-rag")
+    inc.status = loop.IncidentStatus.AWAITING
+    runner._remember(inc)
+    runner._awaiting["INC-1"] = {"plan": _plan(), "use_rca": False}
+    return runner
+
+
+@pytest.mark.asyncio
+async def test_an_approved_incident_stops_awaiting_and_names_its_fix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """It read AWAITING_APPROVAL forever, so the console kept offering an
+    Approve button that could only fail."""
+    runner = _parked_runner(tmp_path)
+
+    async def start(use_rca: bool = True,
+                    approved: loop.ApprovedPlan | None = None) -> loop.Incident:
+        return loop.Incident(incident_id="INC-2", project="p")
+
+    monkeypatch.setattr(runner, "start", start)
+    await runner.approve("INC-1")
+
+    old = runner.incident("INC-1")
+    assert old is not None
+    assert old.status is loop.IncidentStatus.APPROVED
+    assert "INC-2" in old.outcome
+    assert routes.incident_out(old).awaiting_approval is False
+
+
+@pytest.mark.asyncio
+async def test_an_approval_whose_rerun_cannot_start_stays_parked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The plan is removed before the re-run starts, and a refused start
+    used to take the approval with it."""
+    runner = _parked_runner(tmp_path)
+
+    async def start(use_rca: bool = True,
+                    approved: loop.ApprovedPlan | None = None) -> loop.Incident:
+        raise NoBaselineError("the manifest could not be read")
+
+    monkeypatch.setattr(runner, "start", start)
+    with pytest.raises(NoBaselineError):
+        await runner.approve("INC-1")
+
+    assert "INC-1" in runner.awaiting()
+    old = runner.incident("INC-1")
+    assert old is not None
+    assert old.status is loop.IncidentStatus.AWAITING
+    assert any(r["event"] == "approval_not_run" for r in runner.audit.rows())
 
 
 @pytest.mark.asyncio

@@ -114,3 +114,32 @@ compared with (`bench-20261112-f02-parallel` against the F02 rows of
   of the ~295s drop. The rest is the second detection.
 - n = 5 per arm, one class, one model. Nothing here is a claim about F01, F06,
   F07 or F08 under parallel detection.
+
+## Measured, all five classes (2026-11-13)
+
+`bench-20261112-all-parallel` (5 classes x 5 reps, gpt-oss-120b via Groq)
+against `bench-20261111-groq`. Medians. "Loop's own" is MTTD minus the
+harness warm-up, per run.
+
+| class | MTTD before -> after | loop's own detection | MTTR | healed |
+|---|---|---|---|---|
+| F01 | 36.5s -> 40.7s | 12.2s -> 4.3s | 78.9s -> 70.1s | 5/5 -> 5/5 |
+| F02 | 473.3s -> 323.0s | 239.3s -> 88.4s | 741.2s -> 437.2s | 5/5 -> 5/5 |
+| F06 | 67.2s -> 59.9s | 17.1s -> 11.7s | 111.6s -> 94.8s | 5/5 -> 5/5 |
+| F07 | 18.6s -> 13.0s | 18.6s -> 13.0s | 66.7s -> 53.2s | 5/5 -> 4/5 |
+| F08 | 17.2s -> 11.5s | 17.2s -> 11.5s | 63.7s -> 48.6s | 5/5 -> 5/5 |
+| all 25 | 36.5s -> 40.7s | 17.4s -> 11.8s | 78.9s -> 70.2s | 25/25 -> 24/25 |
+
+- **The loop's own detection fell in every class.** The headline MTTD median
+  rose because it lands on F01, and F01's harness warm-up came in steps of
+  24s, 36s and 48s, with more of the longer steps this time (24.3s -> 36.4s
+  median). That is the harness waiting for the target, not detection.
+- **The one miss is not a diagnosis.** F07 rep 5 escalated with no answer:
+  DNS resolution failed for both Groq and Gemini on the bench host. Kavach
+  escalated without acting and left the target clean, which is the
+  designed behaviour. It is counted as a miss and was not re-run. The report
+  files it under `P(heal | diagnosis WRONG)` as 0/1; it had no diagnosis at
+  all, so that label overstates it.
+- 0 false heals and 25/25 target clean, as before. MTTD still misses the
+  30s target, with the warm-up counted. The same ADR 0025 caveat on MTTR
+  applies as in the F02 table above.

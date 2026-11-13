@@ -17,7 +17,12 @@ export const STATE_TOKENS = {
   COLLECTING: "--k-state-collecting",
   DIAGNOSING: "--k-state-diagnosing",
   VERIFYING: "--k-state-verifying",
-  AWAITING: "--k-state-awaiting",
+  // The server's name, not "AWAITING": under the old key the panel that is
+  // blocked on a human fell through to the muted fallback colour.
+  AWAITING_APPROVAL: "--k-state-awaiting",
+  // Not a hue: this row is finished and its fix runs as another incident
+  // (ADR 0025 follow-up). Signal colours are for live state.
+  APPROVED: "--k-text-muted",
   ROLLED_BACK: "--k-state-rolledback",
 } as const;
 

@@ -45,7 +45,7 @@ export default function OperationsPage() {
   const { mode, metrics, setMode, refresh: refreshSafety } = useSafetyState();
   const { events, connected } = useEvents();
   const [selectedId, setSelectedId] = useState("");
-  const { incidents, selected, refresh } = useIncidents(selectedId);
+  const { incidents, loaded, selected, refresh } = useIncidents(selectedId);
   const [openEvidence, setOpenEvidence] = useState("");
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState("");
@@ -91,22 +91,30 @@ export default function OperationsPage() {
   const run = async (): Promise<void> => {
     setStarting(true);
     setStartError("");
-    const { data, error: err, response } = await api.POST("/v1/loop/run", {
-      params: { query: { rca: true } },
-    });
-    setStarting(false);
-    if (err || !data) {
-      setStartError(
-        response?.status === 409
-          ? "A loop run is already in flight. One writer at a time."
-          : response?.status === 412
-            ? "No baseline capture on disk. Run `make onboard` against a healthy target first."
-            : "Could not start a run. Is the control plane up?",
-      );
-      return;
+    // try/finally: `api.POST` REJECTS when the control plane is down, and the
+    // plain `setStarting(false)` after the await never ran - the button read
+    // "Running" and stayed disabled until the page was reloaded.
+    try {
+      const { data, error: err, response } = await api.POST("/v1/loop/run", {
+        params: { query: { rca: true } },
+      });
+      if (err || !data) {
+        setStartError(
+          response?.status === 409
+            ? "A loop run is already in flight. One writer at a time."
+            : response?.status === 412
+              ? "No baseline capture on disk. Run `make onboard` against a healthy target first."
+              : "Could not start a run. Is the control plane up?",
+        );
+        return;
+      }
+      setSelectedId(data.incident_id);
+      refresh();
+    } catch {
+      setStartError("Could not start a run. Is the control plane up?");
+    } finally {
+      setStarting(false);
     }
-    setSelectedId(data.incident_id);
-    refresh();
   };
 
   const busy = Boolean(system?.loop_running) || starting;
@@ -263,6 +271,7 @@ export default function OperationsPage() {
               selectedId={selectedId}
               onSelect={setSelectedId}
               events={events}
+              loading={!loaded}
             />
             <HistoryTable incidents={incidents} />
           </div>

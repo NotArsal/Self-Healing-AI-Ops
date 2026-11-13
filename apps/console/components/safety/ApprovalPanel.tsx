@@ -21,6 +21,10 @@ import { Icon } from "../ui/Icon";
 import { RiskBadge } from "../ui/pills";
 import { api, type Incident } from "@/lib/api";
 
+// Not "nothing was sent": a request can fail after the server received it.
+const UNREACHABLE =
+  "Cannot reach the Kavach control plane. Start it with `make dev-api`, then check this incident before trying again.";
+
 export function ApprovalPanel({
   incident,
   onDecided,
@@ -45,34 +49,47 @@ export function ApprovalPanel({
     if (el.scrollHeight - el.scrollTop - el.clientHeight < 4) setReadToEnd(true);
   };
 
+  // try/finally, not a plain await: `api.POST` REJECTS when the control plane
+  // is not answering, and `setBusy(false)` after the await never ran, so both
+  // buttons stayed disabled with no message until the page was reloaded.
   const approve = async (): Promise<void> => {
     setBusy(true);
     setFailed("");
-    const { error } = await api.POST("/v1/incidents/{incident_id}/approve", {
-      params: { path: { incident_id: incident.incident_id } },
-    });
-    setBusy(false);
-    if (error) {
-      setFailed("The control plane refused the approval.");
-      return;
+    try {
+      const { error } = await api.POST("/v1/incidents/{incident_id}/approve", {
+        params: { path: { incident_id: incident.incident_id } },
+      });
+      if (error) {
+        setFailed("The control plane refused the approval.");
+        return;
+      }
+      onDecided();
+    } catch {
+      setFailed(UNREACHABLE);
+    } finally {
+      setBusy(false);
     }
-    onDecided();
   };
 
   const reject = async (): Promise<void> => {
     if (reason.trim().length < 3) return;
     setBusy(true);
     setFailed("");
-    const { error } = await api.POST("/v1/incidents/{incident_id}/reject", {
-      params: { path: { incident_id: incident.incident_id } },
-      body: { reason },
-    });
-    setBusy(false);
-    if (error) {
-      setFailed("The control plane refused the rejection.");
-      return;
+    try {
+      const { error } = await api.POST("/v1/incidents/{incident_id}/reject", {
+        params: { path: { incident_id: incident.incident_id } },
+        body: { reason },
+      });
+      if (error) {
+        setFailed("The control plane refused the rejection.");
+        return;
+      }
+      onDecided();
+    } catch {
+      setFailed(UNREACHABLE);
+    } finally {
+      setBusy(false);
     }
-    onDecided();
   };
 
   return (
@@ -153,9 +170,9 @@ export function ApprovalPanel({
         </div>
 
         <p className="k-xs k-faint" style={{ margin: 0 }}>
-          Approving re-detects and re-prepares against the target as it is now,
-          then runs the same gate again. You are approving the decision, not a
-          frozen diff.
+          Approving re-checks the target first. This exact plan runs only if
+          it still matches. If anything changed, your approval does not carry
+          over and the new plan goes through the gate on its own.
         </p>
       </div>
 

@@ -193,6 +193,17 @@ h3 {
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
+/* Decorative ASCII still frames only (§7.12 A). Data-bound ASCII uses
+   .k-mono-sm like every other machine value. */
+.k-ascii-art {
+  font-family: var(--k-font-mono);
+  font-size: 8px;
+  line-height: 8px;
+  color: var(--k-text-muted);
+  margin: 0;
+  white-space: pre;
+  user-select: none;
+}
 .k-muted {
   color: var(--k-text-muted);
 }

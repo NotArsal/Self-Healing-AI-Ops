@@ -80,11 +80,14 @@ describe("the console started before the API", () => {
 
     const { result } = renderHook(() => useIncidents(""));
     expect(result.current.incidents).toEqual([]);
+    // [] here is "not known yet", not "no incidents".
+    expect(result.current.loaded).toBe(false);
 
     await waitFor(
       () => expect(result.current.incidents).toHaveLength(1),
       { timeout: 6000 },
     );
+    expect(result.current.loaded).toBe(true);
     expect(result.current.incidents[0]).toMatchObject({
       incident_id: "INC-000001",
     });

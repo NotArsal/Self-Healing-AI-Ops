@@ -114,17 +114,24 @@ export function Rail({
         borderRight: "1px solid var(--k-border)",
       }}
     >
+      {/* The brand mark is flat ink, never the gradient (§2.4). An ASCII mark
+          is not legible in a 40x40 target, so the rail shows the text initial,
+          as §7.12 A allows. */}
       <span
         aria-hidden="true"
         title="Kavach"
         style={{
+          display: "grid",
+          placeItems: "center",
           width: 28,
           height: 28,
-          borderRadius: "var(--k-radius-sm)",
-          background: "var(--k-loop-gradient)",
+          color: "var(--k-text-muted)",
+          fontWeight: 600,
           marginBottom: "var(--k-space-2)",
         }}
-      />
+      >
+        K
+      </span>
 
       {NAV.map((item) => {
         const active = item.href === current;

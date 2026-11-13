@@ -141,3 +141,24 @@ listed under "Recommendation" are written first and must fail before the change.
   that still holds with the LLM never called) and `test_p5b.py` (the plan is
   parked, and handed over on approval). With the binding removed, the two
   mismatch tests fail.
+
+## Follow-up 2026-11-12: what the approved incident shows
+
+The approved incident used to keep AWAITING_APPROVAL forever, because the fix
+runs as a new incident and nothing updated the old one. The console reads
+`awaiting_approval` from that status, so it kept offering an Approve that could
+only return 409. The owner chose a new status:
+
+- `approve()` sets the old incident to `APPROVED`, with "the fix runs as
+  INC-…" in `outcome`. The reverse link is the `approved_from` field on the
+  re-run's `permit` audit row.
+- If the re-run cannot start, the plan is parked again and an
+  `approval_not_run` audit row records why. Before, the plan was removed first
+  and lost.
+- `reject()` checks the reason before it removes the plan. A reason of three
+  spaces passed the API's length rule and lost the plan.
+
+Not changed: incidents stored before this fix keep AWAITING_APPROVAL, and after
+an API restart a parked incident still shows Approve although the plan is gone
+from memory (`runner.py`, `_awaiting`). Fleet metrics count `APPROVED` in the
+total only, not as resolved, escalated or awaiting.

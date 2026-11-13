@@ -303,6 +303,25 @@ async def test_run_is_refused_with_no_baseline(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_a_run_refused_after_claiming_the_slot_releases_it(
+    tmp_path: Path,
+) -> None:
+    """The manifest is read after the slot is claimed, and only the worker
+    used to release it, so one unreadable file left the loop busy until a
+    restart."""
+    d = tmp_path / "harness" / "baselines"
+    d.mkdir(parents=True)
+    (d / "baseline-simple-rag-20261003T140000+0000.json").write_text(
+        '{"rerank_threshold": 0.35, "healthy": true}', encoding="utf-8")
+    runner = LoopRunner(Settings(kavach_root=str(tmp_path),
+                                 target_path=str(tmp_path / "no-target"),
+                                 target_project="simple-rag"))
+    with pytest.raises(NoBaselineError, match="manifest could not be read"):
+        await runner.start()
+    assert runner.busy is False
+
+
+@pytest.mark.asyncio
 async def test_a_second_run_is_refused_while_one_is_in_flight(tmp_path: Path) -> None:
     """One writer at a time: two runs would both capture a pre-state, and the
     second inverse would point at the first run's faulty value."""

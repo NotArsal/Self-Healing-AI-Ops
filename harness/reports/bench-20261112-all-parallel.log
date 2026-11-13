@@ -1,0 +1,147 @@
+==============================================================================
+make bench - live metrics over repeated injections
+==============================================================================
+  mode               APPROVAL
+  corpus             {'chunks': 30.0, 'files': 2.0}
+  plan               5 classes x 5 reps = 25 injections
+  estimated runtime  ~10.0h, paced under permit()'s blast radius. Unattended by design.
+
+  RCA model          openai/gpt-oss-120b via groq, backup gemini-2.5-flash via gemini
+
+  rep 1 F01  detect=52.8s llm=F01(0.92)->switch_llm_endpoint resolved=True mttr=85.1 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+  rep 1 F02  detect=327.9s llm=F02(0.93)->switch_llm_endpoint resolved=True mttr=445.8 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 50.3 min for the window to slide. Nothing is being reset.
+  rep 1 F06  detect=50.7s llm=F06(0.94)->rollback_config resolved=True mttr=89.3 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 3.6 min for the window to slide. Nothing is being reset.
+  rep 1 F07  detect=14.8s llm=F07(0.92)->rollback_prompt resolved=True mttr=54.6 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 53.6 min for the window to slide. Nothing is being reset.
+  rep 1 F08  detect=14.1s llm=F08(0.92)->rollback_config resolved=True mttr=54.8 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 3.1 min for the window to slide. Nothing is being reset.
+  rep 2 F01  detect=28.7s llm=F01(0.93)->switch_llm_endpoint resolved=True mttr=61.1 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 53.9 min for the window to slide. Nothing is being reset.
+  rep 2 F02  detect=323.0s llm=F02(0.85)->switch_llm_endpoint resolved=True mttr=437.4 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+  rep 2 F06  detect=45.3s llm=F06(0.93)->rollback_config resolved=True mttr=82.4 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 53.2 min for the window to slide. Nothing is being reset.
+  rep 2 F07  detect=15.4s llm=F07(0.92)->rollback_prompt resolved=True mttr=57.7 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 4.1 min for the window to slide. Nothing is being reset.
+  rep 2 F08  detect=10.9s llm=F08(0.92)->rollback_config resolved=True mttr=48.6 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 53.3 min for the window to slide. Nothing is being reset.
+  rep 3 F01  detect=28.5s llm=F01(0.92)->switch_llm_endpoint resolved=True mttr=57.9 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 3.9 min for the window to slide. Nothing is being reset.
+  rep 3 F02  detect=321.7s llm=F02(0.92)->switch_llm_endpoint resolved=True mttr=432.8 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 47.4 min for the window to slide. Nothing is being reset.
+  rep 3 F06  detect=62.7s llm=F06(0.93)->rollback_config resolved=True mttr=97.4 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 6.7 min for the window to slide. Nothing is being reset.
+  rep 3 F07  detect=13.0s llm=F07(0.92)->rollback_prompt resolved=True mttr=51.6 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 50.5 min for the window to slide. Nothing is being reset.
+  rep 3 F08  detect=11.5s llm=F08(0.92)->rollback_config resolved=True mttr=48.6 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 6.9 min for the window to slide. Nothing is being reset.
+  rep 4 F01  detect=40.7s llm=F01(0.92)->switch_llm_endpoint resolved=True mttr=70.1 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 49.9 min for the window to slide. Nothing is being reset.
+  rep 4 F02  detect=324.5s llm=F02(0.92)->switch_llm_endpoint resolved=True mttr=437.2 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 1.0 min for the window to slide. Nothing is being reset.
+  rep 4 F06  detect=63.7s llm=F06(0.93)->rollback_config resolved=True mttr=103.1 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 53.0 min for the window to slide. Nothing is being reset.
+  rep 4 F07  detect=12.0s llm=F07(0.92)->rollback_prompt resolved=True mttr=51.7 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 4.3 min for the window to slide. Nothing is being reset.
+  rep 4 F08  detect=11.7s llm=F08(0.85)->rollback_config resolved=True mttr=48.6 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 53.1 min for the window to slide. Nothing is being reset.
+  rep 5 F01  detect=40.7s llm=F01(0.93)->switch_llm_endpoint resolved=True mttr=70.2 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 3.7 min for the window to slide. Nothing is being reset.
+  rep 5 F02  detect=322.3s llm=F02(0.88)->switch_llm_endpoint resolved=True mttr=436.4 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 47.4 min for the window to slide. Nothing is being reset.
+  rep 5 F06  detect=59.9s llm=F06(0.93)->rollback_config resolved=True mttr=94.8 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+    pacing: 4 incidents in the last hour, limit 5. Waiting 6.7 min for the window to slide. Nothing is being reset.
+  rep 5 F07  detect=11.8s llm=-(None)->- resolved=False mttr=None false_heal=False clean=True by=-
+    pacing: 4 incidents in the last hour, limit 5. Waiting 0.7 min for the window to slide. Nothing is being reset.
+  rep 5 F08  detect=11.2s llm=F08(0.92)->rollback_config resolved=True mttr=45.6 false_heal=False clean=True by=openai/gpt-oss-120b via groq
+
+==============================================================================
+METRICS  (PRD section 10)
+==============================================================================
+  DENOMINATOR: 5 fault classes x 5 reps = 25 injections, 25 usable
+  Classes: F01, F02, F06, F07, F08. Not the seven PRD section 6
+  assumed: F05 dropped, F03 never had an injector, F09 closed on
+  measurement as not injectable. F02 restored by ADR 0023.
+
+  metric                             value              target
+  detection rate                     100% (25/25)       >= 95%
+  localization (service)             100% (25/25)       >= 80%
+  RCA accuracy (LLM own answer)      96% (24/25)        >= 75%
+    of which: fault class named      96% (24/25)        the figure above
+    repair action correct            96% (24/25)        no target yet
+    answer is self-consistent        96% (23/24)        measured, NOT enforced
+  auto-resolution rate               96% (24/25)        >= 70% of LOW
+  FALSE HEALING                      0% (0/25)          <= 5%
+  rollback correctness               n/a                100%
+  MTTD (median)                      40.7s              < 30s
+    first verdict (median)           45.6s              detect+RCA+gate, no target
+  MTTR (median)                      70.2s              < 180s
+  audit completeness                 100% (24/24)       100%
+  audit chain intact                 True               True
+  target state clean after run       100% (25/25)       100%
+
+------------------------------------------------------------------------------
+CONDITIONALS (PRD section 10.1) - the part a reviewer asks about
+------------------------------------------------------------------------------
+  P(heal | diagnosis correct)  100% (24/24)
+  P(heal | diagnosis WRONG)    0% (0/1)
+  P(diagnosis correct | heal)  100% (24/24)
+
+  A high auto-resolution rate next to a high P(heal | wrong) means a
+  symptom-matcher with an LLM attached. Report both or neither.
+
+------------------------------------------------------------------------------
+LOCALIZATION, WITH ITS DENOMINATOR (PRD section 10.2)
+------------------------------------------------------------------------------
+  Every implemented fault lands on `backend`, so this is a 1-way
+  choice dressed as a 5-way one. Stated first because a reviewer
+  finds it in one question.
+    F01 -> backend    5
+    F02 -> backend    5
+    F06 -> backend    5
+    F07 -> backend    5
+    F08 -> backend    5
+
+------------------------------------------------------------------------------
+DETERMINISTIC CROSS-CHECK
+------------------------------------------------------------------------------
+  LLM diagnoses refused: 0/25
+
+------------------------------------------------------------------------------
+CLASS ACCURACY IS NOT ACTION ACCURACY
+------------------------------------------------------------------------------
+                        action right    action wrong    
+  class right           24              0               
+  class wrong           0               0               
+
+  `RCA accuracy` is the class row totals. The top-right cell is the
+  one it cannot see: a correct fault class with a repair that class
+  may not use. The gate catches it; the metric scores it correct.
+
+  fault_name matches its own class code: 23/24
+    F08 emitted with name 'Configuration regression' (catalogue says 'Configuration or environment regression')
+
+  NOTHING IN THE GATE READS THIS. `deterministic_agreement`
+  compares the class CODE; no check compares the name beside
+  it. An incoherent pair is the model contradicting itself,
+  and it can still heal correctly - which is the finding.
+  Enforcing it would reject those diagnoses; that is a
+  decision about the system, not a measurement of it.
+
+  Escalation reasons, verbatim from the validator:
+    F07 rep 5: LLM diagnosis rejected by deterministic validation: schema_valid: LLM call failed: primary failed: groq call failed: <urlopen error [Errno -3] Temporary failure in name resolution>; backup failed: gemini call failed: <urlopen error [Errno -2] Name or service not known>
+
+------------------------------------------------------------------------------
+THROUGHPUT CEILING (FR-16), measured not assumed
+------------------------------------------------------------------------------
+  permit() allows 5 incident starts per sliding
+  hour and an approved heal costs 2. This bench
+  waited 610 minutes in total to stay
+  underneath it. Nothing was reset, raised or disabled.
+  => Kavach performs at most 2 approved heals per hour
+     and halts rather than widening. That is a demo constraint as
+     much as an operational one.
+
+  artifact D:\Vit\Academics Sem-5\EDI\Self-Healing AI Ops\harness\reports\bench-20261112-all-parallel.json
+BENCH_EXIT rc=0

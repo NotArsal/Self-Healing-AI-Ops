@@ -13,6 +13,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import OperationsPage from "@/app/page";
 import { ApprovalPanel } from "@/components/safety/ApprovalPanel";
 import { ModeSwitch } from "@/components/safety/ModeSwitch";
 import { SystemHealth } from "@/components/safety/SystemHealth";
@@ -143,6 +144,21 @@ describe("mode switch", () => {
     );
   });
 
+  // A dead control plane makes `api.PUT` REJECT, not resolve with an error.
+  // The busy flag used to be cleared only on the resolve path.
+  it("re-enables the modes and says why when the control plane is unreachable", async () => {
+    const user = userEvent.setup();
+    PUT.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(<Harness initial={{ ...fx.modeState, mode: "AUTONOMOUS" }} />);
+
+    await user.click(screen.getByRole("radio", { name: "Simulation" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /Cannot reach the Kavach control plane/,
+    );
+    expect(screen.getByRole("radio", { name: "Simulation" })).toBeEnabled();
+  });
+
   it("shows the manifest value when the mode was overridden", () => {
     render(
       <ModeSwitch
@@ -255,9 +271,51 @@ describe("approval panel", () => {
     ).toBeInTheDocument();
   });
 
-  it("explains that approval re-prepares rather than replaying", () => {
+  // ADR 0025: an approval binds to the plan it approved. The old copy said
+  // "you are approving the decision, not a frozen diff", which stopped being
+  // true when a changed plan started being parked again instead of run.
+  it("says the approval holds only for this exact plan", () => {
     render(<ApprovalPanel incident={fx.awaitingIncident} onDecided={() => {}} />);
-    expect(screen.getByText(/not a frozen diff/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/This exact plan runs only if\s+it still matches/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/not a frozen diff/)).not.toBeInTheDocument();
+  });
+
+  it("re-enables approve and says why when the control plane is unreachable", async () => {
+    const user = userEvent.setup();
+    const onDecided = vi.fn();
+    POST.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(<ApprovalPanel incident={fx.awaitingIncident} onDecided={onDecided} />);
+
+    const plan = screen.getByLabelText(/Proposed plan/);
+    makeScrollable(plan, true);
+    plan.dispatchEvent(new Event("scroll", { bubbles: true }));
+    const approve = screen.getByRole("button", { name: "Approve repair" });
+    await waitFor(() => expect(approve).toBeEnabled());
+    await user.click(approve);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /Cannot reach the Kavach control plane/,
+    );
+    expect(approve).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Reject" })).toBeEnabled();
+    expect(onDecided).not.toHaveBeenCalled();
+  });
+
+  it("re-enables reject and says why when the control plane is unreachable", async () => {
+    const user = userEvent.setup();
+    POST.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(<ApprovalPanel incident={fx.awaitingIncident} onDecided={() => {}} />);
+
+    await user.click(screen.getByRole("button", { name: "Reject" }));
+    await user.type(screen.getByLabelText(/Why are you refusing/), "looks deliberate");
+    await user.click(screen.getByRole("button", { name: "Reject repair" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /Cannot reach the Kavach control plane/,
+    );
+    expect(screen.getByRole("button", { name: "Reject repair" })).toBeEnabled();
   });
 
   it("shows the risk tier and why the gate stopped", () => {
@@ -334,5 +392,25 @@ describe("keyboard and labelling", () => {
     render(<ModeSwitch state={fx.modeState} onChanged={vi.fn()} />);
     await user.tab();
     expect(screen.getByRole("radio", { name: "Simulation" })).toHaveFocus();
+  });
+});
+
+// --- the run button -----------------------------------------------------------
+
+describe("run button", () => {
+  // `api.POST` REJECTS when the control plane is down. The flag that disables
+  // the button used to be cleared only on the resolve path, so it read
+  // "Running" forever.
+  it("comes back and says why when the control plane is unreachable", async () => {
+    const user = userEvent.setup();
+    POST.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    render(<OperationsPage />);
+
+    await user.click(screen.getByRole("button", { name: "Run loop" }));
+
+    expect(
+      await screen.findByText("Could not start a run. Is the control plane up?"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run loop" })).toBeEnabled();
   });
 });

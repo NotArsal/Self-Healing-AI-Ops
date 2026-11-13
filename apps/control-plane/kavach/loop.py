@@ -95,6 +95,11 @@ class IncidentStatus(StrEnum):
     # a HIGH tier, or a sandbox requirement. A plan exists and nothing was
     # written, which is a different outcome from both success and escalation.
     AWAITING = "AWAITING_APPROVAL"
+    # A human approved the plan and the fix runs as a NEW incident, named in
+    # `outcome`. Set by `runner.approve()`, never by `run_once`. Without it the
+    # approved incident read AWAITING_APPROVAL forever and kept offering an
+    # Approve button that could only fail.
+    APPROVED = "APPROVED"
     RESOLVED = "RESOLVED"
     ESCALATED = "ESCALATED"
 

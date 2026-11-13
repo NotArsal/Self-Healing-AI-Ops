@@ -454,9 +454,10 @@ async def approve(
 
     This re-detects and re-prepares rather than replaying a stored payload: the
     world may have moved since the operator looked, and the action that runs
-    must be built against the target as it is now. What was approved is the
-    decision, not a frozen diff — so `permit()` runs again, deny-list and
-    breaker included.
+    must be built against the target as it is now. The approval covers only
+    the plan the operator saw (ADR 0025): if the rebuilt plan differs, it is
+    judged as unapproved, which parks it again in APPROVAL mode. `permit()`
+    runs again either way, deny-list and breaker included.
     """
     # Read BEFORE approve(), which pops the parked entry.
     used_rca = runner.parked_used_rca(incident_id)
