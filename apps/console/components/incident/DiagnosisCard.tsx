@@ -23,6 +23,7 @@ import { useState } from "react";
 import { Icon } from "../ui/Icon";
 import { sentence } from "../ui/pills";
 import type { Rca } from "@/lib/api";
+import { faultName } from "@/lib/faults";
 
 const SEGMENTS = 5;
 
@@ -108,7 +109,7 @@ export function DiagnosisCard({
       <div>
         <h3 style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
           <span className="k-mono">{diagnosis.fault_class}</span>
-          <span>{diagnosis.fault_name.replace(/_/g, " ")}</span>
+          <span>{faultName(diagnosis.fault_class, diagnosis.fault_name)}</span>
         </h3>
         <p className="k-sm k-muted" style={{ margin: "4px 0 0" }}>
           on <span className="k-mono-sm">{diagnosis.service}</span> · diagnosed by{" "}

@@ -25,7 +25,7 @@ from sqlalchemy import create_engine, func, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from kavach.db.models import Base, Hypothesis, Incident, RiskDecision
+from kavach.db.models import Base, Hypothesis, Incident, LoopEvent, RiskDecision
 
 logger = structlog.get_logger(__name__)
 
@@ -192,7 +192,39 @@ class IncidentStore:
                     outcome=str(item.get("outcome") or ""),
                 ))
 
+    def save_event(self, event: dict[str, Any]) -> None:
+        """One timeline line. Lines with no incident are not kept."""
+        incident_id = str(event.get("incident_id") or "")
+        if not incident_id:
+            return
+        with self._session() as session:
+            if session is None:
+                return
+            session.add(LoopEvent(
+                incident_id=incident_id,
+                seq=int(event.get("seq") or 0),
+                at=str(event.get("at") or ""),
+                stage=str(event.get("stage") or ""),
+                status=str(event.get("status") or ""),
+                message=str(event.get("message") or ""),
+            ))
+
     # --- reading ------------------------------------------------------------
+
+    def events(self, incident_id: str) -> list[dict[str, Any]]:
+        """One incident's timeline, in the order the console draws it."""
+        out: list[dict[str, Any]] = []
+        with self._session() as session:
+            if session is not None:
+                rows = session.execute(
+                    select(LoopEvent)
+                    .where(LoopEvent.incident_id == incident_id)
+                    .order_by(LoopEvent.at, LoopEvent.seq)
+                ).scalars().all()
+                out = [{"seq": r.seq, "at": r.at, "incident_id": r.incident_id,
+                        "stage": r.stage, "status": r.status, "message": r.message}
+                       for r in rows]
+        return out
 
     def get(self, incident_id: str) -> dict[str, Any] | None:
         found: dict[str, Any] | None = None
@@ -272,9 +304,19 @@ class IncidentStore:
                 .where(Incident.mttr_seconds.is_not(None))
             ).scalar()
 
-            # Success over incidents that reached a repair outcome. Incidents
-            # that found no fault are not attempts and must not inflate it.
-            attempts = resolved + escalated
+            # Success over repairs that actually RAN. It was resolved over
+            # resolved + escalated, which counted every escalation as a failed
+            # repair - a DNS failure, a refused diagnosis, a rejected plan - when
+            # most never touched the target. Measured 2026-11-13: 175 vs 135
+            # attempts, 72% vs 93%. An escalation after a write (verification
+            # failed, rolled back) is still a failure and still counted.
+            failed_after_write = int(session.execute(
+                select(func.count()).select_from(Incident).where(
+                    Incident.status == "ESCALATED",
+                    Incident.payload["action"]["executed"].astext == "true",
+                )
+            ).scalar() or 0)
+            attempts = resolved + failed_after_write
             metrics = {
                 "incidents": total,
                 "resolved": resolved,

@@ -121,3 +121,26 @@ class Hypothesis(Base):
     tested: Mapped[bool] = mapped_column(default=False)
     outcome: Mapped[str] = mapped_column(Text, default="")
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class LoopEvent(Base):
+    """One timeline line, exactly as the console received it.
+
+    Added 2026-11-13: events lived only in the API's memory, so every restart
+    emptied the timeline of every past incident. `at` is kept as the string
+    that was sent, because the console identifies an event by `seq` + `at`
+    and a stored copy must match the live one.
+
+    No foreign key: a run's first event is published before its incident row
+    is written.
+    """
+
+    __tablename__ = "loop_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    incident_id: Mapped[str] = mapped_column(String(64), index=True)
+    seq: Mapped[int] = mapped_column(Integer)
+    at: Mapped[str] = mapped_column(String(40))
+    stage: Mapped[str] = mapped_column(String(32))
+    status: Mapped[str] = mapped_column(String(16))
+    message: Mapped[str] = mapped_column(Text, default="")

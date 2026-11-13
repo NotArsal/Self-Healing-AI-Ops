@@ -329,3 +329,17 @@ def test_a_copy_of_the_catalogue_agrees_with_the_prompt(
         f"{filename} is missing {absent}, which the prompt offers the model. "
         f"A diagnosis naming one of those would be unscoreable there while "
         f"being scoreable in report.py.")
+
+
+def test_no_answer_is_not_a_wrong_diagnosis() -> None:
+    """F07 rep 5, 2026-11-12: DNS failed for both providers and the report
+    filed it under P(heal | diagnosis WRONG)."""
+    from harness.report import diagnosis_groups
+
+    right = _run("F07", "F07", "rollback_prompt")
+    wrong = _run("F07", "F08", "rollback_config")
+    silent = _run("F07", "", "")
+    correct, wrong_ones, no_answer = diagnosis_groups([right, wrong, silent])
+    assert correct == [right]
+    assert wrong_ones == [wrong]
+    assert no_answer == [silent]

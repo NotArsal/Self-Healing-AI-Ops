@@ -10,6 +10,7 @@ parameterless route that asks the control plane to run the loop it already
 runs — see that module for what the browser deliberately cannot say.
 """
 
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated, Literal
@@ -20,7 +21,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from kavach import __version__, telemetry
+from kavach.api.events import bus
 from kavach.api.routes import router as console_router
+from kavach.api.runner import LoopRunner
 from kavach.config import Mode, Settings, get_settings
 
 logger = structlog.get_logger(__name__)
@@ -49,7 +52,29 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     runner.init_store()
     # After the store, which it reads and corrects (ADR 0028).
     runner.recover()
+    retry = (None if runner.store.available()
+             else asyncio.create_task(connect_when_ready(runner)))
+    # Every timeline line is also stored, so it survives a restart. A store
+    # that is still down drops the line, as it drops every other write.
+    bus.sink = runner.store.save_event
     yield
+    bus.sink = None
+    if retry is not None:
+        retry.cancel()
+
+
+async def connect_when_ready(runner: LoopRunner, every_s: float = 5.0) -> None:
+    """Keep trying the store until it answers, then settle its rows.
+
+    Measured 2026-11-13: a Docker Desktop restart starts every container at
+    once and does not honour `depends_on`, so the API came up while Postgres
+    said "the database system is starting up". It tried once, failed, and
+    served an empty incident list for the life of the process while every
+    incident sat intact in the database.
+    """
+    while not await asyncio.to_thread(runner.init_store, True):
+        await asyncio.sleep(every_s)
+    await asyncio.to_thread(runner.settle)
 
 
 def create_app() -> FastAPI:

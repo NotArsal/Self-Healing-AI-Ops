@@ -26,7 +26,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from collections import deque
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from datetime import UTC, datetime
 from itertools import count
 from typing import Any
@@ -45,6 +45,9 @@ class EventBus:
         self._subscribers: set[asyncio.Queue[dict[str, Any]]] = set()
         self._replay: deque[dict[str, Any]] = deque(maxlen=replay_max)
         self._seq = count(1)
+        # Where each event is also kept, so a timeline survives a restart.
+        # Set by `main.lifespan` to the incident store; None in tests.
+        self.sink: Callable[[dict[str, Any]], None] | None = None
 
     # --- producing ----------------------------------------------------------
 
@@ -65,6 +68,8 @@ class EventBus:
             "message": message,
         }
         self._replay.append(event)
+        if self.sink is not None:
+            self._keep(event, self.sink)
         for q in list(self._subscribers):
             # Drop for this subscriber only. A console that cannot keep up loses
             # timeline lines; it does not slow the heal down, and it does not
@@ -85,6 +90,17 @@ class EventBus:
         loop.call_soon_threadsafe(
             self.publish, stage, status, message, incident_id
         )
+
+    @staticmethod
+    def _keep(event: dict[str, Any], sink: Callable[[dict[str, Any]], None]) -> None:
+        """Off the event loop when there is one: a database write must not
+        stall the WebSocket fan-out. The sink never raises (the store is
+        best-effort), so the future needs no handler."""
+        try:
+            asyncio.get_running_loop().run_in_executor(None, sink, event)
+        except RuntimeError:  # no running loop: a direct caller, as in tests
+            with contextlib.suppress(Exception):
+                sink(event)
 
     # --- consuming ----------------------------------------------------------
 

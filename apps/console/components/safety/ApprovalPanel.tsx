@@ -20,6 +20,7 @@ import { useRef, useState } from "react";
 import { Icon } from "../ui/Icon";
 import { RiskBadge } from "../ui/pills";
 import { api, type Incident } from "@/lib/api";
+import { faultName } from "@/lib/faults";
 
 // Not "nothing was sent": a request can fail after the server received it.
 const UNREACHABLE =
@@ -131,7 +132,7 @@ export function ApprovalPanel({
           <h4 className="k-xs k-faint" style={{ margin: 0, fontWeight: 500 }}>Diagnosis</h4>
           <p className="k-sm" style={{ margin: "2px 0 0" }}>
             {incident.fault_class
-              ? `${incident.fault_class} ${(incident.fault_name ?? "").replace(/_/g, " ")} on ${incident.service}`
+              ? `${incident.fault_class} ${faultName(incident.fault_class, incident.fault_name)} on ${incident.service}`
               : "No diagnosis recorded"}
           </p>
         </div>

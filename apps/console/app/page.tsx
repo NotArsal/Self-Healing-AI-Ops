@@ -36,7 +36,15 @@ import { Rail } from "@/components/ui/Rail";
 import { StatePill } from "@/components/ui/pills";
 import { VerificationStrip } from "@/components/incident/VerificationStrip";
 import { api } from "@/lib/api";
-import { useEvents, useIncidents, useSafetyState, useSystem } from "@/lib/live";
+import { faultName } from "@/lib/faults";
+import {
+  mergeEvents,
+  useEvents,
+  useIncidents,
+  useSafetyState,
+  useStoredEvents,
+  useSystem,
+} from "@/lib/live";
 
 const ONE_LINE: React.CSSProperties = {
   minWidth: 0,
@@ -80,17 +88,23 @@ export default function OperationsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastSeq]);
 
-  const ring = useMemo(
-    () => reachedStages(events, selectedId),
-    [events, selectedId],
-  );
-
+  // Stored as well as live, so a past incident keeps its timeline and its
+  // ring after the API restarts.
+  const storedEvents = useStoredEvents(selectedId);
   const scopedEvents = useMemo(
     () =>
       selectedId
-        ? events.filter((e) => !e.incident_id || e.incident_id === selectedId)
+        ? mergeEvents(
+            storedEvents,
+            events.filter((e) => !e.incident_id || e.incident_id === selectedId),
+          )
         : events,
-    [events, selectedId],
+    [events, storedEvents, selectedId],
+  );
+
+  const ring = useMemo(
+    () => reachedStages(scopedEvents, selectedId),
+    [scopedEvents, selectedId],
   );
 
   const run = async (): Promise<void> => {
@@ -124,7 +138,7 @@ export default function OperationsPage() {
 
   const busy = Boolean(system?.loop_running) || starting;
   const title = selected?.fault_class
-    ? `${selected.fault_class} ${(selected.fault_name ?? "").replace(/_/g, " ")}`
+    ? `${selected.fault_class} ${faultName(selected.fault_class, selected.fault_name)}`
     : "No active incident";
   const meta = selected
     ? [
@@ -207,7 +221,7 @@ export default function OperationsPage() {
                 {selected?.fault_class ? (
                   <>
                     <span className="k-mono">{selected.fault_class}</span>{" "}
-                    {(selected.fault_name ?? "").replace(/_/g, " ")}
+                    {faultName(selected.fault_class, selected.fault_name)}
                   </>
                 ) : (
                   "No active incident"

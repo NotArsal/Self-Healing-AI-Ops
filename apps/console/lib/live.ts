@@ -151,6 +151,46 @@ export function useEvents(): { events: LoopEvent[]; connected: boolean } {
 }
 
 /**
+ * One incident's stored timeline.
+ *
+ * The live feed is the API process's memory, so after a restart a past
+ * incident showed no events at all (2026-11-13). Every event is now also
+ * stored, and this reads them back when an incident is selected. Loaded once
+ * per selection: the live feed covers anything that happens after.
+ */
+export function useStoredEvents(incidentId: string): LoopEvent[] {
+  const [events, setEvents] = useState<LoopEvent[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    setEvents([]);
+    if (!incidentId) return;
+    api
+      .GET("/v1/incidents/{incident_id}/events", {
+        params: { path: { incident_id: incidentId } },
+      })
+      .then(
+        ({ data }) => {
+          if (!cancelled && data) setEvents(data);
+        },
+        // An unreachable API leaves the live feed on screen; nothing to add.
+        () => undefined,
+      );
+    return () => {
+      cancelled = true;
+    };
+  }, [incidentId]);
+  return events;
+}
+
+/** Stored and live events for one view: each line once, in time order. A
+ *  stored line and its live copy share `seq` and `at`, so they collapse. */
+export function mergeEvents(...lists: LoopEvent[][]): LoopEvent[] {
+  const byKey = new Map<string, LoopEvent>();
+  for (const list of lists) for (const event of list) byKey.set(eventKey(event), event);
+  return [...byKey.values()].sort(byTime);
+}
+
+/**
  * Run `attempt` until it first succeeds, then stop.
  *
  * ADDED 2026-11-05 after watching the console come up against an API that

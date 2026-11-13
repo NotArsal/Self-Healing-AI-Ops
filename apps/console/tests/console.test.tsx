@@ -84,7 +84,8 @@ describe("incident state", () => {
         events={fx.events}
       />,
     );
-    const row = screen.getByRole("button", { name: /F06 retrieval collapse/ });
+    // The catalogue name, not the stored "retrieval_collapse" (lib/faults.ts).
+    const row = screen.getByRole("button", { name: /F06 Retrieval collapse/ });
     expect(row).toBeInTheDocument();
     expect(within(row).getByText("Resolved")).toBeInTheDocument();
     expect(row).toHaveAttribute("aria-current", "true");

@@ -17,6 +17,7 @@ import { ICOSAHEDRON } from "../ascii/icosahedron";
 import { StatePill } from "../ui/pills";
 import type { IncidentSummary, LoopEvent } from "@/lib/api";
 import { BAR_CELLS, bar, seconds } from "@/lib/ascii";
+import { faultName } from "@/lib/faults";
 import { type LoopStage } from "@/lib/tokens";
 import { stateVar } from "@/lib/tokens";
 
@@ -142,7 +143,7 @@ export function IncidentStream({
                   <span style={{ minWidth: 0 }}>
                     <span style={{ display: "block", fontWeight: 500 }}>
                       {incident.fault_class
-                        ? `${incident.fault_class} ${(incident.fault_name ?? "").replace(/_/g, " ")}`
+                        ? `${incident.fault_class} ${faultName(incident.fault_class, incident.fault_name)}`
                         : "No fault class"}
                     </span>
                     <span className="k-mono-sm k-faint">

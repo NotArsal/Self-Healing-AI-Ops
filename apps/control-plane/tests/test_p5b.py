@@ -312,6 +312,10 @@ async def test_a_parked_run_records_the_plan_it_parked(
         await asyncio.sleep(0.01)
 
     assert runner._awaiting[inc.incident_id]["plan"] == _plan(inc.incident_id)
+    # Dated, so it cannot repeat on another day (see `new_incident_id`).
+    import re
+
+    assert re.fullmatch(r"INC-\d{8}-\d{6}", inc.incident_id)
 
     # A plan waiting for a person is not a failure. The console drew this
     # event as a red cross and the Loop Ring as a failed stage, at the very

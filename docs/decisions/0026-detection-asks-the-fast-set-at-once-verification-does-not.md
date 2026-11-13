@@ -138,8 +138,9 @@ harness warm-up, per run.
   DNS resolution failed for both Groq and Gemini on the bench host. Kavach
   escalated without acting and left the target clean, which is the
   designed behaviour. It is counted as a miss and was not re-run. The report
-  files it under `P(heal | diagnosis WRONG)` as 0/1; it had no diagnosis at
-  all, so that label overstates it.
+  filed it under `P(heal | diagnosis WRONG)` as 0/1; it had no diagnosis at
+  all. Fixed 2026-11-13: `report.py` now prints `P(heal | NO diagnosis)`
+  separately. Replayed on this bench: 24 correct, 0 wrong, 1 no answer.
 - 0 false heals and 25/25 target clean, as before. MTTD still misses the
   30s target, with the warm-up counted. The same ADR 0025 caveat on MTTR
   applies as in the F02 table above.

@@ -102,3 +102,24 @@ referred to, and nothing reconciled the two:
 - `HEALING` is set before the gate inside `run_once`, but never leaves it.
   Every path reassigns the status before returning, and the runner stores
   only the result, so no reader sees it. No change.
+
+## Follow-up 2026-11-13: the store can connect late
+
+The owner restarted Docker Desktop and the console showed no incidents and no
+timeline. The audit log shows why: `store_init` at 05:44:29 UTC failed with
+"the database system is starting up". Docker restarts every container at once
+and does not honour `depends_on`, so the API started before Postgres. It tried
+once, and served an empty list for the life of the process. Every incident was
+still in the database.
+
+- `main.lifespan` now keeps retrying (`connect_when_ready`, every 5s) until
+  the store answers, and then runs `settle()`. The mode is still restored at
+  startup, because that does not need the database.
+- Retries are quiet: the first failure and the success are audited, not each
+  attempt.
+- Incidents that ran while the store was down are written once it connects.
+- Settling skips a parked plan or a run that belongs to this process. That
+  was guaranteed only at startup, and a late connection breaks it.
+
+The empty timeline is a separate cause: events lived only in the API's memory.
+Owner decision the same day: persist them (see the events table).

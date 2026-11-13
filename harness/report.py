@@ -417,6 +417,15 @@ class Bench:
     paced_wait_total_s: float = 0.0
 
 
+def diagnosis_groups(runs: list[Run]) -> tuple[list[Run], list[Run], list[Run]]:
+    """(correct, wrong, no answer). A run whose model never answered is not a
+    wrong diagnosis: there was no class to be wrong about."""
+    correct = [r for r in runs if r.diagnosis_correct]
+    wrong = [r for r in runs if r.llm_class and not r.diagnosis_correct]
+    no_answer = [r for r in runs if not r.llm_class]
+    return correct, wrong, no_answer
+
+
 def pct(n: int, d: int) -> str:
     return "n/a" if d == 0 else f"{100 * n / d:.0f}% ({n}/{d})"
 
@@ -470,6 +479,12 @@ def emit(bench: Bench, classes: list[str], reps: int) -> bool:
     say(f"  {'localization (service)':<34} {pct(loc, detected):<18} >= 80%")
     say(f"  {'RCA accuracy (LLM own answer)':<34} {pct(rca_ok, n):<18} >= 75%")
     say(f"  {'  of which: fault class named':<34} {pct(rca_ok, n):<18} the figure above")
+    # Separate from a wrong answer: a provider that never answered is not a
+    # diagnosis. F07 rep 5 on 2026-11-12 was DNS failing for both providers,
+    # and the conditionals below used to file it as a wrong diagnosis.
+    _, _, no_answer = diagnosis_groups(runs)
+    say(f"  {'  no answer returned':<34} {pct(len(no_answer), n):<18} "
+        f"provider failure, not a class")
     # NOT "an action was proposed" - this is action_correct, the proposed
     # repair measured against the INJECTED class's permitted one. The old
     # label read as coverage and was quoted that way in REPORT_DRAFT 4.1.
@@ -505,13 +520,14 @@ def emit(bench: Bench, classes: list[str], reps: int) -> bool:
     say("-" * 78)
     say("CONDITIONALS (PRD section 10.1) - the part a reviewer asks about")
     say("-" * 78)
-    correct = [r for r in runs if r.diagnosis_correct]
-    wrong = [r for r in runs if not r.diagnosis_correct]
+    correct, wrong, no_answer = diagnosis_groups(runs)
     healed = [r for r in runs if r.resolved]
     say(f"  P(heal | diagnosis correct)  "
         f"{pct(sum(1 for r in correct if r.resolved), len(correct))}")
     say(f"  P(heal | diagnosis WRONG)    "
         f"{pct(sum(1 for r in wrong if r.resolved), len(wrong))}")
+    say(f"  P(heal | NO diagnosis)       "
+        f"{pct(sum(1 for r in no_answer if r.resolved), len(no_answer))}")
     say(f"  P(diagnosis correct | heal)  "
         f"{pct(sum(1 for r in healed if r.diagnosis_correct), len(healed))}")
     say("")

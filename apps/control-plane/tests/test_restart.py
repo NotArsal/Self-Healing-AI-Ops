@@ -209,27 +209,134 @@ def test_the_manifest_mode_needs_no_override(
     assert runner.audit.rows()[-1]["event"] == "mode_change"
 
 
+# --- a store that connects late (Docker restart, 2026-11-13) ---------------
+
+
+class LateStore(FakeStore):
+    """Refuses `ok_after` connection attempts, then accepts."""
+
+    def __init__(self, *records: dict[str, Any], ok_after: int = 0) -> None:
+        super().__init__(*records)
+        self.attempts = 0
+        self.ok_after = ok_after
+
+    def init(self, create: bool = True) -> bool:
+        self.attempts += 1
+        if self.attempts <= self.ok_after:
+            self._reason = "the database system is starting up"
+            return False
+        self._reason = ""
+        return True
+
+    def available(self) -> bool:
+        return self.attempts > self.ok_after
+
+    def save(self, record: dict[str, Any]) -> None:
+        # The real store drops writes while it is down.
+        if self.available():
+            super().save(record)
+
+
+def late_runner(tmp_path: Path, *records: dict[str, Any], ok_after: int) -> tuple[
+    LoopRunner, LateStore
+]:
+    runner = LoopRunner(Settings(kavach_root=str(tmp_path)))
+    store = LateStore(*records, ok_after=ok_after)
+    runner.store = store
+    return runner, store
+
+
+@pytest.mark.asyncio
+async def test_the_api_keeps_trying_the_store_and_then_settles_it(tmp_path: Path) -> None:
+    """It tried once at startup, failed, and served an empty list for good."""
+    from kavach.main import connect_when_ready
+
+    runner, store = late_runner(tmp_path, row("AWAITING_APPROVAL"), ok_after=3)
+    assert runner.init_store() is False  # the one startup attempt
+
+    await connect_when_ready(runner, every_s=0)
+
+    assert store.available()
+    assert store.rows["INC-204636"]["status"] == "ESCALATED"  # settled once up
+    inits = [r for r in runner.audit.rows() if r["event"] == "store_init"]
+    # The startup failure and the success; the quiet retries leave no row.
+    assert [r["available"] for r in inits] == [False, True]
+
+
+def test_incidents_run_while_the_store_was_down_are_written_when_it_connects(
+    tmp_path: Path,
+) -> None:
+    runner, store = late_runner(tmp_path, ok_after=1)
+    runner.init_store()
+    inc = loop.Incident(incident_id="INC-1", project="simple-rag")
+    inc.status = loop.IncidentStatus.RESOLVED
+    runner._remember(inc)  # store down: memory only
+    assert "INC-1" not in store.rows
+
+    assert runner.init_store(quiet=True) is True
+    assert store.rows["INC-1"]["status"] == "RESOLVED"
+
+
+def test_a_late_settle_leaves_this_process_s_own_plan_and_run_alone(
+    tmp_path: Path,
+) -> None:
+    runner, store = a_runner(
+        tmp_path, row("AWAITING_APPROVAL", "INC-PARKED"), row("DETECTED", "INC-RUNNING"),
+    )
+    runner._awaiting["INC-PARKED"] = {}
+    runner._running = "INC-RUNNING"
+
+    runner.settle()
+
+    assert store.rows["INC-PARKED"]["status"] == "AWAITING_APPROVAL"
+    assert store.rows["INC-RUNNING"]["status"] == "DETECTED"
+
+
 # --- wiring -----------------------------------------------------------------
 
 
-def test_the_api_recovers_at_startup_after_connecting_the_store(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize(("available", "retries"), [(False, 1), (True, 0)])
+def test_startup_recovers_and_retries_the_store_only_if_it_is_down(
+    monkeypatch: pytest.MonkeyPatch, available: bool, retries: int,
 ) -> None:
     from fastapi.testclient import TestClient
 
-    from kavach.main import create_app
+    import kavach.main as main
 
     calls: list[str] = []
 
     class Stub:
+        store = SimpleNamespace(available=lambda: available,
+                                save_event=lambda _event: None)
+
         def init_store(self) -> bool:
             calls.append("init_store")
-            return False
+            return available
 
         def recover(self) -> None:
             calls.append("recover")
 
+    async def retry(_runner: Any) -> None:
+        calls.append("retry")
+
     monkeypatch.setattr(routes, "get_runner", lambda _settings: Stub())
-    with TestClient(create_app()):
+    monkeypatch.setattr(main, "connect_when_ready", retry)
+    with TestClient(main.create_app()):
         pass
-    assert calls == ["init_store", "recover"]
+    assert calls[:2] == ["init_store", "recover"]
+    assert calls.count("retry") == retries
+
+
+# --- incident IDs -------------------------------------------------------------
+
+
+def test_an_incident_id_does_not_repeat_on_another_day() -> None:
+    """INC-HHMMSS repeated daily, and the store upserts on the ID."""
+    from datetime import UTC, datetime
+
+    from kavach.api.runner import new_incident_id
+
+    monday = new_incident_id(datetime(2026, 11, 16, 20, 46, 36, tzinfo=UTC))
+    tuesday = new_incident_id(datetime(2026, 11, 17, 20, 46, 36, tzinfo=UTC))
+    assert monday == "INC-20261116-204636"
+    assert monday != tuesday

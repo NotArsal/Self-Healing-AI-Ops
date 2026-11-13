@@ -383,6 +383,20 @@ async def get_incident(
     return incident_out(inc, parked=incident_id in runner.awaiting())
 
 
+@router.get("/incidents/{incident_id}/events", response_model=list[s.EventOut])
+async def incident_events(
+    incident_id: str,
+    runner: Annotated[LoopRunner, Depends(get_runner)],
+) -> list[s.EventOut]:
+    """One incident's timeline, from the store.
+
+    The live feed (`/ws`, `/events`) is this process's memory and starts empty
+    after every restart. Empty here means the store is down or the incident
+    ran before events were stored (2026-11-13).
+    """
+    return [s.EventOut.model_validate(e) for e in runner.store.events(incident_id)]
+
+
 @router.post("/loop/run", response_model=s.RunStarted, status_code=202)
 async def run_loop(
     runner: Annotated[LoopRunner, Depends(get_runner)],

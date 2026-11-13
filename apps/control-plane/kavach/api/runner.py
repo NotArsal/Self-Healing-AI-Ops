@@ -64,6 +64,17 @@ HISTORY_MAX = 50
 MODE_ORDER: tuple[Mode, ...] = ("SIMULATION", "APPROVAL", "AUTONOMOUS")
 
 
+def new_incident_id(now: datetime) -> str:
+    """`INC-YYYYMMDD-HHMMSS`, in UTC.
+
+    It was `INC-HHMMSS`, which repeats every day, and the store upserts on
+    the ID: a run at the same second of a later day overwrote the earlier
+    incident's row. Found 2026-11-13 with one ID already reused in the audit
+    log. One run at a time means one ID per second is enough.
+    """
+    return f"INC-{now.strftime('%Y%m%d-%H%M%S')}"
+
+
 def _when(value: Any) -> datetime:
     """An ISO time, or the earliest time if there is none to read."""
     try:
@@ -189,16 +200,28 @@ class LoopRunner:
         # behaviour until the action's parameters are persisted too.
         self._awaiting: dict[str, dict[str, Any]] = {}
 
-    def init_store(self) -> bool:
-        """Connect and create tables. Safe to call twice; never raises."""
+    def init_store(self, quiet: bool = False) -> bool:
+        """Connect and create tables. Safe to call twice; never raises.
+
+        `quiet` skips the audit row on failure, for the retry loop in
+        `main.lifespan`: one row per attempt every few seconds would bury the
+        audit log while Postgres boots. The first failure and the eventual
+        success are both recorded.
+        """
         if self.store.available():
             return True
         connected = self.store.init()
-        self.audit.append(
-            "store_init",
-            available=connected,
-            detail=self.store.unavailable_reason or "connected",
-        )
+        if connected or not quiet:
+            self.audit.append(
+                "store_init",
+                available=connected,
+                detail=self.store.unavailable_reason or "connected",
+            )
+        if connected:
+            # Incidents that ran while the store was down exist only in
+            # memory. Written now, or a late connection would lose them.
+            for inc in self.incidents():
+                self.store.save(inc.to_dict())
         return connected
 
     # --- after a restart (ADR 0028) -----------------------------------------
@@ -212,15 +235,28 @@ class LoopRunner:
         bookkeeping, and it must not stop the API from starting.
         """
         try:
-            rows = self.audit.rows()
-            self._settle_stored_incidents(rows)
-            self._restore_mode(rows)
+            self._restore_mode(self.audit.rows())
         except Exception:
             logger.exception("startup recovery failed")
+        self.settle()
+
+    def settle(self) -> None:
+        """Correct stored rows left parked or running by an earlier process.
+
+        Separate from `recover()` because the store may connect late: Docker
+        restarts every container at once, so the API can start before
+        Postgres accepts connections, and the rows are settled when it does.
+        Never raises.
+        """
+        try:
+            self._settle_stored_incidents(self.audit.rows())
+        except Exception:
+            logger.exception("settling stored incidents failed")
 
     def _settle_stored_incidents(self, audit: list[dict[str, Any]]) -> None:
-        """At startup nothing can be parked or running, so any row that says so
-        is left over from the last process. The audit log says what happened."""
+        """Rows that say parked or running but belong to no plan or run in this
+        process are left over from the last one. The audit log says what
+        happened to each."""
         stale = self.store.with_status(
             str(loop.IncidentStatus.AWAITING),
             str(loop.IncidentStatus.DETECTED),
@@ -228,6 +264,10 @@ class LoopRunner:
         )
         for record in stale:
             incident_id = str(record.get("incident_id") or "")
+            # Only at startup is "this process holds nothing" guaranteed. A
+            # store that connects late may meet a run or a plan of our own.
+            if incident_id in self._awaiting or incident_id == self._running:
+                continue
             since = _when(record.get("detected_at"))
             # IDs are INC-HHMMSS and repeat across days, so an audit row only
             # counts if it is not older than this incident.
@@ -544,7 +584,7 @@ class LoopRunner:
                     "`make onboard` against a healthy target first: a rollback "
                     "with no recorded known-good value would be a guess."
                 )
-            incident_id = f"INC-{datetime.now(UTC).strftime('%H%M%S')}"
+            incident_id = new_incident_id(datetime.now(UTC))
             self._running = incident_id
 
         # Everything from here to the thread start can raise - an unreadable
