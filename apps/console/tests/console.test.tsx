@@ -500,14 +500,18 @@ describe("keyboard navigation", () => {
     const user = userEvent.setup();
     render(<Rail mode="SIMULATION" modeEnforced={false} current="/" />);
 
-    await user.tab();
-    expect(screen.getByRole("link", { name: "Operations" })).toHaveFocus();
-    await user.tab();
-    expect(
-      screen.getByRole("link", { name: "Onboarding and preflight" }),
-    ).toHaveFocus();
-    await user.tab();
-    expect(screen.getByRole("link", { name: "Observability" })).toHaveFocus();
+    // One page per question since ADR 0029; Observability was split up.
+    for (const name of [
+      "Operations",
+      "History",
+      "Logs",
+      "Metrics",
+      "Traces",
+      "Onboarding and preflight",
+    ]) {
+      await user.tab();
+      expect(screen.getByRole("link", { name })).toHaveFocus();
+    }
     await user.tab();
     expect(screen.getByRole("button", { name: /Switch to light theme/ })).toHaveFocus();
   });

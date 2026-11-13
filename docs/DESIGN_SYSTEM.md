@@ -245,6 +245,7 @@ Three zones. The proportions are fixed because the operator's eye path is fixed:
 The inspector above shows the selected `F06` incident — MEDIUM risk, hence *awaiting approval*. Service names (`backend`) and action names (`rollback_config`, `switch_llm_endpoint`) are the real ones from `PRD.md` §6 and `ARCHITECTURE.md` §6.2; the third verification probe is labelled **fast**, not *eval*, because the live loop runs fast verification and never the full evaluator (`FR-07` vs `FR-07a`).
 
 - **Left rail (64px):** projects and navigation, icons only, tooltip on hover. The mode indicator (`SIMULATION` / `APPROVAL` / `AUTONOMOUS`) lives at the bottom of the rail and is visible on every screen — this satisfies `UX-01` and it must never scroll away.
+- **Pages (ADR 0029):** Operations, History, Logs, Metrics, Traces, and Onboarding and preflight, in that order on the rail. Operations is the three-zone layout below. The other pages share one frame (`components/ui/Page.tsx`): the rail, a title, one sentence on what the page answers, then sections.
 - **Centre:** the incident stream, newest first, live. Rows are full-width and left-aligned. Left alignment, not centred, because the eye scans a vertical column of status glyphs.
 - **Right inspector (380px fixed):** the selected incident's detail, in loop order: evidence → diagnosis → plan → risk → verification → audit. The order never changes, because the operator learns the position.
 
@@ -366,6 +367,7 @@ Initial set, each verified against the generated API types:
 | Loop stages | the live events of the selected incident | `EventOut.stage`, `EventOut.status` |
 | Incident durations | the incident history | `IncidentSummary.detected_at`, `IncidentSummary.resolved_at` (empty means no end time: still running, or finished without RESOLVED. Drawn as "—", never as a bar, never as complete) |
 | Verification probes | the selected incident's verification | `VerificationOut.health_ok`, `quality_ok`, `cases[].passed`, `cases[].latency_s`, `total_s`, `budget_s` |
+| Stage timings | the Traces page, one run | stored `EventOut.stage`, `EventOut.status`, `EventOut.at`; each stage from its first line to its last, the bar scaled to the whole run (ADR 0029) |
 
 Anything not in this table needs to be added to it, with the field it reads, before it is built.
 

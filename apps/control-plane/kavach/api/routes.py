@@ -18,6 +18,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
+import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Annotated, Any
 from urllib.parse import urlparse
@@ -188,6 +191,57 @@ def _prometheus_ok(url: str) -> tuple[bool, str]:
         return False, str(exc)[:160]
 
 
+class ProviderCheck:
+    """The model provider's `available()`, without letting it hang /v1/system.
+
+    Measured 2026-11-13: with the API container's outbound network down, the
+    check hung past 30s. urlopen's timeout is per attempt, per address and per
+    key, and nothing bounded the total, so /v1/system hung with it and the
+    console's health panel froze. Now:
+
+    - at most one check runs at a time, in its own thread;
+    - an answer is reused for `ttl_s`, and after that the old answer is
+      returned at once while a fresh one is fetched;
+    - only a call with no answer yet waits, and for at most `wait_s`. A real
+      answer takes well under a second, so the bench still reads the model
+      from the first /v1/system it calls (`kavach_baseline.rca_model`).
+    """
+
+    def __init__(self, ttl_s: float = 60.0, wait_s: float = 5.0) -> None:
+        self.ttl_s = ttl_s
+        self.wait_s = wait_s
+        self._lock = threading.Lock()
+        self._ok: bool | None = None
+        self._at = float("-inf")
+        self._running: threading.Event | None = None
+
+    def get(self, check: Callable[[], bool]) -> bool | None:
+        """True or False once known; None while the first check is unanswered."""
+        with self._lock:
+            if self._running is None and time.monotonic() - self._at >= self.ttl_s:
+                done = threading.Event()
+                self._running = done
+                threading.Thread(target=self._run, args=(check, done), daemon=True,
+                                 name="kavach-provider-check").start()
+            pending = self._running if self._ok is None else None
+        if pending is not None:
+            pending.wait(self.wait_s)
+        with self._lock:
+            return self._ok
+
+    def _run(self, check: Callable[[], bool], done: threading.Event) -> None:
+        try:
+            ok = bool(check())
+        except Exception:
+            ok = False
+        with self._lock:
+            self._ok, self._at, self._running = ok, time.monotonic(), None
+        done.set()
+
+
+_provider_check = ProviderCheck()
+
+
 @router.get("/system", response_model=s.SystemOut)
 async def system(
     settings: Annotated[Settings, Depends(get_settings)],
@@ -245,16 +299,18 @@ async def system(
 
     llm = providers.build(settings.llm_provider, settings.llm_model,
                           ollama_base_url=settings.llm_base_url)
-    direct_ok = await asyncio.to_thread(llm.available)
+    direct_ok = await asyncio.to_thread(_provider_check.get, llm.available)
     deps.append(s.Dependency(
-        name="Ollama, Kavach path", ok=direct_ok,
+        name="Ollama, Kavach path", ok=bool(direct_ok),
         # The provider is part of the provenance: harness/kavach_baseline.py
         # rca_model() stamps this detail into every bench artifact.
         detail=(f"model {settings.llm_model} via {settings.llm_provider}"
                 + (f", backup {settings.llm_backup_model} via "
                    f"{settings.llm_backup_provider}"
                    if settings.llm_backup_provider else "")
-                if direct_ok else "not reachable"),
+                if direct_ok
+                else "not reachable" if direct_ok is False
+                else "no answer yet; still checking"),
         endpoint=(f"{settings.llm_base_url} (direct, never proxied)"
                   if settings.llm_provider == "ollama"
                   else f"{settings.llm_provider} API (direct, never proxied)"),
@@ -368,8 +424,11 @@ async def get_preflight(
 @router.get("/incidents", response_model=list[s.IncidentSummary])
 async def list_incidents(
     runner: Annotated[LoopRunner, Depends(get_runner)],
+    limit: Annotated[int, Query(ge=1, le=1000)] = 50,
 ) -> list[s.IncidentSummary]:
-    return [incident_summary(i) for i in runner.history()]
+    """Newest first. 50 by default, the operations screen's history; the
+    history page asks for more (up to 1000)."""
+    return [incident_summary(i) for i in runner.history(limit)]
 
 
 @router.get("/incidents/{incident_id}", response_model=s.IncidentOut)

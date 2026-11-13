@@ -83,10 +83,16 @@ function ThemeToggle() {
   );
 }
 
+// One page per question (ADR 0029): what is happening now, what happened,
+// what did the control plane log, how is it doing overall, where did a run
+// spend its time, and is the target ready to be watched.
 const NAV: { href: string; label: string; icon: IconName }[] = [
   { href: "/", label: "Operations", icon: "activity" },
+  { href: "/history", label: "History", icon: "clock" },
+  { href: "/logs", label: "Logs", icon: "file" },
+  { href: "/metrics", label: "Metrics", icon: "gauge" },
+  { href: "/traces", label: "Traces", icon: "waterfall" },
   { href: "/preflight", label: "Onboarding and preflight", icon: "list" },
-  { href: "/observability", label: "Observability", icon: "gauge" },
 ];
 
 export function Rail({

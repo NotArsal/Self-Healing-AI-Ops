@@ -21,11 +21,9 @@ import { useEffect, useMemo, useState } from "react";
 import { ActionPlan } from "@/components/incident/ActionPlan";
 import { DiagnosisCard } from "@/components/incident/DiagnosisCard";
 import { EvidenceList } from "@/components/incident/EvidenceList";
-import {
-  HistoryTable,
-  IncidentStream,
-  reachedStages,
-} from "@/components/incident/IncidentStream";
+import Link from "next/link";
+
+import { IncidentStream, reachedStages } from "@/components/incident/IncidentStream";
 import { LoopRing } from "@/components/incident/LoopRing";
 import { Timeline } from "@/components/incident/Timeline";
 import { ApprovalPanel } from "@/components/safety/ApprovalPanel";
@@ -46,6 +44,10 @@ import {
   useSystem,
 } from "@/lib/live";
 
+// The newest few. Everything else is on the History page (ADR 0029): the
+// full table used to sit under this list, 3654px down a 210px box.
+const STREAM_MAX = 8;
+
 const ONE_LINE: React.CSSProperties = {
   minWidth: 0,
   whiteSpace: "nowrap",
@@ -62,6 +64,12 @@ export default function OperationsPage() {
   const [openEvidence, setOpenEvidence] = useState("");
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState("");
+
+  // The History page links here with ?incident=<id>. Read once, on arrival.
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("incident");
+    if (wanted) setSelectedId(wanted);
+  }, []);
 
   // Follow whatever the control plane says is running, and otherwise the
   // newest incident, so the demo needs no clicking to land on the right row.
@@ -137,9 +145,14 @@ export default function OperationsPage() {
   };
 
   const busy = Boolean(system?.loop_running) || starting;
+  // "No active incident" only when nothing is selected. A selected incident
+  // with no class (nothing found, or not enough evidence) said the same,
+  // which read as if the selection had not happened.
   const title = selected?.fault_class
     ? `${selected.fault_class} ${faultName(selected.fault_class, selected.fault_name)}`
-    : "No active incident";
+    : selected
+      ? "No fault class"
+      : "No active incident";
   const meta = selected
     ? [
         selected.incident_id,
@@ -224,7 +237,7 @@ export default function OperationsPage() {
                     {faultName(selected.fault_class, selected.fault_name)}
                   </>
                 ) : (
-                  "No active incident"
+                  title
                 )}
               </h1>
               {selected ? (
@@ -301,13 +314,21 @@ export default function OperationsPage() {
 
           <div className="k-scroll" style={{ maxHeight: 220 }}>
             <IncidentStream
-              incidents={incidents}
+              incidents={incidents.slice(0, STREAM_MAX)}
               selectedId={selectedId}
               onSelect={setSelectedId}
               events={events}
               loading={!loaded}
             />
-            <HistoryTable incidents={incidents} />
+            {incidents.length > STREAM_MAX && (
+              <p className="k-sm" style={{ margin: "var(--k-space-2) 0 0" }}>
+                <Link href="/history">Open the full history</Link>
+                <span className="k-faint">
+                  {" "}
+                  · the newest {STREAM_MAX} are listed here
+                </span>
+              </p>
+            )}
           </div>
         </main>
 

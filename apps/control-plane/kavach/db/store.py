@@ -16,6 +16,7 @@ fail loudly at startup.
 from __future__ import annotations
 
 import contextlib
+import math
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
@@ -38,6 +39,25 @@ def _as_dt(value: Any) -> datetime | None:
     except ValueError:
         return None
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+
+def json_safe(value: Any) -> Any:
+    """`value` with every NaN and infinity replaced by None.
+
+    Postgres JSON has no NaN, and Prometheus answers a 0/0 rate with "NaN",
+    which `_promql` turns into float("nan"). One such metric in an incident's
+    detection made Postgres refuse the whole row, so the finished result was
+    never saved and the store kept the run's first status (DETECTED) for good.
+    Found 2026-11-13 from the store's own "write failed" log line. None is
+    what the rest of the system already means by "no value".
+    """
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {k: json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_safe(v) for v in value]
+    return value
 
 
 def sync_url(url: str) -> str:
@@ -160,7 +180,7 @@ class IncidentStore:
             row.outcome = str(record.get("outcome") or "")
             row.escalation_reason = str(record.get("escalation_reason") or "")
             row.mttr_seconds = mttr
-            row.payload = record
+            row.payload = json_safe(record)
 
     def save_decision(self, incident_id: str, decision: dict[str, Any]) -> None:
         with self._session() as session:
@@ -172,9 +192,10 @@ class IncidentStore:
                 verdict=str(decision.get("verdict") or ""),
                 risk_tier=str(decision.get("risk_tier") or ""),
                 mode=str(decision.get("mode") or ""),
-                reasons=list(decision.get("reasons") or []),
-                checks=list(decision.get("checks") or []),
-                typed_decision_frame=dict(decision.get("typed_decision_frame") or {}),
+                reasons=json_safe(list(decision.get("reasons") or [])),
+                checks=json_safe(list(decision.get("checks") or [])),
+                typed_decision_frame=json_safe(
+                    dict(decision.get("typed_decision_frame") or {})),
             ))
 
     def save_hypotheses(self, incident_id: str, items: list[dict[str, Any]]) -> None:

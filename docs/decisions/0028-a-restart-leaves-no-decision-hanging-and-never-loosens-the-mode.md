@@ -123,3 +123,22 @@ still in the database.
 
 The empty timeline is a separate cause: events lived only in the API's memory.
 Owner decision the same day: persist them (see the events table).
+
+## Follow-up 2026-11-13: a finished run that was never saved
+
+A no-fault test run escalated with INSUFFICIENT_EVIDENCE, yet the store still
+said DETECTED, and the next restart settled it as "the control plane stopped
+before this run finished". That was false. The store's own log had the cause:
+Postgres refused the row because its detection held `"value": NaN`. Prometheus
+answers a 0/0 rate with "NaN", and `_promql` turns that into `float("nan")`.
+
+- `IncidentStore` now writes every JSON payload through `json_safe`, which
+  turns NaN and infinity into null. The detector is unchanged: what it reads
+  and decides is not touched, only what is written.
+- The settle wording for a DETECTED or HEALING row no longer claims the
+  process stopped. It says the final result was never saved, and that either
+  cause is possible.
+- `INC-181546`, the row this ADR was opened with, is very likely this bug
+  rather than a stopped process: it has no audit rows, which fits a run that
+  escalated at detection. Its stored reason (written by the first version of
+  settle) overstates what is known.

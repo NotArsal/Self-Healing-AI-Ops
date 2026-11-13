@@ -151,6 +151,51 @@ export function useEvents(): { events: LoopEvent[]; connected: boolean } {
 }
 
 /**
+ * Load now and again every `everyMs`, for the read-only pages (History, Logs,
+ * Metrics, Traces). They have no live feed to say "something changed", so a
+ * slow re-read is the readout, as the 5s health probe already is. `failed`
+ * goes true when the API does not answer and the last good data stays shown.
+ *
+ * `fetcher` must be stable (module level or useCallback), or every render
+ * restarts the timer.
+ */
+export function usePolled<T>(
+  fetcher: () => Promise<{ data?: T; error?: unknown }>,
+  everyMs: number,
+): { data: T | null; failed: boolean } {
+  const [data, setData] = useState<T | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    const run = (): void => {
+      // Two handlers: `api.GET` REJECTS when the server is down (see
+      // useLoadUntilReady below for the bug that taught this).
+      fetcher().then(
+        (r) => {
+          if (cancelled) return;
+          if (r.data !== undefined) {
+            setData(r.data);
+            setFailed(false);
+          } else {
+            setFailed(true);
+          }
+        },
+        () => {
+          if (!cancelled) setFailed(true);
+        },
+      );
+    };
+    run();
+    const timer = setInterval(run, everyMs);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [fetcher, everyMs]);
+  return { data, failed };
+}
+
+/**
  * One incident's stored timeline.
  *
  * The live feed is the API process's memory, so after a restart a past

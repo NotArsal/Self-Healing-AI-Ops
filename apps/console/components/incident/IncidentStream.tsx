@@ -12,6 +12,8 @@
 
 "use client";
 
+import Link from "next/link";
+
 import { LoopRing, ringStage } from "./LoopRing";
 import { ICOSAHEDRON } from "../ascii/icosahedron";
 import { StatePill } from "../ui/pills";
@@ -166,7 +168,16 @@ export function IncidentStream({
   );
 }
 
-export function HistoryTable({ incidents }: { incidents: IncidentSummary[] }) {
+export function HistoryTable({
+  incidents,
+  title = "History",
+  linkIds = false,
+}: {
+  incidents: IncidentSummary[];
+  title?: string;
+  /** Each ID opens that incident on the operations screen. */
+  linkIds?: boolean;
+}) {
   if (incidents.length === 0) return null;
   // Bars scale to the longest FINISHED incident; open ones are not drawn (§7.12 B).
   const longest = Math.max(
@@ -176,14 +187,14 @@ export function HistoryTable({ incidents }: { incidents: IncidentSummary[] }) {
   return (
     <section aria-labelledby="history-heading" style={{ marginTop: "var(--k-space-5)" }}>
       <h2 id="history-heading" style={{ marginBottom: "var(--k-space-3)" }}>
-        History
+        {title}
       </h2>
       <table
         className="k-sm"
         style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}
       >
         <caption className="k-sr-only">
-          Every incident this control-plane process has run, newest first.
+          Stored incidents, newest first.
         </caption>
         <thead>
           <tr className="k-xs k-faint">
@@ -218,7 +229,15 @@ export function HistoryTable({ incidents }: { incidents: IncidentSummary[] }) {
                 key={incident.incident_id}
                 style={{ borderTop: "1px solid var(--k-border-subtle)" }}
               >
-                <td style={{ padding: "6px 8px" }}>{incident.incident_id}</td>
+                <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
+                  {linkIds ? (
+                    <Link href={`/?incident=${encodeURIComponent(incident.incident_id)}`}>
+                      {incident.incident_id}
+                    </Link>
+                  ) : (
+                    incident.incident_id
+                  )}
+                </td>
                 <td style={{ padding: "6px 8px" }}>{incident.fault_class ?? "—"}</td>
                 <td style={{ padding: "6px 8px" }}>{incident.service ?? "—"}</td>
                 <td style={{ padding: "6px 8px" }}>

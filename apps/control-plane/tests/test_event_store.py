@@ -102,3 +102,42 @@ def test_startup_points_the_bus_at_the_store_and_lets_go_at_shutdown(
     with TestClient(main.create_app()):
         assert bus.sink is save_event
     assert bus.sink is None
+
+
+@pytest.mark.asyncio
+async def test_the_incident_list_takes_a_limit_for_the_history_page(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = LoopRunner(Settings(kavach_root=str(tmp_path)))
+    asked: list[int] = []
+
+    def history(limit: int = 50) -> list[Any]:
+        asked.append(limit)
+        return []
+
+    monkeypatch.setattr(runner, "history", history)
+    await routes.list_incidents(runner)
+    await routes.list_incidents(runner, limit=1000)
+    assert asked == [50, 1000]
+
+
+def test_a_nan_metric_no_longer_costs_the_whole_incident_row() -> None:
+    """Postgres JSON has no NaN; one 0/0 rate from Prometheus made it refuse the
+    finished result, and the row stayed DETECTED for good (2026-11-13)."""
+    import json
+    import math
+
+    from kavach.db.store import json_safe
+
+    record: dict[str, Any] = {"status": "ESCALATED",
+              "detection": {"signals": [{"name": "retrieval_top_similarity",
+                                         "value": math.nan},
+                                        {"name": "ratio", "value": math.inf}],
+                            "rate": 0.5}}
+    safe = json_safe(record)
+
+    assert safe["detection"]["signals"][0]["value"] is None
+    assert safe["detection"]["signals"][1]["value"] is None
+    assert safe["detection"]["rate"] == 0.5
+    json.dumps(safe, allow_nan=False)  # what Postgres accepts
+    assert math.isnan(record["detection"]["signals"][0]["value"]), "input untouched"

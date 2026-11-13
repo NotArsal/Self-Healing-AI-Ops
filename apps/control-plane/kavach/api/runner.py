@@ -298,9 +298,13 @@ class LoopRunner:
                 # means the target was not touched.
                 started = "execute_start" in events
                 record["status"] = str(loop.IncidentStatus.ESCALATED)
+                # Not "the control plane stopped": until 2026-11-13 a finished
+                # run whose detection held a NaN was refused by Postgres and
+                # stayed DETECTED too. Either way the result never reached
+                # the store, and that is all this can say for sure.
                 record["escalation_reason"] = (
-                    "the control plane stopped before this run finished, and its "
-                    "result was never recorded")
+                    "this run's final result was never saved: the control plane "
+                    "stopped first, or the store refused the write")
                 record["outcome"] = (
                     "a repair started and its result is unknown; check the target"
                     if started else

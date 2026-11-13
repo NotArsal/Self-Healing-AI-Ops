@@ -27,7 +27,10 @@ export type IconName =
   | "gauge"
   | "list"
   | "sun"
-  | "moon";
+  | "moon"
+  | "clock"
+  | "file"
+  | "waterfall";
 
 const PATHS: Record<IconName, React.ReactNode> = {
   check: <polyline points="3.5 8.5 6.5 11.5 12.5 4.5" />,
@@ -111,6 +114,27 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   moon: <path d="M12.5 10.2A5.5 5.5 0 0 1 6 3.6a5.5 5.5 0 1 0 6.5 6.6z" />,
+  clock: (
+    <>
+      <circle cx="8" cy="8" r="5.5" />
+      <polyline points="8 5 8 8 10.5 9.5" />
+    </>
+  ),
+  file: (
+    <>
+      <path d="M4 2h5.5L12 4.5V14H4z" />
+      <line x1="6" y1="7.5" x2="10" y2="7.5" />
+      <line x1="6" y1="10" x2="10" y2="10" />
+    </>
+  ),
+  // A trace waterfall: spans that start later and run for different lengths.
+  waterfall: (
+    <>
+      <line x1="2.5" y1="4" x2="9" y2="4" />
+      <line x1="5" y1="8" x2="13.5" y2="8" />
+      <line x1="7.5" y1="12" x2="11" y2="12" />
+    </>
+  ),
 };
 
 export function Icon({
