@@ -45,7 +45,10 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """
     from kavach.api.routes import get_runner
 
-    get_runner(get_settings()).init_store()
+    runner = get_runner(get_settings())
+    runner.init_store()
+    # After the store, which it reads and corrects (ADR 0028).
+    runner.recover()
     yield
 
 

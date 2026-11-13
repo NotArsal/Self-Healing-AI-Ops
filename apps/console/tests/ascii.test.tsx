@@ -81,6 +81,32 @@ describe("history durations", () => {
   });
 });
 
+describe("stream durations", () => {
+  const stream = (status: string, resolvedAt: string) =>
+    render(
+      <IncidentStream
+        incidents={[{ ...fx.summaries[0]!, status, resolved_at: resolvedAt }]}
+        selectedId=""
+        onSelect={() => {}}
+        events={[]}
+      />,
+    );
+
+  it("prints how long a resolved incident took", () => {
+    stream("RESOLVED", fx.summaries[0]!.resolved_at);
+    expect(screen.getByRole("button")).toHaveTextContent(/56s$/);
+  });
+
+  // It counted up to Date.now() for every row without an end time, so an
+  // APPROVED row read "5m51s", then "6m02s", for as long as the page was open.
+  it("does not count up for a finished row with no end time", () => {
+    stream("APPROVED", "");
+    const row = screen.getByRole("button");
+    expect(row).toHaveTextContent(/—$/);
+    expect(row).not.toHaveTextContent(/\d+m\d{2}s|\d+s$/);
+  });
+});
+
 describe("verification budget", () => {
   it("states the time and the budget in words, with the bar hidden", () => {
     render(

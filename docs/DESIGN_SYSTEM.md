@@ -441,10 +441,10 @@ zones. §7 components exist except where the thing they describe does not.
 
 | § | Difference | Why |
 |---|---|---|
-| 7.9 Mode switch | Built as an **indicator, not a segmented control** | There is nothing to switch to. `permit()` does not exist, the loop reads no mode, and a control that appeared to change a safety posture while changing nothing would be worse than none. It states in words that the mode is configuration rather than an enforced gate. The control arrives with the thing it controls, in P6 |
-| 7.7 Approval dialog | Not built | There is no approval flow to drive it (P6) |
-| 7.10 Audit entry | The history table reads **incidents**, not an audit log | No hash-chained log exists yet (P6). The table is deliberately not called an audit view |
-| 7.11 Metric readout | Not built | MTTD/MTTR are not persisted across incidents, so there is nothing to read |
+| 7.9 Mode switch | **None since P6.** Built as the segmented control, with the AUTONOMOUS confirmation | P4 shipped an indicator because `permit()` did not exist and the loop read no mode. Both arrived in P6, and the control with them (`ModeSwitch.tsx`) |
+| 7.7 Approval dialog | Built as an **inline panel at the top of the inspector**, not an overlay. The fixed order, the scroll-to-end gate on Approve and the required reject reason are implemented. Not modal, so no focus trap | Why inline rather than an overlay was not recorded. Noted 2026-11-13 so the difference is visible |
+| 7.10 Audit entry | **No audit view in the console.** The history table reads incidents, and is not called an audit view | The hash-chained log exists since P6 (`GET /v1/audit`, verified on read). A console view of it has not been built |
+| 7.11 Metric readout | Built in the health zone as **Fleet**: MTTR, repair success, healed, awaiting. No sparkline, and no MTTD | The store's fleet metrics carry no MTTD. Bench MTTD lives in `harness/reports/` |
 | 7.8 Verification strip | Three probes render; **the SLO-window probe is permanently pending** | Only two of the three `FR-07` probes are implemented. Hiding the third would make a two-probe verification look complete |
 | 6 Layout | A **fourth** zone: health sits between the rail and the stream | The P4 brief puts system health in the left zone. The fixed widths were re-derived so the row still fits 1280px — the first attempt overflowed by 8px, which a test now guards |
 | 6 Breakpoints | Below 1024 the inspector **stacks below** rather than becoming an overlay drawer | Every zone stays reachable; nothing hides behind a control that does not exist yet |

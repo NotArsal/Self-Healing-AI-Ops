@@ -38,7 +38,12 @@ import { VerificationStrip } from "@/components/incident/VerificationStrip";
 import { api } from "@/lib/api";
 import { useEvents, useIncidents, useSafetyState, useSystem } from "@/lib/live";
 
-const TERMINAL = new Set(["RESOLVED", "ESCALATED", "NO_FAULT"]);
+const ONE_LINE: React.CSSProperties = {
+  minWidth: 0,
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+};
 
 export default function OperationsPage() {
   const { system, error, refresh: refreshSystem } = useSystem();
@@ -118,6 +123,19 @@ export default function OperationsPage() {
   };
 
   const busy = Boolean(system?.loop_running) || starting;
+  const title = selected?.fault_class
+    ? `${selected.fault_class} ${(selected.fault_name ?? "").replace(/_/g, " ")}`
+    : "No active incident";
+  const meta = selected
+    ? [
+        selected.incident_id,
+        selected.service,
+        selected.detected_at && `detected ${selected.detected_at.slice(11, 19)}`,
+        selected.diagnosed_by,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
   const evidence = selected?.rca?.evidence ?? [];
   const cited = selected?.rca?.diagnosis?.evidence_ids ?? [];
 
@@ -181,33 +199,35 @@ export default function OperationsPage() {
               inFlight={ring.inFlight && busy}
               size={72}
             />
+            {/* One line each, so the header stays one ring tall at 1280x720.
+                It wrapped to 156px, a fifth of the projector's height. The
+                pill sits on the meta line to give the title the width. */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <h1 style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+              <h1 title={title} style={ONE_LINE}>
                 {selected?.fault_class ? (
                   <>
-                    <span className="k-mono">{selected.fault_class}</span>
-                    <span>{(selected.fault_name ?? "").replace(/_/g, " ")}</span>
+                    <span className="k-mono">{selected.fault_class}</span>{" "}
+                    {(selected.fault_name ?? "").replace(/_/g, " ")}
                   </>
                 ) : (
                   "No active incident"
                 )}
               </h1>
-              <p className="k-mono-sm k-faint" style={{ margin: "4px 0 0" }}>
-                {selected ? (
-                  <>
-                    {selected.incident_id}
-                    {selected.service ? ` · ${selected.service}` : ""}
-                    {selected.detected_at
-                      ? ` · detected ${selected.detected_at.slice(11, 19)}`
-                      : ""}
-                    {selected.diagnosed_by ? ` · ${selected.diagnosed_by}` : ""}
-                  </>
-                ) : (
-                  "Inject F06, then start a run to watch the loop"
-                )}
-              </p>
+              {selected ? (
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}
+                >
+                  <StatePill status={selected.status} />
+                  <p className="k-mono-sm k-faint" title={meta} style={{ ...ONE_LINE, margin: 0 }}>
+                    {meta}
+                  </p>
+                </div>
+              ) : (
+                <p className="k-mono-sm k-faint" style={{ margin: "4px 0 0" }}>
+                  Inject F06, then start a run to watch the loop
+                </p>
+              )}
             </div>
-            {selected && <StatePill status={selected.status} />}
             <button
               type="button"
               onClick={() => void run()}
@@ -314,9 +334,7 @@ export default function OperationsPage() {
           />
           <VerificationStrip
             verification={selected?.verification ?? null}
-            incident={
-              selected && TERMINAL.has(selected.status) ? selected : (selected ?? null)
-            }
+            incident={selected}
           />
         </aside>
       </div>

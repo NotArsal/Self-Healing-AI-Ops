@@ -251,7 +251,13 @@ button:disabled {
   border-radius: var(--k-radius-sm);
 }
 
+/* position: relative makes each scroll box the containing block of the
+   `.k-sr-only` text inside it. Without it the history table's absolutely
+   positioned caption escaped the box, sat 4206px down the page, and made the
+   whole one-viewport console scroll: a wheel over the header slid every
+   zone up and showed blank page below. Measured 2026-11-13 at 1280x720. */
 .k-scroll {
+  position: relative;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--k-border-strong) transparent;

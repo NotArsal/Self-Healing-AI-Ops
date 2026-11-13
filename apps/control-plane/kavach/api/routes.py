@@ -135,7 +135,9 @@ def _decision(d: dict[str, Any] | None) -> s.DecisionOut | None:
     return s.DecisionOut.model_validate(d) if d else None
 
 
-def incident_out(inc: loop.Incident) -> s.IncidentOut:
+def incident_out(inc: loop.Incident, parked: bool = False) -> s.IncidentOut:
+    """`parked`: this process still holds the plan. The status alone is not
+    enough, because a restart loses the plan and keeps the row (ADR 0028)."""
     before = inc.corpus_before or None
     after = inc.corpus_after or None
     return s.IncidentOut(
@@ -156,7 +158,7 @@ def incident_out(inc: loop.Incident) -> s.IncidentOut:
         decision=_decision(inc.decision),
         action=s.ActionOut.model_validate(inc.action) if inc.action else None,
         unwind=s.UnwindOut.model_validate(inc.unwind) if inc.unwind else None,
-        awaiting_approval=inc.status is loop.IncidentStatus.AWAITING,
+        awaiting_approval=parked and inc.status is loop.IncidentStatus.AWAITING,
         verification=_verification(inc.verification),
         corpus_before=s.CorpusOut.model_validate(before) if before else None,
         corpus_after=s.CorpusOut.model_validate(after) if after else None,
@@ -378,7 +380,7 @@ async def get_incident(
     inc = runner.find(incident_id)
     if inc is None:
         raise HTTPException(status_code=404, detail=f"no incident {incident_id}")
-    return incident_out(inc)
+    return incident_out(inc, parked=incident_id in runner.awaiting())
 
 
 @router.post("/loop/run", response_model=s.RunStarted, status_code=202)

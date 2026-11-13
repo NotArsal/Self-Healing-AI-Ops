@@ -14,7 +14,7 @@
  */
 
 import { Icon } from "../ui/Icon";
-import { ProbePill } from "../ui/pills";
+import { ProbePill, sentence } from "../ui/pills";
 import type { Incident, Verification } from "@/lib/api";
 import { BAR_CELLS, bar } from "@/lib/ascii";
 
@@ -72,7 +72,7 @@ export function VerificationStrip({
                 className="k-sm"
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "16px 70px 1fr auto",
+                  gridTemplateColumns: "16px auto 1fr auto",
                   gap: "var(--k-space-2)",
                   alignItems: "center",
                   padding: "3px 0",
@@ -145,7 +145,7 @@ export function VerificationStrip({
                 ? "not fingerprinted yet"
                 : corpusUnchanged
                   ? `unchanged · ${incident?.corpus_after?.chunks ?? "?"} chunks / ${incident?.corpus_after?.files ?? "?"} files`
-                  : "CHANGED — this blocks resolution"}
+                  : "changed, which blocks resolution"}
             </dd>
             {incident?.action?.config_hash_after && (
               <>
@@ -169,7 +169,8 @@ export function VerificationStrip({
           }}
         >
           <span className="k-faint">Final state </span>
-          <strong>{incident.status}</strong>
+          {/* Sentence case (§3.2): "Resolved", never "RESOLVED". */}
+          <strong>{sentence(incident.status)}</strong>
           {incident.outcome ? (
             <span className="k-muted"> · {incident.outcome}</span>
           ) : null}

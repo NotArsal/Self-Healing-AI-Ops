@@ -118,4 +118,11 @@ describe("1280x720 projector constraint", () => {
   it("honours prefers-reduced-motion", () => {
     expect(css).toContain("prefers-reduced-motion: reduce");
   });
+
+  // Screen-reader text is absolutely positioned. Inside a static scroll box it
+  // escapes the box, and the history caption made the whole page 4206px tall.
+  it("keeps hidden text inside its scroll box, so the page itself never scrolls", () => {
+    const block = /\.k-scroll \{[^}]+\}/.exec(css)?.[0] ?? "";
+    expect(block).toMatch(/position:\s*relative/);
+  });
 });

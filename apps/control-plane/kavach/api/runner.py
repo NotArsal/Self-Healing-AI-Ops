@@ -60,6 +60,18 @@ logger = structlog.get_logger(__name__)
 # Enough for a demo and a rehearsal; this is not a knowledge base (that is P7).
 HISTORY_MAX = 50
 
+# Strictest first. A restart may bring a mode back only in this direction.
+MODE_ORDER: tuple[Mode, ...] = ("SIMULATION", "APPROVAL", "AUTONOMOUS")
+
+
+def _when(value: Any) -> datetime:
+    """An ISO time, or the earliest time if there is none to read."""
+    try:
+        at = datetime.fromisoformat(str(value))
+    except ValueError:
+        return datetime.min.replace(tzinfo=UTC)
+    return at if at.tzinfo else at.replace(tzinfo=UTC)
+
 
 class LoopBusyError(RuntimeError):
     """A run is already in flight."""
@@ -188,6 +200,98 @@ class LoopRunner:
             detail=self.store.unavailable_reason or "connected",
         )
         return connected
+
+    # --- after a restart (ADR 0028) -----------------------------------------
+
+    def recover(self) -> None:
+        """Make what a restart left behind true again. Called once at startup.
+
+        Parked plans, the run slot and the operator's mode change live in this
+        process's memory. A restart loses them; before ADR 0028 the stored
+        rows and the console went on claiming otherwise. Never raises: this is
+        bookkeeping, and it must not stop the API from starting.
+        """
+        try:
+            rows = self.audit.rows()
+            self._settle_stored_incidents(rows)
+            self._restore_mode(rows)
+        except Exception:
+            logger.exception("startup recovery failed")
+
+    def _settle_stored_incidents(self, audit: list[dict[str, Any]]) -> None:
+        """At startup nothing can be parked or running, so any row that says so
+        is left over from the last process. The audit log says what happened."""
+        stale = self.store.with_status(
+            str(loop.IncidentStatus.AWAITING),
+            str(loop.IncidentStatus.DETECTED),
+            str(loop.IncidentStatus.HEALING),
+        )
+        for record in stale:
+            incident_id = str(record.get("incident_id") or "")
+            since = _when(record.get("detected_at"))
+            # IDs are INC-HHMMSS and repeat across days, so an audit row only
+            # counts if it is not older than this incident.
+            newer = [r for r in audit if _when(r.get("at")) >= since]
+            events = {r.get("event") for r in newer
+                      if r.get("incident_id") == incident_id}
+
+            if record.get("status") == str(loop.IncidentStatus.AWAITING):
+                if "approved" in events:
+                    rerun = next((str(r.get("incident_id")) for r in newer
+                                  if r.get("event") == "permit"
+                                  and r.get("approved_from") == incident_id), "")
+                    record["status"] = str(loop.IncidentStatus.APPROVED)
+                    record["outcome"] = (
+                        f"approved by the operator; the fix ran as {rerun}" if rerun
+                        else "approved by the operator; the audit log does not "
+                             "name the re-run")
+                else:
+                    record["status"] = str(loop.IncidentStatus.ESCALATED)
+                    record["escalation_reason"] = (
+                        "approval lapsed: the control plane restarted before anyone "
+                        "decided, and the parked plan was held in memory only")
+                    record["outcome"] = ("not executed; run the loop again if the "
+                                         "fault is still there")
+                    self.audit.append("approval_lapsed", incident_id=incident_id)
+            else:
+                # `execute_start` is audited BEFORE the write, so its absence
+                # means the target was not touched.
+                started = "execute_start" in events
+                record["status"] = str(loop.IncidentStatus.ESCALATED)
+                record["escalation_reason"] = (
+                    "the control plane stopped before this run finished, and its "
+                    "result was never recorded")
+                record["outcome"] = (
+                    "a repair started and its result is unknown; check the target"
+                    if started else
+                    "nothing was written to the target (no execute_start in the "
+                    "audit log)")
+                self.audit.append("run_not_finished", incident_id=incident_id,
+                                  repair_started=started)
+            self.store.save(record)
+
+    def _restore_mode(self, audit: list[dict[str, Any]]) -> None:
+        """Bring back the operator's last mode if it is stricter than the file.
+
+        A restart never loosens: SIMULATION or APPROVAL set by a person comes
+        back, a mode looser than the manifest's does not, and the audit says
+        which.
+        """
+        changes = [r for r in audit if r.get("event") == "mode_change"]
+        if not changes:
+            return
+        last = next((m for m in MODE_ORDER if m == changes[-1].get("mode")), None)
+        durable = self.manifest().mode
+        if last is None or last == durable:
+            return
+        if MODE_ORDER.index(last) < MODE_ORDER.index(durable):
+            self._mode_override = last
+            self.audit.append("mode_restored", actor="kavach", mode=last,
+                              manifest_mode=durable)
+        else:
+            self.audit.append("mode_not_restored", actor="kavach", mode=last,
+                              manifest_mode=durable,
+                              reason="a restart never loosens the mode")
 
     # --- policy -------------------------------------------------------------
 
@@ -534,7 +638,11 @@ class LoopRunner:
                             "at": datetime.now(UTC).isoformat(timespec="seconds"),
                         }
                     ok = result.status is loop.IncidentStatus.RESOLVED
-                    quiet = result.status is loop.IncidentStatus.NO_FAULT
+                    # A parked plan is not a failure: it waits for a person.
+                    # Sent as "failed", the console drew a red cross and a
+                    # failed ring stage while the Approve button was live.
+                    quiet = result.status in (loop.IncidentStatus.NO_FAULT,
+                                              loop.IncidentStatus.AWAITING)
                     publish(
                         "resolve",
                         "ok" if ok else ("info" if quiet else "failed"),

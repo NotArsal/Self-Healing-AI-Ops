@@ -132,7 +132,9 @@ export function SystemHealth({
                     : `${Math.round(metrics.repair_success_rate * 100)}%`
                 }
               />
-              <Readout label="Auto-healed" value={String(metrics.auto_healed)} />
+              {/* "Healed", not "Auto-healed": the store counts every RESOLVED
+                  row, and in APPROVAL mode a person approved each of them. */}
+              <Readout label="Healed" value={String(metrics.auto_healed)} />
               <Readout label="Awaiting" value={String(metrics.awaiting)} />
             </div>
           ) : (

@@ -20,15 +20,16 @@ import { BAR_CELLS, bar, seconds } from "@/lib/ascii";
 import { type LoopStage } from "@/lib/tokens";
 import { stateVar } from "@/lib/tokens";
 
+/**
+ * "56s" or "7m17s", or "—" when there is no end time. It used to count up to
+ * `Date.now()` instead, which only suits a running incident: `resolved_at` is
+ * set on RESOLVED alone, so every APPROVED, ESCALATED and NO_FAULT row showed
+ * a duration that grew for as long as the page was open.
+ */
 const duration = (from: string, to: string): string => {
-  if (!from) return "";
-  const start = new Date(from).getTime();
-  const end = to ? new Date(to).getTime() : Date.now();
-  if (Number.isNaN(start) || Number.isNaN(end)) return "";
-  const seconds = Math.max(0, Math.round((end - start) / 1000));
-  return seconds < 60
-    ? `${seconds}s`
-    : `${Math.floor(seconds / 60)}m${String(seconds % 60).padStart(2, "0")}s`;
+  const s = seconds(from, to);
+  if (s === null) return "—";
+  return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m${String(s % 60).padStart(2, "0")}s`;
 };
 
 export function reachedStages(
@@ -209,43 +210,46 @@ export function HistoryTable({ incidents }: { incidents: IncidentSummary[] }) {
           </tr>
         </thead>
         <tbody className="k-mono-sm">
-          {incidents.map((incident) => (
-            <tr
-              key={incident.incident_id}
-              style={{ borderTop: "1px solid var(--k-border-subtle)" }}
-            >
-              <td style={{ padding: "6px 8px" }}>{incident.incident_id}</td>
-              <td style={{ padding: "6px 8px" }}>{incident.fault_class ?? "—"}</td>
-              <td style={{ padding: "6px 8px" }}>{incident.service ?? "—"}</td>
-              <td style={{ padding: "6px 8px" }}>
-                {incident.detected_at.slice(11, 19) || "—"}
-              </td>
-              <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
-                {/* "—", not "open": `resolved_at` is set only on RESOLVED
-                    (loop.py), so an empty one also means NO_FAULT, APPROVED
-                    or ESCALATED, all finished. The status pill says which. */}
-                {seconds(incident.detected_at, incident.resolved_at) === null ? (
-                  "—"
-                ) : (
-                  <>
-                    <span aria-hidden="true" className="k-muted">
-                      {bar(seconds(incident.detected_at, incident.resolved_at) ?? 0, longest)}
-                    </span>{" "}
-                    {duration(incident.detected_at, incident.resolved_at)}
-                  </>
-                )}
-              </td>
-              <td style={{ padding: "6px 8px" }}>
-                <StatePill status={incident.status} />
-              </td>
-              <td
-                className="k-sm k-muted"
-                style={{ padding: "6px 8px", fontFamily: "var(--k-font-sans)" }}
+          {incidents.map((incident) => {
+            const s = seconds(incident.detected_at, incident.resolved_at);
+            return (
+              <tr
+                key={incident.incident_id}
+                style={{ borderTop: "1px solid var(--k-border-subtle)" }}
               >
-                {incident.outcome || "—"}
-              </td>
-            </tr>
-          ))}
+                <td style={{ padding: "6px 8px" }}>{incident.incident_id}</td>
+                <td style={{ padding: "6px 8px" }}>{incident.fault_class ?? "—"}</td>
+                <td style={{ padding: "6px 8px" }}>{incident.service ?? "—"}</td>
+                <td style={{ padding: "6px 8px" }}>
+                  {incident.detected_at.slice(11, 19) || "—"}
+                </td>
+                <td style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
+                  {/* "—", not "open": `resolved_at` is set only on RESOLVED
+                      (loop.py), so an empty one also means NO_FAULT, APPROVED
+                      or ESCALATED, all finished. The status pill says which. */}
+                  {s === null ? (
+                    "—"
+                  ) : (
+                    <>
+                      <span aria-hidden="true" className="k-muted">
+                        {bar(s, longest)}
+                      </span>{" "}
+                      {duration(incident.detected_at, incident.resolved_at)}
+                    </>
+                  )}
+                </td>
+                <td style={{ padding: "6px 8px" }}>
+                  <StatePill status={incident.status} />
+                </td>
+                <td
+                  className="k-sm k-muted"
+                  style={{ padding: "6px 8px", fontFamily: "var(--k-font-sans)" }}
+                >
+                  {incident.outcome || "—"}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
       {longest > 0 && (

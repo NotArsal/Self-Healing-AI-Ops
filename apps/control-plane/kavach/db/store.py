@@ -215,6 +215,17 @@ class IncidentStore:
                 out = [dict(r.payload) for r in rows]
         return out
 
+    def with_status(self, *statuses: str) -> list[dict[str, Any]]:
+        """Every incident in one of these states, whatever its age."""
+        out: list[dict[str, Any]] = []
+        with self._session() as session:
+            if session is not None:
+                rows = session.execute(
+                    select(Incident).where(Incident.status.in_(statuses))
+                ).scalars().all()
+                out = [dict(r.payload) for r in rows]
+        return out
+
     def hypotheses(self, incident_id: str) -> list[dict[str, Any]]:
         out: list[dict[str, Any]] = []
         with self._session() as session:

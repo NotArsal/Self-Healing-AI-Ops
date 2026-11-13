@@ -137,9 +137,8 @@ export function DiagnosisCard({
       >
         <Icon name="info" />
         <span>
-          Uncalibrated. This is the model&apos;s own number, not a measured
-          probability of correctness. The threshold it must clear is a floor, and
-          the gate&apos;s real strength is the deterministic agreement check.
+          Uncalibrated: the model&apos;s own number, not a measured probability
+          of correctness. The gate&apos;s real check is deterministic agreement.
         </span>
       </p>
 
@@ -169,10 +168,18 @@ export function DiagnosisCard({
         </div>
       </div>
 
+      {/* Collapsed, like the checks below: at 340px it ran to ~240px and
+          pushed the plan and verification off a 720px screen. The cited
+          evidence above is the trust mechanism (§7.5); this is its prose. */}
       {diagnosis.reasoning && (
-        <p className="k-sm k-muted" style={{ margin: 0 }}>
-          {diagnosis.reasoning}
-        </p>
+        <details>
+          <summary className="k-xs k-muted" style={{ cursor: "pointer", minHeight: 24 }}>
+            Model&apos;s reasoning
+          </summary>
+          <p className="k-sm k-muted" style={{ margin: "6px 0 0" }}>
+            {diagnosis.reasoning}
+          </p>
+        </details>
       )}
 
       <p

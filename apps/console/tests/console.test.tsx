@@ -356,6 +356,18 @@ describe("diagnosis card", () => {
     ).toBeInTheDocument();
   });
 
+  // At 340px the prose ran to ~240px and pushed the plan and verification off
+  // a 720px projector. It stays one click away; the citations stay visible.
+  it("keeps the model's reasoning one click away, and the citations in view", async () => {
+    const user = userEvent.setup();
+    render(<DiagnosisCard rca={fx.resolvedIncident.rca ?? null} onCitationClick={() => {}} />);
+    const prose = screen.getByText(/shows zero chunks kept/);
+    expect(prose).not.toBeVisible();
+    expect(screen.getByRole("button", { name: "EV-M02" })).toBeVisible();
+    await user.click(screen.getByText("Model's reasoning"));
+    expect(prose).toBeVisible();
+  });
+
   it("renders the validation verdict and the ten checks", async () => {
     const user = userEvent.setup();
     render(<DiagnosisCard rca={fx.resolvedIncident.rca ?? null} onCitationClick={() => {}} />);
@@ -418,7 +430,7 @@ describe("verification strip", () => {
       />,
     );
     expect(screen.getByText(/unchanged · 30 chunks \/ 2 files/)).toBeInTheDocument();
-    expect(screen.getByText("RESOLVED")).toBeInTheDocument();
+    expect(screen.getByText("Resolved")).toBeInTheDocument();
     expect(screen.getByText("9f1c2ab4")).toBeInTheDocument();
   });
 
@@ -586,7 +598,7 @@ describe("themes", () => {
       />,
     );
     expect(screen.getByText("fast quality")).toBeInTheDocument();
-    expect(screen.getByText("RESOLVED")).toBeInTheDocument();
+    expect(screen.getByText("Resolved")).toBeInTheDocument();
   });
 
   it("uses theme tokens, never hardcoded hex, for state colour", () => {

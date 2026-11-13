@@ -160,5 +160,6 @@ only return 409. The owner chose a new status:
 
 Not changed: incidents stored before this fix keep AWAITING_APPROVAL, and after
 an API restart a parked incident still shows Approve although the plan is gone
-from memory (`runner.py`, `_awaiting`). Fleet metrics count `APPROVED` in the
+from memory (`runner.py`, `_awaiting`). Both settled by ADR 0028 (2026-11-13): stored rows are
+corrected from the audit log at startup, and Approve needs the plan in memory. Fleet metrics count `APPROVED` in the
 total only, not as resolved, escalated or awaiting.

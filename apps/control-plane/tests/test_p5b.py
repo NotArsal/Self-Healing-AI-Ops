@@ -115,6 +115,7 @@ def test_an_unavailable_store_never_raises(tmp_path: Path) -> None:
     store.save_hypotheses("INC-1", [{"rank": 1, "description": "x"}])
     assert store.get("INC-1") is None
     assert store.recent() == []
+    assert store.with_status("AWAITING_APPROVAL") == []
     assert store.hypotheses("INC-1") == []
     assert store.fleet_metrics()["available"] is False
 
@@ -311,6 +312,16 @@ async def test_a_parked_run_records_the_plan_it_parked(
         await asyncio.sleep(0.01)
 
     assert runner._awaiting[inc.incident_id]["plan"] == _plan(inc.incident_id)
+
+    # A plan waiting for a person is not a failure. The console drew this
+    # event as a red cross and the Loop Ring as a failed stage, at the very
+    # moment the operator was meant to read the plan and approve it.
+    from kavach.api.events import bus
+
+    await asyncio.sleep(0.05)  # publish_threadsafe lands on the loop
+    resolved = [e for e in bus.replay()
+                if e.get("incident_id") == inc.incident_id and e["stage"] == "resolve"]
+    assert [e["status"] for e in resolved] == ["info"]
 
 
 def test_a_parked_incident_is_listed_until_it_is_decided(tmp_path: Path) -> None:

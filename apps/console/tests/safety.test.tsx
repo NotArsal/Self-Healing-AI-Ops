@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -184,7 +184,7 @@ describe("approval panel", () => {
     const plan = screen.getByLabelText(/Proposed plan/);
     makeScrollable(plan, true);
     await user.click(plan);
-    plan.dispatchEvent(new Event("scroll", { bubbles: true }));
+    fireEvent.scroll(plan);
 
     await waitFor(() => expect(approve).toBeEnabled());
   });
@@ -193,7 +193,7 @@ describe("approval panel", () => {
     render(<ApprovalPanel incident={fx.awaitingIncident} onDecided={() => {}} />);
     const plan = screen.getByLabelText(/Proposed plan/);
     makeScrollable(plan, false);
-    plan.dispatchEvent(new Event("scroll", { bubbles: true }));
+    fireEvent.scroll(plan);
 
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Approve repair" })).toBeDisabled(),
@@ -224,7 +224,7 @@ describe("approval panel", () => {
 
     const plan = screen.getByLabelText(/Proposed plan/);
     makeScrollable(plan, true);
-    plan.dispatchEvent(new Event("scroll", { bubbles: true }));
+    fireEvent.scroll(plan);
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Approve repair" })).toBeEnabled(),
     );
@@ -290,7 +290,7 @@ describe("approval panel", () => {
 
     const plan = screen.getByLabelText(/Proposed plan/);
     makeScrollable(plan, true);
-    plan.dispatchEvent(new Event("scroll", { bubbles: true }));
+    fireEvent.scroll(plan);
     const approve = screen.getByRole("button", { name: "Approve repair" });
     await waitFor(() => expect(approve).toBeEnabled());
     await user.click(approve);
@@ -335,6 +335,13 @@ describe("fleet metrics", () => {
     expect(screen.getByText("58.4s")).toBeInTheDocument();
     expect(screen.getByText("82%")).toBeInTheDocument();
     expect(screen.getByText("MTTR")).toBeInTheDocument();
+  });
+
+  // The count is every RESOLVED row. In APPROVAL mode a person approved each.
+  it("says healed, not auto-healed, because a person approved most of them", () => {
+    render(<SystemHealth system={fx.system} error="" metrics={fx.metrics} />);
+    expect(screen.getByText("Healed")).toBeInTheDocument();
+    expect(screen.queryByText(/auto-healed/i)).not.toBeInTheDocument();
   });
 
   it("shows an em dash, never a zero, when a rate has no data", () => {
