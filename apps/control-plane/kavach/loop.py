@@ -104,6 +104,49 @@ class IncidentStatus(StrEnum):
     ESCALATED = "ESCALATED"
 
 
+# The incident lifecycle, whole (ADR 0030). Every status change goes through
+# `transition()`, which refuses anything not listed here. Before, the status was
+# set in 19 places across the loop, the runner and the startup settle, and
+# nothing said which moves were legal. NO_FAULT, RESOLVED, ESCALATED and
+# APPROVED are final: an APPROVED incident's fix runs as a NEW incident.
+#
+# DETECTED still doubles as "run in progress": the runner stores it before
+# detection has found anything. Splitting that out changes what the bench
+# waits on, so it is a follow-up (ADR 0030), not part of this table.
+MOVES: dict[IncidentStatus, frozenset[IncidentStatus]] = {
+    IncidentStatus.DETECTED: frozenset({IncidentStatus.NO_FAULT,
+                                        IncidentStatus.ESCALATED,
+                                        IncidentStatus.HEALING}),
+    IncidentStatus.HEALING: frozenset({IncidentStatus.AWAITING,
+                                       IncidentStatus.RESOLVED,
+                                       IncidentStatus.ESCALATED}),
+    IncidentStatus.AWAITING: frozenset({IncidentStatus.APPROVED,
+                                        IncidentStatus.ESCALATED}),
+}
+
+
+class IllegalTransitionError(RuntimeError):
+    """A status change the lifecycle does not allow: a bug, never a choice."""
+
+
+def legal(frm: IncidentStatus | str, to: IncidentStatus) -> bool:
+    """Whether `frm -> to` is a move the lifecycle allows. Takes a stored
+    string too, for the startup settle, which works on database rows."""
+    try:
+        current = IncidentStatus(str(frm))
+    except ValueError:
+        return False
+    return to in MOVES.get(current, frozenset())
+
+
+def transition(inc: Incident, to: IncidentStatus) -> None:
+    """Move `inc` to `to`, or raise and leave it as it was."""
+    if not legal(inc.status, to):
+        raise IllegalTransitionError(f"{inc.incident_id}: {inc.status} -> {to} "
+                                f"is not a legal move")
+    inc.status = to  # lifecycle-ok: the one place a status is set
+
+
 # The plan step. A literal mapping from fault class to repair, with no reasoning
 # involved. P4 replaces the lookup, not the executor.
 def known_faults() -> dict[str, str]:
@@ -146,7 +189,7 @@ class Incident:
 
     def to_dict(self) -> dict[str, Any]:
         d = dict(self.__dict__)
-        d["status"] = str(self.status)
+        d["status"] = str(self.status)  # lifecycle-ok: serialisation, not a move
         return d
 
     @classmethod
@@ -175,7 +218,8 @@ class Incident:
         """
         known = {f.name for f in fields(cls)}
         kwargs = {k: v for k, v in d.items() if k in known}
-        kwargs["status"] = IncidentStatus(str(d.get("status") or "DETECTED"))
+        stored = IncidentStatus(str(d.get("status") or "DETECTED"))
+        kwargs["status"] = stored  # lifecycle-ok: deserialising, not a move
         return cls(**kwargs)
 
     def render(self) -> str:
@@ -390,7 +434,7 @@ def run_once(
         _notify(on_event, "detect", "ok",
                 f"no fault: fast set {pre_fast.pass_rate:.0%}, "
                 f"verdict {detection.verdict}")
-        inc.status = IncidentStatus.NO_FAULT
+        transition(inc, IncidentStatus.NO_FAULT)
         inc.outcome = "no fault detected; nothing to do"
         return inc
 
@@ -398,7 +442,7 @@ def run_once(
         _notify(on_event, "detect", "failed",
                 "detection returned INSUFFICIENT_EVIDENCE; escalating without "
                 "proposing a repair")
-        inc.status = IncidentStatus.ESCALATED
+        transition(inc, IncidentStatus.ESCALATED)
         inc.escalation_reason = (
             "detection returned INSUFFICIENT_EVIDENCE; no repair is proposed from "
             "an undiagnosed fault: " + "; ".join(detection.reasons)
@@ -477,7 +521,7 @@ def run_once(
                     f"validation REJECTED the diagnosis ({n_checks} checks run): "
                     + ("; ".join(rca_result.rejection_reasons)
                        or rca_result.error or "no reason recorded"))
-            inc.status = IncidentStatus.ESCALATED
+            transition(inc, IncidentStatus.ESCALATED)
             reasons = rca_result.rejection_reasons
             inc.escalation_reason = (
                 "LLM diagnosis rejected by deterministic validation: "
@@ -505,7 +549,7 @@ def run_once(
         if planned is None:
             _notify(on_event, "plan", "failed",
                     f"no known repair for {detection.fault_class}")
-            inc.status = IncidentStatus.ESCALATED
+            transition(inc, IncidentStatus.ESCALATED)
             inc.escalation_reason = f"no known repair for {detection.fault_class}"
             return inc
         inc.planned_action = planned
@@ -519,7 +563,7 @@ def run_once(
     if not inc.planned_action or not registry.knows(inc.planned_action):
         _notify(on_event, "plan", "failed",
                 f"planned action {inc.planned_action!r} is not registered")
-        inc.status = IncidentStatus.ESCALATED
+        transition(inc, IncidentStatus.ESCALATED)
         inc.escalation_reason = (
             f"planned action {inc.planned_action!r} is not registered; "
             f"known actions: {registry.names()}"
@@ -527,7 +571,7 @@ def run_once(
         return inc
 
     # --- PREPARE: build the action and capture its pre-state. No writes yet.
-    inc.status = IncidentStatus.HEALING
+    transition(inc, IncidentStatus.HEALING)
     _notify(on_event, "repair", "started",
             f"capturing pre-state for {inc.planned_action}")
     try:
@@ -547,7 +591,7 @@ def run_once(
         )
     except ActionError as exc:
         _notify(on_event, "repair", "failed", f"action could not be prepared: {exc}")
-        inc.status = IncidentStatus.ESCALATED
+        transition(inc, IncidentStatus.ESCALATED)
         inc.escalation_reason = f"action could not be prepared: {exc}"
         inc.outcome = "escalated; target left as found"
         return inc
@@ -606,7 +650,7 @@ def run_once(
         if decision.denied:
             _notify(on_event, "gate", "failed",
                     f"permit DENIED {action.name}: {'; '.join(decision.reasons)}")
-            inc.status = IncidentStatus.ESCALATED
+            transition(inc, IncidentStatus.ESCALATED)
             inc.escalation_reason = (
                 f"denied by the safety engine: {'; '.join(decision.reasons)}"
             )
@@ -648,7 +692,7 @@ def run_once(
             _notify(on_event, "gate", "ok",
                     f"permit returned {decision.verdict} for {action.name}; "
                     f"no write performed")
-            inc.status = IncidentStatus.AWAITING
+            transition(inc, IncidentStatus.AWAITING)
             proposal = action.to_dict()
             inc.outcome = (
                 f"{decision.verdict}: planned {action.name} "
@@ -682,14 +726,14 @@ def run_once(
             action.execute(client)
     except LockBusyError as exc:
         _notify(on_event, "repair", "failed", str(exc))
-        inc.status = IncidentStatus.ESCALATED
+        transition(inc, IncidentStatus.ESCALATED)
         inc.escalation_reason = str(exc)
         inc.outcome = "escalated without acting; another writer holds the target"
         inc.corpus_after = inc.corpus_before
         return inc
     except ActionError as exc:
         _notify(on_event, "repair", "failed", f"action failed: {exc}")
-        inc.status = IncidentStatus.ESCALATED
+        transition(inc, IncidentStatus.ESCALATED)
         inc.escalation_reason = f"action failed: {exc}"
         inc.outcome = "escalated; target left as found"
         return inc
@@ -750,7 +794,7 @@ def run_once(
                 f"verified against the pre-state witness"
                 + ("" if report.clean else f"; FAILURES: {'; '.join(report.failures)}"))
 
-        inc.status = IncidentStatus.ESCALATED
+        transition(inc, IncidentStatus.ESCALATED)
         inc.escalation_reason = "; ".join(problems)
         inc.outcome = (
             "NOT resolved - repair executed, verification failed, prior state "
@@ -763,7 +807,7 @@ def run_once(
             f"verification passed: health ok, fast set {post_fast.pass_rate:.0%} "
             f"in {post_fast.total_s:.1f}s, repair applied, scope respected, "
             f"corpus unchanged")
-    inc.status = IncidentStatus.RESOLVED
+    transition(inc, IncidentStatus.RESOLVED)
     inc.resolved_at = datetime.now(UTC).isoformat(timespec="seconds")
     if audit:
         audit.append("resolved", incident_id=inc.incident_id,

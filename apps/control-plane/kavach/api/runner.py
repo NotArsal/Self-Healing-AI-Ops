@@ -64,6 +64,15 @@ HISTORY_MAX = 50
 MODE_ORDER: tuple[Mode, ...] = ("SIMULATION", "APPROVAL", "AUTONOMOUS")
 
 
+def _settle_to(record: dict[str, Any], to: loop.IncidentStatus) -> None:
+    """The startup settle's status write, on a stored row: checked against
+    the same lifecycle table as every other move (ADR 0030)."""
+    if not loop.legal(record.get("status", ""), to):
+        raise loop.IllegalTransitionError(
+            f"{record.get('incident_id')}: {record.get('status')} -> {to} is not a legal move")
+    record["status"] = str(to)  # lifecycle-ok: checked by legal() above
+
+
 def new_incident_id(now: datetime) -> str:
     """`INC-YYYYMMDD-HHMMSS`, in UTC.
 
@@ -280,13 +289,13 @@ class LoopRunner:
                     rerun = next((str(r.get("incident_id")) for r in newer
                                   if r.get("event") == "permit"
                                   and r.get("approved_from") == incident_id), "")
-                    record["status"] = str(loop.IncidentStatus.APPROVED)
+                    _settle_to(record, loop.IncidentStatus.APPROVED)
                     record["outcome"] = (
                         f"approved by the operator; the fix ran as {rerun}" if rerun
                         else "approved by the operator; the audit log does not "
                              "name the re-run")
                 else:
-                    record["status"] = str(loop.IncidentStatus.ESCALATED)
+                    _settle_to(record, loop.IncidentStatus.ESCALATED)
                     record["escalation_reason"] = (
                         "approval lapsed: the control plane restarted before anyone "
                         "decided, and the parked plan was held in memory only")
@@ -297,7 +306,7 @@ class LoopRunner:
                 # `execute_start` is audited BEFORE the write, so its absence
                 # means the target was not touched.
                 started = "execute_start" in events
-                record["status"] = str(loop.IncidentStatus.ESCALATED)
+                _settle_to(record, loop.IncidentStatus.ESCALATED)
                 # Not "the control plane stopped": until 2026-11-13 a finished
                 # run whose detection held a NaN was refused by Postgres and
                 # stayed DETECTED too. Either way the result never reached
@@ -696,7 +705,7 @@ class LoopRunner:
                     # Total on purpose: this runs in a worker thread, where an
                     # escaping exception would vanish and leave the slot held.
                     logger.exception("loop run failed", incident_id=incident_id)
-                    inc.status = loop.IncidentStatus.ESCALATED
+                    loop.transition(inc, loop.IncidentStatus.ESCALATED)
                     inc.escalation_reason = f"{type(exc).__name__}: {exc}"
                     inc.outcome = "escalated; the run did not complete"
                     self._remember(inc)
@@ -783,7 +792,7 @@ class LoopRunner:
             raise
         old = self.find(incident_id)
         if old is not None:
-            old.status = loop.IncidentStatus.APPROVED
+            loop.transition(old, loop.IncidentStatus.APPROVED)
             old.outcome = (f"approved by the operator; the fix runs as "
                            f"{new.incident_id}")
             self._remember(old)
@@ -809,7 +818,7 @@ class LoopRunner:
                           actor="operator", reason=reason)
         inc = self._incidents.get(incident_id)
         if inc is not None:
-            inc.status = loop.IncidentStatus.ESCALATED
+            loop.transition(inc, loop.IncidentStatus.ESCALATED)
             inc.escalation_reason = f"rejected by operator: {reason}"
             inc.outcome = "not executed; the operator refused the plan"
             self._remember(inc)
