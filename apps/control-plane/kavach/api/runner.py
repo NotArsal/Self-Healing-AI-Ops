@@ -64,6 +64,16 @@ HISTORY_MAX = 50
 MODE_ORDER: tuple[Mode, ...] = ("SIMULATION", "APPROVAL", "AUTONOMOUS")
 
 
+def log_run_end(inc: loop.Incident) -> None:
+    """One line per finished run on the Logs page. Before, that page logged
+    only failures and startup, so a busy healthy day looked like a dead one.
+    An escalation is a warning: it is the case an operator should look at."""
+    level = logger.warning if inc.status is loop.IncidentStatus.ESCALATED else logger.info
+    level("run finished", incident_id=inc.incident_id, status=str(inc.status),
+          fault_class=inc.fault_class or None,
+          outcome=inc.outcome or inc.escalation_reason or None)
+
+
 def _settle_to(record: dict[str, Any], to: loop.IncidentStatus) -> None:
     """The startup settle's status write, on a stored row: checked against
     the same lifecycle table as every other move (ADR 0030)."""
@@ -405,6 +415,7 @@ class LoopRunner:
         self._mode_override = mode
         self.audit.append("mode_change", actor="operator",
                           previous=str(previous), mode=str(mode))
+        logger.info("mode changed", previous=str(previous), mode=str(mode))
         return self.policy()
 
     # --- target wiring ------------------------------------------------------
@@ -637,6 +648,8 @@ class LoopRunner:
                      if approved_from else "operator started a loop run ")
                     + f"mode {policy.mode}; baseline {baseline_value} from {source}; "
                     + ("LLM RCA enabled" if use_rca else "deterministic only"))
+            logger.info("run started", incident_id=incident_id, mode=str(policy.mode),
+                        rca=use_rca, approved_from=approved_from or None)
 
             client = self.client()
             rca_stage = self._rca_stage(client, publish) if use_rca else None
@@ -701,6 +714,7 @@ class LoopRunner:
                         "ok" if ok else ("info" if quiet else "failed"),
                         result.outcome or result.escalation_reason or str(result.status),
                     )
+                    log_run_end(result)
                 except Exception as exc:
                     # Total on purpose: this runs in a worker thread, where an
                     # escaping exception would vanish and leave the slot held.
@@ -796,6 +810,7 @@ class LoopRunner:
             old.outcome = (f"approved by the operator; the fix runs as "
                            f"{new.incident_id}")
             self._remember(old)
+        logger.info("plan approved", incident_id=incident_id, fix_run=new.incident_id)
         return new
 
     def reject(self, incident_id: str, reason: str) -> None:
@@ -816,6 +831,7 @@ class LoopRunner:
             self._awaiting.pop(incident_id)
         self.audit.append("rejected", incident_id=incident_id,
                           actor="operator", reason=reason)
+        logger.info("plan rejected", incident_id=incident_id, reason=reason)
         inc = self._incidents.get(incident_id)
         if inc is not None:
             loop.transition(inc, loop.IncidentStatus.ESCALATED)
