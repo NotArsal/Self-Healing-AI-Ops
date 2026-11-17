@@ -16,7 +16,7 @@
 
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ActionPlan } from "@/components/incident/ActionPlan";
 import { DiagnosisCard } from "@/components/incident/DiagnosisCard";
@@ -71,11 +71,15 @@ export default function OperationsPage() {
     if (wanted) setSelectedId(wanted);
   }, []);
 
-  // Follow whatever the control plane says is running, and otherwise the
-  // newest incident, so the demo needs no clicking to land on the right row.
+  // Jump to a run when it STARTS, and otherwise to the newest incident, so the
+  // demo needs no clicking to land on the right row. Once per run: it used to
+  // re-follow on every render, so during a run any incident the operator
+  // clicked snapped straight back to the running one.
+  const followed = useRef("");
   useEffect(() => {
     const running = system?.running_incident_id;
-    if (running && running !== selectedId) {
+    if (running && running !== followed.current) {
+      followed.current = running;
       setSelectedId(running);
       return;
     }

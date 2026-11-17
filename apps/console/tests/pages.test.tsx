@@ -168,6 +168,34 @@ describe("operations screen", () => {
     expect(await screen.findByRole("heading", { level: 1, name: "No fault class" })).toBeInTheDocument();
   });
 
+  // It followed the running incident on EVERY render, so during a run any
+  // incident the operator clicked snapped straight back to the running one.
+  it("follows a run when it starts, then lets the operator look elsewhere", async () => {
+    const user = userEvent.setup();
+    const rows = many(3);
+    const running = rows[0]!.incident_id;
+    const other = rows[2]!.incident_id;
+    serve({
+      "/v1/system": { ...fx.system, loop_running: true, running_incident_id: running },
+      "/v1/incidents": rows,
+    });
+    render(<OperationsPage />);
+
+    const stream = (await screen.findByRole("heading", { name: "Incidents" })).closest("section")!;
+    await waitFor(() =>
+      expect(within(stream).getByRole("button", { name: new RegExp(running) })).toHaveAttribute(
+        "aria-current",
+        "true",
+      ),
+    );
+    await user.click(within(stream).getByRole("button", { name: new RegExp(other) }));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(within(stream).getByRole("button", { name: new RegExp(other) })).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+  });
+
   it("opens the incident a History link names", async () => {
     window.history.replaceState({}, "", "/?incident=INC-20261113-000011");
     serve({ "/v1/incidents": many(12) });
