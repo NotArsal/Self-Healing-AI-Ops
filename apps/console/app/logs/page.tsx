@@ -1,5 +1,6 @@
 /**
- * Logs — the control plane's own log and its errors (ADR 0029).
+ * Logs — the control plane's own log and its errors (ADR 0029), and the
+ * target app's log with its users' questions and answers removed (ADR 0031).
  *
  * Moved from the observability page, unchanged in what it reads. In-process
  * and bounded: a restart clears it. The durable record of what Kavach did is
@@ -23,10 +24,15 @@ const LEVEL_COLOR: Record<string, string> = {
 };
 
 const loadLogs = () => api.GET("/v1/logs", { params: { query: { limit: 300 } } });
+const loadTargetLogs = () =>
+  api.GET("/v1/target-logs", { params: { query: { limit: 300 } } });
+const PROBLEM = /ERROR|Traceback|Error|Failed|timed out|Cannot connect/;
 
 export default function LogsPage() {
   const { system } = useSystem();
   const { data, failed } = usePolled(loadLogs, 5_000);
+  const { data: targetData } = usePolled(loadTargetLogs, 5_000);
+  const targetLines: string[] = targetData ?? [];
   const [warningsOnly, setWarningsOnly] = useState(false);
 
   const logs: LogLine[] = data ?? [];
@@ -42,7 +48,7 @@ export default function LogsPage() {
       system={system}
       current="/logs"
       title="Logs"
-      intro="The control plane's own structured log, newest first, and the errors in it. A restart clears both; the audit trail is the durable record of what Kavach did."
+      intro="Kavach's own structured log and its errors, then the target app's log, newest first. A restart clears Kavach's log; the audit trail is the durable record of what Kavach did."
     >
       <Unreachable message={failed ? UNREACHABLE : ""} />
 
@@ -139,6 +145,47 @@ export default function LogsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </Section>
+
+      <Section
+        title="Target app log"
+        hint="The target's recent log lines. Users' questions and answers are removed before they leave the target, and routine health checks and metrics scrapes are hidden."
+      >
+        {targetLines.length === 0 ? (
+          <Empty>
+            No target log lines. Either the target has been quiet, or Kavach
+            cannot reach Docker to read them.
+          </Empty>
+        ) : (
+          <div
+            className="k-scroll"
+            style={{
+              maxHeight: 520,
+              border: "1px solid var(--k-border)",
+              borderRadius: "var(--k-radius-sm)",
+            }}
+          >
+            <ul
+              aria-label="Target app log lines, newest first"
+              className="k-mono k-sm"
+              style={{ listStyle: "none", margin: 0, padding: 0 }}
+            >
+              {targetLines.map((line, i) => (
+                <li
+                  key={`${i}-${line}`}
+                  style={{
+                    padding: "4px 10px",
+                    borderBottom: "1px solid var(--k-border)",
+                    color: PROBLEM.test(line) ? "var(--k-state-escalated)" : "var(--k-text-muted)",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {line}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </Section>

@@ -209,6 +209,33 @@ def _recent_logs(container: str, tail: int = 60, keep: int = 10) -> list[str]:
     return out[-keep:]
 
 
+# Lines that are true but say nothing: Prometheus scraping, health probes,
+# Kavach's own config polling, and embedding progress bars.
+LOG_NOISE = re.compile(
+    r"GET /metrics|GET /healthz|/v1/admin/config|Batches:|^\s*$",
+)
+_ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]|\r")
+
+
+def target_log_lines(container: str = "rag_backend", tail: int = 300) -> list[str]:
+    """The target's recent log for the console, newest first.
+
+    Same reader and the same USER_CONTENT filter as the RCA evidence, so a
+    user's question or answer never leaves the target this way either
+    (`AGENTS.md` rule 12). Unlike the evidence, every other line is kept:
+    an operator reading the log wants context, not just the signal lines.
+    """
+    raw = docker_adapter.container_logs(container, tail=tail)
+    out = []
+    for line in raw.splitlines():
+        line = _ANSI.sub("", line).strip()
+        if USER_CONTENT.search(line) or LOG_NOISE.search(line):
+            continue
+        out.append(line[:300])
+    out.reverse()
+    return out
+
+
 NO_DATA_NOTE = (
     "NO DATA. The series returned nothing, or returned NaN because the "
     "underlying histogram has no observations in the window. This is MISSING, "

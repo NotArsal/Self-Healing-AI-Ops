@@ -42,6 +42,7 @@ from kavach.config import Settings, get_settings
 from kavach.llm import providers
 from kavach.onboarding import preflight
 from kavach.onboarding.baseline import _promql
+from kavach.rca import evidence
 from kavach.target import TargetError
 
 logger = structlog.get_logger(__name__)
@@ -595,6 +596,14 @@ async def logs(level: str = "", limit: int = 200) -> list[s.LogOut]:
     this.
     """
     return [s.LogOut(**vars(r)) for r in telemetry.recent_logs(level, limit)]
+
+
+@router.get("/target-logs", response_model=list[str])
+async def target_logs(limit: Annotated[int, Query(ge=1, le=1000)] = 300) -> list[str]:
+    """The target app's recent log lines, newest first, with users' questions
+    and answers removed (ADR 0031). Read-only; empty when Docker cannot be
+    reached, which is a thinner view, not an error."""
+    return await asyncio.to_thread(evidence.target_log_lines, tail=limit)
 
 
 @router.get("/llm-calls", response_model=list[s.LlmCallOut])

@@ -79,6 +79,18 @@ describe("logs page", () => {
     expect(screen.queryByText("control plane started")).not.toBeInTheDocument();
     expect(screen.getByText("incident store unavailable")).toBeInTheDocument();
   });
+
+  it("shows the target app's log beside Kavach's own", async () => {
+    serve({
+      "/v1/logs": logs,
+      "/v1/target-logs": ["[ERROR] rag: Cannot connect to LLM endpoint", "[INFO] rag: kept 2 chunks"],
+    });
+    render(<LogsPage />);
+
+    const list = await screen.findByRole("list", { name: /Target app log lines/ });
+    expect(within(list).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(list).getByText(/Cannot connect/)).toBeInTheDocument();
+  });
 });
 
 describe("metrics page", () => {
