@@ -318,6 +318,26 @@ describe("approval panel", () => {
     expect(screen.getByRole("button", { name: "Reject repair" })).toBeEnabled();
   });
 
+  // Four loose flags allowed "left the reject form while the rejection was in
+  // flight": Back stayed clickable during the request.
+  it("keeps the reject form while the rejection is being sent", async () => {
+    const user = userEvent.setup();
+    let answer: (v: unknown) => void = () => {};
+    POST.mockReturnValueOnce(new Promise((resolve) => { answer = resolve; }));
+    render(<ApprovalPanel incident={fx.awaitingIncident} onDecided={() => {}} />);
+
+    await user.click(screen.getByRole("button", { name: "Reject" }));
+    await user.type(screen.getByLabelText(/Why are you refusing/), "looks deliberate");
+    await user.click(screen.getByRole("button", { name: "Reject repair" }));
+
+    expect(screen.getByRole("button", { name: "Back" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Reject repair" })).toBeDisabled();
+    answer({ error: { detail: "no" } });
+    expect(await screen.findByRole("alert")).toHaveTextContent(/refused the rejection/);
+    // A refused send returns to the form, not to the approve/reject choice.
+    expect(screen.getByRole("button", { name: "Back" })).toBeEnabled();
+  });
+
   it("shows the risk tier and why the gate stopped", () => {
     render(<ApprovalPanel incident={fx.awaitingIncident} onDecided={() => {}} />);
     expect(screen.getByText("Medium")).toBeInTheDocument();

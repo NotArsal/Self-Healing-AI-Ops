@@ -35,8 +35,15 @@ export function ApprovalPanel({
 }) {
   const [readToEnd, setReadToEnd] = useState(false);
   const [reason, setReason] = useState("");
-  const [rejecting, setRejecting] = useState(false);
-  const [busy, setBusy] = useState(false);
+  // ONE value for what the operator is doing, not separate `rejecting` and
+  // `busy` flags: those allowed "left the reject form while the rejection was
+  // in flight" (Back stayed clickable during the request). `readToEnd` stays
+  // apart because it is orthogonal: rejecting needs no reading.
+  const [phase, setPhase] = useState<
+    "idle" | "approving" | "rejecting" | "sending-reject"
+  >("idle");
+  const busy = phase === "approving" || phase === "sending-reject";
+  const rejecting = phase === "rejecting" || phase === "sending-reject";
   const [failed, setFailed] = useState("");
   const plan = useRef<HTMLDivElement>(null);
 
@@ -51,10 +58,10 @@ export function ApprovalPanel({
   };
 
   // try/finally, not a plain await: `api.POST` REJECTS when the control plane
-  // is not answering, and `setBusy(false)` after the await never ran, so both
+  // is not answering, and the reset after the await never ran, so both
   // buttons stayed disabled with no message until the page was reloaded.
   const approve = async (): Promise<void> => {
-    setBusy(true);
+    setPhase("approving");
     setFailed("");
     try {
       const { error } = await api.POST("/v1/incidents/{incident_id}/approve", {
@@ -68,13 +75,13 @@ export function ApprovalPanel({
     } catch {
       setFailed(UNREACHABLE);
     } finally {
-      setBusy(false);
+      setPhase("idle");
     }
   };
 
   const reject = async (): Promise<void> => {
     if (reason.trim().length < 3) return;
-    setBusy(true);
+    setPhase("sending-reject");
     setFailed("");
     try {
       const { error } = await api.POST("/v1/incidents/{incident_id}/reject", {
@@ -89,7 +96,8 @@ export function ApprovalPanel({
     } catch {
       setFailed(UNREACHABLE);
     } finally {
-      setBusy(false);
+      // Back to the form, reason kept, so a failed send can be retried.
+      setPhase("rejecting");
     }
   };
 
@@ -227,7 +235,8 @@ export function ApprovalPanel({
             </button>
             <button
               type="button"
-              onClick={() => setRejecting(false)}
+              disabled={busy}
+              onClick={() => setPhase("idle")}
               style={{
                 minHeight: 40, padding: "0 var(--k-space-4)",
                 borderRadius: "var(--k-radius-md)",
@@ -258,7 +267,7 @@ export function ApprovalPanel({
           <button
             type="button"
             disabled={busy}
-            onClick={() => setRejecting(true)}
+            onClick={() => setPhase("rejecting")}
             style={{
               minHeight: 40, padding: "0 var(--k-space-4)",
               borderRadius: "var(--k-radius-md)",
