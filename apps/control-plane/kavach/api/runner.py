@@ -32,7 +32,7 @@ from __future__ import annotations
 import asyncio
 import json
 import threading
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -247,6 +247,13 @@ class LoopRunner:
         # An operator's mode change for the life of this process. None means
         # "whatever the manifest says", which is the durable answer.
         self._mode_override: Mode | None = None
+
+        # Automatic checks (ADR 0032). A restart returns to the setting, never
+        # to whatever the console last chose: unattended runs start only when
+        # the durable configuration or a person present says so.
+        self._auto_on = bool(settings.auto_check)
+        self._auto_next: datetime | None = None
+        self._auto_last: dict[str, str] = {}
 
         # Incidents parked at the gate, with the evidence a human needs to
         # approve them. Kept in memory because the prepared action cannot be
@@ -627,7 +634,8 @@ class LoopRunner:
         return stage
 
     async def start(
-        self, use_rca: bool = True, approved: loop.ApprovedPlan | None = None
+        self, use_rca: bool = True, approved: loop.ApprovedPlan | None = None,
+        started_by: str = "operator",
     ) -> loop.Incident:
         """Begin a run. Returns as soon as the incident exists, not when it ends."""
         approved_from = approved.incident_id if approved else ""
@@ -681,11 +689,12 @@ class LoopRunner:
                     (f"operator APPROVED {approved_from}; re-detecting and "
                      f"re-preparing against the target as it is now; the approval "
                      f"covers only the plan that was approved. "
-                     if approved_from else "operator started a loop run ")
+                     if approved_from else f"{started_by} started a loop run ")
                     + f"mode {policy.mode}; baseline {baseline_value} from {source}; "
                     + ("LLM RCA enabled" if use_rca else "deterministic only"))
             logger.info("run started", incident_id=incident_id, mode=str(policy.mode),
-                        rca=use_rca, approved_from=approved_from or None)
+                        rca=use_rca, approved_from=approved_from or None,
+                        started_by=started_by)
 
             client = self.client()
             rca_stage = self._rca_stage(client, publish) if use_rca else None
@@ -789,6 +798,58 @@ class LoopRunner:
                 self._running = ""
             raise
         return inc
+
+    # --- automatic checks (ADR 0032) ----------------------------------------
+
+    def auto_check_state(self) -> dict[str, Any]:
+        return {
+            "enabled": self._auto_on,
+            "every_s": self.settings.auto_check_every_s,
+            "next_at": (self._auto_next.isoformat(timespec="seconds")
+                        if self._auto_on and self._auto_next else None),
+            "last_at": self._auto_last.get("at"),
+            "last_result": self._auto_last.get("result", ""),
+        }
+
+    def set_auto_check(self, enabled: bool) -> None:
+        """Switch automatic checks on or off. Audited like a mode change: a run
+        that nobody started is the kind of thing to account for."""
+        previous = self._auto_on
+        self._auto_on = enabled
+        self._auto_next = None          # on: the first check is the next tick
+        self.audit.append("auto_check_change", actor="operator",
+                          previous=previous, enabled=enabled,
+                          every_s=self.settings.auto_check_every_s)
+        logger.info("automatic checks switched", enabled=enabled,
+                    every_s=self.settings.auto_check_every_s)
+
+    async def auto_check_tick(self, now: datetime) -> str:
+        """One tick of the automatic checker; returns what it did.
+
+        It never runs while a plan waits for approval. Each such run would
+        re-find the same fault, park a duplicate incident and spend a slot of
+        the hourly limit, and five of them would leave the limit refusing the
+        operator's own Approve.
+        """
+        if not self._auto_on:
+            return "off"
+        if self._auto_next is not None and now < self._auto_next:
+            return "waiting"
+        self._auto_next = now + timedelta(seconds=self.settings.auto_check_every_s)
+        if self.busy:
+            result = f"skipped: {self.running_incident_id} is already running"
+        elif self._awaiting:
+            result = (f"skipped: {len(self._awaiting)} plan(s) waiting for approval "
+                      f"({', '.join(self.awaiting())})")
+        else:
+            try:
+                inc = await self.start(use_rca=True, started_by="automatic check")
+                result = f"started {inc.incident_id}"
+            except Exception as exc:
+                result = f"not started: {type(exc).__name__}: {exc}"
+                logger.warning("automatic check not started", error=str(exc))
+        self._auto_last = {"at": now.isoformat(timespec="seconds"), "result": result}
+        return result
 
     # --- approval -----------------------------------------------------------
 

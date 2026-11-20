@@ -427,6 +427,20 @@ class ModeChange(BaseModel):
     mode: Mode
 
 
+class AutoCheckOut(BaseModel):
+    """Automatic checks (ADR 0032): whether they are on, and what the last did."""
+
+    enabled: bool
+    every_s: int
+    next_at: str | None = None
+    last_at: str | None = None
+    last_result: str = ""
+
+
+class AutoCheckChange(BaseModel):
+    enabled: bool
+
+
 class RejectRequest(BaseModel):
     # Required, and non-empty: a rejection without a reason teaches nobody
     # anything, and the knowledge base is built from exactly these.

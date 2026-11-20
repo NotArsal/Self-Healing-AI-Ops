@@ -41,6 +41,7 @@ export type Preflight = components["schemas"]["PreflightOut"];
 export type PreflightCheck = components["schemas"]["PreflightCheckOut"];
 export type Mode = System["mode"];
 export type ModeState = components["schemas"]["ModeOut"];
+export type AutoCheck = components["schemas"]["AutoCheckOut"];
 export type Decision = NonNullable<Incident["decision"]>;
 export type Unwind = NonNullable<Incident["unwind"]>;
 export type FleetMetrics = components["schemas"]["FleetMetrics"];

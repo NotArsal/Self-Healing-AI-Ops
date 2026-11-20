@@ -160,6 +160,10 @@ services:
       KAVACH_LLM_BACKUP_PROVIDER: ${KAVACH_LLM_BACKUP_PROVIDER:-}
       KAVACH_LLM_BACKUP_MODEL: ${KAVACH_LLM_BACKUP_MODEL:-}
       KAVACH_LOG_LEVEL: ${KAVACH_LOG_LEVEL:-INFO}
+      # Automatic checks (ADR 0032). Off unless set; the console can also
+      # switch them for the life of the process.
+      KAVACH_AUTO_CHECK: ${KAVACH_AUTO_CHECK:-false}
+      KAVACH_AUTO_CHECK_EVERY_S: ${KAVACH_AUTO_CHECK_EVERY_S:-300}
       # Kavach's own files. The package lives at /app/kavach with no repository
       # around it, so the root cannot be derived from __file__ the way it can
       # on a host checkout - deriving it is what used to make this container's

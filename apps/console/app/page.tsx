@@ -27,6 +27,7 @@ import { IncidentStream, reachedStages } from "@/components/incident/IncidentStr
 import { LoopRing } from "@/components/incident/LoopRing";
 import { Timeline } from "@/components/incident/Timeline";
 import { ApprovalPanel } from "@/components/safety/ApprovalPanel";
+import { AutoCheckSwitch } from "@/components/safety/AutoCheckSwitch";
 import { ModeSwitch } from "@/components/safety/ModeSwitch";
 import { SystemHealth } from "@/components/safety/SystemHealth";
 import { Icon } from "@/components/ui/Icon";
@@ -194,6 +195,9 @@ export default function OperationsPage() {
                 refreshSystem();
               }}
             />
+          </div>
+          <div style={{ marginTop: "var(--k-space-4)" }}>
+            <AutoCheckSwitch mode={system?.mode ?? "SIMULATION"} />
           </div>
         </aside>
 

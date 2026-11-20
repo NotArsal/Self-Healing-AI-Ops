@@ -13,6 +13,7 @@ runs — see that module for what the browser deliberately cannot say.
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 import structlog
@@ -57,10 +58,27 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # Every timeline line is also stored, so it survives a restart. A store
     # that is still down drops the line, as it drops every other write.
     bus.sink = runner.store.save_event
+    auto = asyncio.create_task(auto_check_forever(runner))
     yield
+    auto.cancel()
     bus.sink = None
     if retry is not None:
         retry.cancel()
+
+
+async def auto_check_forever(runner: LoopRunner, tick_s: float = 5.0) -> None:
+    """Tick the automatic checker for the life of the app (ADR 0032).
+
+    Sleeps first, so a check never races startup. A tick that raises is
+    logged and the next one still runs: a background loop that died on one
+    bad tick would turn automatic checks off with nobody told.
+    """
+    while True:
+        await asyncio.sleep(tick_s)
+        try:
+            await runner.auto_check_tick(datetime.now(UTC))
+        except Exception:
+            logger.exception("automatic check tick failed")
 
 
 async def connect_when_ready(runner: LoopRunner, every_s: float = 5.0) -> None:

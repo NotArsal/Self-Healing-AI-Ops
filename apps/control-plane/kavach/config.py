@@ -9,6 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Mode = Literal["SIMULATION", "APPROVAL", "AUTONOMOUS"]
@@ -135,6 +136,12 @@ class Settings(BaseSettings):
     # until P6 (docs/decisions/0006, amendment 2026-10-04). The console says so
     # on screen rather than implying a gate that is not there.
     default_mode: Mode = "SIMULATION"
+
+    # Automatic checks (ADR 0032): start a loop run every `auto_check_every_s`
+    # without anyone clicking Run loop. Off by default. The console can switch
+    # it on or off for the life of the process; a restart returns to this.
+    auto_check: bool = False
+    auto_check_every_s: int = Field(default=300, ge=60)
 
     # --- the target, as the console and the loop runner address it (P4) ------
     # These mirror `kavach.yaml`'s control interface and the harness defaults.

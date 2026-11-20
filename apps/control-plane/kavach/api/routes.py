@@ -520,6 +520,27 @@ async def set_mode(
     return await get_mode(runner)
 
 
+@router.get("/auto-check", response_model=s.AutoCheckOut)
+async def get_auto_check(
+    runner: Annotated[LoopRunner, Depends(get_runner)],
+) -> s.AutoCheckOut:
+    return s.AutoCheckOut(**runner.auto_check_state())
+
+
+@router.put("/auto-check", response_model=s.AutoCheckOut)
+async def set_auto_check(
+    body: s.AutoCheckChange,
+    runner: Annotated[LoopRunner, Depends(get_runner)],
+) -> s.AutoCheckOut:
+    """Switch automatic checks on or off for this process (ADR 0032).
+
+    Audited. A restart returns to `KAVACH_AUTO_CHECK`, so the durable
+    default stays in configuration, as the mode's stays in the manifest.
+    """
+    runner.set_auto_check(body.enabled)
+    return await get_auto_check(runner)
+
+
 @router.post("/incidents/{incident_id}/approve", response_model=s.RunStarted,
              status_code=202)
 async def approve(

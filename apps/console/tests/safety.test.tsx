@@ -15,6 +15,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import OperationsPage from "@/app/page";
 import { ApprovalPanel } from "@/components/safety/ApprovalPanel";
+import { AutoCheckSwitch } from "@/components/safety/AutoCheckSwitch";
 import { ModeSwitch } from "@/components/safety/ModeSwitch";
 import { SystemHealth } from "@/components/safety/SystemHealth";
 import type { ModeState } from "@/lib/api";
@@ -55,6 +56,43 @@ function makeScrollable(el: HTMLElement, atEnd: boolean): void {
     configurable: true,
   });
 }
+
+// --- automatic checks (ADR 0032) -------------------------------------------
+
+describe("automatic checks switch", () => {
+  const off = { enabled: false, every_s: 300, next_at: null, last_at: null, last_result: "" };
+
+  it("starts off, and one click switches it on", async () => {
+    const user = userEvent.setup();
+    GET.mockResolvedValue({ data: off, error: undefined });
+    PUT.mockResolvedValue({
+      data: { ...off, enabled: true, next_at: "2026-11-19T10:00:05+00:00" },
+      error: undefined,
+    });
+    render(<AutoCheckSwitch mode="APPROVAL" />);
+
+    const toggle = await screen.findByRole("switch", { name: "Automatic checks" });
+    await waitFor(() => expect(toggle).toBeEnabled());
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+    await user.click(toggle);
+
+    expect(PUT).toHaveBeenCalledWith("/v1/auto-check", { body: { enabled: true } });
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+    expect(toggle).toHaveTextContent("On · every 5 min");
+    expect(screen.getByText(/never while a plan waits for approval/)).toBeInTheDocument();
+  });
+
+  it("says what the last check did, and warns that Autonomous acts unasked", async () => {
+    GET.mockResolvedValue({
+      data: { ...off, enabled: true, last_at: "2026-11-19T10:05:00+00:00",
+              last_result: "skipped: 1 plan(s) waiting for approval (INC-7)" },
+      error: undefined,
+    });
+    render(<AutoCheckSwitch mode="AUTONOMOUS" />);
+    expect(await screen.findByText(/Last: skipped: 1 plan\(s\) waiting/)).toHaveTextContent("at 10:05 UTC");
+    expect(screen.getByText(/low-risk repair it finds runs without asking/)).toBeInTheDocument();
+  });
+});
 
 // --- the mode switch --------------------------------------------------------
 
