@@ -66,7 +66,7 @@ export function DiagnosisCard({
   if (!rca) {
     return (
       <div className="k-card">
-        <h3>Diagnosis</h3>
+        <h3>Root-cause analysis (RCA)</h3>
         <p className="k-sm k-muted" style={{ margin: "8px 0 0" }}>
           No diagnosis yet. The LLM RCA stage runs after deterministic detection
           finds a fault, and never before.
@@ -79,7 +79,7 @@ export function DiagnosisCard({
     const honest = /insufficient|unknown/i.test(rca.error ?? "");
     return (
       <div className="k-card">
-        <h3>Diagnosis</h3>
+        <h3>Root-cause analysis (RCA)</h3>
         <p
           className="k-sm"
           style={{
@@ -107,6 +107,11 @@ export function DiagnosisCard({
       style={{ display: "flex", flexDirection: "column", gap: "var(--k-space-3)" }}
     >
       <div>
+        {/* Named, because the heading below is the fault itself: with no
+            label an operator looking for "the RCA" could not find it. */}
+        <p className="k-xs k-faint" style={{ margin: "0 0 2px" }}>
+          Root-cause analysis (RCA)
+        </p>
         <h3 style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
           <span className="k-mono">{diagnosis.fault_class}</span>
           <span>{faultName(diagnosis.fault_class, diagnosis.fault_name)}</span>

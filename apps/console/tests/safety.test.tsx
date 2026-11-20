@@ -250,6 +250,19 @@ describe("approval panel", () => {
     });
   });
 
+  // It said "the sandbox is not implemented yet" long after it was built.
+  it("says truthfully whether the plan was tried in a sandbox", () => {
+    const { unmount } = render(
+      <ApprovalPanel incident={fx.awaitingIncident} onDecided={() => {}} />,
+    );
+    expect(screen.getByText(/Not tried in a sandbox. Only AI-written patches are/)).toBeInTheDocument();
+    expect(screen.queryByText(/not implemented/)).not.toBeInTheDocument();
+    unmount();
+    const patch = { ...fx.awaitingIncident, action: { ...fx.awaitingIncident.action!, action: "apply_patch" } };
+    render(<ApprovalPanel incident={patch} onDecided={() => {}} />);
+    expect(screen.getByText(/^Passed. The patch was applied to an isolated copy/)).toBeInTheDocument();
+  });
+
   it("shows the plan in the fixed order, inverse included", () => {
     render(<ApprovalPanel incident={fx.awaitingIncident} onDecided={() => {}} />);
     const headings = screen
@@ -262,13 +275,6 @@ describe("approval panel", () => {
       "Why it stopped here",
       "undo:",
     ]);
-  });
-
-  it("says plainly that no sandbox result exists", () => {
-    render(<ApprovalPanel incident={fx.awaitingIncident} onDecided={() => {}} />);
-    expect(
-      screen.getByText(/has not been tried anywhere before you/),
-    ).toBeInTheDocument();
   });
 
   // ADR 0025: an approval binds to the plan it approved. The old copy said

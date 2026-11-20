@@ -157,8 +157,9 @@ export function ApprovalPanel({
         <div>
           <h4 className="k-xs k-faint" style={{ margin: 0, fontWeight: 500 }}>Sandbox</h4>
           <p className="k-sm k-muted" style={{ margin: "2px 0 0" }}>
-            No sandbox result. The sandbox is not implemented yet, so this plan
-            has not been tried anywhere before you.
+            {action?.action === "apply_patch"
+              ? "Passed. The patch was applied to an isolated copy of the app and its test questions passed before this plan reached you."
+              : "Not tried in a sandbox. Only AI-written patches are; this repair restores a recorded value, and is checked against the test questions and undone if they fail."}
           </p>
         </div>
 

@@ -335,6 +335,18 @@ describe("evidence", () => {
 // --- 8. diagnosis card renders the uncalibrated-confidence state ------------
 
 describe("diagnosis card", () => {
+  // The heading is the fault itself, so without a label an operator looking
+  // for "the RCA" could not find it (asked about on 2026-11-17).
+  it("is labelled as the root-cause analysis, with a result and without", () => {
+    const { unmount } = render(
+      <DiagnosisCard rca={fx.resolvedIncident.rca ?? null} onCitationClick={() => {}} />,
+    );
+    expect(screen.getByText("Root-cause analysis (RCA)")).toBeInTheDocument();
+    unmount();
+    render(<DiagnosisCard rca={null} onCitationClick={() => {}} />);
+    expect(screen.getByRole("heading", { name: "Root-cause analysis (RCA)" })).toBeInTheDocument();
+  });
+
   it("shows the confidence value and labels it uncalibrated", () => {
     render(<DiagnosisCard rca={fx.resolvedIncident.rca ?? null} onCitationClick={() => {}} />);
     expect(screen.getByText("0.90")).toBeInTheDocument();
