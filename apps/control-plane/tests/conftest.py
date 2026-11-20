@@ -18,6 +18,8 @@ here only because this machine happens to run Docker and Ollama.
 """
 
 import sys
+import threading
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +28,27 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
+
+
+@pytest.fixture(autouse=True)
+def no_run_leaks_into_the_next_test() -> Iterator[None]:
+    """One test's loop run must not publish into the next test.
+
+    The event bus is one process-wide replay buffer, and incident IDs are
+    dated to the second. A worker frees the run slot before it publishes its
+    final event (the approve-race fix), so a test that waits for the slot can
+    finish while its worker is still publishing. In CI the suite runs fast
+    enough for the next test to get the same ID within that second, and it
+    then read the earlier run's "resolve failed" as its own (CI, 2026-11-20).
+    So each test starts with an empty buffer and ends with its workers done.
+    """
+    from kavach.api.events import bus
+
+    bus._replay.clear()
+    yield
+    for t in threading.enumerate():
+        if t.name.startswith("kavach-loop-"):
+            t.join(timeout=10)
 
 
 def _docker_unreachable() -> str:
