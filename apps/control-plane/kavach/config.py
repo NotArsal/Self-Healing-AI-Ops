@@ -127,6 +127,9 @@ class Settings(BaseSettings):
     ollamacloud_api_key: str = ""
     nvidia_api_key: str = ""
     tokenrouter_api_key: str = ""
+    # Cloudflare Workers AI: the URL carries the account, so it needs both.
+    cloudflare_api_key: str = ""
+    cloudflare_account_id: str = ""
 
     # Global default mode. SIMULATION, per PRD.md §5.4 — a project must be moved
     # out of it explicitly, after preflight passes.

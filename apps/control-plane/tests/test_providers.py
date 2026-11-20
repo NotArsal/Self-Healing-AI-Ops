@@ -66,6 +66,7 @@ class FakeUrlopen:
 def no_settings_key(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keys come from the test, never from the developer's real .env."""
     monkeypatch.setattr(providers, "key_for", lambda spec: "")
+    monkeypatch.setattr(providers, "account_for", lambda spec: "")
 
 
 # --- selection -------------------------------------------------------------
@@ -218,6 +219,53 @@ def test_a_provider_that_echoes_the_key_back_does_not_leak_it(
     assert SECRET not in str(caught.value)
     assert "***" in str(caught.value)
     assert "401" in str(caught.value)
+
+
+# --- cloudflare: the account lives in the URL --------------------------------
+
+
+def test_cloudflare_puts_the_account_in_the_url(
+    no_settings_key: None, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(providers, "account_for", lambda spec: "acct123")
+    fake = FakeUrlopen()
+    monkeypatch.setattr(urllib.request, "urlopen", fake)
+    providers.build("cloudflare", api_key=SECRET).structured("s", "u", SCHEMA)
+    assert fake.request.full_url == (
+        "https://api.cloudflare.com/client/v4/accounts/acct123/ai/v1/chat/completions")
+    assert json.loads(fake.request.data)["model"] == "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+
+
+def test_cloudflare_without_an_account_names_the_variable_at_first_use(
+    no_settings_key: None,
+) -> None:
+    """Like a missing key: building must not raise, using must say what to set."""
+    client = providers.build("cloudflare", api_key=SECRET)
+    assert client.available() is False
+    with pytest.raises(LlmError, match="KAVACH_CLOUDFLARE_ACCOUNT_ID"):
+        client.structured("s", "u", SCHEMA)
+
+
+def test_availability_reads_cloudflare_s_own_model_list(
+    no_settings_key: None, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Its OpenAI-style `/models` answers 405, which would read as 'down'."""
+    monkeypatch.setattr(providers, "account_for", lambda spec: "acct123")
+    fake = FakeUrlopen(reply=BytesIO(b'{"result": []}'))
+    monkeypatch.setattr(urllib.request, "urlopen", fake)
+    assert providers.build("cloudflare", api_key=SECRET).available() is True
+    assert fake.request.full_url == (
+        "https://api.cloudflare.com/client/v4/accounts/acct123"
+        "/ai/models/search?per_page=1")
+
+
+def test_every_other_provider_still_lists_models_at_base_url_models(
+    no_settings_key: None, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = FakeUrlopen(reply=BytesIO(b'{"data": []}'))
+    monkeypatch.setattr(urllib.request, "urlopen", fake)
+    assert providers.build("groq", model="m", api_key=SECRET).available() is True
+    assert fake.request.full_url == "https://api.groq.com/openai/v1/models"
 
 
 # --- the request we actually send ------------------------------------------

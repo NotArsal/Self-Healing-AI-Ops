@@ -99,6 +99,15 @@ class Provider:
     # one. So the budget is per-provider rather than one number that is
     # wrong for somebody.
     max_output_tokens: int = 2048
+    # For a provider whose URLs contain an account (Cloudflare): the
+    # variable it comes from. `{account}` in `base_url` and `models_url` is
+    # filled in when the client is built; unset, the URL keeps its
+    # placeholder and the client refuses at first use, exactly as it does
+    # for a missing key.
+    account_env: str = ""
+    # Where `available()` lists models, for a provider whose OpenAI-style
+    # `/models` does not exist. Empty means `{base_url}/models`.
+    models_url: str = ""
 
 
 # The table. A base URL here NEVER includes `/chat/completions`: the client
@@ -198,6 +207,29 @@ PROVIDERS: dict[str, Provider] = {
         note="NVIDIA NIM / build.nvidia.com; 81 models, list is public at "
              "/v1/models without a key. Keys look like nvapi-...",
     ),
+    # --- added 2026-11-21 --------------------------------------------------
+    "cloudflare": Provider(
+        name="cloudflare",
+        base_url="https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1",
+        key_env="KAVACH_CLOUDFLARE_API_KEY",
+        account_env="KAVACH_CLOUDFLARE_ACCOUNT_ID",
+        # `GET /ai/v1/models` answers 405 "GET not supported for requested
+        # URI", so availability is read off the native catalogue instead.
+        models_url="https://api.cloudflare.com/client/v4/accounts/{account}"
+                   "/ai/models/search?per_page=1",
+        # A non-reasoning model, for the reason given on the nvidia row.
+        default_model="@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+        note="Workers AI, OpenAI-compatible; endpoint from Cloudflare's docs "
+             "and verified 2026-11-21: `seed` and strict json_schema both "
+             "accepted (HTTP 200). llama-3.3-70b honoured the schema; "
+             "gpt-oss-20b returned JSON that ignored it, so strictness is "
+             "per model here. Models retire quietly: llama-3.1-8b, "
+             "llama-3.2-1b, qwen3-30b-a3b and deepseek-r1-distill-32b "
+             "answered 410 on 2026-11-20 while still in the catalogue",
+        # The catalogue's reasoning models (qwen3.8, gpt-oss) think inside
+        # the same budget; see `max_output_tokens`.
+        max_output_tokens=8192,
+    ),
 }
 
 # TokenRouter was deliberately absent until 2026-10-19: asked for on
@@ -240,6 +272,26 @@ def key_for(spec: Provider) -> str:
         # a test). The environment is then the only source, which is fine.
         pass
     return os.environ.get(spec.key_env, "")
+
+
+def account_for(spec: Provider) -> str:
+    """The account a provider's URL needs, by the same rule as `key_for`:
+    settings first (where `.env` lands), the environment second."""
+    if not spec.account_env:
+        return ""
+    try:
+        from kavach.config import get_settings
+
+        value = str(getattr(get_settings(), f"{spec.name}_account_id", "") or "")
+        if value:
+            return value
+    except Exception:
+        pass
+    return os.environ.get(spec.account_env, "")
+
+
+def _with_account(url: str, account: str) -> str:
+    return url.replace("{account}", account) if account else url
 
 
 def keys_for(spec: Provider) -> list[str]:
@@ -303,7 +355,10 @@ class OpenAiCompatClient:
     ) -> None:
         assert_not_proxied(provider.base_url)
         self.provider = provider
-        self.base_url = provider.base_url.rstrip("/")
+        account = account_for(provider)
+        self.base_url = _with_account(provider.base_url, account).rstrip("/")
+        self.models_url = (_with_account(provider.models_url, account)
+                           if provider.models_url else f"{self.base_url}/models")
         self.model = model or provider.default_model
         self._keys = [api_key] if api_key else keys_for(provider)
         # Where the next call starts. A key that works keeps being used
@@ -349,10 +404,12 @@ class OpenAiCompatClient:
         in the middle of a measurement run as a 401 that looks like a model
         problem.
         """
+        if "{account}" in self.models_url:
+            return False
         for i, key in enumerate(self._keys):
             try:
                 req = urllib.request.Request(
-                    f"{self.base_url}/models", headers=self._headers(key))
+                    self.models_url, headers=self._headers(key))
                 with urllib.request.urlopen(req, timeout=15) as r:
                     json.load(r)
             except Exception:
@@ -377,6 +434,11 @@ class OpenAiCompatClient:
                 f"{self.provider.key_env} in .env (comma-separate several "
                 f"to rotate). Kavach runs on Ollama without any cloud key "
                 f"(PL-02); a cloud provider is opt-in"
+            )
+        if "{account}" in self.base_url:
+            raise LlmError(
+                f"no account ID for {self.provider.name}: set "
+                f"{self.provider.account_env} in .env"
             )
         payload: dict[str, Any] = {
             "model": self.model,
