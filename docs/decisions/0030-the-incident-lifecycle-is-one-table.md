@@ -44,3 +44,31 @@ handler turns that into ESCALATED, which acts on nothing: the safe direction.
 - **DETECTED still doubles as "run in progress".** The runner stores it before
   detection has found anything. A separate RUNNING status would change what
   `harness/report.py` waits on, so it is a follow-up, not part of this change.
+  *Done in the amendment below. The worry about the harness was wrong: it
+  waits only for final statuses (`kavach_baseline.wait_terminal`).*
+
+## Amendment 2026-11-19 — RUNNING is its own status
+
+Every run read "Detected" from the moment it started, healthy or not. A new
+incident now starts as **RUNNING**, and becomes **DETECTED** only when
+detection names a fault (`loop.py`, right after the detector's verdict).
+
+| from | to |
+|---|---|
+| RUNNING | NO_FAULT, ESCALATED, DETECTED |
+| DETECTED | ESCALATED, HEALING |
+| HEALING | AWAITING_APPROVAL, RESOLVED, ESCALATED |
+| AWAITING_APPROVAL | APPROVED, ESCALATED |
+| NO_FAULT, RESOLVED, ESCALATED, APPROVED | nothing: final |
+
+Two moves became illegal: DETECTED → NO_FAULT (a named fault cannot become
+"no fault") and anything → HEALING except from DETECTED. The startup settle
+also escalates leftover RUNNING rows, and DETECTED rows written before this
+change still settle as before. The status is a plain string in the API, so
+no contract changed. The console shows RUNNING in the design system's
+existing "collecting" colour.
+
+Tests: `test_lifecycle.py` (the new moves, and both newly illegal ones),
+`test_restart.py` (a leftover RUNNING row is escalated). Removing the
+DETECTED step from the loop fails the suite, and so does dropping RUNNING
+from the settle.

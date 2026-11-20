@@ -83,7 +83,9 @@ def test_incident_out_accepts_real_detection_evidence() -> None:
 def test_incident_out_round_trips_a_bare_incident() -> None:
     out = routes.incident_out(loop.Incident(incident_id="INC-1", project="p"))
     assert out.incident_id == "INC-1"
-    assert out.status == "DETECTED"
+    # A new incident is a run in progress, not a detected fault (ADR 0030
+    # amendment): it read DETECTED before anything had been detected.
+    assert out.status == "RUNNING"
     assert out.rca is None
     assert out.action is None
     assert out.verification is None

@@ -88,6 +88,11 @@ def _notify(sink: LoopEvent | None, stage: str, status: str, message: str) -> No
 
 
 class IncidentStatus(StrEnum):
+    # A run in progress that has not found anything yet. Until 2026-11-19
+    # this was DETECTED, so every healthy check read "Detected" while it ran
+    # (ADR 0030 amendment).
+    RUNNING = "RUNNING"
+    # Detection named a fault; diagnosis and validation have not finished.
     DETECTED = "DETECTED"
     NO_FAULT = "NO_FAULT"
     HEALING = "HEALING"
@@ -110,12 +115,14 @@ class IncidentStatus(StrEnum):
 # nothing said which moves were legal. NO_FAULT, RESOLVED, ESCALATED and
 # APPROVED are final: an APPROVED incident's fix runs as a NEW incident.
 #
-# DETECTED still doubles as "run in progress": the runner stores it before
-# detection has found anything. Splitting that out changes what the bench
-# waits on, so it is a follow-up (ADR 0030), not part of this table.
+# RUNNING is a run that has found nothing yet; DETECTED means detection
+# named a fault (ADR 0030 amendment). The bench waits only for final
+# statuses, so neither changes what it waits on.
 MOVES: dict[IncidentStatus, frozenset[IncidentStatus]] = {
-    IncidentStatus.DETECTED: frozenset({IncidentStatus.NO_FAULT,
-                                        IncidentStatus.ESCALATED,
+    IncidentStatus.RUNNING: frozenset({IncidentStatus.NO_FAULT,
+                                       IncidentStatus.ESCALATED,
+                                       IncidentStatus.DETECTED}),
+    IncidentStatus.DETECTED: frozenset({IncidentStatus.ESCALATED,
                                         IncidentStatus.HEALING}),
     IncidentStatus.HEALING: frozenset({IncidentStatus.AWAITING,
                                        IncidentStatus.RESOLVED,
@@ -166,7 +173,7 @@ class Incident:
     project: str
     detected_at: str = ""
     resolved_at: str = ""
-    status: IncidentStatus = IncidentStatus.DETECTED
+    status: IncidentStatus = IncidentStatus.RUNNING
     fault_class: str | None = None
     fault_name: str | None = None
     service: str | None = None
@@ -453,6 +460,7 @@ def run_once(
     inc.fault_class = detection.fault_class
     inc.fault_name = detection.fault_name
     inc.service = detection.service
+    transition(inc, IncidentStatus.DETECTED)
     _notify(on_event, "detect", "ok",
             f"detected {detection.fault_class} {detection.fault_name} on "
             f"{detection.service}; fast set {pre_fast.pass_rate:.0%}")

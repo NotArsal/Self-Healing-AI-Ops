@@ -18,7 +18,8 @@ from kavach.loop import IllegalTransitionError, Incident, IncidentStatus, legal,
 S = IncidentStatus
 
 LEGAL = [
-    (S.DETECTED, S.NO_FAULT), (S.DETECTED, S.ESCALATED), (S.DETECTED, S.HEALING),
+    (S.RUNNING, S.NO_FAULT), (S.RUNNING, S.ESCALATED), (S.RUNNING, S.DETECTED),
+    (S.DETECTED, S.ESCALATED), (S.DETECTED, S.HEALING),
     (S.HEALING, S.AWAITING), (S.HEALING, S.RESOLVED), (S.HEALING, S.ESCALATED),
     (S.AWAITING, S.APPROVED), (S.AWAITING, S.ESCALATED),
 ]
@@ -38,6 +39,8 @@ def test_every_move_the_loop_makes_is_legal(frm: IncidentStatus, to: IncidentSta
     (S.DETECTED, S.RESOLVED),    # nothing resolves without a repair
     (S.DETECTED, S.APPROVED),    # nothing is approved that was never parked
     (S.NO_FAULT, S.HEALING),
+    (S.RUNNING, S.HEALING),     # nothing is repaired before detection names it
+    (S.DETECTED, S.NO_FAULT),   # a named fault cannot become "no fault"
 ])
 def test_an_illegal_move_is_refused_and_changes_nothing(
     frm: IncidentStatus, to: IncidentStatus,

@@ -40,6 +40,10 @@ class FakeStore(IncidentStore):
     def save(self, record: dict[str, Any]) -> None:
         self.rows[record["incident_id"]] = dict(record)
 
+    def get(self, incident_id: str) -> dict[str, Any] | None:
+        found = self.rows.get(incident_id)
+        return dict(found) if found else None
+
 
 def a_runner(tmp_path: Path, *records: dict[str, Any]) -> tuple[LoopRunner, FakeStore]:
     runner = LoopRunner(Settings(kavach_root=str(tmp_path)))
@@ -105,10 +109,78 @@ def test_a_parked_plan_nobody_decided_lapses_and_says_so(tmp_path: Path) -> None
     assert [r["event"] for r in runner.audit.rows()] == ["approval_lapsed"]
 
 
+# --- parked plans survive a restart (ADR 0028 amendment) --------------------
+
+
+def parked_row(diagnosed_by: str = "llm_rca") -> dict[str, Any]:
+    """A parked incident as the store holds it: the whole plan is in the row."""
+    r = row("AWAITING_APPROVAL")
+    r.update(fault_class="F08", service="backend", planned_action="rollback_config",
+             action={"incident_id": "INC-204636", "action": "rollback_config",
+                     "risk_tier": "MEDIUM", "idempotency_key": "k",
+                     "requested_settings": {"max_tokens": 0},
+                     "inverse_settings": {"max_tokens": 2}},
+             diagnosed_by=diagnosed_by)
+    return r
+
+
+@pytest.mark.asyncio
+async def test_a_parked_plan_is_still_waiting_after_a_restart_and_can_be_approved(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner, store = a_runner(tmp_path, parked_row())
+    runner.recover()
+
+    assert store.rows["INC-204636"]["status"] == "AWAITING_APPROVAL"
+    assert runner.awaiting() == ["INC-204636"]
+    assert runner.parked_used_rca("INC-204636") is True
+    assert (await routes.get_incident("INC-204636", runner)).awaiting_approval is True
+    assert [r["event"] for r in runner.audit.rows()] == ["approval_restored"]
+
+    seen: dict[str, Any] = {}
+
+    async def start(use_rca: bool = True, approved: loop.ApprovedPlan | None = None,
+                    started_by: str = "operator") -> loop.Incident:
+        seen.update(use_rca=use_rca, approved=approved)
+        return loop.Incident(incident_id="INC-FIX", project="p")
+
+    monkeypatch.setattr(runner, "start", start)
+    await runner.approve("INC-204636")
+
+    # The approval binds to exactly the plan the row held (ADR 0025).
+    assert seen["approved"] == loop.ApprovedPlan(
+        incident_id="INC-204636", fault_class="F08", service="backend",
+        action="rollback_config", requested_settings={"max_tokens": 0},
+        rca={"kept": "every other field survives"}, diagnosed_by="llm_rca")
+    assert store.rows["INC-204636"]["status"] == "APPROVED"
+    assert "INC-FIX" in store.rows["INC-204636"]["outcome"]
+
+
+def test_a_restored_deterministic_plan_is_re_derived_without_the_llm(tmp_path: Path) -> None:
+    runner, _ = a_runner(tmp_path, parked_row(diagnosed_by="deterministic"))
+    runner.recover()
+    assert runner.parked_used_rca("INC-204636") is False
+
+
+def test_a_rejection_the_store_never_saw_is_not_brought_back(tmp_path: Path) -> None:
+    runner, store = a_runner(tmp_path, parked_row())
+    audit_at(runner, LATER, "rejected", incident_id="INC-204636", actor="operator",
+             reason="the threshold change looks deliberate")
+
+    runner.recover()
+
+    assert runner.awaiting() == []
+    saved = store.rows["INC-204636"]
+    assert saved["status"] == "ESCALATED"
+    assert saved["escalation_reason"] == (
+        "rejected by operator: the threshold change looks deliberate")
+
+
 # --- runs that never finished -----------------------------------------------
 
 
-@pytest.mark.parametrize("status", ["DETECTED", "HEALING"])
+# RUNNING since the ADR 0030 amendment; DETECTED rows from before it remain.
+@pytest.mark.parametrize("status", ["RUNNING", "DETECTED", "HEALING"])
 def test_a_run_that_never_finished_is_escalated(tmp_path: Path, status: str) -> None:
     runner, store = a_runner(tmp_path, row(status))
 

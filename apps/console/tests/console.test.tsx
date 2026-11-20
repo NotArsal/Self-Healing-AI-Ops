@@ -649,7 +649,7 @@ describe("no colour-only state indicators", () => {
 
   it("pairs every incident state with a word", () => {
     for (const status of [
-      "DETECTED", "HEALING", "RESOLVED", "ESCALATED", "NO_FAULT",
+      "RUNNING", "DETECTED", "HEALING", "RESOLVED", "ESCALATED", "NO_FAULT",
       "AWAITING_APPROVAL", "APPROVED",
     ]) {
       const { unmount } = render(<StatePill status={status} />);

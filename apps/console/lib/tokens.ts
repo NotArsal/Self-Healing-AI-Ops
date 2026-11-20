@@ -9,6 +9,8 @@
  */
 
 export const STATE_TOKENS = {
+  // A run that has found nothing yet: collecting evidence (ADR 0030 amendment).
+  RUNNING: "--k-state-collecting",
   DETECTED: "--k-state-detected",
   NO_FAULT: "--k-state-resolved",
   HEALING: "--k-state-healing",

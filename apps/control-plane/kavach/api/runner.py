@@ -110,6 +110,15 @@ def log_run_end(inc: loop.Incident) -> None:
           outcome=inc.outcome or inc.escalation_reason or None)
 
 
+def parked_plan_of(record: dict[str, Any]) -> loop.ApprovedPlan | None:
+    """The plan a stored parked incident was waiting on, or None if the row
+    does not hold all of it. `ApprovedPlan.of` reads only persisted fields."""
+    plan = loop.ApprovedPlan.of(loop.Incident.from_dict(record))
+    if not (plan.fault_class and plan.service and plan.action):
+        return None
+    return plan
+
+
 def _settle_to(record: dict[str, Any], to: loop.IncidentStatus) -> None:
     """The startup settle's status write, on a stored row: checked against
     the same lifecycle table as every other move (ADR 0030)."""
@@ -255,11 +264,11 @@ class LoopRunner:
         self._auto_next: datetime | None = None
         self._auto_last: dict[str, str] = {}
 
-        # Incidents parked at the gate, with the evidence a human needs to
-        # approve them. Kept in memory because the prepared action cannot be
-        # pickled; the incident itself is persisted, so a restart loses the
-        # pending approval and the operator re-runs. That is the honest
-        # behaviour until the action's parameters are persisted too.
+        # Incidents parked at the gate, with the plan a human approves. Held
+        # in memory, and rebuilt from the stored incident after a restart
+        # (ADR 0028 amendment): an approval re-runs the plan against the
+        # target as it is then, so the plan is all it needs, and the plan is
+        # made entirely of fields the incident row already stores.
         self._awaiting: dict[str, dict[str, Any]] = {}
 
     def init_store(self, quiet: bool = False) -> bool:
@@ -321,6 +330,7 @@ class LoopRunner:
         happened to each."""
         stale = self.store.with_status(
             str(loop.IncidentStatus.AWAITING),
+            str(loop.IncidentStatus.RUNNING),
             str(loop.IncidentStatus.DETECTED),
             str(loop.IncidentStatus.HEALING),
         )
@@ -347,11 +357,32 @@ class LoopRunner:
                         f"approved by the operator; the fix ran as {rerun}" if rerun
                         else "approved by the operator; the audit log does not "
                              "name the re-run")
+                elif "rejected" in events:
+                    # Refused, and the result never reached the store. Without
+                    # this, restoring parked plans would bring it back to life.
+                    reason = next((str(r.get("reason") or "") for r in newer
+                                   if r.get("event") == "rejected"
+                                   and r.get("incident_id") == incident_id), "")
+                    _settle_to(record, loop.IncidentStatus.ESCALATED)
+                    record["escalation_reason"] = f"rejected by operator: {reason}"
+                    record["outcome"] = "not executed; the operator refused the plan"
+                elif (plan := parked_plan_of(record)) is not None:
+                    # Still true: it waits for a person. Park it again rather
+                    # than lapse it; approving re-checks the target first.
+                    self._awaiting[incident_id] = {
+                        "plan": plan,
+                        "use_rca": plan.diagnosed_by == "llm_rca",
+                        "at": str(record.get("detected_at") or ""),
+                    }
+                    self.audit.append("approval_restored", incident_id=incident_id,
+                                      plan=plan.to_dict())
+                    logger.info("parked plan restored", incident_id=incident_id)
+                    continue
                 else:
                     _settle_to(record, loop.IncidentStatus.ESCALATED)
                     record["escalation_reason"] = (
                         "approval lapsed: the control plane restarted before anyone "
-                        "decided, and the parked plan was held in memory only")
+                        "decided, and the stored row does not hold the whole plan")
                     record["outcome"] = ("not executed; run the loop again if the "
                                          "fault is still there")
                     self.audit.append("approval_lapsed", incident_id=incident_id)
@@ -556,9 +587,9 @@ class LoopRunner:
     def find(self, incident_id: str) -> loop.Incident | None:
         """`incident()`, falling back to the store. Read paths only.
 
-        Not used by `approve()` or `reject()`: those gate on `_awaiting`,
-        which is memory and is never repopulated here, so a restored incident
-        cannot be acted on. See `Incident.from_dict`.
+        Not used to decide `approve()` or `reject()`: those gate on
+        `_awaiting`, which only the startup settle repopulates from the store
+        (ADR 0028 amendment). See `Incident.from_dict`.
         """
         found = self.incident(incident_id)
         if found is not None:

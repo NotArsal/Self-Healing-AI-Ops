@@ -29,6 +29,7 @@ export const sentence = (value: string): string => {
 };
 
 const STATE_ICON: Record<string, IconName> = {
+  RUNNING: "pending",
   DETECTED: "info",
   NO_FAULT: "check",
   HEALING: "activity",

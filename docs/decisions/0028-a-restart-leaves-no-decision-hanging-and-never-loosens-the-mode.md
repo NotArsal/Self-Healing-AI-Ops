@@ -78,6 +78,7 @@ referred to, and nothing reconciled the two:
   entry is plain data (`ApprovedPlan`, `use_rca`), so the old reason ("the
   prepared action cannot be pickled") no longer holds. It is a schema change
   and a new way for a stale approval to act, so it gets its own decision.
+  *Done without either, in the amendment below.*
 - **Rewrite the status at read time** instead of in the store. Then the API
   and the database disagree, and `make postmortem` reads the database.
 - **A new `LAPSED` status.** `ESCALATED` with a reason already means "Kavach
@@ -142,3 +143,39 @@ answers a 0/0 rate with "NaN", and `_promql` turns that into `float("nan")`.
   rather than a stopped process: it has no audit rows, which fits a run that
   escalated at detection. Its stored reason (written by the first version of
   settle) overstates what is known.
+
+## Amendment 2026-11-19: a parked plan survives a restart
+
+Accepted by the owner 2026-11-19 ("#3 Save parked plans").
+
+A restart no longer lapses a plan that is waiting for approval. The startup
+settle rebuilds it with `parked_plan_of(record)`, which is `ApprovedPlan.of`
+applied to the stored row. The plan is made entirely of fields the row
+already holds (fault class, service, planned action, requested settings,
+RCA, `diagnosed_by`), so **nothing new is stored and the schema is
+unchanged**. `use_rca` is read from `diagnosed_by` (`llm_rca` means the plan
+was derived with the model). The row stays `AWAITING_APPROVAL`, Approve is
+offered again, and an `approval_restored` audit row records the plan.
+
+The two objections recorded above, answered:
+
+- **Schema change:** none.
+- **A stale approval acting:** none can, because no approval exists yet. The
+  person approves after the restart, and the approval still binds only to
+  this plan: approving re-checks the target, and a re-run that reaches a
+  different plan is parked again, unapproved (ADR 0025).
+
+Two outcomes stay as they were, and one is new:
+
+- `approved` in the audit log: still settled to `APPROVED`.
+- **New:** `rejected` in the audit log, while the row still says parked (the
+  rejection's save never reached the store). Settled to `ESCALATED` with the
+  operator's reason. Without this, restoring plans would bring a refused plan
+  back to life.
+- A row that does not hold the whole plan: still lapses, as before.
+
+Tests: `tests/test_restart.py`. A restored plan is approvable and binds to
+exactly the stored plan, a deterministic plan is re-derived without the
+model, and a rejection the store never saw stays rejected. Removing that
+last guard fails its test.
+
