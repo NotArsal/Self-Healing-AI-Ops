@@ -117,6 +117,23 @@ INCIDENTS_PER_HOUR = 5
 INCIDENTS_PER_RUN = 2
 
 
+def expected_corpus(flag: str) -> tuple[dict[str, float], bool]:
+    """The corpus this bench must find, and whether it is an experiment.
+
+    Empty means the paper's corpus, `EXPECTED_CORPUS`. `CHUNKS,FILES` is a
+    separate experiment on another corpus: the refusal still applies, now
+    against the stated corpus, and the run is labelled and written apart so
+    it can never be mistaken for, or overwrite, the paper's numbers.
+    """
+    if not flag:
+        return dict(EXPECTED_CORPUS), False
+    try:
+        chunks, files = (float(x) for x in flag.split(","))
+    except ValueError:
+        raise SystemExit(f"--expect-corpus wants CHUNKS,FILES, got {flag!r}") from None
+    return {"chunks": chunks, "files": files}, True
+
+
 def say(m: str = "") -> None:
     print(m, flush=True)
 
@@ -658,9 +675,15 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--reps", type=int, default=5)
     ap.add_argument("--classes", default=",".join(CLASSES))
-    ap.add_argument("--json-out",
-                    default=str(ROOT / "harness" / "reports" / "bench.json"))
+    ap.add_argument("--json-out", default="")
+    ap.add_argument("--expect-corpus", default="",
+                    help="CHUNKS,FILES: a separate experiment on another corpus")
     args = ap.parse_args()
+    expected, experiment = expected_corpus(args.expect_corpus)
+    if not args.json_out:
+        name = (f"bench-corpus-{int(expected['chunks'])}x{int(expected['files'])}.json"
+                if experiment else "bench.json")
+        args.json_out = str(ROOT / "harness" / "reports" / name)
 
     # THE ENVIRONMENT FIRST, THEN `.env` - the same fix scenario.py needed
     # on 2026-10-19, for the same reason: no Makefile target exports this,
@@ -688,7 +711,10 @@ def main() -> int:
         say("  switched to APPROVAL for the bench")
     live = corpus()
     say(f"  corpus             {live}")
-    if live != EXPECTED_CORPUS:
+    if experiment:
+        say(f"  EXPERIMENT         expecting {expected}, not the paper's "
+            f"{EXPECTED_CORPUS}; written to {args.json_out}")
+    if live != expected:
         say("  REFUSING: the corpus has drifted; every number would measure it.")
         return 1
     if not fast.run(client, FAST_SET, check_health=False).passed:
@@ -729,6 +755,8 @@ def main() -> int:
         "denominator": total,
         "paced_wait_total_s": bench.paced_wait_total_s,
         "incidents_per_hour_limit": INCIDENTS_PER_HOUR,
+        "corpus": live,
+        "experiment": experiment,
         "runs": [asdict(r) for r in bench.runs],
     }, indent=2, default=str) + "\n", encoding="utf-8")
     say("")

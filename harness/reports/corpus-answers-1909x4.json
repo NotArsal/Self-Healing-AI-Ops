@@ -1,0 +1,171 @@
+{
+  "cases": [
+    {
+      "question": "How does the Software Engineering at Google book define software engineering?",
+      "expected_source": "swe_at_google.pdf",
+      "cited": [
+        "swe_at_google.pdf"
+      ],
+      "answered": true,
+      "fact_present": false,
+      "right_source": true,
+      "latency_s": 9.0,
+      "answer": "Software engineering is defined as the multiperson development of multiversion programs.",
+      "passed": false
+    },
+    {
+      "question": "What is Hyrum's Law?",
+      "expected_source": "swe_at_google.pdf",
+      "cited": [
+        "swe_at_google.pdf"
+      ],
+      "answered": true,
+      "fact_present": true,
+      "right_source": true,
+      "latency_s": 10.4,
+      "answer": "Hyrum's Law states that with a sufficient number of users of an API, it does not matter what you promise in the contract: all observable behaviors of your system will be depended on by somebody.",
+      "passed": true
+    },
+    {
+      "question": "What is the Beyonc\u00e9 Rule at Google?",
+      "expected_source": "swe_at_google.pdf",
+      "cited": [
+        "swe_at_google.pdf"
+      ],
+      "answered": true,
+      "fact_present": true,
+      "right_source": true,
+      "latency_s": 9.5,
+      "answer": "The Beyonc\u00e9 Rule is \"If you liked it, you should have put a CI test on it.\"",
+      "passed": true
+    },
+    {
+      "question": "What is the Beyonce Rule at Google?",
+      "expected_source": "swe_at_google.pdf",
+      "cited": [],
+      "answered": false,
+      "fact_present": false,
+      "right_source": false,
+      "latency_s": 7.5,
+      "answer": "I don't know based on the provided documents.",
+      "passed": false
+    },
+    {
+      "question": "What does TAP stand for in Google's CI system?",
+      "expected_source": "swe_at_google.pdf",
+      "cited": [
+        "swe_at_google.pdf"
+      ],
+      "answered": true,
+      "fact_present": true,
+      "right_source": true,
+      "latency_s": 10.3,
+      "answer": "TAP stands for Test Automation Platform in Google's CI system.",
+      "passed": true
+    },
+    {
+      "question": "What does LGTM mean in Google code review?",
+      "expected_source": "swe_at_google.pdf",
+      "cited": [
+        "swe_at_google.pdf"
+      ],
+      "answered": true,
+      "fact_present": true,
+      "right_source": true,
+      "latency_s": 7.7,
+      "answer": "LGTM stands for \"Looks Good To Me,\" which is a necessary permissions \"bit\" used to allow a change to be committed to the codebase.",
+      "passed": true
+    },
+    {
+      "question": "What is the name of Google's centralized version control system?",
+      "expected_source": "swe_at_google.pdf",
+      "cited": [
+        "swe_at_google.pdf"
+      ],
+      "answered": true,
+      "fact_present": true,
+      "right_source": true,
+      "latency_s": 7.7,
+      "answer": "Google's centralized version control system is called Piper.",
+      "passed": true
+    },
+    {
+      "question": "In which town did Sonia Gandhi's family live in Italy?",
+      "expected_source": "belonging_sonia_gandhi.pdf",
+      "cited": [
+        "belonging_sonia_gandhi.pdf"
+      ],
+      "answered": true,
+      "fact_present": false,
+      "right_source": true,
+      "latency_s": 7.8,
+      "answer": "Sonia Gandhi's family lived in a small town in northern Italy.",
+      "passed": false
+    },
+    {
+      "question": "What were the names of Sonia Gandhi's parents?",
+      "expected_source": "belonging_sonia_gandhi.pdf",
+      "cited": [
+        "belonging_sonia_gandhi.pdf"
+      ],
+      "answered": true,
+      "fact_present": true,
+      "right_source": true,
+      "latency_s": 7.3,
+      "answer": "Sonia Gandhi's father was Stefano Maino, and her mother's name is not mentioned in the provided context.",
+      "passed": true
+    },
+    {
+      "question": "What was the Varsity in Cambridge?",
+      "expected_source": "belonging_sonia_gandhi.pdf",
+      "cited": [],
+      "answered": false,
+      "fact_present": false,
+      "right_source": false,
+      "latency_s": 8.4,
+      "answer": "I don't know based on the provided document.",
+      "passed": false
+    },
+    {
+      "question": "Where did Sonia Gandhi meet Rajiv Gandhi?",
+      "expected_source": "belonging_sonia_gandhi.pdf",
+      "cited": [
+        "belonging_sonia_gandhi.pdf"
+      ],
+      "answered": true,
+      "fact_present": true,
+      "right_source": true,
+      "latency_s": 7.5,
+      "answer": "Sonia Gandhi met Rajiv Gandhi in 1964 in Cambridge, England.",
+      "passed": true
+    },
+    {
+      "question": "Which province is Orbassano in?",
+      "expected_source": "belonging_sonia_gandhi.pdf",
+      "cited": [
+        "belonging_sonia_gandhi.pdf"
+      ],
+      "answered": true,
+      "fact_present": false,
+      "right_source": true,
+      "latency_s": 8.6,
+      "answer": "Orbassano is in the Piemonte province.",
+      "passed": false
+    },
+    {
+      "question": "What ROC-AUC did the LSTM model achieve?",
+      "expected_source": "1662.pdf",
+      "cited": [
+        "1662.pdf"
+      ],
+      "answered": true,
+      "fact_present": true,
+      "right_source": true,
+      "latency_s": 8.6,
+      "answer": "The LSTM model achieved an ROC-AUC of 0.91.",
+      "passed": true
+    }
+  ],
+  "passed": 8,
+  "total": 13
+}

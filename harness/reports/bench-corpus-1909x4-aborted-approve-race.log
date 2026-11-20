@@ -1,0 +1,24 @@
+start 2026-11-18T19:13:22Z
+manifest set to the experiment corpus
+  corpus            {'chunks': 1909.0, 'files': 4.0}
+  prompt answer.txt             d55c73a23f33  (791B held)
+  prompt query_expansion.txt    bbc6a7fee760  (335B held)
+
+SLO values at capture
+--
+saved   D:\Vit\Academics Sem-5\EDI\Self-Healing AI Ops\harness\baselines\baseline-simple-rag-20261118T191853+0000.json
+prompts {'answer.txt': 791, 'query_expansion.txt': 335}
+manifest restored: 0 changes left
+bench start 2026-11-18T19:19:26Z
+==============================================================================
+make bench - live metrics over repeated injections
+==============================================================================
+  mode               APPROVAL
+  corpus             {'chunks': 1909.0, 'files': 4.0}
+  EXPERIMENT         expecting {'chunks': 1909.0, 'files': 4.0}, not the paper's {'chunks': 30.0, 'files': 2.0}; written to D:\Vit\Academics Sem-5\EDI\Self-Healing AI Ops\harness\reports\bench-corpus-1909x4.json
+  plan               5 classes x 2 reps = 10 injections
+  estimated runtime  ~4.0h, paced under permit()'s blast radius. Unattended by design.
+
+  RCA model          openai/gpt-oss-120b via groq, backup gemini-2.5-flash via gemini
+
+  rep 1 F01  detect=53.5s llm=F01(0.85)->switch_llm_endpoint resolved=False mttr=None false_heal=False clean=True by=openai/gpt-oss-120b via groq
