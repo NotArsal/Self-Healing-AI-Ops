@@ -64,6 +64,42 @@ HISTORY_MAX = 50
 MODE_ORDER: tuple[Mode, ...] = ("SIMULATION", "APPROVAL", "AUTONOMOUS")
 
 
+def hypotheses_from(inc: loop.Incident) -> list[dict[str, Any]]:
+    """The RCA's chosen fault and the faults it ruled out, as `hypotheses` rows.
+
+    The table was built for the unknown-failure flow (`PRD.md` §8.4), which is
+    not implemented, so nothing wrote to it. Every LLM diagnosis already ranks
+    candidates, though: one chosen, the rest ruled out with a reason (FR-10).
+    Stored as rows, "how often was F06 ruled out, and why" is a query rather
+    than a scan of every incident's JSON. `tested` means the chosen repair was
+    actually applied and verified; a ruled-out class is never tested.
+    """
+    rca = inc.rca or {}
+    diagnosis = rca.get("diagnosis") or {}
+    if not diagnosis.get("fault_class"):
+        return []          # no RCA, or one that named no class
+    verdict = "accepted by validation" if rca.get("approved") else "rejected by validation"
+    rows: list[dict[str, Any]] = [{
+        "rank": 1,
+        "description": (f"{diagnosis['fault_class']} {diagnosis.get('fault_name', '')} "
+                        f"on {diagnosis.get('service', '')}"),
+        "confidence": float(diagnosis.get("confidence") or 0.0),
+        "evidence_ids": list(diagnosis.get("evidence_ids") or []),
+        "tested": bool(inc.verification),
+        "outcome": f"{verdict}; incident {inc.status}",
+    }]
+    for rank, alt in enumerate(diagnosis.get("rejected_alternatives") or [], start=2):
+        rows.append({
+            "rank": rank,
+            "description": f"{alt.get('fault_class')}: {alt.get('reason')}",
+            "confidence": 0.0,
+            "evidence_ids": [],
+            "tested": False,
+            "outcome": "ruled out by the model",
+        })
+    return rows
+
+
 def log_run_end(inc: loop.Incident) -> None:
     """One line per finished run on the Logs page. Before, that page logged
     only failures and startup, so a busy healthy day looked like a dead one.
@@ -684,25 +720,38 @@ class LoopRunner:
                         repair_values=self.repair_values(),
                         baseline=self.baseline_doc(),
                     )
+                    # Park the plan and free the slot BEFORE the result is
+                    # visible. The status used to be stored first and the slot
+                    # freed last, with the store writes in between, so an
+                    # approve that read AWAITING_APPROVAL at once got 409 (not
+                    # parked yet, or a run still in flight). The bench does
+                    # exactly that, and lost a heal to it (2026-11-19). The
+                    # target work is finished here; what follows only writes
+                    # the store, so another run may safely start meanwhile.
+                    with self._lock:
+                        if result.status is loop.IncidentStatus.AWAITING:
+                            # The human now has the plan, the risk tier, the
+                            # pre-state and the inverse, which is everything the
+                            # approval dialog needs (DESIGN_SYSTEM §7.7).
+                            self._awaiting[incident_id] = {
+                                "baseline_value": baseline_value,
+                                "policy": policy,
+                                # How this plan was DERIVED, so approving it
+                                # re-derives it the same way. See `approve()`.
+                                "use_rca": use_rca,
+                                # WHAT the operator is about to be shown, so the
+                                # approval binds to it (ADR 0025).
+                                "plan": loop.ApprovedPlan.of(result),
+                                "at": datetime.now(UTC).isoformat(timespec="seconds"),
+                            }
+                        self._running = ""
                     self._remember(result)
                     telemetry.record_incident(result)
                     if result.decision:
                         self.store.save_decision(incident_id, result.decision)
-                    if result.status is loop.IncidentStatus.AWAITING:
-                        # Park it. The human now has the plan, the risk tier, the
-                        # pre-state and the inverse, which is everything the
-                        # approval dialog needs (DESIGN_SYSTEM §7.7).
-                        self._awaiting[incident_id] = {
-                            "baseline_value": baseline_value,
-                            "policy": policy,
-                            # How this plan was DERIVED, so approving it re-derives
-                            # it the same way. See `approve()`.
-                            "use_rca": use_rca,
-                            # WHAT the operator is about to be shown, so the
-                            # approval binds to it (ADR 0025).
-                            "plan": loop.ApprovedPlan.of(result),
-                            "at": datetime.now(UTC).isoformat(timespec="seconds"),
-                        }
+                    hypotheses = hypotheses_from(result)
+                    if hypotheses:
+                        self.store.save_hypotheses(incident_id, hypotheses)
                     ok = result.status is loop.IncidentStatus.RESOLVED
                     # A parked plan is not a failure: it waits for a person.
                     # Sent as "failed", the console drew a red cross and a
@@ -727,7 +776,10 @@ class LoopRunner:
                     publish("resolve", "failed", inc.escalation_reason)
                 finally:
                     with self._lock:
-                        self._running = ""
+                        # Only our own slot: it may already be free, and taken
+                        # by a newer run, since the result above was ready.
+                        if self._running == incident_id:
+                            self._running = ""
 
             threading.Thread(
                 target=work, name=f"kavach-loop-{incident_id}", daemon=True
