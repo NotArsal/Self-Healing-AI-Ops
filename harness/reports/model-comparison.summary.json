@@ -1,0 +1,242 @@
+{
+  "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 30,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 30,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "6/6",
+      "F06": "6/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 13.06
+  },
+  "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 19,
+    "wrong": 11,
+    "no_answer": 0,
+    "approved": 19,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 11,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "0/6",
+      "F06": "1/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 48.57
+  },
+  "cloudflare:@cf/mistralai/mistral-small-3.1-24b-instruct": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 30,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 30,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "6/6",
+      "F06": "6/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 10.66
+  },
+  "gemini:gemini-3.6-flash": {
+    "frames": 8,
+    "answered": 8,
+    "correct": 8,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 7,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 1,
+    "per_class": {
+      "F01": "3/3",
+      "F02": "1/1",
+      "F06": "3/3",
+      "F07": "1/1",
+      "F08": "0/0"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 63.14
+  },
+  "gemini:gemma-4-26b-a4b-it": {
+    "frames": 25,
+    "answered": 2,
+    "correct": 2,
+    "wrong": 0,
+    "no_answer": 23,
+    "approved": 2,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "0/5",
+      "F02": "1/5",
+      "F06": "1/5",
+      "F07": "0/4",
+      "F08": "0/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 174.43
+  },
+  "gemini:gemma-4-31b-it": {
+    "frames": 26,
+    "answered": 26,
+    "correct": 26,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 26,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "5/5",
+      "F02": "5/5",
+      "F06": "5/5",
+      "F07": "6/6",
+      "F08": "5/5"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 35.59
+  },
+  "groq:openai/gpt-oss-120b": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 30,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 30,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "6/6",
+      "F06": "6/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "24/24",
+    "median_latency_s": 5.98
+  },
+  "groq:openai/gpt-oss-20b": {
+    "frames": 30,
+    "answered": 22,
+    "correct": 22,
+    "wrong": 0,
+    "no_answer": 8,
+    "approved": 22,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "5/6",
+      "F02": "6/6",
+      "F06": "2/6",
+      "F07": "5/6",
+      "F08": "4/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 2.7
+  },
+  "groq:qwen/qwen3.8-27b": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 30,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 30,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "6/6",
+      "F06": "6/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 1.78
+  },
+  "ollama:llama3.2": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 11,
+    "wrong": 19,
+    "no_answer": 0,
+    "approved": 10,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 19,
+    "right_but_refused": 1,
+    "per_class": {
+      "F01": "0/6",
+      "F02": "5/6",
+      "F06": "6/6",
+      "F07": "0/6",
+      "F08": "0/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 4.34
+  },
+  "ollama:qwen2.5:7b-instruct": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 22,
+    "wrong": 8,
+    "no_answer": 0,
+    "approved": 22,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 8,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "2/6",
+      "F06": "6/6",
+      "F07": "2/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "6/6",
+    "median_latency_s": 9.03
+  },
+  "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free": {
+    "frames": 30,
+    "answered": 28,
+    "correct": 28,
+    "wrong": 0,
+    "no_answer": 2,
+    "approved": 28,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "5/6",
+      "F06": "5/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 29.95
+  }
+}

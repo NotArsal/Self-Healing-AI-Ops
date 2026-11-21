@@ -1,0 +1,56 @@
+1 stored rows dropped: another day's run under a reused ID
+30 frames pinned in model-comparison.frames.json
+== groq:openai/gpt-oss-20b: 8 to run
+   INC-070746 truth=F01 got=F01 approved=True
+   INC-123223 truth=F06 got=F06 approved=True
+   INC-174010 truth=F06 got=F06 approved=True
+   INC-201434 truth=F06 got=F06 approved=True
+   INC-230633 truth=F06 got=F06 approved=True
+   INC-20261118-233405 truth=F07 got=F07 approved=True
+   INC-110942 truth=F08 got=F08 approved=True
+   INC-162940 truth=F08 got=F08 approved=True
+== openrouter:nvidia/nemotron-3-ultra-550b-a55b:free: 2 to run
+   INC-091224 truth=F02 got=F02 approved=True
+   INC-123223 truth=F06 got=F06 approved=True
+{
+  "groq:openai/gpt-oss-20b": {
+    "frames": 8,
+    "answered": 8,
+    "correct": 8,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 8,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "1/1",
+      "F02": "0/0",
+      "F06": "4/4",
+      "F07": "1/1",
+      "F08": "2/2"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 3.34
+  },
+  "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free": {
+    "frames": 2,
+    "answered": 2,
+    "correct": 2,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 2,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "0/0",
+      "F02": "1/1",
+      "F06": "1/1",
+      "F07": "0/0",
+      "F08": "0/0"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 41.88
+  }
+}

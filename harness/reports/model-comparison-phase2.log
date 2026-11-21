@@ -1,0 +1,114 @@
+[2026-11-20T21:00:01Z] waiting for the night bench to finish (its done file)
+[2026-11-21T06:00:10Z] bench finished: bench_rc=0 make_check_rc=0 corpus=30/2
+[2026-11-21T06:00:10Z] keep-awake helper started
+[2026-11-21T06:00:10Z] comparison: 12 models x 30 frames, resuming
+1 stored rows dropped: another day's run under a reused ID
+112 stored frames with a known injected fault; 30 sampled (6 per class, seed 20261121)
+== groq:openai/gpt-oss-20b: 30 to run
+   INC-070746 truth=F01 got=None approved=False  ERR LLM call failed: groq returned HTTP 400: {"error":{"message"
+   INC-111722 truth=F01 got=F01 approved=True
+   INC-112715 truth=F01 got=F01 approved=True
+   INC-142748 truth=F01 got=F01 approved=True
+   INC-193551 truth=F01 got=F01 approved=True
+   INC-20261118-192730 truth=F01 got=F01 approved=True
+   INC-033057 truth=F02 got=F02 approved=True
+   INC-092731 truth=F02 got=F02 approved=True
+   INC-173533 truth=F02 got=F02 approved=True
+   INC-194616 truth=F02 got=F02 approved=True
+   INC-200732 truth=F02 got=F02 approved=True
+   INC-20261121-015432 truth=F02 got=F02 approved=True
+   INC-041422 truth=F06 got=F06 approved=True
+   INC-060621 truth=F06 got=F06 approved=True
+   INC-101543 truth=F06 got=None approved=False  ERR LLM call failed: groq returned HTTP 400: {"error":{"message"
+   INC-102124 truth=F06 got=None approved=False  ERR LLM call failed: groq returned HTTP 400: {"error":{"message"
+   INC-122042 truth=F06 got=None approved=False  ERR LLM call failed: groq returned HTTP 400: {"error":{"message"
+   INC-20261120-235419 truth=F06 got=None approved=False  ERR LLM call failed: groq returned HTTP 400: {"error":{"message"
+   INC-122220 truth=F07 got=F07 approved=True
+   INC-132707 truth=F07 got=None approved=False  ERR LLM call failed: groq returned HTTP 400: {"error":{"message"
+   INC-165415 truth=F07 got=F07 approved=True
+   INC-20261121-004812 truth=F07 got=F07 approved=True
+   INC-20261121-050440 truth=F07 got=None approved=False  ERR LLM call failed: groq returned HTTP 400: {"error":{"message"
+   INC-210415 truth=F07 got=F07 approved=True
+   INC-051445 truth=F08 got=F08 approved=True
+   INC-131427 truth=F08 got=None approved=False  ERR LLM call failed: groq returned HTTP 400: {"error":{"message"
+   INC-184030 truth=F08 got=None approved=False  ERR LLM call failed: groq returned HTTP 400: {"error":{"message"
+   INC-192306 truth=F08 got=F08 approved=True
+   INC-204651 truth=F08 got=F08 approved=True
+   INC-211458 truth=F08 got=None approved=False  ERR LLM call failed: groq returned HTTP 400: {"error":{"message"
+== groq:openai/gpt-oss-120b: 30 to run
+   INC-070746 truth=F01 got=F01 approved=True
+   INC-111722 truth=F01 got=F01 approved=True
+   INC-112715 truth=F01 got=F01 approved=True
+   INC-142748 truth=F01 got=F01 approved=True
+   INC-193551 truth=F01 got=F01 approved=True
+   INC-20261118-192730 truth=F01 got=F01 approved=True
+   INC-033057 truth=F02 got=F02 approved=True
+   INC-092731 truth=F02 got=F02 approved=True
+   INC-173533 truth=F02 got=F02 approved=True
+   INC-194616 truth=F02 got=F02 approved=True
+   INC-200732 truth=F02 got=F02 approved=True
+   INC-20261121-015432 truth=F02 got=F02 approved=True
+   INC-041422 truth=F06 got=F06 approved=True
+   INC-060621 truth=F06 got=F06 approved=True
+   INC-101543 truth=F06 got=F06 approved=True
+   INC-102124 truth=F06 got=F06 approved=True
+   INC-122042 truth=F06 got=F06 approved=True
+   INC-20261120-235419 truth=F06 got=F06 approved=True
+   INC-122220 truth=F07 got=F07 approved=True
+   INC-132707 truth=F07 got=F07 approved=True
+   INC-165415 truth=F07 got=F07 approved=True
+   INC-20261121-004812 truth=F07 got=F07 approved=True
+   INC-20261121-050440 truth=F07 got=F07 approved=True
+   INC-210415 truth=F07 got=F07 approved=True
+   INC-051445 truth=F08 got=F08 approved=True
+   INC-131427 truth=F08 got=F08 approved=True
+   INC-184030 truth=F08 got=F08 approved=True
+   INC-192306 truth=F08 got=F08 approved=True
+   INC-204651 truth=F08 got=F08 approved=True
+   INC-211458 truth=F08 got=F08 approved=True
+== groq:qwen/qwen3.8-27b: 30 to run
+   INC-070746 truth=F01 got=F01 approved=True
+   INC-111722 truth=F01 got=F01 approved=True
+   INC-112715 truth=F01 got=F01 approved=True
+   INC-142748 truth=F01 got=F01 approved=True
+   INC-193551 truth=F01 got=F01 approved=True
+   INC-20261118-192730 truth=F01 got=F01 approved=True
+   INC-033057 truth=F02 got=F02 approved=True
+   INC-092731 truth=F02 got=F02 approved=True
+   INC-173533 truth=F02 got=F02 approved=True
+   INC-194616 truth=F02 got=F02 approved=True
+   INC-200732 truth=F02 got=F02 approved=True
+   INC-20261121-015432 truth=F02 got=F02 approved=True
+   INC-041422 truth=F06 got=F06 approved=True
+   INC-060621 truth=F06 got=F06 approved=True
+   INC-101543 truth=F06 got=F06 approved=True
+   INC-102124 truth=F06 got=F06 approved=True
+   INC-122042 truth=F06 got=F06 approved=True
+   INC-20261120-235419 truth=F06 got=F06 approved=True
+   INC-122220 truth=F07 got=F07 approved=True
+   INC-132707 truth=F07 got=F07 approved=True
+   INC-165415 truth=F07 got=F07 approved=True
+   INC-20261121-004812 truth=F07 got=F07 approved=True
+   INC-20261121-050440 truth=F07 got=F07 approved=True
+   INC-210415 truth=F07 got=F07 approved=True
+   INC-051445 truth=F08 got=F08 approved=True
+   INC-131427 truth=F08 got=F08 approved=True
+   INC-184030 truth=F08 got=F08 approved=True
+   INC-192306 truth=F08 got=F08 approved=True
+   INC-204651 truth=F08 got=F08 approved=True
+   INC-211458 truth=F08 got=F08 approved=True
+== gemini:gemma-4-31b-it: 30 to run
+   INC-070746 truth=F01 got=F01 approved=True
+   INC-111722 truth=F01 got=None approved=False  ERR LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-112715 truth=F01 got=None approved=False  ERR LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-142748 truth=F01 got=None approved=False  ERR LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-193551 truth=F01 got=F01 approved=True
+   INC-20261118-192730 truth=F01 got=F01 approved=True
+   INC-033057 truth=F02 got=F02 approved=True
+   INC-092731 truth=F02 got=None approved=False  ERR LLM call failed: gemini call failed: <urlopen error [Errno 1

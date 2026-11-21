@@ -1,0 +1,1017 @@
+[2026-11-21T07:07:34Z] pass 1: 12 models x the 30 pinned frames, resuming
+1 stored rows dropped: another day's run under a reused ID
+30 frames pinned in model-comparison.frames.json
+== groq:openai/gpt-oss-20b: 22 to run
+   INC-055312 truth=F01 got=F01 approved=True
+   INC-165732 truth=F01 got=F01 approved=True
+   INC-011519 truth=F02 got=F02 approved=True
+   INC-071232 truth=F02 got=F02 approved=True
+   INC-080759 truth=F02 got=F02 approved=True
+   INC-091224 truth=F02 got=F02 approved=True
+   INC-20261118-193457 truth=F02 got=F02 approved=True
+   INC-123223 truth=F06 got=None approved=False  ERR LLM call failed: groq returned HTTP 400: {"error":{"message"
+   INC-174010 truth=F06 got=None approved=False  ERR LLM call failed: groq returned HTTP 400: {"error":{"message"
+   INC-201434 truth=F06 got=None approved=False  ERR LLM call failed: groq returned HTTP 400: {"error":{"message"
+   INC-203711 truth=F06 got=F06 approved=True
+   INC-230633 truth=F06 got=None approved=False  ERR LLM call failed: groq returned HTTP 400: {"error":{"message"
+   INC-042758 truth=F07 got=F07 approved=True
+   INC-065351 truth=F07 got=F07 approved=True
+   INC-101720 truth=F07 got=F07 approved=True
+   INC-102635 truth=F07 got=F07 approved=True
+   INC-20261118-233405 truth=F07 got=None approved=False  ERR LLM call failed: groq returned HTTP 400: {"error":{"message"
+   INC-110942 truth=F08 got=None approved=False  ERR LLM call failed: groq returned HTTP 400: {"error":{"message"
+   INC-112215 truth=F08 got=F08 approved=True
+   INC-133240 truth=F08 got=F08 approved=True
+   INC-162940 truth=F08 got=None approved=False  ERR LLM call failed: groq returned HTTP 400: {"error":{"message"
+   INC-20261118-212914 truth=F08 got=F08 approved=True
+== groq:openai/gpt-oss-120b: 22 to run
+   INC-055312 truth=F01 got=F01 approved=True
+   INC-165732 truth=F01 got=F01 approved=True
+   INC-011519 truth=F02 got=F02 approved=True
+   INC-071232 truth=F02 got=F02 approved=True
+   INC-080759 truth=F02 got=F02 approved=True
+   INC-091224 truth=F02 got=F02 approved=True
+   INC-20261118-193457 truth=F02 got=F02 approved=True
+   INC-123223 truth=F06 got=F06 approved=True
+   INC-174010 truth=F06 got=F06 approved=True
+   INC-201434 truth=F06 got=F06 approved=True
+   INC-203711 truth=F06 got=F06 approved=True
+   INC-230633 truth=F06 got=F06 approved=True
+   INC-042758 truth=F07 got=F07 approved=True
+   INC-065351 truth=F07 got=F07 approved=True
+   INC-101720 truth=F07 got=F07 approved=True
+   INC-102635 truth=F07 got=F07 approved=True
+   INC-20261118-233405 truth=F07 got=F07 approved=True
+   INC-110942 truth=F08 got=F08 approved=True
+   INC-112215 truth=F08 got=F08 approved=True
+   INC-133240 truth=F08 got=F08 approved=True
+   INC-162940 truth=F08 got=F08 approved=True
+   INC-20261118-212914 truth=F08 got=F08 approved=True
+== groq:qwen/qwen3.8-27b: 22 to run
+   INC-055312 truth=F01 got=F01 approved=True
+   INC-165732 truth=F01 got=F01 approved=True
+   INC-011519 truth=F02 got=F02 approved=True
+   INC-071232 truth=F02 got=F02 approved=True
+   INC-080759 truth=F02 got=F02 approved=True
+   INC-091224 truth=F02 got=F02 approved=True
+   INC-20261118-193457 truth=F02 got=F02 approved=True
+   INC-123223 truth=F06 got=F06 approved=True
+   INC-174010 truth=F06 got=F06 approved=True
+   INC-201434 truth=F06 got=F06 approved=True
+   INC-203711 truth=F06 got=F06 approved=True
+   INC-230633 truth=F06 got=F06 approved=True
+   INC-042758 truth=F07 got=F07 approved=True
+   INC-065351 truth=F07 got=F07 approved=True
+   INC-101720 truth=F07 got=F07 approved=True
+   INC-102635 truth=F07 got=F07 approved=True
+   INC-20261118-233405 truth=F07 got=F07 approved=True
+   INC-110942 truth=F08 got=F08 approved=True
+   INC-112215 truth=F08 got=F08 approved=True
+   INC-133240 truth=F08 got=F08 approved=True
+   INC-162940 truth=F08 got=F08 approved=True
+   INC-20261118-212914 truth=F08 got=F08 approved=True
+== gemini:gemma-4-31b-it: 28 to run
+   INC-055312 truth=F01 got=F01 approved=True
+   INC-111722 not recorded, provider unavailable: LLM call failed: gemini call failed: <urlopen error [Errno 1
+   INC-112715 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-165732 truth=F01 got=F01 approved=True
+   INC-011519 truth=F02 got=F02 approved=True
+   INC-071232 truth=F02 got=F02 approved=True
+   INC-080759 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-091224 not recorded, provider unavailable: LLM call failed: gemini call failed: <urlopen error [WinErro
+   INC-092731 truth=F02 got=F02 approved=True
+   INC-20261118-193457 truth=F02 got=F02 approved=True
+   INC-041422 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-123223 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-174010 truth=F06 got=F06 approved=True
+   INC-201434 truth=F06 got=F06 approved=True
+   INC-203711 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-230633 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-042758 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-065351 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-101720 truth=F07 got=F07 approved=True
+   INC-102635 truth=F07 got=F07 approved=True
+   INC-20261118-233405 truth=F07 got=F07 approved=True
+   INC-210415 truth=F07 got=F07 approved=True
+   INC-110942 truth=F08 got=F08 approved=True
+   INC-112215 truth=F08 got=F08 approved=True
+   INC-133240 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-162940 truth=F08 got=F08 approved=True
+   INC-20261118-212914 truth=F08 got=F08 approved=True
+   INC-204651 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+== gemini:gemma-4-26b-a4b-it: 30 to run
+   INC-055312 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-070746 truth=F01 got=None approved=False  ERR LLM call failed: unexpected gemini response shape: {'choices
+   INC-111722 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-112715 truth=F01 got=None approved=False  ERR LLM call failed: unexpected gemini response shape: {'choices
+   INC-165732 truth=F01 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-20261118-192730 truth=F01 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-011519 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-071232 truth=F02 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-080759 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-091224 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-092731 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-20261118-193457 truth=F02 got=None approved=False  ERR LLM call failed: unexpected gemini response shape: {'choices
+[2026-11-21T09:55:44Z] pass 1: 12 models x the 30 pinned frames, resuming
+2026-11-21 15:25:55 [warning  ] incident store unavailable     error="OperationalError: (psycopg.errors.ConnectionTimeout) connection timeout expired\nMultiple connection attempts failed. All failures were:\n- host: 'localhost', port: 5433, hostaddr: '::1': connection timeout expired\n- host: 'localhost', port: 5433, hostaddr: '127.0.0.1': connection timeout expired\n(Background on this error at: https://sqlalche.me/e/21/e3q8)"
+incident store unavailable: OperationalError: (psycopg.errors.ConnectionTimeout) connection timeout expired
+Multiple connection attempts failed. All failures were:
+- host: 'localhost', port: 5433, hostaddr: '::1': connection timeout expired
+- host: 'localhost', port: 5433, hostaddr: '127.0.0.1': connection timeout expired
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+[2026-11-21T09:55:55Z] pass 1 exit 1
+[2026-11-21T10:02:10Z] pass 1: 12 models x the 30 pinned frames, resuming
+1 stored rows dropped: another day's run under a reused ID
+30 frames pinned in model-comparison.frames.json
+== groq:openai/gpt-oss-20b: 0 to run
+== groq:openai/gpt-oss-120b: 0 to run
+== groq:qwen/qwen3.8-27b: 0 to run
+== gemini:gemma-4-31b-it: 12 to run
+   INC-111722 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-112715 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-080759 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-091224 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-041422 truth=F06 got=F06 approved=True
+   INC-123223 truth=F06 got=F06 approved=True
+   INC-203711 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-230633 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-042758 truth=F07 got=F07 approved=True
+   INC-065351 truth=F07 got=F07 approved=True
+   INC-133240 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-204651 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+== gemini:gemma-4-26b-a4b-it: 24 to run
+   INC-055312 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-111722 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-011519 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-080759 truth=F02 got=F02 approved=True
+   INC-091224 truth=F02 got=None approved=False  ERR LLM call failed: unexpected gemini response shape: {'choices
+   INC-092731 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-041422 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-123223 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-174010 truth=F06 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-201434 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-203711 truth=F06 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-230633 truth=F06 got=F06 approved=True
+   INC-042758 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-065351 truth=F07 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-101720 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-102635 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-20261118-233405 truth=F07 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-210415 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-110942 truth=F08 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-112215 truth=F08 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-133240 truth=F08 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-162940 truth=F08 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-20261118-212914 truth=F08 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-204651 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+== gemini:gemini-3.6-flash: 30 to run
+   INC-055312 truth=F01 got=F01 approved=False
+   INC-070746 truth=F01 got=F01 approved=True
+   INC-111722 truth=F01 got=F01 approved=True
+   INC-112715 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-165732 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-20261118-192730 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-011519 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-071232 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-080759 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-091224 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-092731 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-20261118-193457 truth=F02 got=F02 approved=True
+   INC-041422 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-123223 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-174010 truth=F06 got=F06 approved=True
+   INC-201434 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-203711 truth=F06 got=F06 approved=True
+   INC-230633 truth=F06 got=F06 approved=True
+   INC-042758 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-065351 truth=F07 got=F07 approved=True
+   INC-101720 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-102635 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-20261118-233405 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-210415 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-110942 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-112215 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-133240 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-162940 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-20261118-212914 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-204651 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+== cloudflare:@cf/mistralai/mistral-small-3.1-24b-instruct: 30 to run
+   INC-055312 truth=F01 got=F01 approved=True
+   INC-070746 truth=F01 got=F01 approved=True
+   INC-111722 truth=F01 got=F01 approved=True
+   INC-112715 truth=F01 got=F01 approved=True
+   INC-165732 truth=F01 got=F01 approved=True
+   INC-20261118-192730 truth=F01 got=F01 approved=True
+   INC-011519 truth=F02 got=F02 approved=True
+   INC-071232 truth=F02 got=F02 approved=True
+   INC-080759 truth=F02 got=F02 approved=True
+   INC-091224 truth=F02 got=F02 approved=True
+   INC-092731 truth=F02 got=F02 approved=True
+   INC-20261118-193457 truth=F02 got=F02 approved=True
+   INC-041422 truth=F06 got=F06 approved=True
+   INC-123223 truth=F06 got=F06 approved=True
+   INC-174010 truth=F06 got=F06 approved=True
+   INC-201434 truth=F06 got=F06 approved=True
+   INC-203711 truth=F06 got=F06 approved=True
+   INC-230633 truth=F06 got=F06 approved=True
+   INC-042758 truth=F07 got=F07 approved=True
+   INC-065351 truth=F07 got=F07 approved=True
+   INC-101720 truth=F07 got=F07 approved=True
+   INC-102635 truth=F07 got=F07 approved=True
+   INC-20261118-233405 truth=F07 got=F07 approved=True
+   INC-210415 truth=F07 got=F07 approved=True
+   INC-110942 truth=F08 got=F08 approved=True
+   INC-112215 truth=F08 got=F08 approved=True
+   INC-133240 truth=F08 got=F08 approved=True
+   INC-162940 truth=F08 got=F08 approved=True
+   INC-20261118-212914 truth=F08 got=F08 approved=True
+   INC-204651 truth=F08 got=F08 approved=True
+== cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast: 0 to run
+== cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct: 0 to run
+== openrouter:nvidia/nemotron-3-ultra-550b-a55b:free: 0 to run
+== ollama:llama3.2: 30 to run
+   INC-055312 truth=F01 got=F06 approved=False
+   INC-070746 truth=F01 got=F06 approved=False
+   INC-111722 truth=F01 got=F06 approved=False
+   INC-112715 truth=F01 got=F06 approved=False
+   INC-165732 truth=F01 got=F06 approved=False
+   INC-20261118-192730 truth=F01 got=F06 approved=False
+   INC-011519 truth=F02 got=F02 approved=True
+   INC-071232 truth=F02 got=F02 approved=True
+   INC-080759 truth=F02 got=F02 approved=True
+   INC-091224 truth=F02 got=F02 approved=True
+   INC-092731 truth=F02 got=F02 approved=True
+   INC-20261118-193457 truth=F02 got=F08 approved=False
+   INC-041422 truth=F06 got=F06 approved=False
+   INC-123223 truth=F06 got=F06 approved=True
+   INC-174010 truth=F06 got=F06 approved=True
+   INC-201434 truth=F06 got=F06 approved=True
+   INC-203711 truth=F06 got=F06 approved=True
+   INC-230633 truth=F06 got=F06 approved=True
+   INC-042758 truth=F07 got=F06 approved=False
+   INC-065351 truth=F07 got=F08 approved=False
+   INC-101720 truth=F07 got=F02 approved=False
+   INC-102635 truth=F07 got=F06 approved=False
+   INC-20261118-233405 truth=F07 got=F06 approved=False
+   INC-210415 truth=F07 got=F06 approved=False
+   INC-110942 truth=F08 got=F06 approved=False
+   INC-112215 truth=F08 got=F02 approved=False
+   INC-133240 truth=F08 got=F02 approved=False
+   INC-162940 truth=F08 got=F06 approved=False
+   INC-20261118-212914 truth=F08 got=F02 approved=False
+   INC-204651 truth=F08 got=F02 approved=False
+== ollama:qwen2.5:7b-instruct: 30 to run
+   INC-055312 truth=F01 got=F01 approved=True
+   INC-070746 truth=F01 got=F01 approved=True
+   INC-111722 truth=F01 got=F01 approved=True
+   INC-112715 truth=F01 got=F01 approved=True
+   INC-165732 truth=F01 got=F01 approved=True
+   INC-20261118-192730 truth=F01 got=F01 approved=True
+   INC-011519 truth=F02 got=F06 approved=False
+   INC-071232 truth=F02 got=F02 approved=True
+   INC-080759 truth=F02 got=F06 approved=False
+   INC-091224 truth=F02 got=F02 approved=True
+   INC-092731 truth=F02 got=F06 approved=False
+   INC-20261118-193457 truth=F02 got=F06 approved=False
+   INC-041422 truth=F06 got=F06 approved=True
+   INC-123223 truth=F06 got=F06 approved=True
+   INC-174010 truth=F06 got=F06 approved=True
+   INC-201434 truth=F06 got=F06 approved=True
+   INC-203711 truth=F06 got=F06 approved=True
+   INC-230633 truth=F06 got=F06 approved=True
+   INC-042758 truth=F07 got=F07 approved=True
+   INC-065351 truth=F07 got=F06 approved=False
+   INC-101720 truth=F07 got=F06 approved=False
+   INC-102635 truth=F07 got=F06 approved=False
+   INC-20261118-233405 truth=F07 got=F06 approved=False
+   INC-210415 truth=F07 got=F07 approved=True
+   INC-110942 truth=F08 got=F08 approved=True
+   INC-112215 truth=F08 got=F08 approved=True
+   INC-133240 truth=F08 got=F08 approved=True
+   INC-162940 truth=F08 got=F08 approved=True
+   INC-20261118-212914 truth=F08 got=F08 approved=True
+   INC-204651 truth=F08 got=F08 approved=True
+{
+  "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 30,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 30,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "6/6",
+      "F06": "6/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 13.06
+  },
+  "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 19,
+    "wrong": 11,
+    "no_answer": 0,
+    "approved": 19,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 11,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "0/6",
+      "F06": "1/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 48.57
+  },
+  "cloudflare:@cf/mistralai/mistral-small-3.1-24b-instruct": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 30,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 30,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "6/6",
+      "F06": "6/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 10.66
+  },
+  "gemini:gemini-3.6-flash": {
+    "frames": 8,
+    "answered": 8,
+    "correct": 8,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 7,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 1,
+    "per_class": {
+      "F01": "3/3",
+      "F02": "1/1",
+      "F06": "3/3",
+      "F07": "1/1",
+      "F08": "0/0"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 63.14
+  },
+  "gemini:gemma-4-26b-a4b-it": {
+    "frames": 18,
+    "answered": 2,
+    "correct": 2,
+    "wrong": 0,
+    "no_answer": 16,
+    "approved": 2,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "0/4",
+      "F02": "1/4",
+      "F06": "1/3",
+      "F07": "0/2",
+      "F08": "0/5"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 174.28
+  },
+  "gemini:gemma-4-31b-it": {
+    "frames": 22,
+    "answered": 22,
+    "correct": 22,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 22,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "4/4",
+      "F02": "4/4",
+      "F06": "4/4",
+      "F07": "6/6",
+      "F08": "4/4"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 35.59
+  },
+  "groq:openai/gpt-oss-120b": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 30,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 30,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "6/6",
+      "F06": "6/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "24/24",
+    "median_latency_s": 5.98
+  },
+  "groq:openai/gpt-oss-20b": {
+    "frames": 30,
+    "answered": 22,
+    "correct": 22,
+    "wrong": 0,
+    "no_answer": 8,
+    "approved": 22,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "5/6",
+      "F02": "6/6",
+      "F06": "2/6",
+      "F07": "5/6",
+      "F08": "4/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 2.7
+  },
+  "groq:qwen/qwen3.8-27b": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 30,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 30,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "6/6",
+      "F06": "6/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 1.78
+  },
+  "ollama:llama3.2": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 11,
+    "wrong": 19,
+    "no_answer": 0,
+    "approved": 10,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 19,
+    "right_but_refused": 1,
+    "per_class": {
+      "F01": "0/6",
+      "F02": "5/6",
+      "F06": "6/6",
+      "F07": "0/6",
+      "F08": "0/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 4.34
+  },
+  "ollama:qwen2.5:7b-instruct": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 22,
+    "wrong": 8,
+    "no_answer": 0,
+    "approved": 22,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 8,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "2/6",
+      "F06": "6/6",
+      "F07": "2/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "6/6",
+    "median_latency_s": 9.03
+  },
+  "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free": {
+    "frames": 30,
+    "answered": 28,
+    "correct": 28,
+    "wrong": 0,
+    "no_answer": 2,
+    "approved": 28,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "5/6",
+      "F06": "5/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 29.95
+  }
+}
+[2026-11-21T12:19:40Z] pass 1 exit 0
+[2026-11-21T12:29:40Z] pass 2: 12 models x the 30 pinned frames, resuming
+1 stored rows dropped: another day's run under a reused ID
+30 frames pinned in model-comparison.frames.json
+== groq:openai/gpt-oss-20b: 0 to run
+== groq:openai/gpt-oss-120b: 0 to run
+== groq:qwen/qwen3.8-27b: 0 to run
+== gemini:gemma-4-31b-it: 8 to run
+   INC-111722 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-112715 truth=F01 got=F01 approved=True
+   INC-080759 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-091224 truth=F02 got=F02 approved=True
+   INC-203711 truth=F06 got=F06 approved=True
+   INC-230633 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-133240 truth=F08 got=F08 approved=True
+   INC-204651 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+== gemini:gemma-4-26b-a4b-it: 12 to run
+   INC-055312 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-111722 truth=F01 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-011519 truth=F02 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-092731 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-041422 truth=F06 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-123223 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-201434 truth=F06 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-042758 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-101720 truth=F07 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-102635 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 503: [{
+  "error": {
+ 
+   INC-210415 truth=F07 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-204651 truth=F08 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+== gemini:gemini-3.6-flash: 22 to run
+   INC-112715 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-165732 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-20261118-192730 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-011519 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-071232 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-080759 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-091224 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-092731 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-041422 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-123223 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-201434 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-042758 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-101720 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-102635 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-20261118-233405 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-210415 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-110942 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-112215 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-133240 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-162940 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-20261118-212914 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+   INC-204651 not recorded, provider unavailable: LLM call failed: gemini returned HTTP 429: [{
+  "error": {
+ 
+== cloudflare:@cf/mistralai/mistral-small-3.1-24b-instruct: 0 to run
+== cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast: 0 to run
+== cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct: 0 to run
+== openrouter:nvidia/nemotron-3-ultra-550b-a55b:free: 0 to run
+== ollama:llama3.2: 0 to run
+== ollama:qwen2.5:7b-instruct: 0 to run
+{
+  "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 30,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 30,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "6/6",
+      "F06": "6/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 13.06
+  },
+  "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 19,
+    "wrong": 11,
+    "no_answer": 0,
+    "approved": 19,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 11,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "0/6",
+      "F06": "1/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 48.57
+  },
+  "cloudflare:@cf/mistralai/mistral-small-3.1-24b-instruct": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 30,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 30,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "6/6",
+      "F06": "6/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 10.66
+  },
+  "gemini:gemini-3.6-flash": {
+    "frames": 8,
+    "answered": 8,
+    "correct": 8,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 7,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 1,
+    "per_class": {
+      "F01": "3/3",
+      "F02": "1/1",
+      "F06": "3/3",
+      "F07": "1/1",
+      "F08": "0/0"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 63.14
+  },
+  "gemini:gemma-4-26b-a4b-it": {
+    "frames": 25,
+    "answered": 2,
+    "correct": 2,
+    "wrong": 0,
+    "no_answer": 23,
+    "approved": 2,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "0/5",
+      "F02": "1/5",
+      "F06": "1/5",
+      "F07": "0/4",
+      "F08": "0/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 174.43
+  },
+  "gemini:gemma-4-31b-it": {
+    "frames": 26,
+    "answered": 26,
+    "correct": 26,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 26,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "5/5",
+      "F02": "5/5",
+      "F06": "5/5",
+      "F07": "6/6",
+      "F08": "5/5"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 35.59
+  },
+  "groq:openai/gpt-oss-120b": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 30,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 30,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "6/6",
+      "F06": "6/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "24/24",
+    "median_latency_s": 5.98
+  },
+  "groq:openai/gpt-oss-20b": {
+    "frames": 30,
+    "answered": 22,
+    "correct": 22,
+    "wrong": 0,
+    "no_answer": 8,
+    "approved": 22,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "5/6",
+      "F02": "6/6",
+      "F06": "2/6",
+      "F07": "5/6",
+      "F08": "4/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 2.7
+  },
+  "groq:qwen/qwen3.8-27b": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 30,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 30,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "6/6",
+      "F06": "6/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 1.78
+  },
+  "ollama:llama3.2": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 11,
+    "wrong": 19,
+    "no_answer": 0,
+    "approved": 10,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 19,
+    "right_but_refused": 1,
+    "per_class": {
+      "F01": "0/6",
+      "F02": "5/6",
+      "F06": "6/6",
+      "F07": "0/6",
+      "F08": "0/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 4.34
+  },
+  "ollama:qwen2.5:7b-instruct": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 22,
+    "wrong": 8,
+    "no_answer": 0,
+    "approved": 22,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 8,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "2/6",
+      "F06": "6/6",
+      "F07": "2/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "6/6",
+    "median_latency_s": 9.03
+  },
+  "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free": {
+    "frames": 30,
+    "answered": 28,
+    "correct": 28,
+    "wrong": 0,
+    "no_answer": 2,
+    "approved": 28,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "5/6",
+      "F06": "5/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 29.95
+  }
+}
+[2026-11-21T14:06:34Z] pass 2 exit 0
+[2026-11-21T14:06:34Z] comparison_done written
+SUCCESS: The scheduled task "Kavach model comparison pinned" was successfully deleted.
+[2026-11-21T14:06:34Z] scheduled task deleted

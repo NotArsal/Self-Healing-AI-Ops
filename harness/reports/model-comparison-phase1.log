@@ -1,0 +1,157 @@
+1 stored rows dropped: another day's run under a reused ID
+93 stored frames with a known injected fault; 30 sampled (6 per class, seed 20261121)
+== cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast: 30 to run
+   INC-055312 truth=F01 got=F01 approved=True
+   INC-070746 truth=F01 got=F01 approved=True
+   INC-111722 truth=F01 got=F01 approved=True
+   INC-112715 truth=F01 got=F01 approved=True
+   INC-165732 truth=F01 got=F01 approved=True
+   INC-20261118-192730 truth=F01 got=F01 approved=True
+   INC-011519 truth=F02 got=F02 approved=True
+   INC-071232 truth=F02 got=F02 approved=True
+   INC-080759 truth=F02 got=F02 approved=True
+   INC-091224 truth=F02 got=F02 approved=True
+   INC-092731 truth=F02 got=F02 approved=True
+   INC-20261118-193457 truth=F02 got=F02 approved=True
+   INC-041422 truth=F06 got=F06 approved=True
+   INC-123223 truth=F06 got=F06 approved=True
+   INC-174010 truth=F06 got=F06 approved=True
+   INC-201434 truth=F06 got=F06 approved=True
+   INC-203711 truth=F06 got=F06 approved=True
+   INC-230633 truth=F06 got=F06 approved=True
+   INC-042758 truth=F07 got=F07 approved=True
+   INC-065351 truth=F07 got=F07 approved=True
+   INC-101720 truth=F07 got=F07 approved=True
+   INC-102635 truth=F07 got=F07 approved=True
+   INC-20261118-233405 truth=F07 got=F07 approved=True
+   INC-210415 truth=F07 got=F07 approved=True
+   INC-110942 truth=F08 got=F08 approved=True
+   INC-112215 truth=F08 got=F08 approved=True
+   INC-133240 truth=F08 got=F08 approved=True
+   INC-162940 truth=F08 got=F08 approved=True
+   INC-20261118-212914 truth=F08 got=F08 approved=True
+   INC-204651 truth=F08 got=F08 approved=True
+== cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct: 30 to run
+   INC-055312 truth=F01 got=F01 approved=True
+   INC-070746 truth=F01 got=F01 approved=True
+   INC-111722 truth=F01 got=F01 approved=True
+   INC-112715 truth=F01 got=F01 approved=True
+   INC-165732 truth=F01 got=F01 approved=True
+   INC-20261118-192730 truth=F01 got=F01 approved=True
+   INC-011519 truth=F02 got=F01 approved=False
+   INC-071232 truth=F02 got=F01 approved=False
+   INC-080759 truth=F02 got=F01 approved=False
+   INC-091224 truth=F02 got=F01 approved=False
+   INC-092731 truth=F02 got=F01 approved=False
+   INC-20261118-193457 truth=F02 got=F01 approved=False
+   INC-041422 truth=F06 got=F08 approved=False
+   INC-123223 truth=F06 got=F08 approved=False
+   INC-174010 truth=F06 got=F06 approved=True
+   INC-201434 truth=F06 got=F08 approved=False
+   INC-203711 truth=F06 got=F08 approved=False
+   INC-230633 truth=F06 got=F08 approved=False
+   INC-042758 truth=F07 got=F07 approved=True
+   INC-065351 truth=F07 got=F07 approved=True
+   INC-101720 truth=F07 got=F07 approved=True
+   INC-102635 truth=F07 got=F07 approved=True
+   INC-20261118-233405 truth=F07 got=F07 approved=True
+   INC-210415 truth=F07 got=F07 approved=True
+   INC-110942 truth=F08 got=F08 approved=True
+   INC-112215 truth=F08 got=F08 approved=True
+   INC-133240 truth=F08 got=F08 approved=True
+   INC-162940 truth=F08 got=F08 approved=True
+   INC-20261118-212914 truth=F08 got=F08 approved=True
+   INC-204651 truth=F08 got=F08 approved=True
+== openrouter:nvidia/nemotron-3-ultra-550b-a55b:free: 30 to run
+   INC-055312 truth=F01 got=F01 approved=True
+   INC-070746 truth=F01 got=F01 approved=True
+   INC-111722 truth=F01 got=F01 approved=True
+   INC-112715 truth=F01 got=F01 approved=True
+   INC-165732 truth=F01 got=F01 approved=True
+   INC-20261118-192730 truth=F01 got=F01 approved=True
+   INC-011519 truth=F02 got=F02 approved=True
+   INC-071232 truth=F02 got=F02 approved=True
+   INC-080759 truth=F02 got=F02 approved=True
+   INC-091224 truth=F02 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-092731 truth=F02 got=F02 approved=True
+   INC-20261118-193457 truth=F02 got=F02 approved=True
+   INC-041422 truth=F06 got=F06 approved=True
+   INC-123223 truth=F06 got=None approved=False  ERR model returned text that is not JSON despite a schema constr
+   INC-174010 truth=F06 got=F06 approved=True
+   INC-201434 truth=F06 got=F06 approved=True
+   INC-203711 truth=F06 got=F06 approved=True
+   INC-230633 truth=F06 got=F06 approved=True
+   INC-042758 truth=F07 got=F07 approved=True
+   INC-065351 truth=F07 got=F07 approved=True
+   INC-101720 truth=F07 got=F07 approved=True
+   INC-102635 truth=F07 got=F07 approved=True
+   INC-20261118-233405 truth=F07 got=F07 approved=True
+   INC-210415 truth=F07 got=F07 approved=True
+   INC-110942 truth=F08 got=F08 approved=True
+   INC-112215 truth=F08 got=F08 approved=True
+   INC-133240 truth=F08 got=F08 approved=True
+   INC-162940 truth=F08 got=F08 approved=True
+   INC-20261118-212914 truth=F08 got=F08 approved=True
+   INC-204651 truth=F08 got=F08 approved=True
+{
+  "cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 30,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 30,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "6/6",
+      "F06": "6/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 13.06
+  },
+  "cloudflare:@cf/meta/llama-4-scout-17b-16e-instruct": {
+    "frames": 30,
+    "answered": 30,
+    "correct": 19,
+    "wrong": 11,
+    "no_answer": 0,
+    "approved": 19,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 11,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "0/6",
+      "F06": "1/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 48.57
+  },
+  "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free": {
+    "frames": 30,
+    "answered": 28,
+    "correct": 28,
+    "wrong": 0,
+    "no_answer": 2,
+    "approved": 28,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "6/6",
+      "F02": "5/6",
+      "F06": "5/6",
+      "F07": "6/6",
+      "F08": "6/6"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 29.95
+  }
+}

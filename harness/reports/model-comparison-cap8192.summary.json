@@ -1,0 +1,42 @@
+{
+  "groq:openai/gpt-oss-20b": {
+    "frames": 8,
+    "answered": 8,
+    "correct": 8,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 8,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "1/1",
+      "F02": "0/0",
+      "F06": "4/4",
+      "F07": "1/1",
+      "F08": "2/2"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 3.34
+  },
+  "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free": {
+    "frames": 2,
+    "answered": 2,
+    "correct": 2,
+    "wrong": 0,
+    "no_answer": 0,
+    "approved": 2,
+    "unsafe_approved_wrong": 0,
+    "wrong_caught_by_gate": 0,
+    "right_but_refused": 0,
+    "per_class": {
+      "F01": "0/0",
+      "F02": "1/1",
+      "F06": "1/1",
+      "F07": "0/0",
+      "F08": "0/0"
+    },
+    "replay_agrees_with_live": "n/a",
+    "median_latency_s": 41.88
+  }
+}
