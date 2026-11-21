@@ -248,3 +248,76 @@ def test_the_model_is_shown_the_latency_window_the_detector_decides_on() -> None
     the detector deciding on it. The latency evidence is held to the same rule."""
     assert (_window(evidence.METRIC_QUERIES["llm_generation_latency_p95"])
             == _window(latency_degradation.QUERIES["generation_p95_s"]))
+
+
+# --- 4. the second read (ADR 0033) ------------------------------------------
+#
+# The night bench of 2026-11-21 (round 5, INC-20261121-040534): the re-check
+# before an approved failover read 0 completed generations, because the
+# previous run's slow calls had just left the 2m window and its own had not yet
+# been scraped. These pin the fix: one wait for a scrape, one more read.
+
+
+@pytest.fixture
+def sleeps(monkeypatch: pytest.MonkeyPatch) -> list[float]:
+    """The real wait (20s), recorded instead of slept."""
+    import kavach.loop as loop
+
+    monkeypatch.setattr(loop, "SECOND_READ_AFTER_S", 20.0)
+    seen: list[float] = []
+    monkeypatch.setattr(time, "sleep", seen.append)
+    return seen
+
+
+def _generations_visible_after_a_wait(
+        t: FakeLatencyTarget, sleeps: list[float],
+        ever: bool = True) -> Callable[[str, str], float | None]:
+    """0 completed generations until the loop has waited, as in the bench."""
+    real = promql_for(t)
+
+    def q(url: str, expr: str) -> float | None:
+        if "increase(ragapp_llm_requests_total" in expr and not (ever and sleeps):
+            return 0.0
+        return real(url, expr)
+    return q
+
+
+def test_f02_seen_only_after_a_scrape_is_healed_on_the_second_read(
+        clock: Clock, fast_set: Path, sleeps: list[float]) -> None:
+    t = FakeLatencyTarget(clock, "slow")
+    inc = run_once(t, "http://prom", fast_set, _generations_visible_after_a_wait(t, sleeps),
+                   baseline_value=0.35, repair_values={"switch_llm_endpoint": BACKUP_URL})
+    assert inc.status is IncidentStatus.RESOLVED, inc.escalation_reason
+    assert inc.fault_class == "F02"
+    assert sleeps[0] == 20.0
+    assert inc.detection["first_read"]["verdict"] == "INSUFFICIENT_EVIDENCE"
+
+
+def test_a_second_read_that_still_finds_too_little_escalates(
+        clock: Clock, fast_set: Path, sleeps: list[float]) -> None:
+    """Fail closed: one more read, never a loop, and nothing is written."""
+    t = FakeLatencyTarget(clock, "slow")
+    inc = run_once(t, "http://prom", fast_set,
+                   _generations_visible_after_a_wait(t, sleeps, ever=False),
+                   baseline_value=0.35, repair_values={"switch_llm_endpoint": BACKUP_URL})
+    assert inc.status is IncidentStatus.ESCALATED
+    assert t.writes == []
+    assert sleeps.count(20.0) == 1
+
+
+def test_a_fault_seen_on_the_first_read_does_not_wait(
+        clock: Clock, fast_set: Path, sleeps: list[float]) -> None:
+    """F07 and F08 detect in ~14s; the wait must not land on them."""
+    t = FakeLatencyTarget(clock, "slow")
+    inc = _run(t, fast_set)
+    assert inc.status is IncidentStatus.RESOLVED
+    assert 20.0 not in sleeps
+    assert "first_read" not in inc.detection
+
+
+def test_a_passing_fast_set_does_not_wait(
+        clock: Clock, fast_set: Path, sleeps: list[float]) -> None:
+    t = FakeLatencyTarget(clock, "healthy")
+    inc = _run(t, fast_set)
+    assert inc.status is IncidentStatus.NO_FAULT
+    assert 20.0 not in sleeps

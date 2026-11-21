@@ -22,6 +22,7 @@ the whole design.
 from __future__ import annotations
 
 import contextlib
+import time
 import uuid
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field, fields
@@ -58,6 +59,11 @@ from kavach.verification import fast
 RcaStage = Callable[
     [fast.FastVerificationResult, det.Detection, float | None], RcaResult
 ]
+
+# How long detection waits before its one second read (ADR 0033): the 15s
+# `scrape_interval` in infra/prometheus.yml, plus 5s for the scrape itself to
+# land. Tests set it to 0.
+SECOND_READ_AFTER_S = 20.0
 
 # An OPTIONAL progress sink: (stage, status, message). Added in P4 so the
 # console can watch a run while it happens, because `run_once` is synchronous
@@ -411,19 +417,38 @@ def run_once(
     # `Signals` carries the target and the baseline as well as Prometheus,
     # because F08's signal is a config comparison rather than a metric. A
     # detector given a source it does not need simply ignores it.
-    detection = det.run_all(
-        det.registry.specs(),
-        det.Signals(
-            prometheus_url=prometheus_url,
-            promql=promql,
-            client=client,
-            baseline=baseline or {},
-        ),
-        pre_fast.passed,
-        pre_fast.pass_rate,
+    signals = det.Signals(
+        prometheus_url=prometheus_url,
+        promql=promql,
+        client=client,
+        baseline=baseline or {},
     )
+    detection = det.run_all(
+        det.registry.specs(), signals, pre_fast.passed, pre_fast.pass_rate)
+    # ONE SECOND READ, AND ONLY WHEN THE FIRST FOUND TOO LITTLE (ADR 0033).
+    # The fast set's own calls finish as it returns, and Prometheus collects
+    # them up to one scrape interval later, so the first read cannot see them.
+    # It sees only older calls still inside the detectors' 2m windows. Under
+    # F02, where those calls take ~85s, the previous run's calls had just left
+    # the window in the night bench of 2026-11-21: a correct, approved plan was
+    # refused on 0 completed generations. The wait applies only to a failing
+    # fast set with too little evidence, so a run that detects at once (F07,
+    # F08: ~14s) is not slowed. The same rules judge the second read; it cannot
+    # turn a failing set healthy, and a second INSUFFICIENT_EVIDENCE escalates.
+    first_read: dict[str, Any] | None = None
+    if detection.verdict is det.Verdict.INSUFFICIENT_EVIDENCE and not pre_fast.passed:
+        first_read = {"verdict": str(detection.verdict), "reasons": detection.reasons}
+        _notify(on_event, "detect", "info",
+                f"too little evidence on the first read; waiting "
+                f"{SECOND_READ_AFTER_S:.0f}s for Prometheus to collect the fast "
+                f"set's own calls, then reading once more")
+        time.sleep(SECOND_READ_AFTER_S)
+        detection = det.run_all(
+            det.registry.specs(), signals, pre_fast.passed, pre_fast.pass_rate)
     inc.detection = detection.to_dict()
     inc.detection["pre_verification"] = pre_fast.to_dict()
+    if first_read is not None:
+        inc.detection["first_read"] = first_read
     # THE INSTANT DETECTION CONCLUDED, which nothing recorded until
     # 2026-10-19 - so MTTD, a headline metric in PRD section 10, had never
     # actually been measured.

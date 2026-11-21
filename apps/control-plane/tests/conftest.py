@@ -51,6 +51,16 @@ def no_run_leaks_into_the_next_test() -> Iterator[None]:
             t.join(timeout=10)
 
 
+@pytest.fixture(autouse=True)
+def detection_does_not_really_wait(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The loop's one second read waits 20s for a Prometheus scrape (ADR 0033).
+    Offline there is no scrape to wait for, and every test that reaches an
+    undiagnosed failing set would otherwise sleep for real."""
+    import kavach.loop as loop
+
+    monkeypatch.setattr(loop, "SECOND_READ_AFTER_S", 0.0)
+
+
 def _docker_unreachable() -> str:
     """Empty string when the socket is usable, else why it is not.
 
